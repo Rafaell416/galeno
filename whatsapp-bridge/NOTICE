@@ -1,0 +1,28 @@
+Este puente (`main.go`, `go.mod`, `go.sum`) es un fork del puente Go de
+
+    lharries/whatsapp-mcp
+    https://github.com/lharries/whatsapp-mcp
+
+con licencia MIT (ver LICENSE en esta carpeta). Copyright (c) 2025 Luke Harries.
+
+Qué se trajo:
+- Solo el puente Go (`whatsapp-bridge/` en el repo original), que usa whatsmeow
+  para conectarse a WhatsApp como dispositivo vinculado y guarda el historial
+  en SQLite local.
+- No se trajo el servidor MCP en Python (`whatsapp-mcp-server/` en el
+  original): el de Galeno se escribe desde cero en Go, en el mismo binario
+  que este puente, para no empaquetar Python (ver docs/03-especificacion-v0.0.1.md §4).
+
+Qué se eliminó del puente (no comentado: borrado):
+- Toda función que envíe mensajes, archivos o notas de voz (`sendWhatsAppMessage`,
+  el handler HTTP `/api/send`, y las funciones que solo existían para prepararle
+  el audio: `analyzeOggOpus`, `placeholderWaveform`).
+- `requestHistorySync`, código sin usar que también llamaba a enviar un mensaje
+  de protocolo.
+
+El puente de Galeno es de solo lectura por estructura de código: el código que
+enviaría algo no existe, no está desactivado. Detalle de la decisión de producto
+en docs/03-especificacion-v0.0.1.md §4 y AGENTS.md.
+
+`joaohts/whatsapp-mcp` se consultó solo como referencia de UX (QR en pantalla,
+variante DMG); no se usó ni se copió código de ese proyecto.
