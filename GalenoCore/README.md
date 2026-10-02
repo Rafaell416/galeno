@@ -42,10 +42,18 @@ hook de aprobación, las skills). Probado con snapshots de árbol completo en `T
 (`GALENO_RECORD_SNAPSHOTS=1` para regrabarlos).
 
 **Slack, Gmail y Google Workspace exigen que el cliente traiga su propia app OAuth** —nunca
-Galeno—. `Sources/GalenoCore/SlackSetup/SlackManifestRenderer.swift` genera el manifiesto de
-esa app de Slack y el enlace que la crea de un clic. El `client_id` resultante (no es
-secreto) se guarda en `ToolConnection.oauthClientID`; el `client_secret` nunca entra a este
-modelo. Detalle de la decisión: `docs/03-especificacion-v0.0.1.md` §4e.
+Galeno—. Para Slack, `Sources/GalenoCore/SlackSetup/` la crea **por API, sin pantallas**:
+`SlackManifestRenderer` arma el manifiesto y `SlackAppProvisioner` llama a
+`apps.manifest.create`, que devuelve el `client_id`/`client_secret` directamente en la
+respuesta. El único paso manual que Slack no deja evitar: alguien del cliente genera, una
+vez por workspace, un token de configuración en `api.slack.com/apps` (su documentación
+confirma que no hay forma programática de arrancarlo); de ahí en adelante
+`SlackAppProvisioner.rotate(refreshToken:)` lo renueva solo.
+
+El `client_id` (no es secreto) se guarda en `ToolConnection.oauthClientID`. El
+`client_secret` **nunca entra a `AgentConfig` ni a ningún archivo generado**; pasa por
+`GalenoApp` en memoria, una sola vez, directo a `claude mcp add --client-secret`. Detalle de
+la decisión: `docs/03-especificacion-v0.0.1.md` §4e.
 
 - Es interno: el usuario nunca lo ve ni lo usa directamente.
 - No depende de la UI ni importa SwiftUI; se prueba solo.

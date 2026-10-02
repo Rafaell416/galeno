@@ -47,7 +47,7 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 | Niveles de skills | **Dos**: las nuestras y las curadas de la comunidad. Ambas revisadas por nosotros |
 | Secretos | **Nunca tocan infraestructura propia.** Todo local |
 | Stack total | Swift (app) + un binario Go (WhatsApp). Nada de Python, Node, Rust ni contenedor web |
-| App OAuth de Slack/Gmail/Google Workspace | **La trae el cliente, nunca Galeno.** Para Slack: manifiesto de un clic (`SlackManifestRenderer`, ya en `GalenoCore`). Para Google: automatización de navegador, Fase 4 (GalenoApp), riesgo aceptado. Detalle: `docs/03` §4e |
+| App OAuth de Slack/Gmail/Google Workspace | **La trae el cliente, nunca Galeno.** Para Slack: **por API, sin pantallas** (`SlackManifestRenderer` + `SlackAppProvisioner`, ya en `GalenoCore`) — el único paso manual es que el admin de Slack genere, una vez por workspace, un token de configuración (Slack no permite automatizar ni ese primer paso). Para Google: automatización de navegador, Fase 4 (GalenoApp), riesgo aceptado. Detalle: `docs/03` §4e |
 
 ### Alternativas descartadas (no proponerlas de nuevo)
 

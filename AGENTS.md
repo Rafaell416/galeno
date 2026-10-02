@@ -73,6 +73,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   puede vivir en texto plano en `AgentConfig` y en `.mcp.json` — es el caso de Slack, Gmail y
   Google Workspace, cuya app OAuth trae el propio cliente. El **`client_secret` nunca entra a
   este modelo ni a ningún archivo generado**: Claude Code lo guarda en el keychain del sistema.
+- **Única excepción, documentada a propósito:** `SlackAppProvisioner` (crea la app de Slack
+  del cliente por API) sí recibe el `client_secret` de vuelta en la respuesta de Slack, en
+  memoria. Quien lo llame tiene que entregarlo de inmediato a `claude mcp add
+  --client-secret` y descartarlo — nunca escribirlo, nunca loggearlo, nunca guardarlo en una
+  propiedad que sobreviva más de esa llamada. Sigue sin tocar infraestructura propia (no sale
+  de la máquina del usuario); es Galeno viéndolo de paso, no reteniéndolo.
 - Los fixtures de prueba usan valores falsos evidentes.
 
 ### WhatsApp
