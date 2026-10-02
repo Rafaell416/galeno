@@ -49,10 +49,12 @@ y una carpeta y genera ahí. Es una herramienta de desarrollo, **no se distribuy
 Galeno—. Para Slack, `Sources/GalenoCore/SlackSetup/` la crea **por API, sin pantallas**:
 `SlackManifestRenderer` arma el manifiesto y `SlackAppProvisioner` llama a
 `apps.manifest.create`, que devuelve el `client_id`/`client_secret` directamente en la
-respuesta. El único paso manual que Slack no deja evitar: alguien del cliente genera, una
-vez por workspace, un token de configuración en `api.slack.com/apps` (su documentación
-confirma que no hay forma programática de arrancarlo); de ahí en adelante
-`SlackAppProvisioner.rotate(refreshToken:)` lo renueva solo.
+respuesta. Lo único que Slack no deja evitar por API —generar el primer token de
+configuración en `api.slack.com/apps`, su documentación confirma que no hay forma
+programática de arrancarlo— **también lo hace la automatización de navegador de Galeno**
+(GalenoApp, Fase 4), no el usuario a mano: un solo clic en una sola pantalla, una vez por
+workspace. De ahí en adelante `SlackAppProvisioner.rotate(refreshToken:)` lo renueva solo,
+sin volver a tocar el navegador.
 
 El `client_id` (no es secreto) se guarda en `ToolConnection.oauthClientID`. El
 `client_secret` **nunca entra a `AgentConfig` ni a ningún archivo generado**; pasa por
