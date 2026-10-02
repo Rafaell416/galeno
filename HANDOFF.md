@@ -263,6 +263,8 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 - **Granola:** confirmar si borra transcripciones a las ~72 h; si es así, sincronizar pronto.
 - **Fathom:** la búsqueda lee títulos y resúmenes; la transcripción completa se pide por ID.
 - **Licencias por verificar:** plugin PM de Anthropic y `Digidai/product-manager-skills`.
+- **Protección de `main`:** pendiente. Exige GitHub Pro en un repo privado; se decidió
+  dejarlo así por ahora y sostener la regla de rama + PR por disciplina.
 - **Lista concreta de skills curadas:** sin definir.
 - **Nombres de las skills:** el contenido va en inglés, pero la lista mezcla nombres en
   inglés (`/prd`, `/groom`) y en español (`/acta`, `/seguimiento`). Falta decidir cómo se

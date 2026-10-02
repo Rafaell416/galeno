@@ -88,6 +88,9 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - No commitear ni hacer push sin que Rafa lo pida.
 - Repo: `github.com/Rafaell416/galeno` (privado), rama por defecto `main`. La única
   excepción a rama + PR fue el commit inicial.
+- **`main` no está protegida en GitHub**: la protección de ramas en repos privados exige
+  plan Pro. Nada del lado del servidor impide un push directo, así que la regla se sostiene
+  por disciplina. No la aproveches: abre un PR igual.
 
 ### Código
 
