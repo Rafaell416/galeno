@@ -36,16 +36,20 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: whatsapp-bridge/go.mod
-          # Sin dependencias todavía; activar cuando exista go.sum.
-          cache: false
+          cache-dependency-path: whatsapp-bridge/go.sum
       - run: go build ./...
+      - run: go vet ./...
       - run: go test ./...
 
       # Línea roja: el bridge de WhatsApp nunca tiene herramientas de envío.
-      # Si este paso falla, alguien las reintrodujo (o las nombró en un comentario).
+      # Si este paso falla, alguien las reintrodujo. El patrón busca los
+      # identificadores reales del puente (whatsmeow + el handler HTTP), no
+      # los nombres de las herramientas del servidor MCP en Python de upstream
+      # (send_message/send_file/send_audio_message): esos nunca aparecen en
+      # este código, así que ese patrón no habría servido de nada aquí.
       - name: sin herramientas de envío
         run: |
-          if grep -rnE "send_message|send_file|send_audio" . --include="*.go"; then
+          if grep -rnE 'client\.SendMessage\(|client\.Upload\(|/api/send|MarkRead|SendPresence|SendChatPresence' . --include="*.go"; then
             echo "::error::El bridge de WhatsApp es de solo lectura: no puede tener herramientas de envío."
             exit 1
           fi
