@@ -38,8 +38,9 @@ Límites entre carpetas:
 
 ## Comandos
 
-Las carpetas existen, pero todavía no los proyectos. Estos son los comandos previstos; corrígelos aquí en cuanto existan
-los proyectos reales.
+`GalenoCore/` y `whatsapp-bridge/` ya compilan y corren pruebas (sin comportamiento todavía).
+`GalenoApp/` aún no tiene proyecto Xcode: ese comando es el previsto. El CI corre los jobs
+`swift` y `go` en cada PR y en cada push a `main` (`.github/workflows/ci.yml`).
 
 ```bash
 # Motor
