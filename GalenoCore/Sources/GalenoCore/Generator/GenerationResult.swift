@@ -23,6 +23,17 @@ public enum GenerationWarning: Hashable, Sendable {
     case existingClaudeFileLeftAlone(path: String)
 }
 
+extension GenerationWarning: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case let .unverifiedEndpoint(tool, url):
+            "El endpoint de \(tool.rawValue) (\(url)) no está verificado; confírmalo antes de vender."
+        case let .existingClaudeFileLeftAlone(path):
+            "Ya había un \(path) sin el import de AGENTS.md; no se tocó. Revísalo a mano."
+        }
+    }
+}
+
 public enum GenerationError: Error, Equatable {
     /// Falta la carpeta de una skill seleccionada.
     case missingSkill(id: String, source: SkillSource, expectedAt: String)

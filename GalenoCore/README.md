@@ -41,6 +41,10 @@ de una carpeta destino (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.mcp
 hook de aprobación, las skills). Probado con snapshots de árbol completo en `Tests/Snapshots/`
 (`GALENO_RECORD_SNAPSHOTS=1` para regrabarlos).
 
+Para probarlo a mano sin escribir Swift, `swift run galeno-gen` toma un `AgentConfig` en JSON
+y una carpeta y genera ahí. Es una herramienta de desarrollo, **no se distribuye**: ver
+`../docs/DEV.md`.
+
 **Slack, Gmail y Google Workspace exigen que el cliente traiga su propia app OAuth** —nunca
 Galeno—. `Sources/GalenoCore/SlackSetup/SlackManifestRenderer.swift` genera el manifiesto de
 esa app de Slack y el enlace que la crea de un clic. El `client_id` resultante (no es

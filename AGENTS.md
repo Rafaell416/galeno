@@ -42,6 +42,10 @@ Límites entre carpetas:
 `GalenoApp/` aún no tiene proyecto Xcode: ese comando es el previsto. El CI corre los jobs
 `swift` y `go` en cada PR y en cada push a `main` (`.github/workflows/ci.yml`).
 
+`GalenoCore` tiene además `galeno-gen`, una herramienta de desarrollo para probar el
+generador a mano (un `AgentConfig` en JSON → una carpeta con la config). **No se
+distribuye** —no es "la CLI del producto"—; ver `docs/DEV.md`.
+
 ```bash
 # Motor
 swift build --package-path GalenoCore
