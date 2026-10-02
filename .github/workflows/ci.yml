@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift:
+    name: swift
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: GalenoCore
+    steps:
+      - uses: actions/checkout@v5
+      - run: swift --version
+      - run: swift build
+      - run: swift test
+
+  go:
+    name: go
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: whatsapp-bridge
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: whatsapp-bridge/go.mod
+          # Sin dependencias todavía; activar cuando exista go.sum.
+          cache: false
+      - run: go build ./...
+      - run: go test ./...
+
+      # Línea roja: el bridge de WhatsApp nunca tiene herramientas de envío.
+      # Si este paso falla, alguien las reintrodujo (o las nombró en un comentario).
+      - name: sin herramientas de envío
+        run: |
+          if grep -rnE "send_message|send_file|send_audio" . --include="*.go"; then
+            echo "::error::El bridge de WhatsApp es de solo lectura: no puede tener herramientas de envío."
+            exit 1
+          fi

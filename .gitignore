@@ -22,6 +22,9 @@ bin/
 *.out
 go.work
 go.work.sum
+# El binario compilado (toma el nombre de la carpeta; ruta completa para no
+# ignorar la carpeta entera).
+/whatsapp-bridge/whatsapp-bridge
 
 # Secretos y tokens: nunca al repo
 .env

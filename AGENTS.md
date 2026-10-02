@@ -38,8 +38,9 @@ Límites entre carpetas:
 
 ## Comandos
 
-Las carpetas existen, pero todavía no los proyectos. Estos son los comandos previstos; corrígelos aquí en cuanto existan
-los proyectos reales.
+`GalenoCore/` y `whatsapp-bridge/` ya compilan y corren pruebas (sin comportamiento todavía).
+`GalenoApp/` aún no tiene proyecto Xcode: ese comando es el previsto. El CI corre los jobs
+`swift` y `go` en cada PR y en cada push a `main` (`.github/workflows/ci.yml`).
 
 ```bash
 # Motor
@@ -87,6 +88,9 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - No commitear ni hacer push sin que Rafa lo pida.
 - Repo: `github.com/Rafaell416/galeno` (privado), rama por defecto `main`. La única
   excepción a rama + PR fue el commit inicial.
+- **`main` no está protegida en GitHub**: la protección de ramas en repos privados exige
+  plan Pro. Nada del lado del servidor impide un push directo, así que la regla se sostiene
+  por disciplina. No la aproveches: abre un PR igual.
 
 ### Código
 
