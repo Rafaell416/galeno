@@ -69,6 +69,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - Ningún token del usuario se envía a infraestructura propia. No se añade telemetría,
   analítica ni backend que reciba credenciales o contenido del usuario.
 - La config generada nunca lleva tokens en texto plano: solo referencias a variables de entorno.
+- **`client_id` no es secreto** (es un identificador público, como un nombre de usuario) y sí
+  puede vivir en texto plano en `AgentConfig` y en `.mcp.json` — es el caso de Slack, Gmail y
+  Google Workspace, cuya app OAuth trae el propio cliente. El **`client_secret` nunca entra a
+  este modelo ni a ningún archivo generado**: Claude Code lo guarda en el keychain del sistema.
 - Los fixtures de prueba usan valores falsos evidentes.
 
 ### WhatsApp

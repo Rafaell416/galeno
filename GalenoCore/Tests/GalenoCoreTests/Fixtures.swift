@@ -80,7 +80,9 @@ extension AgentConfig {
                 SelectedSkill(id: "prd", source: .galeno),
                 SelectedSkill(id: "informe-slack", source: .galeno),
                 SelectedSkill(id: "acta", source: .galeno),
-                SelectedSkill(id: "phuryn/discovery-interview", source: .curated),
+                // Sin "/": un id tiene que ser un solo segmento de ruta, para
+                // que no pueda escribir fuera de .claude/skills/.
+                SelectedSkill(id: "phuryn-discovery-interview", source: .curated),
             ],
             sendingRules: {
                 var rules = SendingRules.default

@@ -1,0 +1,60 @@
+{
+  "mcpServers" : {
+    "fireflies" : {
+      "type" : "http",
+      "url" : "https://api.fireflies.ai/mcp"
+    },
+    "gmail" : {
+      "oauth" : {
+        "clientId" : "123456789012-xyz987uvw654tsr321.apps.googleusercontent.com"
+      },
+      "type" : "http",
+      "url" : "https://gmailmcp.googleapis.com/mcp/v1"
+    },
+    "google-docs" : {
+      "oauth" : {
+        "clientId" : "123456789012-abc123def456ghi789.apps.googleusercontent.com"
+      },
+      "type" : "http",
+      "url" : "https://docsmcp.googleapis.com/mcp/v1"
+    },
+    "google-drive" : {
+      "oauth" : {
+        "clientId" : "123456789012-abc123def456ghi789.apps.googleusercontent.com"
+      },
+      "type" : "http",
+      "url" : "https://drivemcp.googleapis.com/mcp/v1"
+    },
+    "google-sheets" : {
+      "oauth" : {
+        "clientId" : "123456789012-abc123def456ghi789.apps.googleusercontent.com"
+      },
+      "type" : "http",
+      "url" : "https://sheetsmcp.googleapis.com/mcp/v1"
+    },
+    "jira" : {
+      "type" : "http",
+      "url" : "https://mcp.atlassian.com/v2/mcp"
+    },
+    "notion" : {
+      "type" : "http",
+      "url" : "https://mcp.notion.com/mcp"
+    },
+    "slack" : {
+      "oauth" : {
+        "callbackPort" : 51820,
+        "clientId" : "9876543210987.9876543210987",
+        "scopes" : "channels:read groups:read channels:history groups:history search:read.public search:read.private chat:write"
+      },
+      "type" : "http",
+      "url" : "https://mcp.slack.com/mcp"
+    },
+    "whatsapp" : {
+      "args" : [
+        "mcp"
+      ],
+      "command" : "/Applications/Galeno.app/Contents/Resources/galeno-whatsapp",
+      "type" : "stdio"
+    }
+  }
+}

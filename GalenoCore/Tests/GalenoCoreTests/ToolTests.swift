@@ -51,9 +51,48 @@ final class ToolTests: XCTestCase {
         XCTAssertEqual(withoutSources, [.fireflies, .granola, .fathom])
     }
 
-    func testEveryToolHasADisplayName() {
+    func testEveryToolHasADisplayNameInBothLanguages() {
         for tool in Tool.allCases {
-            XCTAssertFalse(tool.displayName.isEmpty, "\(tool)")
+            for language in Language.allCases {
+                XCTAssertFalse(tool.displayName(in: language).isEmpty, "\(tool) en \(language)")
+            }
+        }
+    }
+
+    /// Google Workspace es el único cuyo nombre cambia de idioma; el resto son
+    /// marcas. Una vez salió "Docs y Sheets" dentro de un AGENTS.md en inglés.
+    func testOnlyGoogleWorkspaceChangesNameByLanguage() {
+        let translated = Tool.allCases.filter {
+            $0.displayName(in: .spanish) != $0.displayName(in: .english)
+        }
+
+        XCTAssertEqual(translated, [.googleWorkspace])
+    }
+
+    func testExternalSendIsOnlySlackAndGmail() {
+        let senders = Tool.allCases.filter { $0.externalSend != nil }
+
+        XCTAssertEqual(senders, [.slack, .gmail])
+        XCTAssertEqual(Tool.slack.externalSend, .slackMessage)
+        XCTAssertEqual(Tool.gmail.externalSend, .email)
+    }
+
+    func testEveryInternalWriteBelongsToExactlyOneTool() {
+        for write in InternalWrite.allCases {
+            let owners = Tool.allCases.filter { $0.internalWrites.contains(write) }
+            XCTAssertEqual(owners.count, 1, "\(write) debería tener una sola herramienta")
+        }
+        XCTAssertEqual(Tool.googleWorkspace.internalWrites, [.googleDocs, .googleSheets])
+    }
+
+    /// Una herramienta que escribe tiene que tener un destino declarado, o el
+    /// generador no sabría qué permiso ponerle.
+    func testEveryWritingToolDeclaresWhereItWrites() {
+        for tool in Tool.allCases where tool.allowsWriting {
+            XCTAssertTrue(
+                tool.externalSend != nil || !tool.internalWrites.isEmpty,
+                "\(tool) escribe pero no declara dónde"
+            )
         }
     }
 

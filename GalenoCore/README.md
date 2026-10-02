@@ -34,6 +34,19 @@ Dos líneas rojas viven en el sistema de tipos, no en la disciplina:
   constructor que ponga Slack o email en `allow`.
 - `ExternalSend` no tiene caso de WhatsApp, y `Tool.whatsapp.allowsWriting` es `false`.
 
+## El generador
+
+`Sources/GalenoCore/Generator/` convierte un `AgentConfig` en la configuración de Claude Code
+de una carpeta destino (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.mcp.json`, el
+hook de aprobación, las skills). Probado con snapshots de árbol completo en `Tests/Snapshots/`
+(`GALENO_RECORD_SNAPSHOTS=1` para regrabarlos).
+
+**Slack, Gmail y Google Workspace exigen que el cliente traiga su propia app OAuth** —nunca
+Galeno—. `Sources/GalenoCore/SlackSetup/SlackManifestRenderer.swift` genera el manifiesto de
+esa app de Slack y el enlace que la crea de un clic. El `client_id` resultante (no es
+secreto) se guarda en `ToolConnection.oauthClientID`; el `client_secret` nunca entra a este
+modelo. Detalle de la decisión: `docs/03-especificacion-v0.0.1.md` §4e.
+
 - Es interno: el usuario nunca lo ve ni lo usa directamente.
 - No depende de la UI ni importa SwiftUI; se prueba solo.
 - Nunca escribe tokens en texto plano: solo referencias a variables de entorno.

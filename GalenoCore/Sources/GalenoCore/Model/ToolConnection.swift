@@ -6,16 +6,27 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
     /// Qué lee el agente de esta herramienta.
     public var sources: SourceSelection
 
+    /// El `client_id` de la app OAuth que el propio cliente trajo, para las
+    /// herramientas que lo exigen (`tool.requiresUserProvidedOAuthClient`).
+    /// `nil` para las demás, y para esta mientras el usuario aún no la trae.
+    ///
+    /// No es secreto: es un identificador público, como un nombre de
+    /// usuario, así que puede vivir en texto plano en esta config. El
+    /// `client_secret` nunca entra a este modelo.
+    public var oauthClientID: String?
+
     public var id: Tool { tool }
 
     public init(
         tool: Tool,
         status: ConnectionStatus = .selected,
-        sources: SourceSelection = .nothing
+        sources: SourceSelection = .nothing,
+        oauthClientID: String? = nil
     ) {
         self.tool = tool
         self.status = status
         self.sources = sources
+        self.oauthClientID = oauthClientID
     }
 }
 

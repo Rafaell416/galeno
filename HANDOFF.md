@@ -47,6 +47,7 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 | Niveles de skills | **Dos**: las nuestras y las curadas de la comunidad. Ambas revisadas por nosotros |
 | Secretos | **Nunca tocan infraestructura propia.** Todo local |
 | Stack total | Swift (app) + un binario Go (WhatsApp). Nada de Python, Node, Rust ni contenedor web |
+| App OAuth de Slack/Gmail/Google Workspace | **La trae el cliente, nunca Galeno.** Para Slack: manifiesto de un clic (`SlackManifestRenderer`, ya en `GalenoCore`). Para Google: automatización de navegador, Fase 4 (GalenoApp), riesgo aceptado. Detalle: `docs/03` §4e |
 
 ### Alternativas descartadas (no proponerlas de nuevo)
 
@@ -259,7 +260,15 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 - **Dónde vive la config generada:** la spec dice "en la máquina del usuario", sin carpeta.
 - **Variables de entorno de los tokens:** dónde se guardan los valores a los que apunta `.mcp.json`.
 - **Pagos y licenciamiento:** proveedor y mecanismo de activación sin definir.
-- **MCP exactos de Slack, Notion, Jira, Gmail y Drive:** la spec no da endpoints; verificar al construir.
+- ~~MCP exactos de Slack, Notion, Jira, Gmail y Drive~~ — **resuelto** (oct 2026): todos
+  verificados contra la documentación oficial. Google Workspace resultó ser tres servidores
+  (Drive, Docs, Sheets), no uno. Ver `docs/03` §4e para el detalle y la decisión de
+  bring-your-own-app para Slack y Google.
+- **Automatización de navegador para Google** (Fase 4, GalenoApp): decidido construirla
+  —crea el proyecto y la credencial OAuth en la consola de Google en nombre del cliente—,
+  con el riesgo aceptado de que sea frágil ante cambios de esa consola y de que Google
+  detecte la sesión como automatizada en una pantalla sensible. Sin diseño todavía: es un
+  proyecto de ingeniería propio, no una extensión del motor.
 - **Granola:** confirmar si borra transcripciones a las ~72 h; si es así, sincronizar pronto.
 - **Fathom:** la búsqueda lee títulos y resúmenes; la transcripción completa se pide por ID.
 - **Licencias por verificar:** plugin PM de Anthropic y `Digidai/product-manager-skills`.
