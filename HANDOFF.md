@@ -293,4 +293,5 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 | `docs/02-perfil-pm.md` | Perfil del PM multi-proyecto, leer vs. enviar | Vigente; indica qué es v0.0.1 y qué es v0.2 |
 | `docs/03-especificacion-v0.0.1.md` | Especificación del MVP | **Fuente de verdad** |
 | `docs/04-design-system.md` | Sistema de diseño | Vigente para app y sitio |
+| `docs/DEV.md` | Cómo usar `galeno-gen`, la herramienta de desarrollo del motor | Vigente |
 | `AGENTS.md` | Guía operativa para el agente en este repo | Vigente |
