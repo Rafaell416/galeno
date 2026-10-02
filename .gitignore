@@ -1,0 +1,61 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.dSYM
+*.dSYM.zip
+*.ipa
+
+# Swift Package Manager (Package.resolved sí se commitea)
+.build/
+.swiftpm/
+
+# Go
+bin/
+*.test
+*.out
+go.work
+go.work.sum
+
+# Secretos y tokens: nunca al repo
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.token
+token.json
+tokens.json
+*.tokens.json
+credentials.json
+client_secret*.json
+*.secret
+secrets/
+
+# Datos del bridge de WhatsApp (la sesión equivale a una credencial)
+whatsapp-bridge/store/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Distribución
+*.dmg
+
+# Sitio
+node_modules/
+
+# Claude Code local
+.claude/settings.local.json
