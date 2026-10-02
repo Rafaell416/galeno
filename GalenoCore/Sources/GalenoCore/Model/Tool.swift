@@ -27,12 +27,19 @@ public enum ConnectionMethod: String, Codable, CaseIterable, Sendable {
 
 extension Tool {
     /// El nombre que el usuario ve.
-    public var displayName: String {
+    ///
+    /// Casi todos son marcas y no se traducen. El único que cambia es Google
+    /// Workspace, que se nombra por lo que el usuario reconoce.
+    public func displayName(in language: Language) -> String {
         switch self {
         case .whatsapp: "WhatsApp"
         case .slack: "Slack"
         case .notion: "Notion"
-        case .googleWorkspace: "Google Drive, Docs y Sheets"
+        case .googleWorkspace:
+            switch language {
+            case .spanish: "Google Drive, Docs y Sheets"
+            case .english: "Google Drive, Docs and Sheets"
+            }
         case .gmail: "Gmail"
         case .jira: "Jira"
         case .fireflies: "Fireflies"
@@ -77,6 +84,32 @@ extension Tool {
         case .jira: [.project]
         case .googleMeet: [.folder]
         case .fireflies, .granola, .fathom: []
+        }
+    }
+
+    /// El envío externo que pasa por esta herramienta, si lo hay.
+    ///
+    /// Son los dos canales por los que el agente le habla a otras personas, y
+    /// por eso siempre requieren aprobación humana.
+    public var externalSend: ExternalSend? {
+        switch self {
+        case .slack: .slackMessage
+        case .gmail: .email
+        case .whatsapp, .notion, .googleWorkspace, .jira,
+            .fireflies, .granola, .fathom, .googleMeet:
+            nil
+        }
+    }
+
+    /// Las escrituras internas que pasan por esta herramienta.
+    ///
+    /// Google Workspace cubre dos: Docs y Sheets.
+    public var internalWrites: [InternalWrite] {
+        switch self {
+        case .notion: [.notion]
+        case .jira: [.jira]
+        case .googleWorkspace: [.googleDocs, .googleSheets]
+        case .whatsapp, .slack, .gmail, .fireflies, .granola, .fathom, .googleMeet: []
         }
     }
 

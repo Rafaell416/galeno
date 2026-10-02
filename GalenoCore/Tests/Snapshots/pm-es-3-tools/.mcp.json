@@ -1,0 +1,19 @@
+{
+  "mcpServers" : {
+    "notion" : {
+      "type" : "http",
+      "url" : "https://mcp.notion.com/mcp"
+    },
+    "slack" : {
+      "type" : "http",
+      "url" : "https://mcp.slack.com/mcp"
+    },
+    "whatsapp" : {
+      "args" : [
+        "mcp"
+      ],
+      "command" : "/Applications/Galeno.app/Contents/Resources/galeno-whatsapp",
+      "type" : "stdio"
+    }
+  }
+}

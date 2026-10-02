@@ -1,0 +1,37 @@
+{
+  "hooks" : {
+    "PreToolUse" : [
+      {
+        "hooks" : [
+          {
+            "command" : "${CLAUDE_PROJECT_DIR}/.claude/hooks/require-external-approval.sh",
+            "type" : "command"
+          }
+        ],
+        "matcher" : "mcp__slack__.*|mcp__gmail__.*"
+      }
+    ]
+  },
+  "permissions" : {
+    "allow" : [
+      "Glob",
+      "Grep",
+      "Read",
+      "mcp__fireflies__*",
+      "mcp__google-workspace__*",
+      "mcp__notion__*",
+      "mcp__whatsapp__*"
+    ],
+    "ask" : [
+      "mcp__gmail__*",
+      "mcp__jira__*",
+      "mcp__slack__*"
+    ],
+    "deny" : [
+      "Bash",
+      "Edit",
+      "NotebookEdit",
+      "Write"
+    ]
+  }
+}

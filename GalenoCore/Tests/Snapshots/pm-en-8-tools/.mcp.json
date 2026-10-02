@@ -1,0 +1,35 @@
+{
+  "mcpServers" : {
+    "fireflies" : {
+      "type" : "http",
+      "url" : "https://api.fireflies.ai/mcp"
+    },
+    "gmail" : {
+      "type" : "http",
+      "url" : "https://mcp.google.com/gmail/mcp"
+    },
+    "google-workspace" : {
+      "type" : "http",
+      "url" : "https://mcp.google.com/workspace/mcp"
+    },
+    "jira" : {
+      "type" : "http",
+      "url" : "https://mcp.atlassian.com/v1/sse"
+    },
+    "notion" : {
+      "type" : "http",
+      "url" : "https://mcp.notion.com/mcp"
+    },
+    "slack" : {
+      "type" : "http",
+      "url" : "https://mcp.slack.com/mcp"
+    },
+    "whatsapp" : {
+      "args" : [
+        "mcp"
+      ],
+      "command" : "/Applications/Galeno.app/Contents/Resources/galeno-whatsapp",
+      "type" : "stdio"
+    }
+  }
+}
