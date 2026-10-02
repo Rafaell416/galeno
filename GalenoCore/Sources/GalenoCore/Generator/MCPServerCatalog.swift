@@ -1,11 +1,20 @@
 /// Cómo se autentica un servidor MCP.
 ///
-/// No existe un caso que lleve el valor de un token: `bearerToken` guarda el
-/// **nombre** de una variable de entorno, y el renderer escribe `${NOMBRE}`. Así
-/// no hay forma de que un token acabe en texto plano en `.mcp.json`.
+/// No existe un caso que lleve el valor de un token o de un `client_secret`.
+/// `bearerToken` guarda el **nombre** de una variable de entorno, y
+/// `oauthWithUserProvidedClient` guarda el `client_id` —que no es secreto, es
+/// un identificador público— de la app que el propio cliente registró con el
+/// proveedor. El renderer compone el JSON a partir de esto; no hay forma de
+/// que un valor secreto acabe en texto plano en `.mcp.json`.
 public enum MCPAuthentication: Hashable, Sendable {
-    /// Claude Code gestiona el OAuth; en `.mcp.json` no va nada de autenticación.
+    /// Registro dinámico de cliente: Claude Code se presenta solo ante el
+    /// servidor, sin que nadie haya creado una app de antemano. Así funcionan
+    /// Notion y Jira.
     case oauth
+    /// La app OAuth la registró el propio cliente —nunca Galeno— con el
+    /// proveedor (Slack, Google). `clientID` es ese identificador público;
+    /// `scopes`, los permisos que esa app debe pedir.
+    case oauthWithUserProvidedClient(clientID: String, scopes: [String])
     /// Cabecera `Authorization: Bearer ${nombre}`.
     case bearerToken(environmentVariable: String)
 }
@@ -24,8 +33,9 @@ public struct MCPServerDefinition: Hashable, Sendable {
     public var serverName: String
     public var transport: MCPTransport
     public var authentication: MCPAuthentication
-    /// Si el endpoint está confirmado. Los que no, salen como advertencia para
-    /// que no se nos olvide verificarlos antes de vender.
+    /// Si el endpoint está confirmado contra la documentación oficial del
+    /// proveedor. Los que no, salen como advertencia para que no se nos
+    /// olvide verificarlos antes de vender.
     public var endpointIsVerified: Bool
 
     public init(
@@ -41,81 +51,132 @@ public struct MCPServerDefinition: Hashable, Sendable {
     }
 }
 
-/// Qué servidor MCP le corresponde a cada herramienta.
+/// Qué servidor (o servidores) MCP le corresponden a cada herramienta.
+///
+/// No sabe nada de una conexión concreta del usuario: es un catálogo estático,
+/// por `Tool`. El `client_id` que el cliente trae para Slack/Gmail/Google
+/// Workspace vive en `ToolConnection`, y es el renderer quien lo combina con
+/// lo que hay aquí al momento de generar — así el catálogo se queda simple y
+/// se puede seguir probando sin nada de estado.
 public enum MCPServerCatalog {
-    /// La definición de una herramienta, o `nil` si no tiene servidor propio.
+    /// Las definiciones de una herramienta. Vacío si no tiene servidor propio:
+    /// es el caso de Google Meet, que no tiene MCP y se lee por el de Google
+    /// Workspace. Google Workspace es la única con más de una (Drive, Docs y
+    /// Sheets son tres servidores separados del lado de Google, aunque el
+    /// wizard los muestre como una sola tool).
     ///
-    /// Google Meet devuelve `nil`: no tiene MCP propio. Las transcripciones que
-    /// genera Gemini caen en Drive y se leen con el MCP de Google Workspace.
-    public static func definition(
+    /// Para Slack, Gmail y Google Workspace, `authentication` queda en
+    /// `.oauth` como relleno: el renderer la sustituye por
+    /// `.oauthWithUserProvidedClient` usando el `client_id` de la conexión.
+    public static func definitions(
         for tool: Tool,
         whatsAppBridgePath: String
-    ) -> MCPServerDefinition? {
+    ) -> [MCPServerDefinition] {
         switch tool {
         case .whatsapp:
             // El único local: el binario Go que la app empaqueta y supervisa.
             // Es de solo lectura por estructura: no tiene herramientas de envío.
-            return MCPServerDefinition(
-                serverName: "whatsapp",
-                transport: .stdio(command: whatsAppBridgePath, arguments: ["mcp"]),
-                endpointIsVerified: true
-            )
+            return [
+                MCPServerDefinition(
+                    serverName: "whatsapp",
+                    transport: .stdio(command: whatsAppBridgePath, arguments: ["mcp"]),
+                    endpointIsVerified: true
+                )
+            ]
 
         // Confirmados en la spec §4b.
         case .fireflies:
-            return MCPServerDefinition(
-                serverName: "fireflies",
-                transport: .http(url: "https://api.fireflies.ai/mcp"),
-                endpointIsVerified: true
-            )
+            return [
+                MCPServerDefinition(
+                    serverName: "fireflies",
+                    transport: .http(url: "https://api.fireflies.ai/mcp"),
+                    endpointIsVerified: true
+                )
+            ]
         case .granola:
-            return MCPServerDefinition(
-                serverName: "granola",
-                transport: .http(url: "https://mcp.granola.ai/mcp"),
-                endpointIsVerified: true
-            )
+            return [
+                MCPServerDefinition(
+                    serverName: "granola",
+                    transport: .http(url: "https://mcp.granola.ai/mcp"),
+                    endpointIsVerified: true
+                )
+            ]
         case .fathom:
-            return MCPServerDefinition(
-                serverName: "fathom",
-                transport: .http(url: "https://api.fathom.ai/mcp"),
-                endpointIsVerified: true
-            )
+            return [
+                MCPServerDefinition(
+                    serverName: "fathom",
+                    transport: .http(url: "https://api.fathom.ai/mcp"),
+                    endpointIsVerified: true
+                )
+            ]
 
-        // Sin verificar: la spec no da el endpoint y no lo hemos comprobado
-        // conectándonos. Salen como advertencia en GenerationResult.
-        case .slack:
-            return MCPServerDefinition(
-                serverName: "slack",
-                transport: .http(url: "https://mcp.slack.com/mcp"),
-                endpointIsVerified: false
-            )
         case .notion:
-            return MCPServerDefinition(
-                serverName: "notion",
-                transport: .http(url: "https://mcp.notion.com/mcp"),
-                endpointIsVerified: false
-            )
-        case .gmail:
-            return MCPServerDefinition(
-                serverName: "gmail",
-                transport: .http(url: "https://mcp.google.com/gmail/mcp"),
-                endpointIsVerified: false
-            )
-        case .googleWorkspace:
-            return MCPServerDefinition(
-                serverName: "google-workspace",
-                transport: .http(url: "https://mcp.google.com/workspace/mcp"),
-                endpointIsVerified: false
-            )
+            // Registro dinámico: confirmado contra developers.notion.com.
+            return [
+                MCPServerDefinition(
+                    serverName: "notion",
+                    transport: .http(url: "https://mcp.notion.com/mcp"),
+                    endpointIsVerified: true
+                )
+            ]
         case .jira:
-            return MCPServerDefinition(
-                serverName: "jira",
-                transport: .http(url: "https://mcp.atlassian.com/v1/sse"),
-                endpointIsVerified: false
-            )
+            // v2/mcp confirmado contra la documentación de Atlassian Rovo MCP.
+            // v1/sse (lo que tenía antes) se apaga el 30 de junio de 2026.
+            // Registro dinámico, como Notion: nadie necesita crear una app.
+            return [
+                MCPServerDefinition(
+                    serverName: "jira",
+                    transport: .http(url: "https://mcp.atlassian.com/v2/mcp"),
+                    endpointIsVerified: true
+                )
+            ]
+
+        case .slack:
+            // Confirmado contra docs.slack.dev. Requiere una app que el
+            // cliente trae (ver SlackManifestRenderer); el renderer rellena
+            // la autenticación real con el client_id de la conexión.
+            return [
+                MCPServerDefinition(
+                    serverName: "slack",
+                    transport: .http(url: "https://mcp.slack.com/mcp"),
+                    endpointIsVerified: true
+                )
+            ]
+        case .gmail:
+            // Confirmado contra developers.google.com/workspace. Igual que
+            // Slack: requiere la app propia del cliente.
+            return [
+                MCPServerDefinition(
+                    serverName: "gmail",
+                    transport: .http(url: "https://gmailmcp.googleapis.com/mcp/v1"),
+                    endpointIsVerified: true
+                )
+            ]
+        case .googleWorkspace:
+            // No es un servidor, son tres: Drive, Docs y Sheets tienen cada
+            // uno su propio endpoint del lado de Google. El wizard los
+            // muestra como una sola tool; aquí se reparten en tres entradas
+            // de .mcp.json, las tres con el mismo client_id del cliente.
+            return [
+                MCPServerDefinition(
+                    serverName: "google-drive",
+                    transport: .http(url: "https://drivemcp.googleapis.com/mcp/v1"),
+                    endpointIsVerified: true
+                ),
+                MCPServerDefinition(
+                    serverName: "google-docs",
+                    transport: .http(url: "https://docsmcp.googleapis.com/mcp/v1"),
+                    endpointIsVerified: true
+                ),
+                MCPServerDefinition(
+                    serverName: "google-sheets",
+                    transport: .http(url: "https://sheetsmcp.googleapis.com/mcp/v1"),
+                    endpointIsVerified: true
+                ),
+            ]
 
         case .googleMeet:
-            return nil
+            return []
         }
     }
 }

@@ -30,6 +30,11 @@ public enum GenerationError: Error, Equatable {
     case unsafeSkillIdentifier(String)
     /// El nombre del agente está vacío o es solo espacios.
     case emptyAgentName
+    /// Esta herramienta exige que el cliente traiga su propia app OAuth, y la
+    /// conexión no tiene un `client_id`. Esa app no es algo que Galeno pueda
+    /// generar: la crea el cliente (o, para Google, la automatización del
+    /// wizard), antes de llegar aquí.
+    case missingOAuthClient(tool: Tool)
 }
 
 extension GenerationError: CustomStringConvertible {
@@ -41,6 +46,8 @@ extension GenerationError: CustomStringConvertible {
             "El id de skill \"\(id)\" escribiría fuera de la carpeta destino."
         case .emptyAgentName:
             "El agente necesita un nombre."
+        case let .missingOAuthClient(tool):
+            "Falta el client_id de \(tool.rawValue). Esa app la trae el cliente, Galeno no puede generarla."
         }
     }
 }

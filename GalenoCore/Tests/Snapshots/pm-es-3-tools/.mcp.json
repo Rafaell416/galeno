@@ -5,6 +5,11 @@
       "url" : "https://mcp.notion.com/mcp"
     },
     "slack" : {
+      "oauth" : {
+        "callbackPort" : 51820,
+        "clientId" : "1234567890123.1234567890123",
+        "scopes" : "channels:read groups:read channels:history groups:history search:read.public search:read.private chat:write"
+      },
       "type" : "http",
       "url" : "https://mcp.slack.com/mcp"
     },

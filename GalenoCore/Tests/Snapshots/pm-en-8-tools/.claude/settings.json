@@ -18,7 +18,9 @@
       "Grep",
       "Read",
       "mcp__fireflies__*",
-      "mcp__google-workspace__*",
+      "mcp__google-docs__*",
+      "mcp__google-drive__*",
+      "mcp__google-sheets__*",
       "mcp__notion__*",
       "mcp__whatsapp__*"
     ],

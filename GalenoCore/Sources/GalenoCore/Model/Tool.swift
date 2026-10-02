@@ -113,6 +113,20 @@ extension Tool {
         }
     }
 
+    /// Si el usuario tiene que traer su propia app OAuth (su propio
+    /// `client_id`) antes de conectar esta herramienta.
+    ///
+    /// Slack y Google exigen una app registrada con el proveedor; esa app la
+    /// trae el cliente, nunca Galeno — ni siquiera el `client_id` es nuestro.
+    /// Notion y Jira no lo necesitan: su MCP registra el cliente al vuelo
+    /// (dynamic client registration), sin que nadie cree nada de antemano.
+    public var requiresUserProvidedOAuthClient: Bool {
+        switch self {
+        case .slack, .gmail, .googleWorkspace: true
+        case .whatsapp, .notion, .jira, .fireflies, .granola, .fathom, .googleMeet: false
+        }
+    }
+
     /// Las herramientas que deben estar conectadas para que esta funcione.
     ///
     /// Google Meet no tiene MCP propio: las transcripciones que genera Gemini

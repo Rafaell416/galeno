@@ -146,6 +146,29 @@ El modelo es multilingüe: un usuario hispanohablante obtiene la misma calidad q
 
 **Nota de diseño:** las fuentes del PM suelen estar mezcladas (WhatsApp en español, Jira en inglés, docs en inglés). El agente lee todo sin problema; lo que fija el idioma del **output** es la instrucción explícita en la config, no el idioma de la fuente.
 
+## 4e. Slack y Google Workspace/Gmail — la app OAuth es del cliente, nunca de Galeno
+
+Investigando los MCP reales de Slack, Notion, Google Workspace y Atlassian (oct 2026) se encontró que no todos son "solo OAuth":
+
+- **Notion y Jira** registran el cliente al vuelo (*dynamic client registration*): nadie crea nada de antemano. Endpoints confirmados: `mcp.notion.com/mcp` y `mcp.atlassian.com/v2/mcp` (la `v1/sse` que se había anotado antes se apaga el 30 de junio de 2026).
+- **Slack y Google Workspace/Gmail exigen una app registrada con el proveedor** antes de que cualquier cliente pueda conectarlos. Eso no es un token del usuario — es una credencial del fabricante del software.
+
+**Decisión: esa app la trae el propio cliente, nunca Galeno.** Coherente con "los secretos del usuario nunca tocan tu infraestructura", un paso más allá: ni el `client_id` es de Galeno. La alternativa —Galeno registra una sola app para todos los clientes— exigiría pasar la revisión del Marketplace de Slack y la verificación de scopes sensibles de Google (semanas, y una app compartida que mantener). Trayendo cada cliente la suya, ninguna de las dos hace falta.
+
+**Cómo se resuelve cada una, sin pedirle al usuario que configure nada a mano:**
+
+| | Slack | Google Workspace / Gmail |
+|---|---|---|
+| **Mecanismo** | Manifiesto de app (JSON) + un enlace que la crea de un clic: `api.slack.com/apps?new_app=1&manifest_json=...`. El usuario aprueba la instalación en la pantalla nativa de Slack y pega `Client ID`/`Client Secret` en el wizard | No existe un atajo equivalente (Google apagó en marzo de 2026 la única API parecida que existía, para un caso de uso distinto). Se resuelve con **automatización real de navegador**: la app maneja los clics de crear el proyecto y la credencial en la consola de Google, parando solo para que el usuario inicie sesión |
+| **Dónde vive** | `GalenoCore` ya genera el manifiesto y la URL (`SlackManifestRenderer`) | GalenoApp, Fase 4. Es un proyecto de ingeniería propio —construir algo tipo "computer use" dirigido a la consola de Google—, frágil ante cambios de esa consola y con riesgo real de que Google detecte la sesión como automatizada en una pantalla sensible. Se acepta ese riesgo a cambio de que el cliente no tenga que tocar la consola de Google él mismo |
+| **Qué guarda Galeno** | El `client_id` (texto plano: no es secreto). El `client_secret` nunca entra a la config generada | Igual: solo `client_id` |
+
+**Slack, además, solo soporta token de usuario.** Confirmado contra la documentación oficial: sus endpoints de autorización son específicamente para tokens de usuario (`oauth/v2_user/authorize`), y su tabla de scopes documentada es toda "user token". **Consecuencia:** todo lo que el agente haga en Slack aparece con el nombre y la foto de quien aprobó la conexión — no existe una identidad de bot separada dentro de esta integración, y construir una exigiría abandonar el MCP oficial de Slack por una integración propia. Para v0.0.1 se acepta esto tal cual: es, de hecho, un resultado natural y no un compromiso.
+
+Los scopes que v0.0.1 pide a la app de Slack del cliente (verificados contra la tabla oficial, solo lo que usa el producto): `channels:read`, `groups:read` (listar canales), `channels:history`, `groups:history` (leer historial), `search:read.public`, `search:read.private` (buscar), `chat:write` (enviar, con aprobación). Los scopes de Google quedan pendientes de verificar cuando se diseñe la automatización de Fase 4.
+
+**Google Workspace no es un servidor, son tres:** Drive, Docs y Sheets tienen cada uno su propio endpoint del lado de Google (`drivemcp`/`docsmcp`/`sheetsmcp.googleapis.com/mcp/v1`). El wizard sigue mostrando "Google Drive, Docs y Sheets" como una sola tool (§3 paso 4); por debajo, el motor escribe tres entradas en `.mcp.json`, las tres con el mismo `client_id` del cliente.
+
 ## 5. Lo que queda para después (y por qué)
 
 | Qué | Cuándo | Por qué no ahora |

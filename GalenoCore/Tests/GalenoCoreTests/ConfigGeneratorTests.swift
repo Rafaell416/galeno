@@ -94,8 +94,10 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertFalse(permissions.allow.contains("mcp__notion__*"))
     }
 
-    /// Google Workspace cubre Docs y Sheets. Si cualquiera de los dos pide
-    /// confirmación, el servidor entero va a `ask`: la regla no distingue.
+    /// Google Workspace cubre Docs y Sheets, y son tres servidores físicos
+    /// (Drive, Docs, Sheets). Si cualquiera de las dos escrituras pide
+    /// confirmación, los tres van a `ask` por igual: la regla no distingue
+    /// servidor por servidor, es una sola decisión por herramienta.
     func testGoogleWorkspaceGoesToAskIfEitherDocsOrSheetsAsks() throws {
         var config = GeneratorFixtures.englishEightTools
         config.sendingRules.setPolicy(.ask, for: .googleSheets)
@@ -103,8 +105,10 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         try generate(config)
         let permissions = try decodedPermissions()
 
-        XCTAssertTrue(permissions.ask.contains("mcp__google-workspace__*"))
-        XCTAssertFalse(permissions.allow.contains("mcp__google-workspace__*"))
+        for server in ["google-drive", "google-docs", "google-sheets"] {
+            XCTAssertTrue(permissions.ask.contains("mcp__\(server)__*"), server)
+            XCTAssertFalse(permissions.allow.contains("mcp__\(server)__*"), server)
+        }
     }
 
     /// Ninguna regla `mcp__` puede llevar paréntesis: Claude Code las descarta
@@ -176,7 +180,8 @@ final class ConfigGeneratorTests: GeneratorTestCase {
 
         let servers = try decodedMCPServerNames()
         XCTAssertFalse(servers.contains("google-meet"))
-        XCTAssertTrue(servers.contains("google-workspace"))
+        // Google Workspace son tres servidores físicos, no uno.
+        XCTAssertTrue(servers.isSuperset(of: ["google-drive", "google-docs", "google-sheets"]))
         // Pero sí se le cuenta al agente de dónde salen sus transcripciones.
         XCTAssertTrue(try contents(of: "AGENTS.md").contains("Google Meet"))
     }
@@ -294,24 +299,122 @@ final class ConfigGeneratorTests: GeneratorTestCase {
 
     /// Los endpoints que no hemos verificado salen como advertencia, para que
     /// la app los muestre y no se nos olviden antes de vender.
-    func testUnverifiedEndpointsAreReported() throws {
+    /// La investigación cerró las cinco dudas que había (Slack, Notion,
+    /// Gmail, Google Workspace, Jira): ya no queda ningún endpoint sin
+    /// verificar en el catálogo, así que esta advertencia no se dispara hoy.
+    func testNoEndpointWarningsForTheToolsWeSupport() throws {
         let result = try generate(GeneratorFixtures.englishEightTools)
 
-        let unverified: Set<Tool> = Set(
-            result.warnings.compactMap {
-                if case let .unverifiedEndpoint(tool, _) = $0 { return tool }
-                return nil
-            })
+        let unverified = result.warnings.compactMap {
+            if case let .unverifiedEndpoint(tool, _) = $0 { return tool }
+            return nil
+        }
 
-        XCTAssertEqual(unverified, [.slack, .notion, .gmail, .googleWorkspace, .jira])
-        // Los tres de la spec §4b sí están confirmados.
-        XCTAssertFalse(unverified.contains(.fireflies))
+        XCTAssertTrue(unverified.isEmpty, "\(unverified)")
+    }
+
+    /// El mecanismo en sí sigue existiendo y es constructible, aunque hoy
+    /// ningún tool real lo dispare: si algún día se añade una herramienta sin
+    /// verificar, `MCPServerDefinition.endpointIsVerified = false` basta para
+    /// que `MCPRenderer` (ver su `switch definition.transport`) añada
+    /// `.unverifiedEndpoint` a `GenerationResult.warnings`.
+    func testUnverifiedEndpointWarningIsStillConstructible() {
+        let definition = MCPServerDefinition(
+            serverName: "ejemplo",
+            transport: .http(url: "https://example.com/mcp"),
+            endpointIsVerified: false
+        )
+        let warning = GenerationWarning.unverifiedEndpoint(
+            tool: .slack, url: "https://example.com/mcp")
+
+        XCTAssertFalse(definition.endpointIsVerified)
+        XCTAssertEqual(warning, .unverifiedEndpoint(tool: .slack, url: "https://example.com/mcp"))
     }
 
     func testResultListsEveryFileWritten() throws {
         let result = try generate(GeneratorFixtures.spanishThreeTools)
 
         XCTAssertEqual(result.writtenFiles, try SnapshotSupport.filePaths(in: destination))
+    }
+
+    // MARK: - App OAuth del cliente (Slack, Gmail, Google Workspace)
+
+    /// Sin client_id, el motor no puede generar nada para estas tres: esa app
+    /// la trae el cliente, Galeno no puede inventarla.
+    func testMissingOAuthClientFailsForEachToolThatNeedsOne() throws {
+        for tool in [Tool.slack, .gmail, .googleWorkspace] {
+            var config = AgentConfig(agentName: "Galena", language: .spanish)
+            config.connections = [
+                ToolConnection(tool: tool, status: .connected, sources: .everything)
+                // oauthClientID se queda en nil a propósito.
+            ]
+
+            XCTAssertThrowsError(try generate(config), "\(tool)") { error in
+                XCTAssertEqual(error as? GenerationError, .missingOAuthClient(tool: tool))
+            }
+        }
+    }
+
+    /// Un client_id de puros espacios cuenta como ausente.
+    func testBlankOAuthClientIDFails() throws {
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [
+            ToolConnection(
+                tool: .slack, status: .connected, sources: .everything, oauthClientID: "   ")
+        ]
+
+        XCTAssertThrowsError(try generate(config)) { error in
+            XCTAssertEqual(error as? GenerationError, .missingOAuthClient(tool: .slack))
+        }
+    }
+
+    /// Notion y Jira no necesitan client_id: su registro es dinámico, así que
+    /// una conexión sin él genera sin problema.
+    func testToolsWithDynamicRegistrationDontNeedAClientID() throws {
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [
+            ToolConnection(tool: .notion, status: .connected, sources: .everything),
+            ToolConnection(tool: .jira, status: .connected, sources: .everything),
+        ]
+
+        XCTAssertNoThrow(try generate(config))
+    }
+
+    func testSlackEntryCarriesTheClientIDAndCallbackPort() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        let mcp = try decodedMCPFile()
+        let slack = try XCTUnwrap(mcp["slack"] as? [String: Any])
+        let oauth = try XCTUnwrap(slack["oauth"] as? [String: Any])
+
+        XCTAssertEqual(oauth["clientId"] as? String, "1234567890123.1234567890123")
+        XCTAssertEqual(oauth["callbackPort"] as? Int, SlackOAuth.callbackPort)
+        XCTAssertEqual(oauth["scopes"] as? String, SlackManifestRenderer.requiredScopes.joined(separator: " "))
+    }
+
+    /// Las tres entradas de Google Workspace comparten el mismo client_id: es
+    /// la misma app del cliente la que cubre Drive, Docs y Sheets.
+    func testGoogleWorkspaceServersShareTheSameClientID() throws {
+        try generate(GeneratorFixtures.englishEightTools)
+        let mcp = try decodedMCPFile()
+
+        let clientIDs = try ["google-drive", "google-docs", "google-sheets"].map { name in
+            let server = try XCTUnwrap(mcp[name] as? [String: Any])
+            let oauth = try XCTUnwrap(server["oauth"] as? [String: Any])
+            return try XCTUnwrap(oauth["clientId"] as? String)
+        }
+
+        XCTAssertEqual(Set(clientIDs).count, 1)
+    }
+
+    /// Notion y Jira se registran dinámicamente: su entrada no lleva `oauth`.
+    func testDynamicRegistrationToolsHaveNoOAuthObject() throws {
+        try generate(GeneratorFixtures.englishEightTools)
+        let mcp = try decodedMCPFile()
+
+        for name in ["notion", "jira"] {
+            let server = try XCTUnwrap(mcp[name] as? [String: Any])
+            XCTAssertNil(server["oauth"], name)
+        }
     }
 
     // MARK: - Ayudas
@@ -332,9 +435,12 @@ final class ConfigGeneratorTests: GeneratorTestCase {
     }
 
     private func decodedMCPServerNames() throws -> Set<String> {
+        Set(try decodedMCPFile().keys)
+    }
+
+    private func decodedMCPFile() throws -> [String: Any] {
         let data = try Data(contentsOf: destination.appending(path: ".mcp.json"))
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let servers = try XCTUnwrap(object["mcpServers"] as? [String: Any])
-        return Set(servers.keys)
+        return try XCTUnwrap(object["mcpServers"] as? [String: Any])
     }
 }

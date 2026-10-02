@@ -47,11 +47,14 @@ enum SettingsRenderer {
     }
 
     /// Los servidores cuyas herramientas requieren aprobación, en orden estable.
-    /// Son los que pueden hablarle a otras personas.
+    /// Son los que pueden hablarle a otras personas. Una herramienta puede
+    /// tener más de un servidor físico (Google Workspace tiene tres), aunque
+    /// hoy ninguna de las que envían externamente lo tiene.
     static func serversRequiringApproval(in config: AgentConfig) -> [String] {
         config.connectedTools
             .filter { $0.externalSend != nil }
-            .compactMap { MCPServerCatalog.definition(for: $0, whatsAppBridgePath: "")?.serverName }
+            .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
+            .map(\.serverName)
     }
 
     static func render(_ config: AgentConfig) throws -> String {
@@ -59,32 +62,33 @@ enum SettingsRenderer {
         var ask: [String] = []
 
         for tool in config.connectedTools {
-            guard
-                let server = MCPServerCatalog.definition(for: tool, whatsAppBridgePath: "")?
-                    .serverName
-            else { continue }
+            let servers = MCPServerCatalog.definitions(for: tool, whatsAppBridgePath: "")
+            guard !servers.isEmpty else { continue }  // Google Meet
 
-            let pattern = "mcp__\(server)__*"
+            // Una sola decisión por herramienta, aplicada a todos sus
+            // servidores físicos: si Sheets pide confirmación, los tres globs
+            // de Google Workspace (drive/docs/sheets) van a `ask` por igual.
+            let patterns = servers.map { "mcp__\($0.serverName)__*" }
 
             if tool.externalSend != nil {
-                // Slack y Gmail enteros: no sabemos los nombres reales de sus
-                // herramientas de envío, y dejar fuera una sola abriría un
-                // hueco por el que saldría un mensaje sin preguntar.
-                ask.append(pattern)
+                // Slack y Gmail enteros: no sabemos los nombres reales de
+                // todas sus herramientas de envío, y dejar fuera una sola
+                // abriría un hueco por el que saldría un mensaje sin preguntar.
+                ask.append(contentsOf: patterns)
                 continue
             }
 
             let writes = tool.internalWrites
             if writes.isEmpty {
                 // Servidor de solo lectura.
-                allow.append(pattern)
+                allow.append(contentsOf: patterns)
             } else if writes.contains(where: { config.sendingRules.policy(for: $0) == .ask }) {
-                // Si cualquiera de sus escrituras pide confirmación, el servidor
-                // entero va a `ask`: es lo conservador y lo único expresable,
-                // porque la regla cubre todo el servidor.
-                ask.append(pattern)
+                // Si cualquiera de sus escrituras pide confirmación, el
+                // servidor entero va a `ask`: es lo conservador y lo único
+                // expresable, porque la regla cubre todo el servidor.
+                ask.append(contentsOf: patterns)
             } else {
-                allow.append(pattern)
+                allow.append(contentsOf: patterns)
             }
         }
 
