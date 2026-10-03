@@ -40,7 +40,8 @@ Límites entre carpetas:
 
 `GalenoCore/` ya tiene comportamiento (el generador de config). `whatsapp-bridge/` también:
 el puente (lectura de WhatsApp) y las 9 herramientas MCP de solo lectura, con subcomandos
-`pair`/`serve`/`status` — ver `whatsapp-bridge/README.md`. `GalenoApp/` aún no tiene
+`pair`/`sync`/`serve`/`status`/`install-launchd` — ver `whatsapp-bridge/README.md`.
+`GalenoApp/` aún no tiene
 proyecto Xcode: ese comando es el previsto. El CI corre los jobs `swift` y `go` en cada PR y
 en cada push a `main` (`.github/workflows/ci.yml`).
 

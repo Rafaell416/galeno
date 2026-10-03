@@ -1,16 +1,72 @@
 # whatsapp-bridge
 
 Un único binario Go: el puente de WhatsApp (`whatsmeow`, QR, SQLite) y un servidor MCP de
-**solo lectura**, en el mismo proceso, con tres subcomandos.
+**solo lectura**, con cinco subcomandos.
 
 ```bash
-galeno-whatsapp pair      # Vincula este Mac con tu WhatsApp (muestra un QR)
-galeno-whatsapp serve     # Corre el servidor MCP (stdio); exige estar ya vinculado
-galeno-whatsapp status    # Dice si hay una sesión vinculada, sin conectar a WhatsApp
+galeno-whatsapp pair             # Vincula este Mac con tu WhatsApp (muestra un QR)
+galeno-whatsapp sync             # Mantiene la conexión viva de fondo; nunca sirve MCP
+galeno-whatsapp serve            # Sirve las 9 herramientas MCP por stdio; no conecta a WhatsApp
+galeno-whatsapp status           # Dice si hay una sesión vinculada, sin conectar a WhatsApp
+galeno-whatsapp install-launchd  # Instala "sync" como LaunchAgent (arranca solo tras el login)
 ```
 
 El estado (sesión y mensajes) vive en `~/Library/Application Support/Galeno/whatsapp/`, no
 en una carpeta relativa al directorio desde donde se invoque el binario.
+
+## Por qué `serve` no conecta a WhatsApp
+
+El transporte MCP por stdio lanza **un proceso nuevo por cada sesión** de Claude Code —no se
+adjunta a uno que ya esté corriendo—. Si ese proceso sostuviera su propia conexión de
+whatsmeow *y además* hubiera un proceso de fondo haciendo lo mismo (por ejemplo, vía
+`launchd`), habría dos conexiones simultáneas autenticadas como el mismo dispositivo
+vinculado — justo el tipo de cosa que WhatsApp puede marcar como anómala.
+
+Por eso la conexión y el servicio MCP son responsabilidades separadas, igual que en el
+diseño original de upstream (Python ↔ Go por HTTP, con el Go como único que conectaba):
+
+- **`sync`** es el único subcomando que llama a `client.Connect()`. Recibe mensajes y los
+  guarda en SQLite, y se queda corriendo para siempre (hasta `SIGINT`/`SIGTERM`). Pensado
+  para correr de fondo, vía `install-launchd`.
+- **`serve`** solo abre la base local y sirve las 9 herramientas MCP por stdio; nunca
+  conecta a WhatsApp. Lo lanza Claude Code, una vez por sesión — puede haber varias
+  instancias de `serve` a la vez sin ningún riesgo, porque ninguna sostiene una conexión.
+
+Consecuencia directa: si pides `download_media` para un archivo que `sync` todavía no
+descargó, `serve` no puede ir a buscarlo en vivo (no tiene conexión). La herramienta responde
+`{success: false, message: "..."}` pidiendo confirmar que `sync` esté corriendo, en vez de
+intentar conectarse por su cuenta.
+
+## El QR: en terminal y como PNG
+
+`pair` imprime el QR en la terminal (como siempre) y además lo escribe como PNG en
+`<stateDir>/pair-qr.png`, para que una interfaz gráfica (GalenoApp) lo pueda mostrar sin
+tener que parsear la salida de una terminal. whatsmeow rota el código cada ~60 s mientras no
+se escanea; cada rotación reescribe el mismo archivo. Al terminar `pair` (éxito, error o
+timeout) el PNG se borra — un QR viejo en disco no sirve para nada y podría confundir a quien
+lo esté mostrando.
+
+## `install-launchd`: mantener `sync` corriendo tras el login
+
+```bash
+galeno-whatsapp install-launchd
+```
+
+Escribe un `LaunchAgent` en `~/Library/LaunchAgents/com.galeno.whatsapp-bridge.plist` (la
+plantilla vive en `launchd.go`, función `renderLaunchdPlist`) y lo activa con
+`launchctl bootstrap gui/<uid>`. El `ProgramArguments` apunta **siempre a `sync`, nunca a
+`serve`** — ver la sección anterior sobre por qué. Es idempotente: si ya había un LaunchAgent
+instalado (por ejemplo apuntando a un binario de una versión anterior), lo desactiva primero
+(`launchctl bootout`) y lo vuelve a activar con el plist nuevo.
+
+`stdout`/`stderr` de `sync` quedan en `<stateDir>/sync.log`.
+
+El `Label` (`com.galeno.whatsapp-bridge`) es **provisional**: cuando exista el bundle ID
+definitivo de `GalenoApp`, debería alinearse con ese en vez de quedarse con este valor
+genérico.
+
+No instales esto contra una cuenta real salvo que quieras que `sync` arranque una conexión
+de verdad al vincular: pensado para que lo dispare GalenoApp después de un `pair` exitoso.
 
 ## Las 9 herramientas MCP (todas de lectura)
 
