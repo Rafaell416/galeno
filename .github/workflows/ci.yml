@@ -53,3 +53,35 @@ jobs:
             echo "::error::El bridge de WhatsApp es de solo lectura: no puede tener herramientas de envío."
             exit 1
           fi
+
+  # El job "go" corre en Linux y solo prueba el código. Este compila el binario
+  # que de verdad se empaqueta en la app: universal (arm64 + x86_64), con cgo
+  # para go-sqlite3, y por eso necesita macOS y el clang de Xcode.
+  go-universal:
+    name: go-universal
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: whatsapp-bridge
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: whatsapp-bridge/go.mod
+          cache-dependency-path: whatsapp-bridge/go.sum
+      - run: make universal
+      - name: el binario tiene arm64 y x86_64
+        run: |
+          archs="$(lipo -archs bin/galeno-whatsapp)"
+          echo "Arquitecturas: $archs"
+          for arch in arm64 x86_64; do
+            case " $archs " in
+              *" $arch "*) ;;
+              *)
+                echo "::error::El binario universal no tiene $arch (tiene: $archs)."
+                exit 1
+                ;;
+            esac
+          done
+      # Que arranque, no solo que compile: el runner corre la mitad que le toca.
+      - run: ./bin/galeno-whatsapp version
