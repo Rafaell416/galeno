@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"os/signal"
@@ -92,21 +91,20 @@ func openClient(logger waLog.Logger) (client *whatsmeow.Client, messageStore *Me
 		return nil, nil, "", err
 	}
 
+	ctx := context.Background()
 	dbLog := logger.Sub("Database")
 	whatsmeowDBPath := filepath.Join(dir, "whatsmeow.db")
-	container, err := sqlstore.New("sqlite3", fmt.Sprintf("file:%s?_foreign_keys=on", whatsmeowDBPath), dbLog)
+	container, err := sqlstore.New(ctx, "sqlite3", fmt.Sprintf("file:%s?_foreign_keys=on", whatsmeowDBPath), dbLog)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("no se pudo abrir la base de sesión: %v", err)
 	}
 
-	deviceStore, err := container.GetFirstDevice()
+	// GetFirstDevice ya crea un dispositivo nuevo internamente si no había
+	// ninguno (no devuelve sql.ErrNoRows en ese caso); no hace falta
+	// distinguir el caso "sin dispositivo" nosotros mismos.
+	deviceStore, err := container.GetFirstDevice(ctx)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			deviceStore = container.NewDevice()
-			logger.Infof("No había ningún dispositivo guardado; se crea uno nuevo")
-		} else {
-			return nil, nil, "", fmt.Errorf("no se pudo leer el dispositivo: %v", err)
-		}
+		return nil, nil, "", fmt.Errorf("no se pudo leer el dispositivo: %v", err)
 	}
 
 	client = whatsmeow.NewClient(deviceStore, logger.Sub("Client"))
