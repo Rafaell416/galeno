@@ -314,11 +314,22 @@ HOME="$(mktemp -d)" ./bin/galeno-whatsapp chats --json   # []
 
 > Esto vincula tu WhatsApp como dispositivo vinculado, de forma no oficial. Hay un riesgo bajo pero real de que WhatsApp restrinja la cuenta.
 
+Primero mira si ya hay una sesión de antes:
+
+```bash
+./bin/galeno-whatsapp status
+```
+
+- Si dice **`Vinculado como <tu número>`**, ya estás vinculado: **salta al paso 6**. Una sesión vinculada de pruebas anteriores sigue valiendo, y `pair` solo respondería `Ya hay una sesión vinculada`. Si quieres vincular desde cero de verdad, haz primero el paso 10.
+- Si dice **`Sin vincular`**, sigue aquí.
+
 ```bash
 ./bin/galeno-whatsapp pair
 ```
 
-Escanea el QR de la terminal desde WhatsApp → Ajustes → Dispositivos vinculados. También se escribe como imagen y se renueva cada ~60 s:
+`pair` se queda esperando hasta que escanees. Escanea el QR de la terminal desde WhatsApp → Ajustes → Dispositivos vinculados.
+
+Si prefieres escanearlo como imagen, abre una **segunda terminal mientras `pair` sigue esperando**. El archivo solo existe durante la espera: se renueva cada ~60 s y se borra al terminar, así que abrirlo después da `does not exist`.
 
 ```bash
 open "$HOME/Library/Application Support/Galeno/whatsapp/pair-qr.png"
