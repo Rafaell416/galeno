@@ -38,9 +38,11 @@ Límites entre carpetas:
 
 ## Comandos
 
-`GalenoCore/` y `whatsapp-bridge/` ya compilan y corren pruebas (sin comportamiento todavía).
-`GalenoApp/` aún no tiene proyecto Xcode: ese comando es el previsto. El CI corre los jobs
-`swift` y `go` en cada PR y en cada push a `main` (`.github/workflows/ci.yml`).
+`GalenoCore/` ya tiene comportamiento (el generador de config). `whatsapp-bridge/` también:
+el puente (lectura de WhatsApp) y las 9 herramientas MCP de solo lectura, con subcomandos
+`pair`/`serve`/`status` — ver `whatsapp-bridge/README.md`. `GalenoApp/` aún no tiene
+proyecto Xcode: ese comando es el previsto. El CI corre los jobs `swift` y `go` en cada PR y
+en cada push a `main` (`.github/workflows/ci.yml`).
 
 `GalenoCore` tiene además `galeno-gen`, una herramienta de desarrollo para probar el
 generador a mano (un `AgentConfig` en JSON → una carpeta con la config). **No se
@@ -57,9 +59,12 @@ xcodebuild -project GalenoApp/Galeno.xcodeproj -scheme Galeno test
 
 # Bridge de WhatsApp
 cd whatsapp-bridge && go build ./... && go vet ./... && go test ./...
+make -C whatsapp-bridge universal   # build universal arm64+amd64 (requiere macOS + Xcode)
 
-# Verificación de solo lectura: no debe devolver nada
-grep -rnE "send_message|send_file|send_audio" whatsapp-bridge --include="*.go"
+# Verificación de solo lectura: no debe devolver nada. El test de símbolos
+# (go test, arriba) ya corre esto cada vez, acotado al binario compilado;
+# esta es la versión de texto para revisar el código fuente a mano.
+grep -rnE 'client\.SendMessage\(|client\.Upload\(|/api/send|MarkRead|SendPresence|SendChatPresence' whatsapp-bridge --include="*.go"
 
 # Búsqueda de secretos antes de commitear
 git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PRIVATE KEY"
