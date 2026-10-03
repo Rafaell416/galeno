@@ -367,8 +367,6 @@ extension ConnectFlow.Finding {
         switch (noun, count.isPartial) {
         case (.channels, false): return Text("connect.found.channels \(n)")
         case (.channels, true): return Text("connect.foundAtLeast.channels \(n)")
-        case (.pages, false): return Text("connect.found.pages \(n)")
-        case (.pages, true): return Text("connect.foundAtLeast.pages \(n)")
         case (.projects, false): return Text("connect.found.projects \(n)")
         case (.projects, true): return Text("connect.foundAtLeast.projects \(n)")
         case (.labels, false): return Text("connect.found.labels \(n)")

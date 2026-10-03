@@ -245,37 +245,57 @@ final class ConnectFlowTests: XCTestCase {
     }
 
     func testTheRealFigureShowsOnTheSuccessScreen() async {
-        let mcp = FakeMCP(counts: ["slack": ItemCount(value: 12, isPartial: false)])
-        let flow = makeFlow([.notion, .jira], mcp: FakeMCP(counts: ["notion": ItemCount(value: 4, isPartial: false)]))
-        _ = mcp
+        let flow = makeFlow([.jira, .fathom], mcp: FakeMCP(counts: ["jira": ItemCount(value: 4, isPartial: false)]))
 
         flow.connect()
-        let found = await waitUntil { flow.findings[.notion] != nil }
+        let found = await waitUntil { flow.findings[.jira] != nil }
 
         XCTAssertTrue(found)
-        XCTAssertEqual(flow.findings[.notion], ConnectFlow.Finding(noun: .pages, count: ItemCount(value: 4, isPartial: false)))
+        XCTAssertEqual(flow.findings[.jira], ConnectFlow.Finding(noun: .projects, count: ItemCount(value: 4, isPartial: false)))
+    }
+
+    /// Contar páginas de Notion tardaba ~17 s y costaba ~$0,06: no se pide ningún dato.
+    func testNotionIsConnectedWithoutAskingForAnyFigure() async {
+        let mcp = FakeMCP(counts: ["notion": ItemCount(value: 10, isPartial: true)])
+        let flow = makeFlow([.notion, .jira], mcp: mcp, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+
+        flow.connect()
+        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: false) }
+
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("count") }, "no se le pregunta nada a Claude")
+        XCTAssertTrue(flow.pendingData.isEmpty, "no hay 'Mirando qué encontré…'")
+        XCTAssertTrue(flow.findings.isEmpty)
+    }
+
+    func testOnlyToolsWithAReliableFigureAskForOne() {
+        XCTAssertNil(ConnectFlow.noun(for: .notion))
+        XCTAssertNil(ConnectFlow.noun(for: .googleMeet))
+        XCTAssertEqual(ConnectFlow.noun(for: .jira), .projects)
+        XCTAssertEqual(ConnectFlow.noun(for: .whatsapp), .groups)
     }
 
     func testAFigureThatNeverArrivesDoesNotHoldTheFlowBeyondFourSeconds() async {
         let log = SleepLog()
-        let mcp = FakeMCP(counts: ["notion": ItemCount(value: 10, isPartial: true)], holdCounts: true)
-        let flow = makeFlow([.notion, .jira], mcp: mcp, sleep: log)
+        let mcp = FakeMCP(counts: ["jira": ItemCount(value: 10, isPartial: true)], holdCounts: true)
+        let flow = makeFlow([.jira, .fathom], mcp: mcp, sleep: log)
 
         flow.connect()
-        let moved = await waitUntil { self.isOn(flow, .jira) }
+        let moved = await waitUntil { self.isOn(flow, .fathom) }
 
         XCTAssertTrue(moved, "debe avanzar aunque el dato no haya llegado")
         XCTAssertLessThanOrEqual(log.seconds, 4.01)
         XCTAssertGreaterThanOrEqual(log.seconds, 4.0 - 0.01)
-        XCTAssertNil(flow.findings[.notion])
-        XCTAssertTrue(flow.pendingData.contains(.notion))
+        XCTAssertNil(flow.findings[.jira])
+        XCTAssertTrue(flow.pendingData.contains(.jira))
 
         // Lo que llega tarde no se pierde: suma a los totales.
         mcp.releaseCounts()
-        let late = await waitUntil { flow.findings[.notion] != nil }
+        let late = await waitUntil { flow.findings[.jira] != nil }
         XCTAssertTrue(late)
-        XCTAssertFalse(flow.pendingData.contains(.notion))
-        XCTAssertEqual(flow.totals.first?.noun, .pages)
+        XCTAssertFalse(flow.pendingData.contains(.jira))
+        XCTAssertEqual(flow.totals.first?.noun, .projects)
         XCTAssertEqual(flow.totals.first?.count, ItemCount(value: 10, isPartial: true))
     }
 

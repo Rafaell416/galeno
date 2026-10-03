@@ -95,7 +95,7 @@ final class ConnectFlow: ObservableObject {
 
     /// Lo que se cuenta de cada herramienta, para el mensaje de éxito y los totales.
     enum Noun: String, CaseIterable, Equatable {
-        case channels, pages, projects, labels, meetings, groups
+        case channels, projects, labels, meetings, groups
 
         /// En inglés porque es lo que se le pide a Claude Code que cuente.
         var promptWord: String { rawValue }
@@ -512,15 +512,19 @@ final class ConnectFlow: ObservableObject {
         pendingData = []
     }
 
+    /// Qué se cuenta de cada herramienta, o `nil` si no se pide ningún dato real.
+    ///
+    /// **Notion no lleva dato**: contar sus páginas con `claude -p` tardaba ~17 s y costaba
+    /// ~$0,06 por consulta, y la búsqueda devuelve una primera página, no un total fiable.
+    /// Conectar es lo que importa; el éxito se muestra sin esperar nada.
     static func noun(for tool: Tool) -> Noun? {
         switch tool {
         case .slack: .channels
-        case .notion: .pages
         case .jira: .projects
         case .gmail: .labels
         case .fireflies, .granola, .fathom: .meetings
         case .whatsapp: .groups
-        case .googleWorkspace, .googleMeet: nil
+        case .notion, .googleWorkspace, .googleMeet: nil
         }
     }
 }

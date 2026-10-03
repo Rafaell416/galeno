@@ -7,7 +7,8 @@ import Foundation
 /// tocar ninguna cuenta ni lanzar `claude` ni el bridge.
 ///
 /// El guion: `fathom` falla la primera vez (tiempo agotado) y funciona al reintentar;
-/// `notion` encuentra "10+" y tarda en contarlo; las demás encuentran un número.
+/// `jira` encuentra "10+" y tarda en contarlo; `notion` no lleva dato; las demás encuentran
+/// un número.
 nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
     private let lock = NSLock()
     private var registered: Set<String> = []
@@ -35,10 +36,10 @@ nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
 
     func countItems(server: String, noun: String) async -> ItemCount? {
         switch server {
-        case "notion":
+        case "jira":
             try? await Task.sleep(for: .seconds(9))  // llega después de la transición
             return ItemCount(value: 10, isPartial: true)
-        case "jira":
+        case "notion":
             return nil  // sin dato: solo el éxito
         default:
             try? await Task.sleep(for: .seconds(2))
