@@ -151,6 +151,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (no lo siguen); los nombres de herramienta salen de `Tool.displayName(in:)`.
 - Logos de terceros solo monocromos y con licencia verificada, listados en
   `GalenoApp/THIRD_PARTY.md`.
+- El `client_secret` y los tokens de configuración viven en un `OAuthSecret` (no es `Codable`,
+  se oculta en `print`/`dump`, se borra al terminar). Nunca en un `String` que se guarde, y las
+  credenciales de `GalenoCore` ya ocultan sus secretos en `description` y en el espejo.
+- Un agente de navegador (Claude con `--chrome`, diseñado en `docs/03` §4e) **nunca ve un
+  secreto**: la tarea se corta antes de la pantalla donde aparece, y contraseñas, 2FA, CAPTCHAs,
+  aceptar términos, publicar y conceder permisos los hace el usuario.
 - Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
   (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
   lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no

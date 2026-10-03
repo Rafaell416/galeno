@@ -11,8 +11,10 @@ pendientes (probar `sync` tras un reinicio): ver §6 y §12. El motor ya tiene s
 descripción y memoria del proyecto, varios agentes y regeneración. La app (`GalenoApp`) ya
 tiene proyecto Xcode, el esqueleto del wizard y las **pantallas 1–5** (idioma en caliente,
 detección de Claude Code, tu agente, la grilla de herramientas y el sub-wizard de conexión con
-MCP hospedados y WhatsApp); las demás se llenan una a una. Faltan las skills, Sparkle y la
-distribución. Slack, Gmail y Google quedan en "conectar después" hasta el paso de sus apps OAuth.
+MCP hospedados y WhatsApp); las demás se llenan una a una. **Slack ya crea su propia app
+OAuth** (guía + token pegado + `apps.manifest.create`); Gmail y Google siguen en "conectar
+después" y su automatización de navegador está diseñada, no construida (`docs/03` §4e,
+"Diseño de la conexión con app propia"). Faltan las skills, Sparkle y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
 ---

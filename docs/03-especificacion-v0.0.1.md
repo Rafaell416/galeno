@@ -245,6 +245,29 @@ Los scopes que v0.0.1 pide a la app de Slack del cliente (verificados contra la 
 
 **Google Workspace no es un servidor, son tres:** Drive, Docs y Sheets tienen cada uno su propio endpoint del lado de Google (`drivemcp`/`docsmcp`/`sheetsmcp.googleapis.com/mcp/v1`). El wizard sigue mostrando "Google Drive, Docs y Sheets" como una sola tool (§3 paso 4); por debajo, el motor escribe tres entradas en `.mcp.json`, las tres con el mismo `client_id` del cliente.
 
+### Diseño de la conexión con app propia (Fase 4, octubre 2026)
+
+Al diseñar la Fase 4 se verificó contra las fuentes oficiales y varias suposiciones de arriba cambiaron. **Esta subsección manda sobre lo anterior donde lo contradiga** (en particular: la automatización del primer token y la rotación del token de Slack).
+
+**Lo verificado**
+
+| Hecho | Efecto |
+|---|---|
+| Google **no tiene API** para crear clientes OAuth: solo la consola. | La consola se resuelve con un agente de navegador o a mano; no hay atajo. |
+| Google **bloquea el inicio de sesión en webviews embebidos** (`disallowed_useragent`, desde 2021). | Nada de `WKWebView`; además sería escribir contraseñas dentro de Galeno. |
+| Chrome ≥ 136 ignora `--remote-debugging-port` sobre el perfil real. | No se controla Chrome por DevTools sobre la sesión del usuario. |
+| Una app OAuth de Google en modo **Testing** emite refresh tokens que **caducan a los 7 días**. | **Decidido: publicarla "En producción" sin verificar** (una advertencia al autorizar, tope de 100 usuarios, sin caducidad semanal). Con Workspace de empresa: tipo **Interna**. |
+| Los MCP de Google Workspace están en **Developer Preview** (hay que pertenecer al programa), con cliente tipo **aplicación web** y scopes `gmail.readonly`/`gmail.compose`, `drive.readonly`/`drive.file`, `documents*`, `spreadsheets*`. | Inscribirse en el programa es un paso manual. Por defecto se piden solo los de lectura; los de escritura solo si las reglas del usuario permiten escribir. |
+| Slack solo permite MCP a apps **internas o del directorio**, y **el administrador debe aprobar** el cliente MCP. El interruptor "Model Context Protocol" está en la interfaz (no hay campo de manifiesto documentado). | Un PM sin rol de admin se bloquea: pantalla "Pide aprobación a tu administrador" con un mensaje listo para copiar. Falta comprobar si basta `apps.manifest.create`. |
+| `claude mcp add` acepta `--client-id`, `--callback-port` y `--client-secret`; el secreto se toma de `MCP_CLIENT_SECRET` **sin terminal**, y queda en el llavero (no en `~/.claude.json`). | El secreto viaja solo por el entorno del proceso. |
+
+**Lo decidido**
+
+- **Principios:** navegador real del usuario, nunca un webview; contraseñas, 2FA y CAPTCHAs siempre los hace el usuario; **el modelo nunca ve un secreto**; aceptar términos, publicar la app, "Crear" el cliente y cada "Permitir" los confirma el usuario; todo paso automático tiene su equivalente manual; nada se persiste ni sale de la máquina salvo el `client_id`; detener siempre disponible.
+- **Slack, hoy (implementado):** guía en pantalla → el usuario genera el token de configuración y lo pega en un campo seguro → `apps.manifest.validate` (comprueba el token sin crear nada) → `apps.manifest.create` → `claude mcp add --client-id --callback-port --client-secret` con el secreto en `MCP_CLIENT_SECRET` → `claude mcp login`. El **token de configuración no se guarda ni se rota** (cambia respecto a lo anterior): una app por workspace, compartida por todos los agentes. Un servidor homónimo que no sea el nuestro (por ejemplo uno local de `npx`) ni se pisa ni se da por conectado.
+- **Agente de navegador (diferido, PR siguiente):** Claude Code con `--chrome` maneja el Chrome del usuario con su sesión, se detiene ante login/CAPTCHA y se adapta a cambios de pantalla; Galeno lo lanza con `--input-format stream-json` y le pasa el control al usuario cuando hace falta. Requiere Chrome/Edge/Brave/Arc, la extensión "Claude in Chrome" y un plan Pro/Max/Team/Enterprise (no vale API key). Safari: solo guía manual. Su costo y tiempo no están medidos.
+- **Google (diferido):** pasos G0 inscribirse en el programa · G1 proyecto · G2 activar APIs · G3 pantalla de consentimiento (Interna o Externa en producción) · G4 cliente OAuth web, que **el usuario crea** y cuyo ID y secreto pega en Galeno · G5 registrar los 4 servidores y autorizar. Siempre con guía manual; el agente es un acelerador.
+
 ## 4f. Actualizaciones · arquitectura de 3 capas + Sparkle
 
 **Política de negocio:** actualizaciones **de por vida, gratis** para quien compró. Pago único, sin renovación. Internamente se distingue (aunque todo sea gratis): el *mantenimiento* —bug fixes, parches del bridge de WhatsApp cuando Meta cambia su protocolo, compatibilidad con cambios de Claude Code y de los MCP— es una obligación perpetua; las *features nuevas* son gratis por elección. La distinción no cambia nada para el usuario; sirve para razonar costos a futuro. El mecanismo técnico es el mismo cualquiera sea la política, así que esta decisión no ata la arquitectura.

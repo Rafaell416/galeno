@@ -7,21 +7,26 @@ import XCTest
 @MainActor
 final class ConnectFlowTests: XCTestCase {
     private var recordedStatuses: [(Tool, ConnectionStatus)] = []
+    private var recordedClientIDs: [(Tool, String)] = []
 
     private func makeFlow(
         _ tools: [Tool],
         statuses: [Tool: ConnectionStatus] = [:],
         mcp: FakeMCP = FakeMCP(),
         whatsapp: FakeWhatsApp = FakeWhatsApp(),
+        slack: FakeSlackSetup = FakeSlackSetup(),
         fetchRealData: Bool = true,
         sleep: SleepLog = SleepLog(),
         timing: ConnectFlow.Timing = ConnectFlow.Timing()
     ) -> ConnectFlow {
         recordedStatuses = []
+        recordedClientIDs = []
         return ConnectFlow(
-            tools: tools, statuses: statuses, mcp: mcp, whatsapp: whatsapp,
+            tools: tools, statuses: statuses, mcp: mcp, whatsapp: whatsapp, slack: slack,
+            agentName: { "Aurora" },
             fetchRealData: fetchRealData, timing: timing, sleep: sleep.sleeper,
-            onStatus: { [unowned self] tool, status in recordedStatuses.append((tool, status)) })
+            onStatus: { [unowned self] tool, status in recordedStatuses.append((tool, status)) },
+            onClientID: { [unowned self] tool, id in recordedClientIDs.append((tool, id)) })
     }
 
     private func isOn(_ flow: ConnectFlow, _ tool: Tool) -> Bool { flow.screen == .connection(tool) }
@@ -205,21 +210,22 @@ final class ConnectFlowTests: XCTestCase {
 
     // MARK: - Slack, Gmail y Google (el punto de entrada)
 
-    func testToolsThatNeedTheirOwnOAuthAppAreOfferedForLater() {
-        for tool in [Tool.slack, .gmail, .googleWorkspace] {
+    func testToolsWhoseOwnAppIsNotBuiltYetAreOfferedForLater() {
+        for tool in [Tool.gmail, .googleWorkspace] {
             let flow = makeFlow([tool, .notion])
 
             XCTAssertEqual(flow.phase, .needsOwnApp, "\(tool)")
             XCTAssertTrue(ConnectTarget(tool: tool)?.requiresOwnOAuthApp == true)
+            XCTAssertFalse(ConnectTarget(tool: tool)?.supportsOwnApp == true)
         }
     }
 
     func testSkippingAToolThatNeedsItsOwnAppLeavesItSkipped() {
-        let flow = makeFlow([.slack, .notion])
+        let flow = makeFlow([.gmail, .notion])
 
         flow.skip()
 
-        XCTAssertEqual(recordedStatuses.first?.0, .slack)
+        XCTAssertEqual(recordedStatuses.first?.0, .gmail)
         XCTAssertEqual(recordedStatuses.first?.1, .skipped)
         XCTAssertEqual(flow.screen, .connection(.notion))
     }

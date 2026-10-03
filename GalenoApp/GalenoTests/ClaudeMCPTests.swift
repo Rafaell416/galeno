@@ -265,7 +265,9 @@ private final class RecordingRunner: CommandRunning, @unchecked Sendable {
 
     var lastArguments: [String]? { lock.withLock { arguments } }
 
-    func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult? {
+    func run(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> CommandResult? {
         lock.withLock { self.arguments = arguments }
         return result
     }

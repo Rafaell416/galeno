@@ -20,6 +20,10 @@ struct ConnectTarget: Equatable {
     /// nunca en los argumentos).
     var requiresOwnOAuthApp: Bool { tool.requiresUserProvidedOAuthClient }
 
+    /// Slack ya se conecta aquí (guía + token + `apps.manifest.create`); Gmail y Google
+    /// Workspace todavía no.
+    var supportsOwnApp: Bool { tool == .slack }
+
     /// `nil` para las herramientas que no se conectan con `claude mcp add`: WhatsApp
     /// (su propio bridge) y Google Meet (se lee por Drive y no tiene servidor).
     init?(tool: Tool) {
@@ -67,6 +71,8 @@ final class ConnectFlow: ObservableObject {
         case preparingBridge
         case checkingLink
         case installingSync
+        case validatingToken
+        case creatingSlackApp
     }
 
     enum Failure: Equatable {
@@ -77,6 +83,14 @@ final class ConnectFlow: ObservableObject {
         case bridgeMissing
         case bridgeFailed
         case qrExpired
+        /// Slack no aceptó el token de configuración.
+        case tokenRejected
+        /// Slack no dejó crear la app: casi siempre falta la aprobación de un administrador.
+        case slackNotAllowed
+        case slackManifest
+        case slackUnreachable
+        /// Ya hay un servidor con ese nombre en Claude Code, pero es otro.
+        case nameInUse
     }
 
     enum Phase: Equatable {
@@ -89,6 +103,8 @@ final class ConnectFlow: ObservableObject {
         case syncing(chats: Int)
         case succeeded(alreadyConnected: Bool)
         case failed(Failure)
+        /// Slack: falta el token de configuración que el usuario genera y pega.
+        case slackToken
         /// Necesita la app OAuth del cliente: todavía no se puede conectar aquí.
         case needsOwnApp
     }
@@ -132,7 +148,7 @@ final class ConnectFlow: ObservableObject {
     var canReturnToToolSelection: Bool {
         guard position == 0, connectedCount == 0 else { return false }
         switch phase {
-        case .ready, .failed, .needsOwnApp: return true
+        case .ready, .failed, .needsOwnApp, .slackToken: return true
         default: return false
         }
     }
@@ -166,10 +182,17 @@ final class ConnectFlow: ObservableObject {
 
     private let mcp: any MCPConnecting
     private let whatsapp: any WhatsAppLinking
+    private let slack: any SlackAppSetting
+    private let agentName: @MainActor () -> String
     private let fetchRealData: Bool
     private let sleep: Sleeper
     private let timing: Timing
     private let onStatus: @MainActor (Tool, ConnectionStatus) -> Void
+    private let onClientID: @MainActor (Tool, String) -> Void
+
+    /// La app de Slack ya se creó y se registró en Claude Code: si falla después, reintentar
+    /// no debe crear **otra** app (el secreto no se guarda), solo volver a autorizar.
+    private var slackAppRegistered = false
 
     private var workTask: Task<Void, Never>?
     private var advanceTask: Task<Void, Never>?
@@ -181,20 +204,26 @@ final class ConnectFlow: ObservableObject {
         statuses: [Tool: ConnectionStatus] = [:],
         mcp: any MCPConnecting,
         whatsapp: any WhatsAppLinking,
+        slack: any SlackAppSetting = SlackAppSetupService(),
+        agentName: @escaping @MainActor () -> String = { "" },
         fetchRealData: Bool = true,
         timing: Timing = Timing(),
         sleep: @escaping Sleeper = { _ = try? await Task.sleep(for: $0) },
-        onStatus: @escaping @MainActor (Tool, ConnectionStatus) -> Void = { _, _ in }
+        onStatus: @escaping @MainActor (Tool, ConnectionStatus) -> Void = { _, _ in },
+        onClientID: @escaping @MainActor (Tool, String) -> Void = { _, _ in }
     ) {
         let connectionTools = ConnectTarget.connectionTools(from: tools)
         self.tools = connectionTools
         self.statuses = statuses
         self.mcp = mcp
         self.whatsapp = whatsapp
+        self.slack = slack
+        self.agentName = agentName
         self.fetchRealData = fetchRealData
         self.timing = timing
         self.sleep = sleep
         self.onStatus = onStatus
+        self.onClientID = onClientID
         self.screens = Self.makeSequence(connectionTools)
 
         // Si se vuelve a este paso, se sigue por la primera sin resolver.
@@ -240,7 +269,14 @@ final class ConnectFlow: ObservableObject {
                 phase = .succeeded(alreadyConnected: true)
                 scheduleAdvance(after: timing.successHold, waitingFor: nil)
             } else if let target = ConnectTarget(tool: tool), target.requiresOwnOAuthApp {
-                phase = .needsOwnApp
+                if target.supportsOwnApp {
+                    // Puede que la app ya exista de una vez anterior: se mira antes de pedir
+                    // un token nuevo (y de crear una segunda app).
+                    phase = .working(.checking)
+                    workTask = Task { [weak self] in await self?.resolveSlackStart(target) }
+                } else {
+                    phase = .needsOwnApp
+                }
             } else {
                 phase = .ready
             }
@@ -274,7 +310,17 @@ final class ConnectFlow: ObservableObject {
         }
     }
 
-    func retry() { connect() }
+    func retry() {
+        // Si la app de Slack aún no se creó, reintentar es volver a pedir el token (el anterior
+        // pudo vencer). Si ya se creó y registró, solo falta autorizar.
+        if case .connection(.slack) = screen, !slackAppRegistered {
+            cancelWork()
+            failureDetail = ""
+            phase = .slackToken
+            return
+        }
+        connect()
+    }
 
     /// "Conectar después" y "Saltar por ahora": la herramienta queda marcada para
     /// conectarla más tarde desde la app.
@@ -292,22 +338,34 @@ final class ConnectFlow: ObservableObject {
 
     // MARK: - Servidores MCP hospedados
 
-    private func connectHosted(_ target: ConnectTarget) async {
+    private func connectHosted(_ target: ConnectTarget, oauth: OAuthClientRegistration? = nil) async {
         // Cada herramienta hospedada que se conecta aquí tiene un servidor; Google
         // Workspace, que tiene tres, entra con el paso de su app OAuth.
         guard let server = target.servers.first else { return }
         update(.working(.checking))
 
-        let current = await mcp.status(of: server.name)
+        let current = await mcp.status(of: server.name, expectingURL: server.url)
         if Task.isCancelled { return }
 
-        if current == .connected {
+        switch current {
+        case .connected:
             finishHosted(target, alreadyConnected: true)
             return
-        }
-        if current == .notRegistered {
+        case .differentServer:
+            // Ya hay un servidor con ese nombre que no es el nuestro (por ejemplo uno local de
+            // `npx`): ni se pisa ni se da por conectado.
+            failureDetail = "claude mcp remove \(server.name) -s user"
+            fail(.nameInUse)
+            return
+        case .notRegistered:
+            // Una herramienta con app OAuth propia no se registra a ciegas: sin su app no hay
+            // `client_id` y el OAuth fallaría.
+            if target.requiresOwnOAuthApp && oauth == nil {
+                update(target.supportsOwnApp ? .slackToken : .needsOwnApp)
+                return
+            }
             update(.working(.registering))
-            do { try await mcp.register(server: server.name, url: server.url) } catch {
+            do { try await mcp.register(server: server.name, url: server.url, oauth: oauth) } catch {
                 if let error = error as? MCPConnectError, case .registerFailed(let detail) = error {
                     failureDetail = detail
                 }
@@ -315,6 +373,9 @@ final class ConnectFlow: ObservableObject {
                 return
             }
             if Task.isCancelled { return }
+            if oauth != nil { slackAppRegistered = true }
+        case .needsAuthentication, .failed:
+            break
         }
 
         update(.working(.waitingForBrowser))
@@ -337,6 +398,94 @@ final class ConnectFlow: ObservableObject {
         }
         if Task.isCancelled { return }
         finishHosted(target, alreadyConnected: false)
+    }
+
+    // MARK: - Slack: la app OAuth del cliente
+
+    /// ¿Un token de configuración de Slack, y no el refresh token? (`xoxe.xoxp-…` vs `xoxe-…`).
+    nonisolated static func looksLikeSlackAccessToken(_ value: String) -> Bool {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("xoxe.xoxp-")
+    }
+
+    nonisolated static func looksLikeSlackRefreshToken(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.hasPrefix("xoxe-") && !trimmed.hasPrefix("xoxe.xoxp-")
+    }
+
+    /// Al llegar a la pantalla de Slack: si ya está conectado (o registrado), no se pide nada.
+    private func resolveSlackStart(_ target: ConnectTarget) async {
+        guard let server = target.servers.first else { return }
+        let current = await mcp.status(of: server.name, expectingURL: server.url)
+        if Task.isCancelled { return }
+        switch current {
+        case .connected:
+            finishHosted(target, alreadyConnected: true)
+        case .differentServer:
+            failureDetail = "claude mcp remove \(server.name) -s user"
+            fail(.nameInUse)
+        case .needsAuthentication, .failed:
+            // Registrado antes con su app: solo falta autorizar.
+            slackAppRegistered = true
+            update(.ready)
+        case .notRegistered:
+            update(.slackToken)
+        }
+    }
+
+    /// El usuario pegó el token de configuración. Se envuelve en un `OAuthSecret` al instante, se
+    /// usa una vez y se descarta: no se guarda en ninguna parte.
+    func submitSlackToken(_ pasted: String) {
+        guard case .connection(.slack) = screen, let target = ConnectTarget(tool: .slack) else { return }
+        let token = OAuthSecret(pasted.trimmingCharacters(in: .whitespacesAndNewlines))
+        cancelWork()
+        failureDetail = ""
+        workTask = Task { [weak self] in await self?.setUpSlack(target, token: token) }
+    }
+
+    private func setUpSlack(_ target: ConnectTarget, token: OAuthSecret) async {
+        defer { token.wipe() }
+        let name = agentName()
+
+        update(.working(.validatingToken))
+        do { try await slack.validate(token: token, agentName: name) } catch {
+            failSlack(error)
+            return
+        }
+        if Task.isCancelled { return }
+
+        update(.working(.creatingSlackApp))
+        let registration: OAuthClientRegistration
+        do { registration = try await slack.createApp(token: token, agentName: name) } catch {
+            failSlack(error)
+            return
+        }
+        token.wipe()  // ya no hace falta
+        defer { registration.secret?.wipe() }
+        if Task.isCancelled { return }
+
+        // El `client_id` es público: es lo único que se conserva (va al `.mcp.json`).
+        onClientID(.slack, registration.clientID)
+        await connectHosted(target, oauth: registration)
+    }
+
+    private func failSlack(_ error: any Error) {
+        if Task.isCancelled { return }
+        switch error as? SlackSetupError {
+        case .tokenRejected(let code):
+            failureDetail = code
+            fail(.tokenRejected)
+        case .notAllowed(let code):
+            failureDetail = code
+            fail(.slackNotAllowed)
+        case .invalidManifest(let messages):
+            failureDetail = messages.joined(separator: "; ")
+            fail(.slackManifest)
+        case .unreachable(let description):
+            failureDetail = description
+            fail(.slackUnreachable)
+        case .unexpected, .none:
+            fail(.slackManifest)
+        }
     }
 
     private func finishHosted(_ target: ConnectTarget, alreadyConnected: Bool) {

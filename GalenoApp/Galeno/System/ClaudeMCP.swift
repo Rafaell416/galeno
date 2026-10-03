@@ -9,6 +9,9 @@ nonisolated enum MCPStatus: Equatable, Sendable {
     case failed
     /// Claude Code no lo conoce.
     case notRegistered
+    /// Ya hay un servidor con ese nombre pero **otro** (otra dirección, o uno local de
+    /// `npx`): registrar el nuestro encima lo pisaría, y darlo por conectado sería mentira.
+    case differentServer
 }
 
 /// Cuántos elementos vio Claude Code al mirar un servidor recién conectado.
@@ -19,6 +22,8 @@ nonisolated struct ItemCount: Equatable, Sendable {
 }
 
 nonisolated enum MCPConnectError: Error, Equatable, Sendable {
+    /// El `client_id` no es válido para pasarlo como argumento.
+    case invalidClientID
     case registerFailed(String)
     case loginFailed(String)
     /// El usuario no autorizó a tiempo.
@@ -31,14 +36,23 @@ nonisolated enum MCPConnectError: Error, Equatable, Sendable {
 /// Conecta servidores MCP hospedados con la CLI de `claude`. Las pruebas lo
 /// reemplazan por uno falso.
 nonisolated protocol MCPConnecting: Sendable {
-    func status(of server: String) async -> MCPStatus
-    /// `claude mcp add --transport http -s user <servidor> <url>`.
-    func register(server: String, url: String) async throws
+    /// `expectingURL`: si el servidor existe pero apunta a otra dirección, `.differentServer`.
+    func status(of server: String, expectingURL: String?) async -> MCPStatus
+    /// `claude mcp add --transport http -s user <servidor> <url>`, y con una app OAuth propia
+    /// `--client-id`, `--callback-port` y `--client-secret` (el secreto por el entorno).
+    func register(server: String, url: String, oauth: OAuthClientRegistration?) async throws
     /// `claude mcp login <servidor>`: abre el navegador y espera la autorización.
     func login(server: String) async throws
     /// Un dato real ("12 canales") pidiéndole a Claude Code que mire el servidor.
     /// `nil` si no se pudo, por la razón que sea: nunca es un error para el usuario.
     func countItems(server: String, noun: String) async -> ItemCount?
+}
+
+extension MCPConnecting {
+    func status(of server: String) async -> MCPStatus { await status(of: server, expectingURL: nil) }
+    func register(server: String, url: String) async throws {
+        try await register(server: server, url: url, oauth: nil)
+    }
 }
 
 /// Lanza un comando en un terminal. `claude mcp login` lo exige.
@@ -73,17 +87,41 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
     /// quedar sin resultado, así que el tope es holgado.
     var countBudgetUSD = "0.15"
 
-    func status(of server: String) async -> MCPStatus {
+    func status(of server: String, expectingURL: String?) async -> MCPStatus {
         guard let result = await runner.run(claudePath, arguments: ["mcp", "get", server], timeout: 30)
         else { return .failed }
-        return Self.parseStatus(result.output, exitStatus: result.status)
+        let status = Self.parseStatus(result.output, exitStatus: result.status)
+        // Un servidor que existe pero apunta a otra cosa no es el nuestro.
+        if let expectingURL, status != .notRegistered, Self.hasStatusLine(result.output),
+            !Self.sameURL(Self.parseURL(result.output), expectingURL)
+        {
+            return .differentServer
+        }
+        return status
     }
 
-    func register(server: String, url: String) async throws {
-        let arguments = ["mcp", "add", "--transport", "http", "-s", "user", server, url]
-        guard let result = await runner.run(claudePath, arguments: arguments, timeout: 30) else {
-            throw MCPConnectError.registerFailed("no respondió")
+    func register(server: String, url: String, oauth: OAuthClientRegistration?) async throws {
+        var arguments = ["mcp", "add", "--transport", "http", "-s", "user", server, url]
+        var environment: [String: String] = [:]
+
+        if let oauth {
+            guard OAuthClientRegistration.isValidClientID(oauth.clientID) else {
+                throw MCPConnectError.invalidClientID
+            }
+            arguments += ["--client-id", oauth.clientID]
+            if let port = oauth.callbackPort { arguments += ["--callback-port", String(port)] }
+            // El secreto va por el entorno (`MCP_CLIENT_SECRET`), nunca en los argumentos: con
+            // `--client-secret` solo, Claude Code lo toma de ahí en vez de preguntarlo.
+            if let secret = oauth.secret, !secret.isEmpty {
+                arguments.append("--client-secret")
+                secret.withValue { environment["MCP_CLIENT_SECRET"] = $0 }
+            }
         }
+
+        guard
+            let result = await runner.run(
+                claudePath, arguments: arguments, environment: environment, timeout: 30)
+        else { throw MCPConnectError.registerFailed("no respondió") }
         guard result.status == 0 else { throw MCPConnectError.registerFailed(Self.tail(result.output)) }
     }
 
@@ -144,6 +182,26 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
         if line.contains("failed") { return .failed }
         if line.contains("connected") { return .connected }
         return .failed
+    }
+
+    /// La línea `URL:` de `claude mcp get`, o `nil` si no la hay (un servidor local no la tiene).
+    static func parseURL(_ output: String) -> String? {
+        output.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { $0.lowercased().hasPrefix("url:") }
+            .map { String($0.dropFirst(4)).trimmingCharacters(in: .whitespaces) }
+    }
+
+    static func hasStatusLine(_ output: String) -> Bool {
+        output.split(whereSeparator: \.isNewline)
+            .contains { $0.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("status:") }
+    }
+
+    /// Dos direcciones son la misma si solo cambia una barra final.
+    static func sameURL(_ found: String?, _ expected: String) -> Bool {
+        guard let found else { return false }
+        func normalized(_ url: String) -> String { url.hasSuffix("/") ? String(url.dropLast()) : url }
+        return normalized(found) == normalized(expected)
     }
 
     /// `{"result": "10+", "is_error": false, …}` → 10, parcial. Todo lo que no sea

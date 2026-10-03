@@ -218,7 +218,9 @@ final class WizardStepsTests: XCTestCase {
 private struct StubRunner: CommandRunning {
     let version: String
 
-    func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult? {
+    func run(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> CommandResult? {
         arguments == ["--version"] ? CommandResult(status: 0, output: version) : nil
     }
 }

@@ -362,6 +362,23 @@
         }
       }
     },
+    "connect.failure.nameInUse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You already have a different server with that name in Claude Code. Remove it with this command (or rename it) and try again:"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya tienes en Claude Code otro servidor con ese nombre. Quítalo con este comando (o renómbralo) y reintenta:"
+          }
+        }
+      }
+    },
     "connect.failure.notAuthorizedInTime" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -396,6 +413,57 @@
         }
       }
     },
+    "connect.failure.slackManifest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack rejected the app's configuration."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack rechazó la configuración de la app."
+          }
+        }
+      }
+    },
+    "connect.failure.slackNotAllowed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack didn't let you create the app. You most likely need a workspace admin's approval."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack no te dejó crear la app. Casi seguro hace falta la aprobación de un administrador de tu workspace."
+          }
+        }
+      }
+    },
+    "connect.failure.slackUnreachable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I couldn't reach Slack. Check your internet connection."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pude hablar con Slack. Revisa tu conexión a internet."
+          }
+        }
+      }
+    },
     "connect.failure.stillNotConnected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -409,6 +477,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se autorizó, pero el servicio todavía no responde."
+          }
+        }
+      }
+    },
+    "connect.failure.tokenRejected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack didn't accept that token. It may have expired (they last 12 hours) or be the wrong one."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack no aceptó ese token. Puede haber vencido (duran 12 horas) o no ser el correcto."
           }
         }
       }
@@ -925,6 +1010,193 @@
         }
       }
     },
+    "connect.slack.adminMessage %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hi, I use Galeno to connect my Slack to my AI assistant. I need you to approve the app “%@” in our workspace (Manage → Apps) and to allow Slack's MCP client. The assistant only sends messages with my explicit approval."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hola, uso Galeno para conectar mi Slack con mi asistente de IA. Necesito que apruebes la app «%@» en nuestro workspace (Administrar → Aplicaciones) y que permitas el cliente MCP de Slack. El asistente solo envía mensajes con mi aprobación explícita."
+          }
+        }
+      }
+    },
+    "connect.slack.copyAdminMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy a message for my admin"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar mensaje para mi administrador"
+          }
+        }
+      }
+    },
+    "connect.slack.create" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create my Slack app"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear mi app de Slack"
+          }
+        }
+      }
+    },
+    "connect.slack.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Slack"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Slack"
+          }
+        }
+      }
+    },
+    "connect.slack.privacy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The token only lives in Galeno's memory: it is used once to create your Slack app and then discarded. It is never saved and never leaves your Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El token solo vive en la memoria de Galeno: se usa una vez para crear tu app de Slack y se descarta. Nunca se guarda ni sale de tu Mac."
+          }
+        }
+      }
+    },
+    "connect.slack.refreshTokenHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That is the Refresh Token. Copy the Access Token, which starts with xoxe.xoxp-."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ese es el Refresh Token. Copia el Access Token, que empieza con xoxe.xoxp-."
+          }
+        }
+      }
+    },
+    "connect.slack.step1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Slack's apps page."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la página de apps de Slack."
+          }
+        }
+      }
+    },
+    "connect.slack.step2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Under “Your App Configuration Tokens” press “Generate Token” and pick your workspace."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En «Your App Configuration Tokens» pulsa «Generate Token» y elige tu workspace."
+          }
+        }
+      }
+    },
+    "connect.slack.step3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy the “Access Token” (it starts with xoxe.xoxp-) and paste it here."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia el «Access Token» (empieza con xoxe.xoxp-) y pégalo aquí."
+          }
+        }
+      }
+    },
+    "connect.slack.tokenField" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack access token"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token de acceso de Slack"
+          }
+        }
+      }
+    },
+    "connect.slack.tokenPlaceholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "xoxe.xoxp-…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "xoxe.xoxp-…"
+          }
+        }
+      }
+    },
     "connect.step.checking" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -955,6 +1227,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Comprobando si ya está vinculado…"
+          }
+        }
+      }
+    },
+    "connect.step.creatingSlackApp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creating your Slack app…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creando tu app de Slack…"
           }
         }
       }
@@ -1006,6 +1295,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Registrando la conexión en Claude Code…"
+          }
+        }
+      }
+    },
+    "connect.step.validatingToken" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking the token…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobando el token…"
           }
         }
       }
@@ -2362,5 +2668,5 @@
       }
     }
   },
-  "version" : "1.1"
+  "version" : "1.0"
 }

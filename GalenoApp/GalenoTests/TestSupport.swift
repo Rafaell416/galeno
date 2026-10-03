@@ -10,14 +10,22 @@ final class FakeRunner: CommandRunning, @unchecked Sendable {
     private let responses: [String: CommandResult]
     private let lock = NSLock()
     private var recorded: [String] = []
+    private var recordedEnvironments: [[String: String]] = []
 
     init(_ responses: [String: CommandResult]) { self.responses = responses }
 
     var calls: [String] { lock.withLock { recorded } }
+    /// El entorno que se pidió añadir en cada llamada, en orden.
+    var environments: [[String: String]] { lock.withLock { recordedEnvironments } }
 
-    func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult? {
+    func run(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> CommandResult? {
         let command = ([executable] + arguments).joined(separator: " ")
-        lock.withLock { recorded.append(command) }
+        lock.withLock {
+            recorded.append(command)
+            recordedEnvironments.append(environment)
+        }
         return responses[command]
     }
 }

@@ -1,6 +1,7 @@
 #if DEBUG
 import AppKit
 import Foundation
+import GalenoCore
 
 /// Conectores con guion, solo en Debug (`-galeno-fake-connect`): permiten ver todas las
 /// pantallas del paso 5 —éxito, dato tardío, fallo, QR que rota, sincronización— sin
@@ -15,14 +16,14 @@ nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
     private var connected: Set<String> = []
     private var failedOnce: Set<String> = []
 
-    func status(of server: String) async -> MCPStatus {
+    func status(of server: String, expectingURL: String?) async -> MCPStatus {
         try? await Task.sleep(for: .milliseconds(400))
         return lock.withLock {
             connected.contains(server) ? .connected : (registered.contains(server) ? .needsAuthentication : .notRegistered)
         }
     }
 
-    func register(server: String, url: String) async throws {
+    func register(server: String, url: String, oauth: OAuthClientRegistration?) async throws {
         try? await Task.sleep(for: .milliseconds(600))
         lock.withLock { _ = registered.insert(server) }
     }
@@ -101,9 +102,27 @@ nonisolated final class ScriptedWhatsApp: WhatsAppLinking, @unchecked Sendable {
     }
 }
 
+/// Slack con guion: acepta cualquier token que empiece por `xoxe.xoxp-`, rechaza el resto
+/// (para ver la pantalla de "token rechazado") y "crea" una app con un `client_id` falso.
+nonisolated struct ScriptedSlackSetup: SlackAppSetting {
+    func validate(token: OAuthSecret, agentName: String) async throws {
+        try? await Task.sleep(for: .milliseconds(700))
+        let accepted = token.withValue { $0.hasPrefix("xoxe.xoxp-") }
+        if !accepted { throw SlackSetupError.tokenRejected("invalid_auth") }
+    }
+
+    func createApp(token: OAuthSecret, agentName: String) async throws -> OAuthClientRegistration {
+        try? await Task.sleep(for: .milliseconds(900))
+        return OAuthClientRegistration(
+            clientID: "1111111111111.2222222222222", callbackPort: SlackOAuth.callbackPort,
+            secret: OAuthSecret("secreto-falso-de-depuracion"))
+    }
+}
+
 extension ConnectServices {
     static func scripted() -> ConnectServices {
-        ConnectServices(makeMCP: { _ in ScriptedMCP() }, whatsapp: ScriptedWhatsApp())
+        ConnectServices(
+            makeMCP: { _ in ScriptedMCP() }, whatsapp: ScriptedWhatsApp(), slack: ScriptedSlackSetup())
     }
 }
 #endif

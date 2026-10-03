@@ -8,6 +8,7 @@ struct ConnectServices {
     /// Recibe la ruta a `claude` que encontró el paso 2.
     var makeMCP: @MainActor (_ claudePath: String) -> any MCPConnecting
     var whatsapp: any WhatsAppLinking
+    var slack: any SlackAppSetting = SlackAppSetupService()
     var fetchRealData: Bool = true
     var timing = ConnectFlow.Timing()
     var sleep: ConnectFlow.Sleeper = { _ = try? await Task.sleep(for: $0) }

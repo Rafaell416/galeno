@@ -49,8 +49,12 @@ struct ConnectionScreen: View {
         case .failed(let failure):
             VStack(spacing: Space.s16) {
                 header(lit: false)
-                FailurePanel(failure: failure, detail: flow.failureDetail)
+                FailurePanel(
+                    failure: failure, detail: flow.failureDetail, agentName: wizard.agentName,
+                    language: wizard.language)
             }
+        case .slackToken:
+            SlackTokenPanel(flow: flow, name: name)
         case .needsOwnApp:
             VStack(spacing: Space.s16) {
                 header(lit: false)
@@ -135,7 +139,7 @@ struct ConnectionScreen: View {
     @ViewBuilder
     private var secondaryButtons: some View {
         switch flow.phase {
-        case .ready, .working, .qr:
+        case .ready, .working, .qr, .slackToken:
             // Discreto: no compite con Conectar.
             Button("connect.later") { flow.skip() }
                 .buttonStyle(.plain)
@@ -229,6 +233,8 @@ private struct WorkingPanel: View {
         case .preparingBridge: "connect.step.preparingBridge"
         case .checkingLink: "connect.step.checkingLink"
         case .installingSync: "connect.step.installingSync"
+        case .validatingToken: "connect.step.validatingToken"
+        case .creatingSlackApp: "connect.step.creatingSlackApp"
         }
     }
 }
@@ -236,6 +242,8 @@ private struct WorkingPanel: View {
 private struct FailurePanel: View {
     let failure: ConnectFlow.Failure
     let detail: String
+    let agentName: String
+    let language: Language
 
     var body: some View {
         NoticePanel(kind: .seal) {
@@ -243,14 +251,37 @@ private struct FailurePanel: View {
                 .font(.galenoBody.weight(.semibold))
                 .foregroundStyle(Color.ink900)
                 .fixedSize(horizontal: false, vertical: true)
-            if !detail.isEmpty {
+            if failure == .nameInUse, !detail.isEmpty {
+                // Para este fallo el detalle es el comando que lo arregla.
+                Text(verbatim: detail)
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(Color.ink900)
+                    .textSelection(.enabled)
+            } else if !detail.isEmpty {
                 Text("connect.failure.detail \(detail)")
                     .font(.galenoCaption)
                     .foregroundStyle(Color.ink500)
                     .lineLimit(2)
                     .textSelection(.enabled)
             }
+            if failure == .slackNotAllowed {
+                Button("connect.slack.copyAdminMessage") { copyAdminMessage() }
+                    .buttonStyle(.bordered)
+            }
         }
+    }
+
+    /// Un mensaje listo para pegar al administrador del workspace.
+    private func copyAdminMessage() {
+        let appName = agentName.isEmpty ? "Galeno" : "\(agentName) (Galeno)"
+        // El idioma que eligió el usuario en el paso 1, no el del sistema: `String(localized:)`
+        // no sigue el cambio en caliente.
+        let bundle = Bundle.main.path(forResource: language.rawValue, ofType: "lproj")
+            .flatMap(Bundle.init(path:)) ?? .main
+        let format = bundle.localizedString(forKey: "connect.slack.adminMessage %@", value: nil, table: nil)
+        let text = String(format: format, appName)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     private var message: LocalizedStringKey {
@@ -262,6 +293,11 @@ private struct FailurePanel: View {
         case .bridgeMissing: "connect.failure.bridgeMissing"
         case .bridgeFailed: "connect.failure.bridgeFailed"
         case .qrExpired: "connect.failure.qrExpired"
+        case .tokenRejected: "connect.failure.tokenRejected"
+        case .slackNotAllowed: "connect.failure.slackNotAllowed"
+        case .slackManifest: "connect.failure.slackManifest"
+        case .slackUnreachable: "connect.failure.slackUnreachable"
+        case .nameInUse: "connect.failure.nameInUse"
         }
     }
 }
