@@ -3,7 +3,10 @@
 Resumen ejecutivo para cualquier sesión futura. Léelo antes de tocar nada.
 Fuente de verdad: `docs/03-especificacion-v0.0.1.md`. Este archivo la resume, no la reemplaza.
 
-**Estado (2 oct 2026):** documentación y estructura del monorepo. Todavía no hay código.
+**Estado (3 oct 2026):** el motor (`GalenoCore`) genera la config y el bridge de WhatsApp
+(`whatsapp-bridge`) está probado a mano contra una cuenta real (vincular, sincronizar, leer
+desde Claude Code, confirmar que no puede enviar); falta probar que `sync` sobrevive a un
+reinicio vía `launchd`. Faltan la app (`GalenoApp`), las skills, Sparkle y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
 ---
@@ -34,6 +37,7 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 |---|---|
 | Nombre | **Galeno** |
 | Precio | **USD 200, pago único** |
+| Actualizaciones | **De por vida, gratis**, sin renovación. Tres capas independientes: app (Sparkle), bridge de WhatsApp (viaja en la app, con versión propia) y skills (remotas, sin reinstalar). Sparkle va desde el primer build. Detalle: `docs/03` §4f |
 | Perfil | **Solo Product Managers** |
 | Plataforma | **Solo Mac** (firme; no portabilidad a Windows) |
 | App | **Swift + SwiftUI nativa**. Es la única interfaz del usuario |
@@ -95,6 +99,26 @@ Galeno.app  (Swift / SwiftUI)
 - **Motor separado de la app** por ingeniería (testeable, la app no acumula lógica), no
   para que alguien lo use directo. La app consume el motor y no duplica lógica.
 
+### Cómo se actualiza (3 capas, `docs/03` §4f)
+
+| Capa | Qué contiene | Cómo se actualiza |
+|---|---|---|
+| 1 · App Mac | Wizard, UI, motor de config | **Sparkle**: appcast en el servidor, build firmado, un clic. Soporta deltas |
+| 2 · Bridge de WhatsApp | `whatsmeow` + MCP read-only | Viaja dentro de la .app, así que llega con Sparkle. **Versión propia**, para sacar un parche urgente sin re-releasear la app. Es la capa que más se rompe por causas externas (Meta) |
+| 3 · Skills, catálogo y config | Skills PM, catálogo curado, prompts, plantillas | **Remoto, sin reinstalar**: se descargan al configurar el agente, y la app ofrece "actualizar skills". Fallback local si no hay internet |
+
+- **Sparkle firma con clave EdDSA propia**, además de la notarización de Apple. La clave
+  privada vive fuera del repo.
+- **Sin infraestructura nueva:** appcast, DMG y skills remotas se sirven desde la misma
+  infraestructura del sitio y del webhook de Stripe.
+- **Solo descargas.** Nada de esto recibe tokens, contenido ni datos de uso del usuario:
+  la regla de §5.1 sigue intacta.
+- **Estado hoy:** nada de esto está construido. `GalenoCore` ya recibe las skills como un
+  directorio (`skillsDirectory`), no las lleva embebidas, así que la capa 3 es cuestión de
+  quién llena ese directorio. El bridge todavía no expone una versión propia. La capa 2 ya
+  se ejercitó una vez a mano: el `whatsmeow` fijado en marzo de 2025 dejó de conectar y
+  hubo que actualizarlo (PR #9) — exactamente el caso que esta capa existe para cubrir.
+
 ### Qué escribe el motor en la máquina del usuario
 
 | Archivo | Contenido |
@@ -104,7 +128,7 @@ Galeno.app  (Swift / SwiftUI)
 | `.mcp.json` | Los MCP conectados. Tokens como referencias a variables de entorno, nunca en texto plano |
 | `.claude/agents/` | `scribe`, `tracker`, `reporter`: solo lectura + Notion/Jira; sin Bash ni Edit de código |
 | `.claude/hooks/` | Hook de aprobación para todo envío externo |
-| `.claude/skills/` | Las skills que el usuario dejó marcadas |
+| `.claude/skills/` | Las skills que el usuario dejó marcadas, tomadas de la fuente remota versionada (o del fallback local) |
 
 ### Qué puede hacer el agente generado
 
@@ -184,6 +208,12 @@ tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
 - **Falta (Fase 4, GalenoApp):** que la app dispare `install-launchd` tras un `pair` exitoso;
   renderizar el QR (ya disponible como PNG) dentro de la app en vez del terminal; empaquetar
   y firmar el binario.
+- **Falta (bridge):** un número de versión propio (`docs/03` §4f, capa 2). Hoy el binario
+  no tiene subcomando ni constante de versión del producto.
+- **Mantenimiento perpetuo:** `whatsmeow` hay que mantenerlo al día. Con una versión de
+  año y medio de antigüedad el socket se cerraba (1006) antes de mostrar el QR; al
+  actualizar cambiaron varias firmas (ahora piden `context.Context`) y el requisito pasó a
+  Go 1.26. Cuando el bridge deje de conectar, lo primero es revisar esto.
 - **Las 9 herramientas que quedan:** `search_contacts`, `list_messages`, `list_chats`,
   `get_chat`, `get_direct_chat_by_contact`, `get_contact_chats`, `get_last_interaction`,
   `get_message_context`, `download_media`.
@@ -207,6 +237,11 @@ qué herramienta escribir si el usuario tiene varias; no asumen.
 | Reuniones y descubrimiento | `/acta` · `/sintesis-research` · `/priorizar` |
 
 **Curadas.** Lista seleccionada de terceros, ofrecidas tal cual, con crédito y link.
+
+**Distribución.** Las skills no van horneadas en la app: se cargan de una fuente remota
+versionada, con fallback local, para poder mejorarlas o añadir nuevas sin un build nuevo
+(`docs/03` §4f, capa 3). Siguen siendo solo dos niveles, ambos revisados por nosotros:
+remoto no significa abierto a terceros.
 
 **Bases reutilizables (no reinventar):** `product-on-purpose/pm-skills` (Apache 2.0) y
 `phuryn/pm-skills` (MIT) como base; `snarktank/ralph` (MIT) por su `/prd`; el plugin
@@ -241,7 +276,8 @@ qué cambió), `reporter` (arma informes).
    equipo usando la app (aunque tenga dos pantallas y sea fea), no un CLI.
 3. **MCP de WhatsApp read-only** — ver §6.
 4. **Pagos y distribución** — pago único; DMG firmado y notarizado. El binario Go embebido
-   también se firma.
+   también se firma. **Sparkle desde el primer build**: una app que sale sin él no sabe
+   actualizarse, y montarlo con usuarios ya instalados obliga a contactarlos uno por uno.
 5. **Validación con 5-10 PMs externos** antes de abrir la venta.
 
 ---
@@ -254,6 +290,7 @@ qué cambió), `reporter` (arma informes).
 | Tokens expuestos | Nunca en texto plano ni en servidores propios |
 | El agente envía algo mal a un cliente | Envíos externos en `ask` + hook de aprobación |
 | Gatekeeper bloquea la app | Firmar y notarizar desde el inicio, incluido el binario Go |
+| Meta rompe el protocolo de WhatsApp | El bridge deja de leer; parche urgente de la capa 2 vía Sparkle (por eso tiene versión propia). Mantenimiento de por vida, no opcional |
 | Claude Code cambia el formato de config | Motor desacoplado |
 | El usuario se traba en un OAuth | Captura de qué hacer, botón de ayuda, "Saltar por ahora" |
 
@@ -274,7 +311,19 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 
 - **Dónde vive la config generada:** la spec dice "en la máquina del usuario", sin carpeta.
 - **Variables de entorno de los tokens:** dónde se guardan los valores a los que apunta `.mcp.json`.
-- **Pagos y licenciamiento:** proveedor y mecanismo de activación sin definir.
+- **Pagos y licenciamiento:** la spec ya da por hechos un webhook de Stripe y una clave
+  privada de licencias (§4f los menciona de pasada), pero el mecanismo de activación sigue
+  sin estar escrito en ningún documento.
+- **Sparkle, pendiente de arrancar:** generar el par de claves EdDSA (la privada fuera del
+  repo) y definir la URL del appcast y la ruta de las skills remotas, en el dominio del sitio.
+- **Skills remotas, sin diseño:** quién descarga (¿`GalenoApp` llena el directorio que ya
+  recibe el motor, o el motor aprende a hablar con la red?), cómo se versionan, dónde vive
+  el fallback local y **cómo se verifica su integridad**. La spec exige firma EdDSA para
+  la app, pero no dice nada equivalente para las skills, y una skill es instrucciones para
+  el agente: un canal remoto sin verificación sería una puerta de entrada de contenido no
+  revisado (regla §5.5).
+- **Versión propia del bridge:** falta decidir el esquema y cómo permite parchear el
+  bridge "sin re-releasear toda la app" si viaja empaquetado dentro de ella.
 - ~~MCP exactos de Slack, Notion, Jira, Gmail y Drive~~ — **resuelto** (oct 2026): todos
   verificados contra la documentación oficial. Google Workspace resultó ser tres servidores
   (Drive, Docs, Sheets), no uno. Ver `docs/03` §4e para el detalle y la decisión de

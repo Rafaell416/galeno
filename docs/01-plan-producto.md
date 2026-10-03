@@ -120,6 +120,8 @@ Opciones que se evaluaron:
 | **Suscripción** | $X/mes por acceso + actualizaciones | Ingreso recurrente; cubre mantener plantillas al día | Más fricción de compra | Descartado por ahora |
 | **Freemium** | Plantilla dev gratis; salud/PM de pago | Lead magnet + conversión | Hay que dar valor real gratis | Descartado: v0.0.1 tiene un solo perfil |
 
+**Qué incluye el pago único:** la app y **todas las actualizaciones futuras, de por vida, sin renovación**. No es un detalle menor: el mantenimiento —parches del bridge de WhatsApp cuando Meta cambia su protocolo, compatibilidad con Claude Code y con los MCP— es una obligación perpetua que no trae ingreso recurrente. Las features nuevas son gratis por elección. Mecanismo y arquitectura de 3 capas en `03-especificacion-v0.0.1.md` §4f.
+
 **Argumento de precio:** no vendes un configurador, vendes tiempo recuperado y *no meter la pata*. Para un PM que lleva varios proyectos, recuperar ~1 hora al día de informes y seguimientos son ~20 horas al mes. Para una plantilla futura de salud, evitar una multa de la SIC vale mucho más que el precio. El precio se justifica por los guardrails, no por el software.
 
 ---
@@ -130,6 +132,8 @@ Opciones que se evaluaron:
 |---|---|
 | **Seguridad de tokens ajenos** | Nunca tocan tu infra; todo local. Auditoría de seguridad antes de vender. |
 | **Claude Code cambia su API/config** | El motor desacoplado facilita actualizar; las actualizaciones son parte del soporte. |
+| **Meta rompe el protocolo de WhatsApp** | El bridge tiene versión propia y se parchea de urgencia vía Sparkle. Mantenimiento de por vida, no opcional. |
+| **Mantenimiento perpetuo sin ingreso recurrente** | Riesgo aceptado con el pago único. Se distingue internamente mantenimiento (obligación) de features nuevas (elección) para poder razonar costos. |
 | **Mercado saturado de skills** | No competir en skills sueltas; competir en "instalador + guardrails". El marketplace de skills queda a futuro. |
 | **Soporte a no-técnicos** | Es lo más caro de un producto de pago. Empezar con un nicho pequeño (PMs) y documentación muy buena. |
 | **Ban de WhatsApp a un usuario** | Solo lectura, advertencia explícita, sin promesa de "seguro". |

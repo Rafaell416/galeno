@@ -173,6 +173,29 @@ Los scopes que v0.0.1 pide a la app de Slack del cliente (verificados contra la 
 
 **Google Workspace no es un servidor, son tres:** Drive, Docs y Sheets tienen cada uno su propio endpoint del lado de Google (`drivemcp`/`docsmcp`/`sheetsmcp.googleapis.com/mcp/v1`). El wizard sigue mostrando "Google Drive, Docs y Sheets" como una sola tool (§3 paso 4); por debajo, el motor escribe tres entradas en `.mcp.json`, las tres con el mismo `client_id` del cliente.
 
+## 4f. Actualizaciones · arquitectura de 3 capas + Sparkle
+
+**Política de negocio:** actualizaciones **de por vida, gratis** para quien compró. Pago único, sin renovación. Internamente se distingue (aunque todo sea gratis): el *mantenimiento* —bug fixes, parches del bridge de WhatsApp cuando Meta cambia su protocolo, compatibilidad con cambios de Claude Code y de los MCP— es una obligación perpetua; las *features nuevas* son gratis por elección. La distinción no cambia nada para el usuario; sirve para razonar costos a futuro. El mecanismo técnico es el mismo cualquiera sea la política, así que esta decisión no ata la arquitectura.
+
+**Galeno se actualiza en 3 capas independientes:**
+
+| Capa | Qué contiene | Cómo se actualiza |
+|---|---|---|
+| 1 · App Mac (Swift) | Wizard, UI, motor de config | **Sparkle**: la app revisa un appcast (XML) en el servidor, avisa al usuario, descarga el build firmado y se reemplaza con un clic. Soporta deltas (solo lo que cambió). |
+| 2 · Bridge de WhatsApp (Go) | Puente whatsmeow + MCP read-only | Viaja empaquetado en la .app, así que se actualiza vía Sparkle con ella. **Tiene su propio número de versión** para poder sacar un parche urgente del bridge sin re-releasear toda la app. Es la capa que más se rompe por causas externas (Meta). |
+| 3 · Skills, catálogo y config | Las skills del perfil PM, el catálogo curado, prompts, plantillas | **Remoto, sin reinstalar.** La app las descarga del servidor/repo al configurar el agente y ofrece "actualizar skills" a usuarios existentes. Mejorar una skill o agregar una nueva NO requiere nuevo build de la app. Es lo que mantiene a Galeno vivo entre releases. |
+
+**Sparkle — detalles que importan:**
+- Framework open source estándar para apps Mac fuera del App Store.
+- Actualizaciones **firmadas con clave EdDSA propia** (además de la firma de notarización de Apple): nadie puede inyectar una versión falsa. Crítico porque Galeno maneja tokens del usuario.
+- El appcast, los DMG y las skills remotas se sirven desde la **misma infraestructura que ya existe** para el sitio y el webhook de Stripe. No es infraestructura nueva.
+
+**Por qué va en la v0.0.1 aunque se lance una sola versión:** si la primera app sale sin Sparkle, esos usuarios tienen una app que no sabe actualizarse, y sacar la v0.0.2 obliga a contactarlos uno por uno. El mecanismo debe venir desde el primer build. Montarlo después, con usuarios ya instalados, es mucho más caro.
+
+**Implicación para el motor (capa 3):** las skills NO se hornean dentro del binario de la app; se cargan desde una fuente remota versionada. El motor de config debe leerlas de ahí, con un fallback local por si el usuario está sin internet al configurar.
+
+**Esto no contradice "nada sale a servidores nuestros":** las tres capas son *descargas* desde infraestructura propia hacia la máquina del usuario. Ni el appcast ni las skills remotas reciben tokens, contenido ni datos de uso.
+
 ## 5. Lo que queda para después (y por qué)
 
 | Qué | Cuándo | Por qué no ahora |
@@ -187,6 +210,8 @@ Los scopes que v0.0.1 pide a la app de Slack del cliente (verificados contra la 
 
 **Idiomas:** español e inglés **sí están en v0.0.1** (ver §4d). Lo único que queda fuera es el tratamiento de idioma de las skills curadas, que se ofrecen tal cual.
 
+**Actualizaciones:** **sí están en v0.0.1**, de por vida y gratis. El pago único da la app y todas las actualizaciones futuras, sin renovación. Mecanismo: Sparkle, desde el primer build (ver §4f).
+
 ---
 
 ## 6. Qué genera el motor (la config de Claude Code)
@@ -198,7 +223,7 @@ Para el perfil PM, el motor escribe en la máquina del usuario:
 - `.mcp.json` — los MCP conectados (WhatsApp read-only, Slack, Notion, Google Drive/Docs/Sheets, Jira, Gmail, Fireflies/Granola/Fathom), con tokens como referencias a variables de entorno, nunca en texto plano.
 - `.claude/agents/` — subagentes del perfil PM: `scribe`, `tracker`, `reporter` (solo lectura + Notion/Jira; sin Bash, sin Edit de código).
 - `.claude/hooks/` — hook de aprobación para todo envío externo.
-- `.claude/skills/` — **la lista de skills de abajo.**
+- `.claude/skills/` — **la lista de skills de abajo.** No vienen horneadas en la app: el motor las toma de una fuente remota versionada, con un fallback local (§4f, capa 3).
 
 ### 6.1 Las skills del perfil PM (lista para v0.0.1)
 
@@ -271,14 +296,19 @@ El nivel "trae la tuya" (pegar un link de GitHub) se pospone. Cuando se añada, 
    - [x] Eliminar las 3 herramientas de envío (y todo lo que solo existía para ellas).
    - [x] Portar el MCP de Python a Go dentro del binario del puente: 9 herramientas de
      solo lectura, SDK oficial (`modelcontextprotocol/go-sdk`), subcomandos
-     `pair`/`serve`/`status`, estado en `~/Library/Application Support/Galeno/whatsapp/`,
-     build universal arm64+amd64. Detalle en `whatsapp-bridge/README.md`.
-   - [ ] Añadir `launchd`, renderizar el QR rotativo en la app, empaquetar y firmar el
-     binario. Tomar de joaohts las ideas de UX. Esto es trabajo de `GalenoApp` (Fase 4):
-     el puente ya expone `pair` (QR por terminal) y `serve` (MCP por stdio) para que la
-     app los invoque como procesos.
+     `pair`/`sync`/`serve`/`status`/`install-launchd`, estado en
+     `~/Library/Application Support/Galeno/whatsapp/`, build universal arm64+amd64.
+     Detalle en `whatsapp-bridge/README.md`.
+   - [x] `launchd`: `install-launchd` instala un LaunchAgent que mantiene `sync` corriendo
+     tras el login. `pair` escribe además el QR rotativo como PNG para que la app lo muestre.
+   - [ ] Darle al bridge **su propio número de versión** (§4f, capa 2), para poder sacar
+     un parche urgente cuando Meta cambie el protocolo.
+   - [ ] Renderizar el QR dentro de la app, disparar `install-launchd` tras un `pair`
+     exitoso, empaquetar y firmar el binario. Tomar de joaohts las ideas de UX. Esto es
+     trabajo de `GalenoApp` (Fase 4): el puente ya expone lo necesario para que la app lo
+     invoque como proceso.
    - Conservar los avisos de licencia MIT (ya en `whatsapp-bridge/LICENSE`/`NOTICE`).
-4. **Pagos + distribución** — pago único, DMG firmado y notarizado (Apple lo exige para que abra sin sustos).
+4. **Pagos + distribución** — pago único, DMG firmado y notarizado (Apple lo exige para que abra sin sustos). **Sparkle va desde el primer build** (§4f): una app que sale sin él no sabe actualizarse.
 5. **Validación con 5-10 PMs externos** antes de abrir la venta.
 
 ---
@@ -291,12 +321,16 @@ El nivel "trae la tuya" (pegar un link de GitHub) se pospone. Cuando se añada, 
 | Tokens expuestos | Nunca en texto plano; referencias a env; nunca en servidores propios |
 | Agente envía algo mal a un cliente | Todo envío externo en `ask` + hook de aprobación |
 | Apple bloquea la app (Gatekeeper) | Firmar y notarizar el DMG desde el inicio; el binario Go embebido también debe firmarse |
+| Meta rompe el protocolo de WhatsApp | El bridge deja de leer; se saca parche urgente de la capa 2 vía Sparkle (por eso tiene versión propia). Mantenimiento de por vida, no opcional |
 | Claude Code cambia formato de config | Motor desacoplado; actualizaciones como parte del soporte |
 | Usuario no técnico se traba en un OAuth | Cada pantalla con captura de qué hacer y botón de "ayuda" |
 
 ---
 
 ## Pendientes antes de construir
+
+- [ ] Generar el par de claves EdDSA de Sparkle (la privada fuera del repo, como la de licencias)
+- [ ] Definir la URL del appcast y la ruta de las skills remotas (en el dominio del sitio)
 
 - [x] Nombre del producto → **Galeno**
 - [x] Precio del pago único → **USD 200**

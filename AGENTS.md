@@ -14,6 +14,8 @@ para WhatsApp (solo lectura) y registra MCP hospedados con `claude mcp add`.
 - **Swift + SwiftUI**: la app y el motor que genera la config.
 - **Go**: un único binario para WhatsApp (puente `whatsmeow` + servidor MCP read-only).
 - **Nada más**: ni Python, ni Node, ni Rust, ni contenedor web dentro de la app.
+- **Sparkle** para las actualizaciones de la app (framework estándar de Mac fuera del App
+  Store). Va desde el primer build. Ver `docs/03` §4f.
 - Los MCP hospedados (Notion, Slack, Gmail, Drive, Jira, Fireflies, Granola, Fathom) no se
   empaquetan: se conectan por OAuth contra los servidores de cada proveedor.
 
@@ -35,14 +37,15 @@ Límites entre carpetas:
 - `whatsapp-bridge/` es autocontenido; habla con Claude Code por stdio y con la app como
   proceso hijo.
 - `skills/` es contenido, no código de la app; el motor lo copia a la config del usuario.
+  No se hornea en el binario: se publica como fuente remota versionada, con un fallback
+  local (`docs/03` §4f, capa 3).
 
 ## Comandos
 
 `GalenoCore/` ya tiene comportamiento (el generador de config). `whatsapp-bridge/` también:
 el puente (lectura de WhatsApp) y las 9 herramientas MCP de solo lectura, con subcomandos
 `pair`/`sync`/`serve`/`status`/`install-launchd` — ver `whatsapp-bridge/README.md`.
-`GalenoApp/` aún no tiene
-proyecto Xcode: ese comando es el previsto. El CI corre los jobs `swift` y `go` en cada PR y
+`GalenoApp/` aún no tiene proyecto Xcode: ese comando es el previsto. El CI corre los jobs `swift` y `go` en cada PR y
 en cada push a `main` (`.github/workflows/ci.yml`).
 
 `GalenoCore` tiene además `galeno-gen`, una herramienta de desarrollo para probar el
@@ -90,6 +93,18 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   propiedad que sobreviva más de esa llamada. Sigue sin tocar infraestructura propia (no sale
   de la máquina del usuario); es Galeno viéndolo de paso, no reteniéndolo.
 - Los fixtures de prueba usan valores falsos evidentes.
+- La clave privada EdDSA de Sparkle y la de licencias viven fuera del repo. Nunca se
+  commitean, ni siquiera cifradas.
+
+### Actualizaciones
+
+- Tres capas independientes (`docs/03` §4f): la app por Sparkle, el bridge dentro de la app
+  pero con versión propia, y las skills desde una fuente remota.
+- El appcast y las skills remotas son **solo descargas**. No se les añade nada que suba
+  datos del usuario: ni perfil del sistema, ni identificadores, ni conteos de uso.
+- Las skills remotas siguen siendo solo nuestras y curadas, revisadas antes de publicarse.
+  Que sean remotas no abre la puerta a contenido de terceros sin revisar.
+- Cambiar una skill no exige build nuevo de la app; cambiar el bridge sí sube su versión.
 
 ### WhatsApp
 
