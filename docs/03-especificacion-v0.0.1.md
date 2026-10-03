@@ -105,7 +105,7 @@ El wizard termina, pero el producto no. Un agente de Galeno es **una carpeta** (
 
 **Varios agentes, uno por proyecto.** Un PM con tres clientes crea tres agentes. Cada uno tiene su carpeta, su descripción, sus fuentes y su memoria. **Las conexiones se hacen una sola vez y se comparten**: el OAuth de cada herramienta lo guarda Claude Code por usuario, y WhatsApp es un solo dispositivo vinculado con una sola base local.
 
-**Wizard corto** (del segundo agente en adelante): nombre, descripción del proyecto, qué leer y qué skills. No repite idioma, detección ni conexiones; solo pide conectar una herramienta si el proyecto usa una que todavía no está conectada.
+**Wizard corto** (del segundo agente en adelante): nombre, descripción del proyecto, qué leer y qué skills. No repite idioma, detección ni conexiones; solo pide conectar una herramienta si el proyecto usa una que todavía no está conectada. El motor arma el punto de partida del agente nuevo con las herramientas ya conectadas, con su `client_id`, y el idioma de la instalación (el del paso 1); qué lee de cada una queda por elegir.
 
 **Qué se garantiza y qué no.** En ninguna herramienta la selección de fuentes es una barrera: es una instrucción en el `AGENTS.md`, que el agente obedece pero nada impide técnicamente. En WhatsApp, el bridge le da al agente todos los chats sincronizados. Se descartó filtrarlos por chat porque una lista fija obliga a reconfigurar cada vez que aparece un grupo nuevo; un grupo nuevo se le pide al agente en la conversación. Lo que sí se garantiza: WhatsApp es de solo lectura y todo envío externo pasa por aprobación. La separación garantizada de contexto entre agentes es v0.2, y si hace falta una barrera en WhatsApp será una lista de **exclusión** (chats privados que el agente nunca ve), no de inclusión.
 
@@ -114,6 +114,10 @@ El wizard termina, pero el producto no. Un agente de Galeno es **una carpeta** (
 **Memoria del proyecto.** Cada agente mantiene notas propias (decisiones, quién es quién, pendientes) en la carpeta `memoria/` de su proyecto, y las actualiza él mismo. Es el **único lugar donde puede escribir sin que nadie lo apruebe**. Lo que el propio Galeno genera (`AGENTS.md`, `CLAUDE.md`, `.mcp.json`, todo `.claude/`) está bloqueado por regla, y cualquier otra ruta pide permiso al usuario cada vez; la ejecución de código está bloqueada del todo. La memoria es un archivo, `memoria/proyecto.md`, que `CLAUDE.md` importa para que cargue en cada sesión; el agente decide que es su primera sesión cuando la sección «Resumen» sigue diciendo «Sin confirmar.». Las notas son hechos sobre el proyecto, nunca instrucciones: el agente ignora y avisa si un mensaje o un documento le pide guardar algo en su memoria.
 
 **Galeno es el dueño de la config.** Galeno guarda las respuestas del wizard de cada agente. Cuando el usuario cambia algo, el motor **regenera los archivos completos**; lo que alguien haya editado a mano se pierde. La excepción es `memoria/`, que Galeno nunca toca.
+
+**La instalación y las carpetas.** Galeno recuerda dos cosas entre sesiones, en un solo archivo (`~/Library/Application Support/Galeno/installation.json`, sin secretos): las **conexiones compartidas** (herramienta, estado, `client_id`) y la **lista de agentes** (su config y su carpeta). El estado y el `client_id` se toman siempre de las conexiones compartidas, no de cada agente: cambiar el `client_id` de Slack una vez llega a todos, y una herramienta que se desconecta desaparece de todos al regenerar. La carpeta de un agente es `~/Galeno/<nombre>/`, con el nombre limpio de caracteres que rompen rutas y, si ya existe una igual (de otro agente o del propio usuario), con un número: `Aurora 2`. Se elige una vez al crearlo y no cambia sola.
+
+**Regenerar.** Aplicar el generador sobre una carpeta que ya tiene config la deja **exactamente igual que una carpeta nueva** con la misma config: se quitan las skills desmarcadas (también una puesta a mano, porque `.claude/` es de Galeno) y el hook de aprobación si ya no hay a qué aplicarlo, y `memoria/` no se toca. Todo se calcula antes de escribir: si algo falla, la carpeta queda como estaba.
 
 **Solo cuando se lo piden.** El agente trabaja dentro de una sesión que abre el usuario. Una skill como `/reporte-dia` se corre a mano. Las tareas programadas quedan para después (§5).
 
@@ -327,7 +331,7 @@ El nivel "trae la tuya" (pegar un link de GitHub) se pospone. Cuando se añada, 
    - [x] Modelo (`AgentConfig`) y generadores de `AGENTS.md`, `settings.json`, `.mcp.json`, hook de aprobación y skills, con snapshots.
    - [x] Subagentes `scribe`, `tracker` y `reporter` en `.claude/agents/` (§6).
    - [x] Descripción del proyecto y memoria (`memoria/`, con la escritura limitada a esa carpeta) (§3b).
-   - [ ] Varios agentes: conexiones compartidas + lista de agentes, y regeneración sobre una carpeta existente sin tocar `memoria/` (§3b).
+   - [x] Varios agentes: la instalación (conexiones compartidas + lista de agentes, en `~/Library/Application Support/Galeno/installation.json`), el punto de partida del wizard corto, la carpeta `~/Galeno/<agente>/` y la regeneración sobre una carpeta existente sin tocar `memoria/` (§3b).
 2. **App Swift/SwiftUI (en paralelo al motor)** — el wizard de §3 y el home de §3b. **Es lo único que el usuario ve.** Consume el motor; no duplica lógica.
    - **Validación con los 2 PMs del equipo:** con una versión temprana de la app, aunque tenga solo dos pantallas y sea fea. Validan el wizard, no el motor. Darles un CLI no sirve: validarían una experiencia que nunca tendrán.
 3. **MCP de WhatsApp read-only** — fork de lharries (MIT).

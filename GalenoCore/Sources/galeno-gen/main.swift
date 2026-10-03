@@ -19,6 +19,10 @@ func printUsage() {
         galeno-gen — genera la config de Claude Code a partir de un AgentConfig en JSON.
         Herramienta de desarrollo; no se distribuye. Ver docs/DEV.md.
 
+        Si la carpeta ya tiene una config, la regenera: la deja exactamente como dice el
+        JSON (quita las skills desmarcadas y el hook que ya no aplica) y no toca memoria/.
+        Si algo falla, la carpeta queda como estaba.
+
         Uso:
           galeno-gen <config.json> <carpeta-destino> [opciones]
 
@@ -114,6 +118,13 @@ do {
     print("Config de \"\(config.agentName)\" generada en \(destination.path):\n")
     for path in result.writtenFiles {
         print("  \(path)")
+    }
+
+    if !result.removedFiles.isEmpty {
+        print("\nQuitado (ya no lo pide la config):")
+        for path in result.removedFiles {
+            print("  \(path)")
+        }
     }
 
     if !result.warnings.isEmpty {

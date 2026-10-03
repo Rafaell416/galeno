@@ -55,6 +55,30 @@ Claude Code no reabre un directorio bloqueado entero. Cualquier otra ruta no tie
 que pide permiso. Si el generador escribe un archivo nuevo fuera de `memoria/`, hay que
 añadirlo a `protectedPaths`; un test falla si se olvida.
 
+**Regenerar.** Aplicar el generador sobre una carpeta que ya tiene config la deja igual que una
+nueva con la misma config: calcula todo antes de escribir (un error no la deja a medias) y
+después quita las skills desmarcadas y el hook que ya no aplica. `GenerationResult.removedFiles`
+lista lo quitado.
+
+## La instalación y los agentes
+
+`Sources/GalenoCore/Installation/` es lo que Galeno recuerda entre sesiones, en
+`~/Library/Application Support/Galeno/installation.json` (`InstallationStore`; `load()` devuelve
+`nil` la primera vez, y un archivo ilegible o de una versión más nueva lanza un error y no se
+pisa). Sin secretos.
+
+| Tipo | Qué es |
+|---|---|
+| `SharedConnection` | Herramienta, estado y `client_id`: se conecta una vez y la comparten todos los agentes |
+| `AgentRecord` | Un agente: `id` estable, su `AgentConfig` y la ruta de su carpeta |
+| `GalenoInstallation` | El idioma del paso 1, las conexiones compartidas y los agentes |
+| `AgentFolder` | `~/Galeno/<agente>/`: nombre saneado, sin choques (`Aurora 2`) |
+
+`startingPoint(agentName:projectDescription:)` arma el `AgentConfig` de un agente nuevo con las
+herramientas ya conectadas (base del wizard corto). `resolvedConfig(for:)` devuelve el config del
+agente con el estado y el `client_id` tomados de las conexiones compartidas: es lo que se le
+pasa al generador, para que haya una sola fuente de verdad.
+
 Las skills no van embebidas en el motor: el generador las copia desde el `skillsDirectory`
 que recibe. Eso es lo que permite que en producción vengan de una fuente remota versionada,
 con un fallback local (`../docs/03-especificacion-v0.0.1.md` §4f, capa 3). Quién descarga y

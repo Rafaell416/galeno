@@ -7,9 +7,9 @@ Fuente de verdad: `docs/03-especificacion-v0.0.1.md`. Este archivo la resume, no
 (`whatsapp-bridge`) está probado a mano contra una cuenta real (vincular, sincronizar, leer
 desde Claude Code, confirmar que no puede enviar); falta probar que `sync` sobrevive a un
 reinicio vía `launchd`. Tras la sesión de descubrimiento del 3 de octubre quedan ajustes
-pendientes en el motor y el bridge (descripción y memoria del proyecto, subagentes, varios
-agentes): ver §6 y §12. Faltan la app (`GalenoApp`), las skills, Sparkle
-y la distribución.
+pendientes (probar `sync` tras un reinicio y el binario universal en CI): ver §6 y §12. El
+motor ya tiene subagentes, descripción y memoria del proyecto, varios agentes y regeneración.
+Faltan la app (`GalenoApp`), las skills, Sparkle y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
 ---
@@ -372,9 +372,15 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
   Claude y Terminal, pero falta verificar cómo se abre una carpeta concreta en la app de
   Claude desde Galeno y que cargue toda la config generada (hooks, `.mcp.json`, skills).
 - **Licencia y número de agentes:** falta decidir si una licencia cubre agentes ilimitados.
-- **Carpetas visibles:** `~/Galeno/<agente>/` está a la vista; falta decidir qué hace el
-  home si el usuario la borra, la mueve o la renombra, y cómo se renombra o elimina un
-  agente desde Galeno.
+- **Carpetas visibles:** `~/Galeno/<agente>/` está a la vista y el motor ya asigna la ruta
+  (sin choques, con `Aurora 2` si hace falta). Falta decidir qué hace el home si el usuario
+  la borra, la mueve o la renombra, y cómo se renombra o elimina un agente desde Galeno. Una
+  carpeta borrada a mano se puede recrear desde la instalación, pero su memoria se pierde.
+- **Regenerar borra skills a mano:** quitar las skills desmarcadas borra cualquier carpeta de
+  `.claude/skills/` que no esté marcada, también una puesta a mano. Es lo que dice la spec
+  (Galeno es el dueño) y el resultado lista lo quitado (`removedFiles`) para que la app avise;
+  no se puede deshacer. Un manifiesto de lo que Galeno instaló lo evitaría; no hace falta
+  mientras "trae tu skill" no exista (v0.2).
 - **Memoria, cómo se limita la escritura (resuelto):** reglas de permiso por ruta, no un
   hook (un hook necesita `jq` para leer su entrada, y la documentación no dice si su
   `allow` puede más que un `deny`). Un patrón que niegue todo el proyecto con `memoria/`
