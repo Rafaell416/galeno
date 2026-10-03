@@ -72,6 +72,19 @@ public struct ConfigGenerator: Sendable {
             )
         }
 
+        // La memoria es del agente: se crea una vez y no se vuelve a tocar,
+        // ni el archivo ni nada más dentro de `memoria/`.
+        try fileManager.createDirectory(
+            at: destination.appending(path: MemoryRenderer.directory, directoryHint: .isDirectory),
+            withIntermediateDirectories: true)
+        if !fileManager.fileExists(
+            atPath: destination.appending(path: MemoryRenderer.mainFile).path)
+        {
+            try write(
+                MemoryRenderer.renderInitialFile(language: config.language),
+                to: MemoryRenderer.mainFile, in: destination, &written)
+        }
+
         for subagent in SubagentsRenderer.render(config) {
             try write(subagent.contents, to: subagent.path, in: destination, &written)
         }

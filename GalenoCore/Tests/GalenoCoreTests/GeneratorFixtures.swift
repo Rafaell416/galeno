@@ -8,6 +8,7 @@ enum GeneratorFixtures {
         AgentConfig(
             agentName: "Hipócrates",
             language: .spanish,
+            projectDescription: "App de citas para la clínica del Cliente A; lanzamos en noviembre.",
             connections: [
                 ToolConnection(
                     tool: .whatsapp,
@@ -55,6 +56,7 @@ enum GeneratorFixtures {
         AgentConfig(
             agentName: "Vesalius",
             language: .english,
+            projectDescription: "Scheduling app for Acme's clinic; launching in November.",
             connections: [
                 ToolConnection(
                     tool: .whatsapp,

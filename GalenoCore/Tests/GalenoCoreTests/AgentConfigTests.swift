@@ -66,7 +66,10 @@ final class AgentConfigTests: XCTestCase {
 
         let config = try AgentConfig.jsonDecoder.decode(AgentConfig.self, from: Data(json.utf8))
 
+        // Un JSON del formato 1 no tiene descripción del proyecto: se sigue
+        // leyendo, con la descripción vacía y la versión tal como se guardó.
         XCTAssertEqual(config.schemaVersion, 1)
+        XCTAssertEqual(config.projectDescription, "")
         XCTAssertEqual(config.agentName, "Hipócrates")
         XCTAssertEqual(config.language, .spanish)
         XCTAssertEqual(config.role, .productManager)
@@ -83,6 +86,34 @@ final class AgentConfigTests: XCTestCase {
         XCTAssertEqual(config.skills, [SelectedSkill(id: "prd", source: .galeno)])
         XCTAssertEqual(config.sendingRules.policy(for: .notion), .allow)
         XCTAssertEqual(config.sendingRules.policy(for: .googleDocs), .ask)
+    }
+
+    func testDecodesTheProjectDescriptionOfAVersion2File() throws {
+        let json = """
+            {
+              "schemaVersion": 2,
+              "agentName": "Vesalius",
+              "language": "en",
+              "role": "product-manager",
+              "projectDescription": "Scheduling app for Acme's clinic.",
+              "connections": [],
+              "skills": [],
+              "sendingRules": { "internalWrites": {} }
+            }
+            """
+
+        let config = try AgentConfig.jsonDecoder.decode(AgentConfig.self, from: Data(json.utf8))
+
+        XCTAssertEqual(config.schemaVersion, 2)
+        XCTAssertEqual(config.projectDescription, "Scheduling app for Acme's clinic.")
+    }
+
+    func testTheProjectDescriptionIsEncoded() throws {
+        let data = try AgentConfig.jsonEncoder.encode(AgentConfig.example)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(
+            object["projectDescription"] as? String, "App de citas para la clínica del Cliente A.")
     }
 
     func testEncodesSchemaVersion() throws {

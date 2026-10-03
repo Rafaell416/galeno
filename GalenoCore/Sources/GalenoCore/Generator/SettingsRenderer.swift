@@ -7,10 +7,30 @@ import Foundation
 /// primera que coincide; la especificidad no cambia nada. Por eso un `allow`
 /// concreto no puede abrir una excepción dentro de un `ask` amplio, y por eso
 /// Slack y Gmail van enteros a `ask`.
+///
+/// **Escritura de archivos.** El agente solo escribe en `memoria/`. Un `Write`
+/// o `Edit` pelado en `deny` le quitaría las herramientas, y un patrón que
+/// niegue todo el proyecto no se puede reabrir con una excepción `!`: se
+/// probó contra Claude Code y la excepción no alcanza (la documentación lo
+/// avisa). Así que se niega por nombre lo que el propio motor genera, y se
+/// permite `memoria/`. Cualquier otra ruta no tiene regla y pide permiso al
+/// usuario; no pasa sola. Las rutas van ancladas con `/` a la raíz del
+/// proyecto, para que valgan aunque Claude Code arranque desde una subcarpeta.
+///
+/// `Edit(ruta)` cubre todas las herramientas que editan archivos. Una regla de
+/// ruta escrita bajo `Write(...)` se acepta pero nunca se consulta.
 enum SettingsRenderer {
-    /// Las herramientas de edición que el perfil PM nunca necesita. Con el
-    /// nombre pelado en `deny`, Claude Code las quita del contexto del agente.
-    static let deniedTools = ["Bash", "Edit", "NotebookEdit", "Write"]
+    /// Las herramientas que el perfil PM nunca necesita. Con el nombre pelado
+    /// en `deny`, Claude Code las quita del contexto del agente.
+    static let deniedTools = ["Bash", "NotebookEdit"]
+
+    /// Lo que el motor escribe fuera de `memoria/`, relativo a la raíz del
+    /// proyecto. Si el generador empieza a escribir otro archivo, tiene que
+    /// entrar aquí: un test lo comprueba.
+    static let protectedPaths = ["/AGENTS.md", "/CLAUDE.md", "/.mcp.json", "/.claude/**"]
+
+    /// La única ruta donde el agente escribe sin que nadie lo apruebe.
+    static let memoryAllowRule = "Edit(/\(MemoryRenderer.directory)/**)"
 
     /// Las lecturas locales que siempre se permiten.
     static let allowedReadTools = ["Glob", "Grep", "Read"]
@@ -58,7 +78,7 @@ enum SettingsRenderer {
     }
 
     static func render(_ config: AgentConfig) throws -> String {
-        var allow = allowedReadTools
+        var allow = allowedReadTools + [memoryAllowRule]
         var ask: [String] = []
 
         for tool in config.connectedTools {
@@ -105,7 +125,9 @@ enum SettingsRenderer {
             ])
 
         let file = File(
-            permissions: Permissions(allow: allow.sorted(), ask: ask.sorted(), deny: deniedTools),
+            permissions: Permissions(
+                allow: allow.sorted(), ask: ask.sorted(),
+                deny: deniedTools + protectedPaths.map { "Edit(\($0))" }),
             hooks: hooks
         )
 

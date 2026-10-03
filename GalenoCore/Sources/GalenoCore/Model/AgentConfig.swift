@@ -8,7 +8,7 @@ import Foundation
 /// se puede escribir a disco o adjuntar a un reporte de soporte sin riesgo.
 public struct AgentConfig: Codable, Hashable, Sendable {
     /// La versión de formato que escribe esta versión de la app.
-    public static let currentSchemaVersion = 1
+    public static let currentSchemaVersion = 2
 
     /// Versión del formato, para poder migrar configs guardadas por versiones
     /// anteriores de la app.
@@ -23,6 +23,11 @@ public struct AgentConfig: Codable, Hashable, Sendable {
 
     /// El rol del agente (paso 3). En v0.0.1 solo `.productManager`.
     public var role: AgentRole
+
+    /// Una línea que describe el proyecto (paso 3 del wizard). El agente la
+    /// completa en su primera sesión y guarda el resumen en su memoria. Vacía
+    /// si el usuario no la escribió, y en toda config guardada con el formato 1.
+    public var projectDescription: String
 
     /// Las herramientas que el usuario marcó, en el orden del sub-wizard
     /// (pasos 4, 5 y 6). Se espera una entrada por herramienta, sin repetir.
@@ -40,6 +45,7 @@ public struct AgentConfig: Codable, Hashable, Sendable {
         agentName: String,
         language: Language,
         role: AgentRole = .productManager,
+        projectDescription: String = "",
         connections: [ToolConnection] = [],
         skills: [SelectedSkill] = [],
         sendingRules: SendingRules = .default
@@ -48,9 +54,31 @@ public struct AgentConfig: Codable, Hashable, Sendable {
         self.agentName = agentName
         self.language = language
         self.role = role
+        self.projectDescription = projectDescription
         self.connections = connections
         self.skills = skills
         self.sendingRules = sendingRules
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, agentName, language, role, projectDescription
+        case connections, skills, sendingRules
+    }
+
+    /// Lee una config guardada con cualquier versión anterior. Los campos que
+    /// el formato 1 no tenía se leen vacíos; `schemaVersion` queda como estaba
+    /// guardado, para saber de dónde viene.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        agentName = try container.decode(String.self, forKey: .agentName)
+        language = try container.decode(Language.self, forKey: .language)
+        role = try container.decode(AgentRole.self, forKey: .role)
+        projectDescription =
+            try container.decodeIfPresent(String.self, forKey: .projectDescription) ?? ""
+        connections = try container.decode([ToolConnection].self, forKey: .connections)
+        skills = try container.decode([SelectedSkill].self, forKey: .skills)
+        sendingRules = try container.decode(SendingRules.self, forKey: .sendingRules)
     }
 }
 

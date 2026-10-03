@@ -29,10 +29,11 @@ a punta, no para ver contenido real.
 ```bash
 cat > /tmp/config.json <<'EOF'
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "agentName": "Hipócrates",
   "language": "es",
   "role": "product-manager",
+  "projectDescription": "App de citas para la clínica del Cliente A.",
   "connections": [
     { "tool": "notion", "status": "connected",
       "sources": { "readsEverything": true, "selected": [] } }
@@ -46,7 +47,7 @@ swift run --package-path GalenoCore galeno-gen /tmp/config.json /tmp/agente-de-p
 ```
 
 Escribe `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.mcp.json`,
-`.claude/agents/` y `.claude/skills/` en `/tmp/agente-de-prueba`, y lista cada archivo que generó. Si algo
+`.claude/agents/`, `.claude/skills/` y `memoria/proyecto.md` en `/tmp/agente-de-prueba`, y lista cada archivo que generó. Si algo
 no está verificado (un endpoint de MCP) o necesita atención (un `CLAUDE.md` que ya
 existía), lo dice al final bajo "Advertencias".
 
