@@ -1,7 +1,7 @@
 # whatsapp-bridge
 
 Un único binario Go: el puente de WhatsApp (`whatsmeow`, QR, SQLite) y un servidor MCP de
-**solo lectura**, con cinco subcomandos.
+**solo lectura**, con siete subcomandos.
 
 ```bash
 galeno-whatsapp pair             # Vincula este Mac con tu WhatsApp (muestra un QR)
@@ -9,6 +9,8 @@ galeno-whatsapp sync             # Mantiene la conexión viva de fondo; nunca si
 galeno-whatsapp serve            # Sirve las 9 herramientas MCP por stdio; no conecta a WhatsApp
 galeno-whatsapp status           # Dice si hay una sesión vinculada, sin conectar a WhatsApp
 galeno-whatsapp install-launchd  # Instala "sync" como LaunchAgent (arranca solo tras el login)
+galeno-whatsapp chats --json     # Lista los chats guardados, para la pantalla "elige qué leer"
+galeno-whatsapp version          # Imprime la versión del bridge (solo el número)
 ```
 
 El estado (sesión y mensajes) vive en `~/Library/Application Support/Galeno/whatsapp/`, no
@@ -79,10 +81,62 @@ popular pero no oficial `mark3labs/mcp-go`).
 `get_direct_chat_by_contact` · `get_contact_chats` · `get_last_interaction` ·
 `get_message_context` · `download_media`.
 
+**Qué chats ve el agente: todos los que `sync` guardó.** No hay un filtro por chat, a propósito.
+Una lista fija de chats permitidos obligaría a reconfigurar cada vez que aparece un grupo nuevo,
+y eso es una mala experiencia. Elegir chats en el wizard le dice al agente en qué enfocarse (va
+en su `AGENTS.md`); no le quita acceso a los demás. Si hace falta una barrera algún día, la
+opción es una lista de **exclusión** (chats privados que nunca ve), no de inclusión.
+
 **No existen** `send_message`, `send_file` ni `send_audio_message`. Ocho de las nueve leen
 directo de la base local (`queries.go`); `download_media` llama a la función Go que ya
 descarga medios (`media.go`) — en upstream esto eran dos procesos que se hablaban por HTTP
 (Python ↔ Go); aquí es una sola llamada de función, en el mismo proceso.
+
+## `chats --json`: la lista para "elige qué leer"
+
+```bash
+./galeno-whatsapp chats --json
+```
+
+Escribe en stdout un arreglo JSON, del chat más reciente al más antiguo (los logs van a
+stderr). No abre ninguna conexión a WhatsApp y lee todo lo que `sync` guardó:
+
+```json
+[
+  {
+    "jid": "120363021234567890@g.us",
+    "name": "Equipo Cliente A",
+    "is_group": true,
+    "last_message_time": "2026-10-03T09:41:00-05:00"
+  },
+  {
+    "jid": "98765432101234@lid",
+    "name": "Ana Restrepo",
+    "is_group": false,
+    "last_message_time": "2026-10-02T18:05:00-05:00",
+    "aliases": ["573001112233@s.whatsapp.net"]
+  }
+]
+```
+
+- **Una persona, una entrada.** WhatsApp puede identificar al mismo contacto por su número
+  (`@s.whatsapp.net`) o por un identificador oculto (`@lid`), y la base puede tener una fila de
+  cada uno. Si las dos existen salen como una entrada, con el JID de la más reciente y el otro
+  en `aliases`.
+- **Nombres.** La base guarda el número como nombre cuando no encontró el de la persona. `chats`
+  lo completa al leer con los contactos de whatsmeow (nombre de la agenda o el que la persona se
+  puso), sin escribir en la base. Quien nunca guardaste ni escribió con nombre sigue saliendo con
+  su número.
+- Sin `--json` es un error de uso (código 2).
+
+## `version`
+
+Imprime solo el número (`0.2.0`), para que la app lo lea sin separar nada. Es independiente de la
+versión de la app: el bridge es la capa que más se rompe por causas externas y tiene que poder
+parchearse por su cuenta (`docs/03` §4f). Vive en `version.go` como variable, así que se puede
+fijar al compilar con `-ldflags "-X main.bridgeVersion=…"`. Sube el MINOR cuando cambia lo que
+la app o Claude Code ven (subcomandos, herramientas MCP) y el PATCH cuando solo se corrige algo
+por dentro. El servidor MCP informa esta misma versión.
 
 ## Por qué `serve` no puede imprimir nada por su cuenta
 
@@ -120,8 +174,8 @@ pasaron a pedir `context.Context`) y un requisito de Go más nuevo, y volver a c
 `go test ./...`: `TestNoSendSymbolsInOurOwnCode` confirma que el upgrade no reintrodujo
 ninguna vía de envío.
 
-**Pendiente:** el bridge debe tener **su propio número de versión**, para poder sacar un
-parche urgente sin re-releasear toda la app. Hoy no lo tiene.
+**Pendiente:** el esquema de versiones y cómo se parchea el bridge sin re-releasear la app, si
+viaja empaquetado dentro de ella (`HANDOFF.md` §12). El número ya existe: ver `version`.
 
 ## Build universal (arm64 + amd64)
 

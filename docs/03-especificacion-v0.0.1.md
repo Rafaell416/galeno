@@ -78,7 +78,7 @@ Un usuario con Claude Code instalado abre la app, responde un wizard, y queda co
 
    **Principio de diseño:** el usuario siempre sabe dónde va, cada conexión le devuelve algo tangible, y nunca hay más de ~2 min sin una pequeña recompensa visual.
 
-6. **Elige qué leer** — para cada tool conectada, qué grupos/canales/carpetas/proyectos. Es lo que distingue a un agente de otro cuando el usuario tiene varios. En WhatsApp la selección es estructural: el agente solo puede leer los chats elegidos (§4).
+6. **Elige qué leer** — para cada tool conectada, qué grupos/canales/carpetas/proyectos. Es lo que distingue a un agente de otro cuando el usuario tiene varios. En ninguna herramienta, WhatsApp incluido, lo elegido es una barrera: es el foco del agente (va en su `AGENTS.md`). La pantalla lo dice con claridad: el agente puede leer todos los chats sincronizados, y lo elegido es en qué se enfoca. En WhatsApp la lista sale de `galeno-whatsapp chats --json` (§4).
 7. **Elige tus skills** — dos niveles, en una sola pantalla:
    - **Las nuestras:** la lista de skills del perfil PM (§6.1), con una línea de qué hace cada una. Todas marcadas por defecto; el usuario desmarca las que no quiere.
    - **Curadas de la comunidad:** una lista seleccionada por nosotros de skills de terceros que le pueden servir (de pm-skills, phuryn, el plugin oficial de Anthropic…). Cada una con **crédito al creador y link a su GitHub**. Es buena ética y buen marketing: los creadores se enteran de que los recomendamos.
@@ -107,7 +107,7 @@ El wizard termina, pero el producto no. Un agente de Galeno es **una carpeta** (
 
 **Wizard corto** (del segundo agente en adelante): nombre, descripción del proyecto, qué leer y qué skills. No repite idioma, detección ni conexiones; solo pide conectar una herramienta si el proyecto usa una que todavía no está conectada.
 
-**Qué se garantiza y qué no.** En WhatsApp, cada agente solo puede leer los chats elegidos para él: lo impone el bridge (§4). En el resto de herramientas la selección de fuentes es una instrucción en el `AGENTS.md`, que el agente obedece pero nada impide técnicamente. La separación garantizada en todas las herramientas es v0.2.
+**Qué se garantiza y qué no.** En ninguna herramienta la selección de fuentes es una barrera: es una instrucción en el `AGENTS.md`, que el agente obedece pero nada impide técnicamente. En WhatsApp, el bridge le da al agente todos los chats sincronizados. Se descartó filtrarlos por chat porque una lista fija obliga a reconfigurar cada vez que aparece un grupo nuevo; un grupo nuevo se le pide al agente en la conversación. Lo que sí se garantiza: WhatsApp es de solo lectura y todo envío externo pasa por aprobación. La separación garantizada de contexto entre agentes es v0.2, y si hace falta una barrera en WhatsApp será una lista de **exclusión** (chats privados que el agente nunca ve), no de inclusión.
 
 **La primera sesión.** La descripción del wizard es una línea. La primera vez que el usuario abre su agente, este lee las fuentes elegidas y **propone un resumen del proyecto** (quién participa, qué está en curso, fechas). El usuario lo corrige o lo confirma, y queda guardado en la memoria.
 
@@ -120,7 +120,7 @@ El wizard termina, pero el producto no. Un agente de Galeno es **una carpeta** (
 ## 4. WhatsApp — reglas de producto (innegociables)
 
 - **Read-only por estructura de código.** El MCP de WhatsApp del producto **no tiene herramienta de envío**. Ni un prompt malicioso ni el propio agente pueden enviar.
-- **Solo los chats elegidos, también por estructura.** El bridge solo le entrega a cada agente los grupos y chats que el usuario eligió para él; los personales y los de otros proyectos no existen para ese agente. No es una instrucción: sin una lista de chats permitidos, el servidor MCP no expone ninguno. La base local sí guarda todo lo que sincroniza; el filtro es sobre lo que el agente puede leer.
+- **El agente ve todos los chats sincronizados, incluidos los personales.** No hay filtro por chat (ver §3b). La app tiene que decirlo con claridad en la pantalla "elige qué leer": lo que el usuario elige es en qué se enfoca el agente, no lo que puede leer.
 - **Transparencia total.** La pantalla de vinculación dice textualmente algo como: "Esto se conecta como un dispositivo vinculado usando el protocolo de WhatsApp Web, de forma no oficial. Es de solo lectura. Existe un riesgo bajo pero real de que WhatsApp lo detecte y restrinja tu cuenta. Todo corre en tu computador; nada sale a servidores nuestros. Tú decides si continuar."
 - **Base técnica (decidida):** fork de **`lharries/whatsapp-mcp`** — **MIT verificada**, 5.9k estrellas, 1.2k forks: el estándar del espacio. Dos componentes: puente en Go (`whatsmeow`, QR, SQLite) + servidor MCP en Python. Trae **12 herramientas, 3 de envío** (`send_message`, `send_file`, `send_audio_message`) → **se eliminan**. Quedan las de lectura: contactos, chats, mensajes, contexto, descarga de media. El propio autor advierte la trifecta letal; quitar el envío es la mitigación.
   - **Decisión de empaquetado (cerrada):** reescribir el servidor MCP de Python a **Go**, dentro del mismo binario del puente → **un solo ejecutable Go, sin Python**, empaquetado en la .app. Cero dependencias para el usuario. Por qué Go y no Swift: `whatsmeow` (el puente, la parte difícil) solo existe en Go; el MCP va junto al puente para que el componente de WhatsApp sea un binario autocontenido que Claude Code lanza como cualquier MCP por stdio. Nunca empaquetar Python.
@@ -339,11 +339,11 @@ El nivel "trae la tuya" (pegar un link de GitHub) se pospone. Cuando se añada, 
      Detalle en `whatsapp-bridge/README.md`.
    - [x] `launchd`: `install-launchd` instala un LaunchAgent que mantiene `sync` corriendo
      tras el login. `pair` escribe además el QR rotativo como PNG para que la app lo muestre.
-   - [ ] Darle al bridge **su propio número de versión** (§4f, capa 2), para poder sacar
-     un parche urgente cuando Meta cambie el protocolo.
-   - [ ] **Filtro de chats** (§4): `serve` solo expone los chats permitidos para ese
-     agente y, sin lista, ninguno. Más un subcomando que liste los chats para la pantalla
-     "elige qué leer".
+   - [x] Darle al bridge **su propio número de versión** (§4f, capa 2): subcomando
+     `version`. Falta decidir el esquema y cómo se parchea sin re-releasear la app.
+   - [x] Subcomando `chats --json`, que lista los chats para la pantalla "elige qué leer".
+   - ~~Filtro de chats por agente~~ — **descartado**: obliga a reconfigurar con cada grupo
+     nuevo (§3b).
    - [ ] Renderizar el QR dentro de la app, disparar `install-launchd` tras un `pair`
      exitoso, empaquetar y firmar el binario. Tomar de joaohts las ideas de UX. Esto es
      trabajo de `GalenoApp` (Fase 4): el puente ya expone lo necesario para que la app lo

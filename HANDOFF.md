@@ -8,7 +8,7 @@ Fuente de verdad: `docs/03-especificacion-v0.0.1.md`. Este archivo la resume, no
 desde Claude Code, confirmar que no puede enviar); falta probar que `sync` sobrevive a un
 reinicio vía `launchd`. Tras la sesión de descubrimiento del 3 de octubre quedan ajustes
 pendientes en el motor y el bridge (descripción y memoria del proyecto, subagentes, varios
-agentes, filtro de chats): ver §6 y §12. Faltan la app (`GalenoApp`), las skills, Sparkle
+agentes): ver §6 y §12. Faltan la app (`GalenoApp`), las skills, Sparkle
 y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
@@ -80,7 +80,7 @@ y `docs/02` conservan, marcado como *Descartado*, lo que el plan original propon
 | Carpeta oculta en Application Support, o elegida por el usuario | `~/Galeno/<agente>/`, visible |
 | Chat propio dentro de Galeno | Se abre en la app de Claude o en Terminal |
 | Zonas editables a mano en la config, o detectar cambios y preguntar | Galeno regenera todo, salvo `memoria/` |
-| Selección de chats de WhatsApp solo por instrucción | El bridge la impone |
+| Selección de chats de WhatsApp como barrera (lista de permitidos en el bridge) | La selección es el foco del agente; ve todo lo sincronizado. Una lista fija obliga a reconfigurar con cada grupo nuevo |
 | MCP de WhatsApp en TypeScript o Python | Un solo binario Go |
 | Confeti de colores y rebotes en las animaciones | Trazo y opacidad (`docs/04` §8) |
 
@@ -173,7 +173,8 @@ Galeno.app  (Swift / SwiftUI)
    - Si un OAuth falla: "Reintentar" y "Saltar por ahora". El usuario nunca queda atrapado.
    - Celebración final con el conteo de lo que el agente ya ve.
 6. **Elige qué leer** — por cada tool, qué grupos/canales/carpetas/proyectos. Es lo que
-   distingue a un agente de otro. En WhatsApp lo impone el bridge.
+   distingue a un agente de otro: es el foco del agente, no una barrera. En WhatsApp el agente
+   ve todos los chats sincronizados.
 7. **Elige tus skills** — las nuestras (todas marcadas por defecto) y las curadas (con
    crédito al creador y link a su GitHub).
 8. **Reglas** — qué puede enviar sin preguntar (nada externo por defecto) y qué requiere aprobación.
@@ -238,13 +239,14 @@ tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
 - **Falta (Fase 4, GalenoApp):** que la app dispare `install-launchd` tras un `pair` exitoso;
   renderizar el QR (ya disponible como PNG) dentro de la app en vez del terminal; empaquetar
   y firmar el binario.
-- **Falta (bridge):** un número de versión propio (`docs/03` §4f, capa 2). Hoy el binario
-  no tiene subcomando ni constante de versión del producto.
-- **Falta (bridge):** el filtro de chats. Hoy `serve` le entrega al agente **todos** los
-  chats sincronizados, incluidos los personales. Decidido: `serve` recibe la lista de chats
-  permitidos para ese agente y sin lista no expone ninguno; más un subcomando que liste los
-  chats para que la app arme "elige qué leer". Ojo con los contactos que aparecen con dos
-  JID (número y `@lid`): el filtro debe tratarlos como el mismo chat.
+- **Hecho (bridge):** `version` (número propio del bridge, hoy `0.2.0`) y `chats --json`
+  (la lista para "elige qué leer": una entrada por persona aunque tenga fila de número y de
+  `@lid`, y los nombres que la base guardó como número se completan al leer con los contactos
+  de whatsmeow).
+- **Decidido (bridge): el agente ve todos los chats sincronizados**, incluidos los
+  personales. Se diseñó un filtro por chat (`serve --allow-chat`) y se descartó antes de
+  construirlo: una lista fija obliga a reconfigurar con cada grupo nuevo. Hay que decirlo con
+  claridad en el wizard. Si algún día hace falta una barrera, será una lista de **exclusión**.
 - **Falta (bridge):** probar que `sync` sobrevive a un reinicio del Mac, y compilar el
   binario universal en CI (el job de Go corre en Ubuntu y solo hace `go build`).
 - **Mantenimiento perpetuo:** `whatsmeow` hay que mantenerlo al día. Con una versión de
@@ -403,6 +405,11 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
   las reglas `allow` del `settings.json` generado se ignoran (visto al probar los
   subagentes, que sí cargan). El usuario acepta el diálogo de confianza la primera vez que abre su agente;
   la app tiene que contar con ese paso al diseñar "abrir mi agente".
+- **Wizard y acceso a WhatsApp:** el agente ve todos los chats sincronizados. La pantalla
+  "elige qué leer" tiene que decirlo con claridad y presentar lo elegido como foco. Aparte,
+  en la base de Rafa 152 de 246 chats individuales siguen sin nombre aunque `chats` ya
+  completa los que puede (la gente que nunca guardó ni escribió con nombre): la pantalla
+  tiene que mostrar bien un número, y conviene buscar por número.
 - **Versión propia del bridge:** falta decidir el esquema y cómo permite parchear el
   bridge "sin re-releasear toda la app" si viaja empaquetado dentro de ella.
 - ~~MCP exactos de Slack, Notion, Jira, Gmail y Drive~~ — **resuelto** (oct 2026): todos
