@@ -76,7 +76,7 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
     func status(of server: String) async -> MCPStatus {
         guard let result = await runner.run(claudePath, arguments: ["mcp", "get", server], timeout: 30)
         else { return .failed }
-        return Self.parseStatus(result.output)
+        return Self.parseStatus(result.output, exitStatus: result.status)
     }
 
     func register(server: String, url: String) async throws {
@@ -123,16 +123,20 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
     // MARK: - Lectura de la salida de `claude`
 
     /// `claude mcp get` imprime `Status: ✔ Connected`, `Status: ! Needs authentication` o
-    /// `Status: ✘ Failed to connect`, y sale con 0 en todos los casos: el estado
-    /// se lee del texto, no del código de salida.
-    static func parseStatus(_ output: String) -> MCPStatus {
+    /// `Status: ✘ Failed to connect`, y sale con 0 en todos esos casos: el estado se lee del
+    /// texto. Si el servidor **no existe** sale con 1 y escribe `No MCP server named "x"` por
+    /// **stderr**, que el ejecutor descarta: por eso también se mira el código de salida (sin
+    /// línea `Status:` y con error, es que no está registrado).
+    static func parseStatus(_ output: String, exitStatus: Int32 = 0) -> MCPStatus {
         let lower = output.lowercased()
-        if lower.contains("no mcp server found") { return .notRegistered }
+        if lower.contains("no mcp server named") || lower.contains("no mcp server found") {
+            return .notRegistered
+        }
         guard
             let line = output.split(whereSeparator: \.isNewline)
                 .map({ $0.trimmingCharacters(in: .whitespaces) })
                 .first(where: { $0.lowercased().hasPrefix("status:") })?.lowercased()
-        else { return .failed }
+        else { return exitStatus == 0 ? .failed : .notRegistered }
         if line.contains("needs authentication") { return .needsAuthentication }
         if line.contains("failed") { return .failed }
         if line.contains("connected") { return .connected }

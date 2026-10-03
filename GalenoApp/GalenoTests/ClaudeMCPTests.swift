@@ -40,8 +40,30 @@ final class ClaudeMCPTests: XCTestCase {
     }
 
     func testAServerClaudeDoesNotKnowIsNotRegistered() {
-        XCTAssertEqual(
-            ClaudeMCPClient.parseStatus("No MCP server found with name: galeno-prueba"), .notRegistered)
+        // El mensaje real de Claude Code 2.1.277, que sale por stderr.
+        let real = "No MCP server named \"notion\". Configured servers: claude.ai Notion, github, slack"
+
+        XCTAssertEqual(ClaudeMCPClient.parseStatus(real, exitStatus: 1), .notRegistered)
+        XCTAssertEqual(ClaudeMCPClient.parseStatus("No MCP server found with name: x"), .notRegistered)
+    }
+
+    /// El ejecutor descarta stderr, así que de un servidor que no existe solo llega el código
+    /// de salida (1) y una salida vacía. Esto fue un defecto real: la app lo tomaba por "falló",
+    /// se saltaba el registro y `login` respondía "No MCP server named notion".
+    func testAnEmptyOutputWithAnErrorExitMeansNotRegistered() async {
+        let runner = FakeRunner(["\(claude) mcp get notion": CommandResult(status: 1, output: "")])
+        let client = ClaudeMCPClient(claudePath: claude, runner: runner, terminal: FakeTerminal(nil))
+
+        let status = await client.status(of: "notion")
+
+        XCTAssertEqual(status, .notRegistered)
+        XCTAssertEqual(ClaudeMCPClient.parseStatus("", exitStatus: 0), .failed, "vacío pero con éxito sigue siendo un fallo")
+    }
+
+    func testAServerThatExistsNeverLooksUnregisteredBecauseOfItsStatusLine() {
+        let output = "notion:\n  Status: ✘ Failed to connect\n"
+
+        XCTAssertEqual(ClaudeMCPClient.parseStatus(output, exitStatus: 1), .failed)
     }
 
     func testGarbageIsNeverMistakenForConnected() {
