@@ -45,8 +45,9 @@ Límites entre carpetas:
 `GalenoCore/` ya tiene comportamiento (el generador de config). `whatsapp-bridge/` también:
 el puente (lectura de WhatsApp) y las 9 herramientas MCP de solo lectura, con subcomandos
 `pair`/`sync`/`serve`/`status`/`install-launchd` — ver `whatsapp-bridge/README.md`.
-`GalenoApp/` aún no tiene proyecto Xcode: ese comando es el previsto. El CI corre los jobs `swift` y `go` en cada PR y
-en cada push a `main` (`.github/workflows/ci.yml`).
+`GalenoApp/` ya tiene proyecto Xcode con el esqueleto del wizard (pantallas vacías por ahora).
+El CI corre los jobs `swift`, `go`, `go-universal` y `app` en cada PR y en cada push a `main`
+(`.github/workflows/ci.yml`); `app` corre solo `GalenoTests`, no los UI tests.
 
 `GalenoCore` tiene además `galeno-gen`, una herramienta de desarrollo para probar el
 generador a mano (un `AgentConfig` en JSON → una carpeta con la config). **No se
@@ -57,9 +58,9 @@ distribuye** —no es "la CLI del producto"—; ver `docs/DEV.md`.
 swift build --package-path GalenoCore
 swift test  --package-path GalenoCore
 
-# App
-xcodebuild -project GalenoApp/Galeno.xcodeproj -scheme Galeno build
-xcodebuild -project GalenoApp/Galeno.xcodeproj -scheme Galeno test
+# App (-only-testing: los UI tests piden entorno gráfico y no corren en CI)
+xcodebuild -project GalenoApp/Galeno.xcodeproj -scheme Galeno -destination 'platform=macOS' build
+xcodebuild -project GalenoApp/Galeno.xcodeproj -scheme Galeno -destination 'platform=macOS' -only-testing:GalenoTests test
 
 # Bridge de WhatsApp
 cd whatsapp-bridge && go build ./... && go vet ./... && go test ./...
@@ -141,9 +142,11 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   lo imponen reglas de permiso por ruta (`SettingsRenderer`), que niegan por nombre lo que
   el motor genera. Si el generador empieza a escribir un archivo nuevo fuera de `memoria/`,
   hay que añadirlo a `SettingsRenderer.protectedPaths`; un test falla si se olvida.
-- El bridge de WhatsApp solo expone los chats permitidos para ese agente; sin lista de
-  permitidos no expone ninguno (falla cerrado).
-- Los textos de la UI van en `Localizable.strings`, en español e inglés. Los textos de
+- El bridge de WhatsApp es de solo lectura y el agente ve todos los chats sincronizados: no
+  hay lista de chats permitidos (se descartó: obligaba a volver a sincronizar cada vez que
+  aparecía un grupo nuevo). Lo que lo protege es que no existe código de envío.
+- Los textos de la UI van en `Localizable.xcstrings` (String Catalog), en español e inglés,
+  con claves simbólicas (`step.agent.title`), nunca el texto a mano en la vista. Los textos de
   dopamina se escriben nativos en cada idioma, no traducidos literalmente.
 - Las skills nuestras se escriben en inglés, con la instrucción de idioma arriba.
 - UI: nativo primero. Controles de macOS, SF Symbols, serif del sistema (New York), tokens

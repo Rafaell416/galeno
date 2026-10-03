@@ -85,3 +85,20 @@ jobs:
           done
       # Que arranque, no solo que compile: el runner corre la mitad que le toca.
       - run: ./bin/galeno-whatsapp version
+
+  # La app de Mac. Corre solo GalenoTests: los UI tests (GalenoUITests) piden un
+  # entorno gráfico completo y tardan; se dejan para correrlos a mano en Xcode.
+  # Firma ad hoc, sin equipo de desarrollo: la firma real llega en la Fase 8.
+  app:
+    name: app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: xcodebuild -version
+      - run: >
+          xcodebuild
+          -project GalenoApp/Galeno.xcodeproj
+          -scheme Galeno
+          -destination 'platform=macOS'
+          -only-testing:GalenoTests
+          test
