@@ -4,10 +4,17 @@ public struct GenerationResult: Hashable, Sendable {
     public var writtenFiles: [String]
     /// Cosas que no impiden generar pero que alguien debería mirar.
     public var warnings: [GenerationWarning]
+    /// Archivos que había en la carpeta y la config ya no pide (una skill
+    /// desmarcada, el hook de aprobación sin nada a qué aplicarlo), ordenados.
+    /// Vacío la primera vez que se genera.
+    public var removedFiles: [String]
 
-    public init(writtenFiles: [String], warnings: [GenerationWarning] = []) {
+    public init(
+        writtenFiles: [String], warnings: [GenerationWarning] = [], removedFiles: [String] = []
+    ) {
         self.writtenFiles = writtenFiles
         self.warnings = warnings
+        self.removedFiles = removedFiles
     }
 }
 

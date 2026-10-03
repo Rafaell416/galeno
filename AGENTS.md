@@ -133,6 +133,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
   Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
   completos. Lo único que el motor nunca toca al regenerar es `memoria/`.
+- Regenerar deja la carpeta idéntica a una nueva con la misma config (`ConfigGenerator` calcula
+  todo antes de escribir; un error no la deja a medias). Las conexiones, la lista de agentes y
+  sus carpetas viven en `GalenoInstallation`; el estado y el `client_id` de cada herramienta se
+  toman de ahí (`resolvedConfig`), no del `AgentConfig` del agente.
 - El agente generado no ejecuta código y solo escribe archivos dentro de `memoria/`. Eso
   lo imponen reglas de permiso por ruta (`SettingsRenderer`), que niegan por nombre lo que
   el motor genera. Si el generador empieza a escribir un archivo nuevo fuera de `memoria/`,

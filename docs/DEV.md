@@ -55,6 +55,20 @@ La forma exacta del JSON es la de `AgentConfig` (`GalenoCore/Sources/GalenoCore/
 la manera más fácil de armar uno de prueba es copiar y adaptar un snapshot existente,
 o mirar `GalenoCore/Tests/GalenoCoreTests/GeneratorFixtures.swift`.
 
+## Regenerar sobre una carpeta que ya tiene config
+
+Es el mismo comando. Si la carpeta ya tiene una config, `galeno-gen` la deja **exactamente
+como dice el JSON**, igual que si fuera nueva:
+
+- Quita las skills que ya no están marcadas (también una puesta a mano) y el hook de
+  aprobación si ya no hay Slack ni Gmail. Los lista bajo `Quitado`.
+- No toca `memoria/`.
+- Todo se calcula antes de escribir: si falla (una skill que no existe, falta el `client_id`
+  de Slack), sale con código 1 y la carpeta queda como estaba.
+
+Para probarlo: genera con un JSON, quita una skill o pon una herramienta en `"skipped"`, y
+vuelve a generar sobre la misma carpeta.
+
 ## Errores
 
 Sale con código 1 y el motivo en `stderr` si: el archivo de config no existe, no es un

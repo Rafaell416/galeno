@@ -22,6 +22,15 @@ public struct ConfigGenerator: Sendable {
 
     public init() {}
 
+    /// Genera la config del agente en `destination`, o la regenera si la
+    /// carpeta ya tiene una: deja exactamente lo que dice `config`.
+    ///
+    /// Primero calcula todo —los textos, las skills— sin tocar el disco, que
+    /// es donde las cosas pueden fallar (falta una skill, falta el `client_id`
+    /// de Slack). Solo si todo salió bien escribe, y entonces quita lo que la
+    /// config ya no pide. Un error deja la carpeta como estaba, no a medias.
+    ///
+    /// `memoria/` es del agente: se crea una vez y no se vuelve a tocar.
     @discardableResult
     public func generate(
         _ config: AgentConfig,
@@ -33,71 +42,115 @@ public struct ConfigGenerator: Sendable {
         }
 
         let fileManager = FileManager.default
-        var written: [String] = []
         var warnings: [GenerationWarning] = []
 
-        try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+        // MARK: 1. Calcular (no toca el disco)
+
+        struct Planned {
+            var path: String
+            var contents: String
+            var posixPermissions: Int?
+        }
+        var planned: [Planned] = []
 
         // AGENTS.md lleva el contenido; CLAUDE.md solo lo importa, para que
         // cargue aunque el usuario tenga otro CLAUDE.md más arriba o una
         // versión de Claude Code que no lea AGENTS.md directamente.
-        try write(AgentsFileRenderer.render(config), to: "AGENTS.md", in: destination, &written)
+        planned.append(Planned(path: "AGENTS.md", contents: AgentsFileRenderer.render(config)))
 
-        let claudePath = destination.appending(path: "CLAUDE.md")
-        let existingClaude = try? String(contentsOf: claudePath, encoding: .utf8)
+        let existingClaude = try? String(
+            contentsOf: destination.appending(path: "CLAUDE.md"), encoding: .utf8)
         if let existingClaude, !existingClaude.contains("@AGENTS.md") {
             // No pisamos lo que el usuario ya tenía escrito.
             warnings.append(.existingClaudeFileLeftAlone(path: "CLAUDE.md"))
         } else {
-            try write(
-                AgentsFileRenderer.renderClaudeImport(), to: "CLAUDE.md", in: destination, &written)
+            planned.append(
+                Planned(path: "CLAUDE.md", contents: AgentsFileRenderer.renderClaudeImport()))
         }
 
-        try write(
-            try SettingsRenderer.render(config),
-            to: ".claude/settings.json", in: destination, &written)
+        planned.append(
+            Planned(path: ".claude/settings.json", contents: try SettingsRenderer.render(config)))
 
         let mcp = try MCPRenderer.render(config, whatsAppBridgePath: options.whatsAppBridgePath)
         warnings.append(contentsOf: mcp.warnings)
-        try write(mcp.json, to: ".mcp.json", in: destination, &written)
+        planned.append(Planned(path: ".mcp.json", contents: mcp.json))
 
         // El hook solo tiene sentido si hay algo que pueda salir hacia afuera.
-        if !SettingsRenderer.serversRequiringApproval(in: config).isEmpty {
-            try write(
-                ApprovalHookRenderer.render(language: config.language),
-                to: SettingsRenderer.hookPath,
-                in: destination,
-                &written,
-                posixPermissions: 0o755
-            )
+        let needsApprovalHook = !SettingsRenderer.serversRequiringApproval(in: config).isEmpty
+        if needsApprovalHook {
+            planned.append(
+                Planned(
+                    path: SettingsRenderer.hookPath,
+                    contents: ApprovalHookRenderer.render(language: config.language),
+                    posixPermissions: 0o755  // Claude Code no corre un hook que no sea ejecutable.
+                ))
         }
 
         // La memoria es del agente: se crea una vez y no se vuelve a tocar,
         // ni el archivo ni nada más dentro de `memoria/`.
-        try fileManager.createDirectory(
-            at: destination.appending(path: MemoryRenderer.directory, directoryHint: .isDirectory),
-            withIntermediateDirectories: true)
         if !fileManager.fileExists(
             atPath: destination.appending(path: MemoryRenderer.mainFile).path)
         {
-            try write(
-                MemoryRenderer.renderInitialFile(language: config.language),
-                to: MemoryRenderer.mainFile, in: destination, &written)
+            planned.append(
+                Planned(
+                    path: MemoryRenderer.mainFile,
+                    contents: MemoryRenderer.renderInitialFile(language: config.language)))
         }
 
         for subagent in SubagentsRenderer.render(config) {
-            try write(subagent.contents, to: subagent.path, in: destination, &written)
+            planned.append(Planned(path: subagent.path, contents: subagent.contents))
         }
 
-        written.append(
-            contentsOf: try SkillsInstaller.install(
-                config.skills,
-                from: options.skillsDirectory,
-                into: destination
-            )
-        )
+        let skills = try SkillsInstaller.validateAll(config.skills, from: options.skillsDirectory)
 
-        return GenerationResult(writtenFiles: written.sorted(), warnings: warnings)
+        // MARK: 2. Escribir
+
+        try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+        try fileManager.createDirectory(
+            at: destination.appending(path: MemoryRenderer.directory, directoryHint: .isDirectory),
+            withIntermediateDirectories: true)
+
+        var written: [String] = []
+        for file in planned {
+            try write(
+                file.contents, to: file.path, in: destination, &written,
+                posixPermissions: file.posixPermissions)
+        }
+        written.append(contentsOf: try SkillsInstaller.install(skills, into: destination))
+
+        // MARK: 3. Quitar lo que la config ya no pide
+
+        var removed: [String] = []
+        if !needsApprovalHook {
+            let hook = destination.appending(path: SettingsRenderer.hookPath)
+            if fileManager.fileExists(atPath: hook.path) {
+                try fileManager.removeItem(at: hook)
+                removed.append(SettingsRenderer.hookPath)
+            }
+        }
+        removed.append(
+            contentsOf: try SkillsInstaller.removeUnselected(
+                keeping: config.skills, in: destination))
+
+        // Una carpeta nueva no tendría estas carpetas vacías.
+        for directory in [hooksDirectory(destination), skillsDirectory(destination)] {
+            if let contents = try? fileManager.contentsOfDirectory(atPath: directory.path),
+                contents.isEmpty
+            {
+                try fileManager.removeItem(at: directory)
+            }
+        }
+
+        return GenerationResult(
+            writtenFiles: written.sorted(), warnings: warnings, removedFiles: removed.sorted())
+    }
+
+    private func hooksDirectory(_ destination: URL) -> URL {
+        destination.appending(path: SettingsRenderer.hookPath).deletingLastPathComponent()
+    }
+
+    private func skillsDirectory(_ destination: URL) -> URL {
+        destination.appending(path: SkillsInstaller.skillsPath, directoryHint: .isDirectory)
     }
 
     private func write(
