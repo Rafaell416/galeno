@@ -107,6 +107,22 @@ stdout lleva exactamente la salida, stderr lleva exactamente los logs.
      nombre, esta prueba falla aunque el grep de texto no la vea venir.
 - Los datos de sesión (`~/Library/Application Support/Galeno/whatsapp/`) no se commitean.
 
+## Mantenimiento: es la capa que más se rompe
+
+De las tres capas en que se actualiza Galeno (`docs/03-especificacion-v0.0.1.md` §4f), el
+bridge es la que se rompe por causas externas: cuando Meta cambia su protocolo, un
+`whatsmeow` viejo deja de conectar. Ya pasó una vez: con la versión de marzo de 2025 el
+socket se cerraba (`websocket: close 1006`) justo después de mostrar el QR, y se arregló
+con `go get go.mau.fi/whatsmeow@latest`. Si el bridge deja de conectar, empieza por ahí.
+
+Al actualizar `whatsmeow` conviene esperar cambios de firma (la última vez varias llamadas
+pasaron a pedir `context.Context`) y un requisito de Go más nuevo, y volver a correr
+`go test ./...`: `TestNoSendSymbolsInOurOwnCode` confirma que el upgrade no reintrodujo
+ninguna vía de envío.
+
+**Pendiente:** el bridge debe tener **su propio número de versión**, para poder sacar un
+parche urgente sin re-releasear toda la app. Hoy no lo tiene.
+
 ## Build universal (arm64 + amd64)
 
 ```bash

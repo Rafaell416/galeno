@@ -41,6 +41,11 @@ de una carpeta destino (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.mcp
 hook de aprobación, las skills). Probado con snapshots de árbol completo en `Tests/Snapshots/`
 (`GALENO_RECORD_SNAPSHOTS=1` para regrabarlos).
 
+Las skills no van embebidas en el motor: el generador las copia desde el `skillsDirectory`
+que recibe. Eso es lo que permite que en producción vengan de una fuente remota versionada,
+con un fallback local (`../docs/03-especificacion-v0.0.1.md` §4f, capa 3). Quién descarga y
+llena ese directorio todavía no está diseñado (`../HANDOFF.md` §12).
+
 Para probarlo a mano sin escribir Swift, `swift run galeno-gen` toma un `AgentConfig` en JSON
 y una carpeta y genera ahí. Es una herramienta de desarrollo, **no se distribuye**: ver
 `../docs/DEV.md`.

@@ -3,7 +3,13 @@
 Resumen ejecutivo para cualquier sesión futura. Léelo antes de tocar nada.
 Fuente de verdad: `docs/03-especificacion-v0.0.1.md`. Este archivo la resume, no la reemplaza.
 
-**Estado (2 oct 2026):** documentación y estructura del monorepo. Todavía no hay código.
+**Estado (3 oct 2026):** el motor (`GalenoCore`) genera la config y el bridge de WhatsApp
+(`whatsapp-bridge`) está probado a mano contra una cuenta real (vincular, sincronizar, leer
+desde Claude Code, confirmar que no puede enviar); falta probar que `sync` sobrevive a un
+reinicio vía `launchd`. Tras la sesión de descubrimiento del 3 de octubre quedan ajustes
+pendientes en el motor y el bridge (descripción y memoria del proyecto, subagentes, varios
+agentes, filtro de chats): ver §6 y §12. Faltan la app (`GalenoApp`), las skills, Sparkle
+y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
 ---
@@ -34,6 +40,13 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 |---|---|
 | Nombre | **Galeno** |
 | Precio | **USD 200, pago único** |
+| Varios proyectos | **Un agente por proyecto**, cada uno en `~/Galeno/<agente>/`. En v0.0.1 se pueden crear varios; la separación **garantizada** de contexto es v0.2. Las conexiones se hacen una vez y se comparten. Detalle: `docs/03` §3b |
+| Después del wizard | Home con la lista de agentes: abrir (en la app de Claude o en Terminal), crear otro (wizard corto), gestionar la config, salud y mantenimiento |
+| Contexto del proyecto | Una línea en el wizard; en la primera sesión el agente lee las fuentes y propone un resumen que el usuario confirma |
+| Memoria | El agente mantiene notas en `memoria/`. Es el único lugar donde puede escribir |
+| Dueño de la config | **Galeno**: regenera los archivos completos al cambiar algo; nunca toca `memoria/` |
+| Proactividad | El agente solo trabaja cuando se lo piden. Sin tareas programadas en v0.0.1 |
+| Actualizaciones | **De por vida, gratis**, sin renovación. Tres capas independientes: app (Sparkle), bridge de WhatsApp (viaja en la app, con versión propia) y skills (remotas, sin reinstalar). Sparkle va desde el primer build. Detalle: `docs/03` §4f |
 | Perfil | **Solo Product Managers** |
 | Plataforma | **Solo Mac** (firme; no portabilidad a Windows) |
 | App | **Swift + SwiftUI nativa**. Es la única interfaz del usuario |
@@ -62,6 +75,12 @@ y `docs/02` conservan, marcado como *Descartado*, lo que el plan original propon
 | WhatsApp sin lectura, solo salida por Business API | WhatsApp solo lectura (no oficial, con advertencia); sin envío |
 | Transcripciones vía export a Notion/Docs | MCP oficial de cada proveedor |
 | Skills adaptadas al español | Skills en inglés + instrucción de idioma |
+| Un solo agente para todos los proyectos | Un agente por proyecto |
+| Wizard completo para cada agente nuevo; duplicar un agente existente | Wizard corto, reutilizando conexiones |
+| Carpeta oculta en Application Support, o elegida por el usuario | `~/Galeno/<agente>/`, visible |
+| Chat propio dentro de Galeno | Se abre en la app de Claude o en Terminal |
+| Zonas editables a mano en la config, o detectar cambios y preguntar | Galeno regenera todo, salvo `memoria/` |
+| Selección de chats de WhatsApp solo por instrucción | El bridge la impone |
 | MCP de WhatsApp en TypeScript o Python | Un solo binario Go |
 | Confeti de colores y rebotes en las animaciones | Trazo y opacidad (`docs/04` §8) |
 
@@ -95,16 +114,37 @@ Galeno.app  (Swift / SwiftUI)
 - **Motor separado de la app** por ingeniería (testeable, la app no acumula lógica), no
   para que alguien lo use directo. La app consume el motor y no duplica lógica.
 
+### Cómo se actualiza (3 capas, `docs/03` §4f)
+
+| Capa | Qué contiene | Cómo se actualiza |
+|---|---|---|
+| 1 · App Mac | Wizard, UI, motor de config | **Sparkle**: appcast en el servidor, build firmado, un clic. Soporta deltas |
+| 2 · Bridge de WhatsApp | `whatsmeow` + MCP read-only | Viaja dentro de la .app, así que llega con Sparkle. **Versión propia**, para sacar un parche urgente sin re-releasear la app. Es la capa que más se rompe por causas externas (Meta) |
+| 3 · Skills, catálogo y config | Skills PM, catálogo curado, prompts, plantillas | **Remoto, sin reinstalar**: se descargan al configurar el agente, y la app ofrece "actualizar skills". Fallback local si no hay internet |
+
+- **Sparkle firma con clave EdDSA propia**, además de la notarización de Apple. La clave
+  privada vive fuera del repo.
+- **Sin infraestructura nueva:** appcast, DMG y skills remotas se sirven desde la misma
+  infraestructura del sitio y del webhook de Stripe.
+- **Solo descargas.** Nada de esto recibe tokens, contenido ni datos de uso del usuario:
+  la regla de §5.1 sigue intacta.
+- **Estado hoy:** nada de esto está construido. `GalenoCore` ya recibe las skills como un
+  directorio (`skillsDirectory`), no las lleva embebidas, así que la capa 3 es cuestión de
+  quién llena ese directorio. El bridge todavía no expone una versión propia. La capa 2 ya
+  se ejercitó una vez a mano: el `whatsmeow` fijado en marzo de 2025 dejó de conectar y
+  hubo que actualizarlo (PR #9) — exactamente el caso que esta capa existe para cubrir.
+
 ### Qué escribe el motor en la máquina del usuario
 
 | Archivo | Contenido |
 |---|---|
-| `AGENTS.md` | Identidad del agente, rol PM, herramientas, reglas. En el idioma elegido, con la instrucción "responde y genera todos los documentos en [idioma]" |
-| `.claude/settings.json` | Reglas deny/ask/allow: envíos externos en `ask`, nada de ejecutar código |
+| `AGENTS.md` | Identidad del agente, rol PM, descripción del proyecto, herramientas, reglas y uso de la memoria. En el idioma elegido, con la instrucción "responde y genera todos los documentos en [idioma]" |
+| `.claude/settings.json` | Reglas deny/ask/allow: envíos externos en `ask`, nada de ejecutar código, escritura solo en `memoria/` |
+| `memoria/` | Notas del proyecto que mantiene el agente. El motor la crea si falta y nunca la sobrescribe |
 | `.mcp.json` | Los MCP conectados. Tokens como referencias a variables de entorno, nunca en texto plano |
 | `.claude/agents/` | `scribe`, `tracker`, `reporter`: solo lectura + Notion/Jira; sin Bash ni Edit de código |
 | `.claude/hooks/` | Hook de aprobación para todo envío externo |
-| `.claude/skills/` | Las skills que el usuario dejó marcadas |
+| `.claude/skills/` | Las skills que el usuario dejó marcadas, tomadas de la fuente remota versionada (o del fallback local) |
 
 ### Qué puede hacer el agente generado
 
@@ -120,7 +160,8 @@ Galeno.app  (Swift / SwiftUI)
 1. **Idioma y bienvenida** — español o inglés. Define el idioma del wizard y el que el
    motor inyecta en la config. Qué es, qué configura, cuánto tarda.
 2. **Detección** — verifica que Claude Code esté instalado; si no, guía para instalarlo.
-3. **Tu agente** — nombre del agente y rol (solo "Product Manager" en v0.0.1).
+3. **Tu agente** — nombre del agente, rol (solo "Product Manager" en v0.0.1) y una
+   línea que describe el proyecto.
 4. **Elige tus herramientas** — grilla única; marca solo las que usa. Al pie:
    "Vas a conectar 5 herramientas · ~8 min".
 5. **Conecta una por una** — sub-wizard y paso más largo; diseñado para mantener el enganche:
@@ -131,14 +172,27 @@ Galeno.app  (Swift / SwiftUI)
    - Pantallas de dopamina cada 2-3 conexiones, sin botones de OAuth.
    - Si un OAuth falla: "Reintentar" y "Saltar por ahora". El usuario nunca queda atrapado.
    - Celebración final con el conteo de lo que el agente ya ve.
-6. **Elige qué leer** — por cada tool, qué grupos/canales/carpetas/proyectos. Semilla del
-   multi-proyecto futuro.
+6. **Elige qué leer** — por cada tool, qué grupos/canales/carpetas/proyectos. Es lo que
+   distingue a un agente de otro. En WhatsApp lo impone el bridge.
 7. **Elige tus skills** — las nuestras (todas marcadas por defecto) y las curadas (con
    crédito al creador y link a su GitHub).
 8. **Reglas** — qué puede enviar sin preguntar (nada externo por defecto) y qué requiere aprobación.
 9. **Generando** — el motor escribe la config, con pasos visibles.
 10. **Listo** — cómo usarlo, primeros comandos, dónde está la config. Invitación:
-    "Pídele: resume lo que pasó esta semana en Slack".
+    "Pídele: resume lo que pasó esta semana en Slack". El usuario elige abrir su agente en
+    la app de Claude o en Terminal.
+
+### Después del wizard (`docs/03` §3b)
+
+- **Home:** la lista de agentes. Abrir, crear otro, gestionar la config, salud y
+  mantenimiento (conexiones caídas, re-vincular WhatsApp, estado de `sync`, actualizar
+  skills y la app).
+- **Wizard corto** para el segundo agente en adelante: nombre, descripción, qué leer, skills.
+  Las conexiones ya hechas se reutilizan.
+- **Primera sesión:** el agente lee las fuentes y propone un resumen del proyecto; el
+  usuario lo confirma y queda en `memoria/`.
+- **Cambios de config:** Galeno regenera los archivos completos a partir de las respuestas
+  guardadas. `memoria/` no se toca.
 
 **Principio de diseño:** el usuario siempre sabe dónde va, cada conexión devuelve algo
 tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
@@ -184,6 +238,19 @@ tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
 - **Falta (Fase 4, GalenoApp):** que la app dispare `install-launchd` tras un `pair` exitoso;
   renderizar el QR (ya disponible como PNG) dentro de la app en vez del terminal; empaquetar
   y firmar el binario.
+- **Falta (bridge):** un número de versión propio (`docs/03` §4f, capa 2). Hoy el binario
+  no tiene subcomando ni constante de versión del producto.
+- **Falta (bridge):** el filtro de chats. Hoy `serve` le entrega al agente **todos** los
+  chats sincronizados, incluidos los personales. Decidido: `serve` recibe la lista de chats
+  permitidos para ese agente y sin lista no expone ninguno; más un subcomando que liste los
+  chats para que la app arme "elige qué leer". Ojo con los contactos que aparecen con dos
+  JID (número y `@lid`): el filtro debe tratarlos como el mismo chat.
+- **Falta (bridge):** probar que `sync` sobrevive a un reinicio del Mac, y compilar el
+  binario universal en CI (el job de Go corre en Ubuntu y solo hace `go build`).
+- **Mantenimiento perpetuo:** `whatsmeow` hay que mantenerlo al día. Con una versión de
+  año y medio de antigüedad el socket se cerraba (1006) antes de mostrar el QR; al
+  actualizar cambiaron varias firmas (ahora piden `context.Context`) y el requisito pasó a
+  Go 1.26. Cuando el bridge deje de conectar, lo primero es revisar esto.
 - **Las 9 herramientas que quedan:** `search_contacts`, `list_messages`, `list_chats`,
   `get_chat`, `get_direct_chat_by_contact`, `get_contact_chats`, `get_last_interaction`,
   `get_message_context`, `download_media`.
@@ -208,6 +275,11 @@ qué herramienta escribir si el usuario tiene varias; no asumen.
 
 **Curadas.** Lista seleccionada de terceros, ofrecidas tal cual, con crédito y link.
 
+**Distribución.** Las skills no van horneadas en la app: se cargan de una fuente remota
+versionada, con fallback local, para poder mejorarlas o añadir nuevas sin un build nuevo
+(`docs/03` §4f, capa 3). Siguen siendo solo dos niveles, ambos revisados por nosotros:
+remoto no significa abierto a terceros.
+
 **Bases reutilizables (no reinventar):** `product-on-purpose/pm-skills` (Apache 2.0) y
 `phuryn/pm-skills` (MIT) como base; `snarktank/ralph` (MIT) por su `/prd`; el plugin
 oficial de Anthropic (`anthropics/knowledge-work-plugins`) como estándar de estructura.
@@ -222,7 +294,10 @@ qué cambió), `reporter` (arma informes).
 | Fuera | Cuándo |
 |---|---|
 | Envío por WhatsApp | v0.2 |
-| Multi-proyecto con separación de contexto | v0.2 |
+| Separación garantizada de contexto entre agentes (más allá de WhatsApp) | v0.2 |
+| Vista transversal de todos los proyectos | v0.2 |
+| Ver actividad (qué hizo el agente, qué envió) | v0.0.2 |
+| Tareas programadas | después |
 | Skills externas, "trae la tuya" (link de GitHub) | v0.2, con su guardrail |
 | Plantillas dev / legal / salud | v0.3+ |
 | Config para Codex / Cursor / Grok | v0.3+ |
@@ -241,7 +316,8 @@ qué cambió), `reporter` (arma informes).
    equipo usando la app (aunque tenga dos pantallas y sea fea), no un CLI.
 3. **MCP de WhatsApp read-only** — ver §6.
 4. **Pagos y distribución** — pago único; DMG firmado y notarizado. El binario Go embebido
-   también se firma.
+   también se firma. **Sparkle desde el primer build**: una app que sale sin él no sabe
+   actualizarse, y montarlo con usuarios ya instalados obliga a contactarlos uno por uno.
 5. **Validación con 5-10 PMs externos** antes de abrir la venta.
 
 ---
@@ -254,6 +330,7 @@ qué cambió), `reporter` (arma informes).
 | Tokens expuestos | Nunca en texto plano ni en servidores propios |
 | El agente envía algo mal a un cliente | Envíos externos en `ask` + hook de aprobación |
 | Gatekeeper bloquea la app | Firmar y notarizar desde el inicio, incluido el binario Go |
+| Meta rompe el protocolo de WhatsApp | El bridge deja de leer; parche urgente de la capa 2 vía Sparkle (por eso tiene versión propia). Mantenimiento de por vida, no opcional |
 | Claude Code cambia el formato de config | Motor desacoplado |
 | El usuario se traba en un OAuth | Captura de qué hacer, botón de ayuda, "Saltar por ahora" |
 
@@ -272,9 +349,32 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 
 ## 12. Puntos abiertos (no decididos en los docs)
 
-- **Dónde vive la config generada:** la spec dice "en la máquina del usuario", sin carpeta.
 - **Variables de entorno de los tokens:** dónde se guardan los valores a los que apunta `.mcp.json`.
-- **Pagos y licenciamiento:** proveedor y mecanismo de activación sin definir.
+- **Pagos y licenciamiento:** la spec ya da por hechos un webhook de Stripe y una clave
+  privada de licencias (§4f los menciona de pasada), pero el mecanismo de activación sigue
+  sin estar escrito en ningún documento.
+- **Sparkle, pendiente de arrancar:** generar el par de claves EdDSA (la privada fuera del
+  repo) y definir la URL del appcast y la ruta de las skills remotas, en el dominio del sitio.
+- **Skills remotas, sin diseño:** quién descarga (¿`GalenoApp` llena el directorio que ya
+  recibe el motor, o el motor aprende a hablar con la red?), cómo se versionan, dónde vive
+  el fallback local y **cómo se verifica su integridad**. La spec exige firma EdDSA para
+  la app, pero no dice nada equivalente para las skills, y una skill es instrucciones para
+  el agente: un canal remoto sin verificación sería una puerta de entrada de contenido no
+  revisado (regla §5.5).
+- **Abrir el agente en la app de Claude:** decidido que el usuario elige entre la app de
+  Claude y Terminal, pero falta verificar cómo se abre una carpeta concreta en la app de
+  Claude desde Galeno y que cargue toda la config generada (hooks, `.mcp.json`, skills).
+- **Licencia y número de agentes:** falta decidir si una licencia cubre agentes ilimitados.
+- **Carpetas visibles:** `~/Galeno/<agente>/` está a la vista; falta decidir qué hace el
+  home si el usuario la borra, la mueve o la renombra, y cómo se renombra o elimina un
+  agente desde Galeno.
+- **Memoria:** falta el mecanismo exacto que limita la escritura a `memoria/` (hoy `Write`
+  y `Edit` están en `deny`, que gana siempre, así que no basta con un `allow`), y qué se
+  hace cuando la memoria crece.
+- **Subagentes:** la spec §6 pide `scribe`, `tracker` y `reporter` en `.claude/agents/`,
+  pero el motor todavía no los genera.
+- **Versión propia del bridge:** falta decidir el esquema y cómo permite parchear el
+  bridge "sin re-releasear toda la app" si viaja empaquetado dentro de ella.
 - ~~MCP exactos de Slack, Notion, Jira, Gmail y Drive~~ — **resuelto** (oct 2026): todos
   verificados contra la documentación oficial. Google Workspace resultó ser tres servidores
   (Drive, Docs, Sheets), no uno. Ver `docs/03` §4e para el detalle y la decisión de

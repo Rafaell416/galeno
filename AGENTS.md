@@ -14,6 +14,8 @@ para WhatsApp (solo lectura) y registra MCP hospedados con `claude mcp add`.
 - **Swift + SwiftUI**: la app y el motor que genera la config.
 - **Go**: un único binario para WhatsApp (puente `whatsmeow` + servidor MCP read-only).
 - **Nada más**: ni Python, ni Node, ni Rust, ni contenedor web dentro de la app.
+- **Sparkle** para las actualizaciones de la app (framework estándar de Mac fuera del App
+  Store). Va desde el primer build. Ver `docs/03` §4f.
 - Los MCP hospedados (Notion, Slack, Gmail, Drive, Jira, Fireflies, Granola, Fathom) no se
   empaquetan: se conectan por OAuth contra los servidores de cada proveedor.
 
@@ -35,14 +37,15 @@ Límites entre carpetas:
 - `whatsapp-bridge/` es autocontenido; habla con Claude Code por stdio y con la app como
   proceso hijo.
 - `skills/` es contenido, no código de la app; el motor lo copia a la config del usuario.
+  No se hornea en el binario: se publica como fuente remota versionada, con un fallback
+  local (`docs/03` §4f, capa 3).
 
 ## Comandos
 
 `GalenoCore/` ya tiene comportamiento (el generador de config). `whatsapp-bridge/` también:
 el puente (lectura de WhatsApp) y las 9 herramientas MCP de solo lectura, con subcomandos
 `pair`/`sync`/`serve`/`status`/`install-launchd` — ver `whatsapp-bridge/README.md`.
-`GalenoApp/` aún no tiene
-proyecto Xcode: ese comando es el previsto. El CI corre los jobs `swift` y `go` en cada PR y
+`GalenoApp/` aún no tiene proyecto Xcode: ese comando es el previsto. El CI corre los jobs `swift` y `go` en cada PR y
 en cada push a `main` (`.github/workflows/ci.yml`).
 
 `GalenoCore` tiene además `galeno-gen`, una herramienta de desarrollo para probar el
@@ -90,6 +93,18 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   propiedad que sobreviva más de esa llamada. Sigue sin tocar infraestructura propia (no sale
   de la máquina del usuario); es Galeno viéndolo de paso, no reteniéndolo.
 - Los fixtures de prueba usan valores falsos evidentes.
+- La clave privada EdDSA de Sparkle y la de licencias viven fuera del repo. Nunca se
+  commitean, ni siquiera cifradas.
+
+### Actualizaciones
+
+- Tres capas independientes (`docs/03` §4f): la app por Sparkle, el bridge dentro de la app
+  pero con versión propia, y las skills desde una fuente remota.
+- El appcast y las skills remotas son **solo descargas**. No se les añade nada que suba
+  datos del usuario: ni perfil del sistema, ni identificadores, ni conteos de uso.
+- Las skills remotas siguen siendo solo nuestras y curadas, revisadas antes de publicarse.
+  Que sean remotas no abre la puerta a contenido de terceros sin revisar.
+- Cambiar una skill no exige build nuevo de la app; cambiar el bridge sí sube su versión.
 
 ### WhatsApp
 
@@ -115,6 +130,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 ### Código
 
 - La app consume el motor y no duplica su lógica.
+- Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
+  Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
+  completos. Lo único que el motor nunca toca al regenerar es `memoria/`.
+- El agente generado no ejecuta código y solo escribe archivos dentro de `memoria/`.
+- El bridge de WhatsApp solo expone los chats permitidos para ese agente; sin lista de
+  permitidos no expone ninguno (falla cerrado).
 - Los textos de la UI van en `Localizable.strings`, en español e inglés. Los textos de
   dopamina se escriben nativos en cada idioma, no traducidos literalmente.
 - Las skills nuestras se escriben en inglés, con la instrucción de idioma arriba.
@@ -142,12 +163,16 @@ Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezc
 3. Permitir un envío externo (Slack, email) sin aprobación humana, o debilitar la regla
    `ask` o el hook de aprobación en la config generada.
 4. Empaquetar Python, Node o cualquier runtime en la app.
-5. Dar a los subagentes generados Bash o edición de código.
+5. Dar a los subagentes generados Bash o edición de código, o dejar que el agente
+   generado escriba archivos fuera de `memoria/`.
 6. Abrir una puerta a código no revisado ("trae tu skill", plugins de terceros sin revisar).
 7. Reabrir una decisión cerrada: nombre, precio, solo PM, solo Mac, Swift, Go para
    WhatsApp, solo Claude Code.
-8. Construir algo fuera de v0.0.1: multi-proyecto, otras plantillas, Windows, soporte
-   para Codex/Cursor/Grok, marketplace, CLI de cara al usuario.
+8. Construir algo fuera de v0.0.1: separación garantizada de contexto entre agentes (más
+   allá del filtro de chats de WhatsApp), vista transversal, tareas programadas, ver
+   actividad, otras plantillas, Windows, soporte para Codex/Cursor/Grok, marketplace, CLI
+   de cara al usuario. Crear varios agentes, uno por proyecto, **sí** es v0.0.1
+   (`docs/03` §3b).
 9. Prometer en la UI o en el sitio que WhatsApp es "seguro" u "oficial", o que hay
    cumplimiento garantizado.
 

@@ -4,7 +4,7 @@
 **Complementa:** `01-plan-producto.md` · `03-especificacion-v0.0.1.md`
 **Actualizado:** 2 de octubre de 2026 (conciliado con la especificación v0.0.1)
 
-> **Cómo leer este documento.** Describe al usuario completo y la visión del perfil PM, que es multi-proyecto. La v0.0.1 cubre **un solo proyecto**; la separación de contexto entre proyectos llega en v0.2. Cada sección indica qué entra en v0.0.1 y qué queda para después.
+> **Cómo leer este documento.** Describe al usuario completo y la visión del perfil PM, que es multi-proyecto. En la v0.0.1 el usuario puede crear **un agente por proyecto**, cada uno con sus fuentes y su memoria (`03-especificacion-v0.0.1.md` §3b); la separación **garantizada** de contexto entre ellos llega en v0.2 (en v0.0.1 solo WhatsApp la impone por estructura). Cada sección indica qué entra en v0.0.1 y qué queda para después.
 
 ---
 
@@ -24,7 +24,7 @@ No es un PM de un solo producto. Es alguien que lleva **varios proyectos a la ve
 - Todo esto **a través de múltiples proyectos distintos**.
 - Y **enviar**: mensajes por WhatsApp y Slack, correos, escribir en Notion, Jira, Docs, Drive.
 
-**Qué de esto cubre la v0.0.1:** leer de todas esas fuentes y escribir en Notion, Jira y Google Docs; enviar por Slack y email con aprobación. Quedan para v0.2 el **multi-proyecto** y el **envío por WhatsApp**.
+**Qué de esto cubre la v0.0.1:** leer de todas esas fuentes y escribir en Notion, Jira y Google Docs; enviar por Slack y email con aprobación. Con varios proyectos, se crea un agente por proyecto. Quedan para v0.2 la **separación garantizada de contexto** entre agentes y el **envío por WhatsApp**.
 
 ---
 
@@ -119,8 +119,8 @@ Esto no es un producto aparte — es **el perfil con el que Galeno sale al merca
 
 Este es el perfil más ambicioso de todos los que has planteado. Enviar a múltiples canales, sobre múltiples proyectos, sin mezclar, con aprobación — es mucha superficie. **No lo construyas todo de una.** El orden:
 
-1. **v0.0.1 — un proyecto, no multi.** Leer de todas las fuentes (WhatsApp en solo lectura, Slack, Notion, Google, Jira, Gmail, transcripciones), producir documentos y tareas en Notion/Jira/Docs, y enviar por Slack y email con aprobación. Validar que el resumen y los informes son útiles.
-2. **v0.2 — la separación multi-proyecto.**
+1. **v0.0.1 — un agente por proyecto, sin garantías de separación.** Cada agente es una carpeta con sus fuentes y su memoria; lo único impuesto por estructura es qué chats de WhatsApp lee. Leer de todas las fuentes (WhatsApp en solo lectura, Slack, Notion, Google, Jira, Gmail, transcripciones), producir documentos y tareas en Notion/Jira/Docs, y enviar por Slack y email con aprobación. Validar que el resumen y los informes son útiles.
+2. **v0.2 — la separación garantizada entre proyectos** en todas las herramientas, y la vista transversal.
 3. **v0.2 — el envío por WhatsApp**, decidiendo entre Business API o riesgo aceptado por el usuario.
 
 Si intentas el multi-proyecto-multi-canal-con-envío desde el día 1, te vas a enredar. La separación de contexto es lo más difícil; déjala para cuando lo básico funcione.
