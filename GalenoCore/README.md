@@ -38,8 +38,13 @@ Dos líneas rojas viven en el sistema de tipos, no en la disciplina:
 
 `Sources/GalenoCore/Generator/` convierte un `AgentConfig` en la configuración de Claude Code
 de una carpeta destino (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.mcp.json`, el
-hook de aprobación, las skills). Probado con snapshots de árbol completo en `Tests/Snapshots/`
+hook de aprobación, los subagentes, las skills). Probado con snapshots de árbol completo en `Tests/Snapshots/`
 (`GALENO_RECORD_SNAPSHOTS=1` para regrabarlos).
+
+Los subagentes (`scribe`, `tracker`, `reporter`) salen de `SubagentsRenderer`. Lo que
+pueden tocar lo fija su campo `tools`, una lista blanca: lecturas locales y el servidor MCP
+de cada herramienta conectada que no puede enviar. Slack y Gmail nunca entran, porque un
+servidor se concede entero. Detalle y motivo: `../docs/03-especificacion-v0.0.1.md` §6.
 
 Las skills no van embebidas en el motor: el generador las copia desde el `skillsDirectory`
 que recibe. Eso es lo que permite que en producción vengan de una fuente remota versionada,

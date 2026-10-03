@@ -45,8 +45,8 @@ EOF
 swift run --package-path GalenoCore galeno-gen /tmp/config.json /tmp/agente-de-prueba
 ```
 
-Escribe `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.mcp.json` y
-`.claude/skills/` en `/tmp/agente-de-prueba`, y lista cada archivo que generó. Si algo
+Escribe `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.mcp.json`,
+`.claude/agents/` y `.claude/skills/` en `/tmp/agente-de-prueba`, y lista cada archivo que generó. Si algo
 no está verificado (un endpoint de MCP) o necesita atención (un `CLAUDE.md` que ya
 existía), lo dice al final bajo "Advertencias".
 

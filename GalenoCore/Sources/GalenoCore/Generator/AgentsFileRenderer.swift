@@ -131,6 +131,36 @@ enum AgentsFileRenderer {
         )
         lines.append("")
 
+        lines.append("## Tus subagentes")
+        lines.append("")
+        lines.append(
+            """
+            Tienes tres ayudantes para el trabajo largo. Cada uno arranca sin ver esta \
+            conversación, así que dile exactamente qué necesitas y pásale lo que deba saber.
+            """
+        )
+        lines.append("")
+        lines.append(
+            """
+            - `scribe` — convierte una transcripción en decisiones, acciones y responsables.
+            - `tracker` — revisa las fuentes y te dice qué cambió en un periodo.
+            - `reporter` — arma el borrador de un informe con lo que encontraron los otros dos.
+            """
+        )
+        lines.append("")
+        if connections.contains(where: { $0.tool.externalSend != nil }) {
+            lines.append(
+                """
+                Ninguno puede enviar nada ni leer Slack o el correo: eso lo haces tú. Si lo \
+                necesitan, léelo tú y pásaselo. Lo que te devuelven es un borrador: revísalo, \
+                y si hay que enviarlo, lo envías tú, con aprobación.
+                """
+            )
+        } else {
+            lines.append("Lo que te devuelven es un borrador: revísalo antes de usarlo.")
+        }
+        lines.append("")
+
         if !config.skills.isEmpty {
             lines.append("## Tus skills")
             lines.append("")
@@ -236,6 +266,36 @@ enum AgentsFileRenderer {
             filling the gap.
             """
         )
+        lines.append("")
+
+        lines.append("## Your subagents")
+        lines.append("")
+        lines.append(
+            """
+            You have three helpers for the long work. Each one starts without seeing this \
+            conversation, so tell it exactly what you need and hand it what it has to know.
+            """
+        )
+        lines.append("")
+        lines.append(
+            """
+            - `scribe` — turns a transcript into decisions, action items and owners.
+            - `tracker` — goes through the sources and tells you what changed over a period.
+            - `reporter` — drafts a report from what the other two found.
+            """
+        )
+        lines.append("")
+        if connections.contains(where: { $0.tool.externalSend != nil }) {
+            lines.append(
+                """
+                None of them can send anything, or read Slack or email: that is yours to do. \
+                If they need it, read it yourself and pass it on. What they return is a draft: \
+                check it, and if it has to go out, you send it, with approval.
+                """
+            )
+        } else {
+            lines.append("What they return is a draft: check it before you use it.")
+        }
         lines.append("")
 
         if !config.skills.isEmpty {

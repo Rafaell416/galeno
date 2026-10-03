@@ -255,7 +255,7 @@ Para el perfil PM, el motor escribe en la máquina del usuario:
 - `.claude/settings.json` — reglas deny/ask/allow: envíos externos en `ask`, nada de ejecutar código, y escritura de archivos solo dentro de `memoria/`.
 - `memoria/` — las notas del proyecto que mantiene el agente (§3b). El motor la crea si no existe y **nunca la sobrescribe** al regenerar.
 - `.mcp.json` — los MCP conectados (WhatsApp read-only, Slack, Notion, Google Drive/Docs/Sheets, Jira, Gmail, Fireflies/Granola/Fathom), con tokens como referencias a variables de entorno, nunca en texto plano.
-- `.claude/agents/` — subagentes del perfil PM: `scribe`, `tracker`, `reporter` (solo lectura + Notion/Jira; sin Bash, sin Edit de código).
+- `.claude/agents/` — subagentes del perfil PM: `scribe`, `tracker`, `reporter` (solo lectura + Notion/Jira; sin Bash, sin Edit de código). Su lista de herramientas es una lista blanca. Reciben los servidores de las herramientas conectadas que no pueden enviar (WhatsApp, transcripciones, Notion, Jira, Google Drive/Docs/Sheets) y **nunca los de Slack ni Gmail**: un servidor se concede entero, así que un subagente con Slack tendría también la herramienta de enviar. El agente principal lee Slack y el correo, les pasa lo relevante, y es el único que envía.
 - `.claude/hooks/` — hook de aprobación para todo envío externo.
 - `.claude/skills/` — **la lista de skills de abajo.** No vienen horneadas en la app: el motor las toma de una fuente remota versionada, con un fallback local (§4f, capa 3).
 
@@ -325,7 +325,7 @@ El nivel "trae la tuya" (pegar un link de GitHub) se pospone. Cuando se añada, 
 
 1. **Motor interno** — librería/binario que genera toda la config a partir de las respuestas del wizard. **No es una interfaz de usuario**: es la lógica que la app invoca por debajo. Se separa de la app por razones de ingeniería (testeable, reutilizable, la app no acumula lógica), no para que alguien lo use directo.
    - [x] Modelo (`AgentConfig`) y generadores de `AGENTS.md`, `settings.json`, `.mcp.json`, hook de aprobación y skills, con snapshots.
-   - [ ] Subagentes `scribe`, `tracker` y `reporter` en `.claude/agents/` (§6).
+   - [x] Subagentes `scribe`, `tracker` y `reporter` en `.claude/agents/` (§6).
    - [ ] Descripción del proyecto y memoria (`memoria/`, con la escritura limitada a esa carpeta) (§3b).
    - [ ] Varios agentes: conexiones compartidas + lista de agentes, y regeneración sobre una carpeta existente sin tocar `memoria/` (§3b).
 2. **App Swift/SwiftUI (en paralelo al motor)** — el wizard de §3 y el home de §3b. **Es lo único que el usuario ve.** Consume el motor; no duplica lógica.

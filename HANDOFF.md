@@ -285,7 +285,12 @@ remoto no significa abierto a terceros.
 oficial de Anthropic (`anthropics/knowledge-work-plugins`) como estándar de estructura.
 
 **Subagentes:** `scribe` (transcripciones → decisiones y acciones), `tracker` (detecta
-qué cambió), `reporter` (arma informes).
+qué cambió), `reporter` (arma informes). El motor los genera en `.claude/agents/`, en
+inglés y con la instrucción de idioma arriba. Su campo `tools` es una lista blanca: leen
+archivos locales y reciben el servidor MCP de cada herramienta conectada que no puede
+enviar. **Nunca reciben Slack ni Gmail**: un servidor se concede entero, y con él vendría
+la herramienta de enviar. El agente principal lee Slack y el correo y les pasa lo
+relevante; ellos devuelven un borrador y solo el principal envía, con aprobación.
 
 ---
 
@@ -371,8 +376,18 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 - **Memoria:** falta el mecanismo exacto que limita la escritura a `memoria/` (hoy `Write`
   y `Edit` están en `deny`, que gana siempre, así que no basta con un `allow`), y qué se
   hace cuando la memoria crece.
-- **Subagentes:** la spec §6 pide `scribe`, `tracker` y `reporter` en `.claude/agents/`,
-  pero el motor todavía no los genera.
+- **Subagentes y reglas `ask`:** falta confirmar a mano que una regla `ask` de
+  `settings.json` también detiene a un subagente (por ejemplo, `scribe` creando una tarea
+  en Jira con Jira en "pedir confirmación"). La documentación confirma que los hooks sí
+  corren dentro de los subagentes, pero no dice lo mismo, con todas las letras, de las
+  reglas de permiso. Si no preguntara, hay que cubrirlo con el hook.
+- **Subagentes y Slack:** `tracker` no puede leer Slack ni Gmail por su cuenta. Darle solo
+  las herramientas de lectura exige conocer sus nombres exactos, que Slack no documenta:
+  habría que listarlos con una cuenta conectada. Mejora posible, no bloquea v0.0.1.
+- **Carpeta sin confiar:** en una carpeta que Claude Code todavía no marcó como confiable,
+  las reglas `allow` del `settings.json` generado se ignoran (visto al probar los
+  subagentes, que sí cargan). El usuario acepta el diálogo de confianza la primera vez que abre su agente;
+  la app tiene que contar con ese paso al diseñar "abrir mi agente".
 - **Versión propia del bridge:** falta decidir el esquema y cómo permite parchear el
   bridge "sin re-releasear toda la app" si viaja empaquetado dentro de ella.
 - ~~MCP exactos de Slack, Notion, Jira, Gmail y Drive~~ — **resuelto** (oct 2026): todos
