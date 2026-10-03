@@ -143,8 +143,21 @@ func GetChatName(client *whatsmeow.Client, messageStore *MessageStore, jid types
 		// This is an individual contact
 		logger.Infof("Getting name for contact: %s", chatJID)
 
+		// Los contactos se guardan por JID de número telefónico
+		// (@s.whatsapp.net); un chat puede llegar identificado por su JID
+		// "lid" (@lid), el identificador que WhatsApp usa para esconder el
+		// número en ciertos contextos. Sin este paso, GetContact nunca
+		// encuentra nada para un jid "lid" y el nombre cae siempre al ID
+		// numérico crudo, aunque sí tengamos el contacto guardado.
+		contactJID := jid
+		if jid.Server == types.HiddenUserServer {
+			if pn, err := client.Store.LIDs.GetPNForLID(context.Background(), jid); err == nil && !pn.IsEmpty() {
+				contactJID = pn
+			}
+		}
+
 		// Just use contact info (full name)
-		contact, err := client.Store.Contacts.GetContact(context.Background(), jid)
+		contact, err := client.Store.Contacts.GetContact(context.Background(), contactJID)
 		if err == nil && contact.FullName != "" {
 			name = contact.FullName
 		} else if sender != "" {
