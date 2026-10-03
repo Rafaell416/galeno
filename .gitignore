@@ -10,6 +10,7 @@ xcuserdata/
 *.xccheckout
 *.dSYM
 *.dSYM.zip
+*.profraw
 *.ipa
 
 # Swift Package Manager (Package.resolved sí se commitea)

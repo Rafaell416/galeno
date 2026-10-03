@@ -7,9 +7,10 @@ Fuente de verdad: `docs/03-especificacion-v0.0.1.md`. Este archivo la resume, no
 (`whatsapp-bridge`) está probado a mano contra una cuenta real (vincular, sincronizar, leer
 desde Claude Code, confirmar que no puede enviar); falta probar que `sync` sobrevive a un
 reinicio vía `launchd`. Tras la sesión de descubrimiento del 3 de octubre quedan ajustes
-pendientes (probar `sync` tras un reinicio y el binario universal en CI): ver §6 y §12. El
-motor ya tiene subagentes, descripción y memoria del proyecto, varios agentes y regeneración.
-Faltan la app (`GalenoApp`), las skills, Sparkle y la distribución.
+pendientes (probar `sync` tras un reinicio): ver §6 y §12. El motor ya tiene subagentes,
+descripción y memoria del proyecto, varios agentes y regeneración. La app (`GalenoApp`) ya
+tiene proyecto Xcode y el **esqueleto del wizard** (10 pasos vacíos, navegación, progreso,
+ventana fija); las pantallas se llenan una a una. Faltan las skills, Sparkle y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
 ---
