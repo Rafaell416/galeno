@@ -79,7 +79,9 @@ Galeno.app  (Swift / SwiftUI)
   ├── Generador de config    → el motor; escribe AGENTS.md, .claude/*, .mcp.json   (FileManager)
   ├── WhatsApp               → lanza y supervisa un binario Go empaquetado          (Process)
   │                             puente whatsmeow + SQLite + servidor MCP read-only
-  │                             launchd para arrancar al iniciar sesión
+  │                             "sync" (conexión persistente, vía launchd) y "serve"
+  │                             (MCP por sesión, sin conexión propia) son subcomandos
+  │                             separados — nunca dos conexiones simultáneas
   └── MCP hospedados         → `claude mcp add --transport http …` + abre el OAuth  (Process)
                                 Notion · Slack · Gmail · Drive · Jira · Fireflies · Granola · Fathom
 ```
@@ -171,10 +173,17 @@ tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
   QR, SQLite) + servidor MCP en Python con 12 herramientas, 3 de envío.
 - **Hecho:** las 3 de envío eliminadas (no comentadas); el MCP portado a Go dentro del
   mismo binario, con el SDK oficial (`modelcontextprotocol/go-sdk`); subcomandos
-  `pair`/`serve`/`status`; estado en `~/Library/Application Support/Galeno/whatsapp/`;
-  build universal arm64+amd64. Detalle: `whatsapp-bridge/README.md`.
-- **Falta (Fase 4, GalenoApp):** `launchd` para que `serve` arranque solo; renderizar el QR
-  de `pair` dentro de la app en vez del terminal; empaquetar y firmar el binario.
+  `pair`/`sync`/`serve`/`status`/`install-launchd`; estado en
+  `~/Library/Application Support/Galeno/whatsapp/`; build universal arm64+amd64. `pair`
+  escribe el QR también como PNG (`pair-qr.png`, lo reescribe en cada rotación, lo borra al
+  terminar) para que la app lo muestre en pantalla sin parsear la terminal.
+  `install-launchd` instala un LaunchAgent que mantiene `sync` (nunca `serve`) corriendo tras
+  el login — `sync` sostiene la única conexión viva a WhatsApp; `serve` (el que lanza Claude
+  Code por sesión) solo lee lo que `sync` ya guardó, para que nunca haya dos conexiones
+  simultáneas con el mismo dispositivo vinculado. Detalle: `whatsapp-bridge/README.md`.
+- **Falta (Fase 4, GalenoApp):** que la app dispare `install-launchd` tras un `pair` exitoso;
+  renderizar el QR (ya disponible como PNG) dentro de la app en vez del terminal; empaquetar
+  y firmar el binario.
 - **Las 9 herramientas que quedan:** `search_contacts`, `list_messages`, `list_chats`,
   `get_chat`, `get_direct_chat_by_contact`, `get_contact_chats`, `get_last_interaction`,
   `get_message_context`, `download_media`.

@@ -79,7 +79,7 @@ public enum MCPServerCatalog {
             return [
                 MCPServerDefinition(
                     serverName: "whatsapp",
-                    transport: .stdio(command: whatsAppBridgePath, arguments: ["mcp"]),
+                    transport: .stdio(command: whatsAppBridgePath, arguments: ["serve"]),
                     endpointIsVerified: true
                 )
             ]

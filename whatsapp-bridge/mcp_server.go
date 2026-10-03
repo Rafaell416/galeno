@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"go.mau.fi/whatsmeow"
 )
 
 // Las 9 herramientas de lectura, puerto de whatsapp-mcp-server/main.py.
@@ -24,7 +24,7 @@ const (
 	defaultSortBy        = "last_active"
 )
 
-func newMCPServer(client *whatsmeow.Client, store *MessageStore) *mcp.Server {
+func newMCPServer(store *MessageStore) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "galeno-whatsapp", Version: "0.1.0"}, nil)
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -71,7 +71,7 @@ func newMCPServer(client *whatsmeow.Client, store *MessageStore) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "download_media",
 		Description: "Download media from a WhatsApp message and get the local file path.",
-	}, handleDownloadMedia(client, store))
+	}, handleDownloadMedia(store))
 
 	return server
 }
@@ -301,18 +301,26 @@ type DownloadMediaOutput struct {
 	FilePath string `json:"file_path,omitempty"`
 }
 
-func handleDownloadMedia(client *whatsmeow.Client, store *MessageStore) func(context.Context, *mcp.CallToolRequest, DownloadMediaInput) (*mcp.CallToolResult, DownloadMediaOutput, error) {
+// handleDownloadMedia solo mira la caché local (cachedMediaPath, en
+// media.go): "serve" no sostiene su propia conexión a WhatsApp —la sostiene
+// "sync", de fondo—, así que nunca intenta descargar en vivo. Si el archivo
+// no está en disco, lo dice con honestidad en vez de conectarse por su
+// cuenta, que reabriría el riesgo de dos conexiones simultáneas con el
+// mismo dispositivo vinculado.
+func handleDownloadMedia(store *MessageStore) func(context.Context, *mcp.CallToolRequest, DownloadMediaInput) (*mcp.CallToolResult, DownloadMediaOutput, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in DownloadMediaInput) (*mcp.CallToolResult, DownloadMediaOutput, error) {
-		// Llamada directa a la función Go existente (media.go): ya no hace
-		// falta el HTTP /api/download de upstream, estamos en el mismo proceso.
-		ok, _, _, absPath, err := downloadMedia(client, store, in.MessageID, in.ChatJID)
+		_, _, absPath, err := cachedMediaPath(store, in.MessageID, in.ChatJID)
 		if err != nil {
+			var notCached *mediaNotCachedError
+			if errors.As(err, &notCached) {
+				return nil, DownloadMediaOutput{
+					Success: false,
+					Message: "Media not downloaded yet. Make sure the galeno-whatsapp sync service is running, then try again shortly.",
+				}, nil
+			}
 			// Como en whatsapp.py: un fallo de descarga es un resultado
 			// normal (success: false), no un error de protocolo MCP.
 			return nil, DownloadMediaOutput{Success: false, Message: err.Error()}, nil
-		}
-		if !ok {
-			return nil, DownloadMediaOutput{Success: false, Message: "Failed to download media"}, nil
 		}
 		return nil, DownloadMediaOutput{Success: true, Message: "Media downloaded successfully", FilePath: absPath}, nil
 	}

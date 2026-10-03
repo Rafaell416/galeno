@@ -51,7 +51,7 @@
     },
     "whatsapp" : {
       "args" : [
-        "mcp"
+        "serve"
       ],
       "command" : "/Applications/Galeno.app/Contents/Resources/galeno-whatsapp",
       "type" : "stdio"

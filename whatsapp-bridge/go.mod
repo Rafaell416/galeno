@@ -7,6 +7,7 @@ require (
 	github.com/mdp/qrterminal v1.0.1
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	go.mau.fi/whatsmeow v0.0.0-20250318233852-06705625cf82
+	rsc.io/qr v0.2.0
 )
 
 require (
@@ -29,5 +30,4 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
-	rsc.io/qr v0.2.0 // indirect
 )
