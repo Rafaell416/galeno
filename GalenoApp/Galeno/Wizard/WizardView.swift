@@ -14,8 +14,10 @@ struct WizardView: View {
                 .id(wizard.step)
                 .transition(.opacity)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Divider()
-            NavigationBar()
+            if !wizard.hidesNavigation {
+                Divider()
+                NavigationBar()
+            }
         }
         .background(Color.parchment50)
         .animation(.easeOut(duration: 0.2), value: wizard.step)

@@ -2,26 +2,6 @@ import XCTest
 
 @testable import Galeno
 
-/// Un `CommandRunning` con respuestas fijas, para probar el detector sin lanzar
-/// nada. La clave es el comando entero: "/ruta/claude --version".
-private final class FakeRunner: CommandRunning, @unchecked Sendable {
-    private let responses: [String: CommandResult]
-    private let lock = NSLock()
-    private var recorded: [String] = []
-
-    init(_ responses: [String: CommandResult]) { self.responses = responses }
-
-    var calls: [String] { lock.withLock { recorded } }
-
-    func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult? {
-        let command = ([executable] + arguments).joined(separator: " ")
-        lock.withLock { recorded.append(command) }
-        return responses[command]
-    }
-}
-
-private func ok(_ output: String) -> CommandResult { CommandResult(status: 0, output: output) }
-
 final class ClaudeCodeDetectorTests: XCTestCase {
     private let home = "/Users/prueba"
 

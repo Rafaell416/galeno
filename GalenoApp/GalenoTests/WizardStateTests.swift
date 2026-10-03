@@ -14,10 +14,22 @@ final class WizardStateTests: XCTestCase {
     private func makeReadyState() -> WizardState {
         let state = WizardState(
             preferredLanguages: ["es-CO"],
-            claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true))
+            claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
+            connectServices: ConnectServices(
+                makeMCP: { _ in FakeMCP() }, whatsapp: FakeWhatsApp(), fetchRealData: false))
         state.agentName = "Aurora"
         state.toggle(.notion)
         return state
+    }
+
+    /// Un paso adelante. El paso 5 es un sub-wizard que no deja avanzar hasta que cada
+    /// conexión se resuelve: aquí se salta cada una para poder seguir.
+    private func stepForward(_ state: WizardState) {
+        if state.step == .connect {
+            state.beginConnecting()
+            for _ in 0..<20 where state.connectFlow?.isFinished != true { state.connectFlow?.skip() }
+        }
+        state.next()
     }
 
     // MARK: - Los pasos
@@ -69,10 +81,21 @@ final class WizardStateTests: XCTestCase {
                 Bundle(path: try XCTUnwrap(app.path(forResource: language, ofType: "lproj"))))
             for (key, entry) in strings {
                 // Las claves que Xcode extrae solas (el nombre de la app) no se traducen.
-                guard let localizations = entry["localizations"] as? [String: Any] else { continue }
+                guard let localizations = entry["localizations"] as? [String: Any],
+                    let localization = localizations[language] as? [String: Any]
+                else { continue }
 
-                let unit = (localizations[language] as? [String: Any])?["stringUnit"] as? [String: Any]
-                let value = unit?["value"] as? String
+                if let plural = (localization["variations"] as? [String: Any])?["plural"] as? [String: Any] {
+                    // Un plural lleva una versión por categoría ("one", "other"…), todas con texto.
+                    XCTAssertNotNil(plural["other"], "\(key) no tiene 'other' en \(language)")
+                    for (category, form) in plural {
+                        let value = ((form as? [String: Any])?["stringUnit"] as? [String: Any])?["value"] as? String
+                        XCTAssertFalse(value?.isEmpty ?? true, "\(key) [\(category)] está vacío en \(language)")
+                    }
+                    continue  // las claves de plural se compilan a un .stringsdict, no al .strings
+                }
+
+                let value = (localization["stringUnit"] as? [String: Any])?["value"] as? String
                 XCTAssertFalse(value?.isEmpty ?? true, "\(key) no tiene texto en \(language)")
 
                 XCTAssertNotEqual(
@@ -99,9 +122,12 @@ final class WizardStateTests: XCTestCase {
         let app = Bundle(for: WizardState.self)
         let bundle = try XCTUnwrap(
             Bundle(path: try XCTUnwrap(app.path(forResource: "es", ofType: "lproj"))))
-        for slot in ["welcome", "detection", "agent", "tools"] {
-            let text = bundle.localizedString(forKey: "dopamine.\(slot)", value: "⟂", table: nil)
-            XCTAssertTrue(text.hasPrefix("TODO(dopamina)"), "dopamine.\(slot): \(text)")
+        for key in [
+            "dopamine.welcome", "dopamine.detection", "dopamine.agent", "dopamine.tools",
+            "dopamine.connect.first", "dopamine.connect.half", "dopamine.connect.last",
+        ] {
+            let text = bundle.localizedString(forKey: key, value: "⟂", table: nil)
+            XCTAssertTrue(text.hasPrefix("TODO(dopamina)"), "\(key): \(text)")
         }
     }
 
@@ -118,7 +144,7 @@ final class WizardStateTests: XCTestCase {
         let state = makeReadyState()
 
         for expected in WizardStep.allCases.dropFirst() {
-            state.next()
+            stepForward(state)
             XCTAssertEqual(state.step, expected)
         }
         XCTAssertTrue(state.isLastStep)
@@ -130,7 +156,7 @@ final class WizardStateTests: XCTestCase {
 
     func testNextStopsAtTheLastStep() {
         let state = makeReadyState()
-        for _ in 0..<30 { state.next() }
+        for _ in 0..<30 { stepForward(state) }
 
         XCTAssertEqual(state.step, .done)
         XCTAssertFalse(state.canGoForward)
@@ -147,7 +173,8 @@ final class WizardStateTests: XCTestCase {
 
     func testThereIsNoGoingBackFromGenerating() {
         let state = makeReadyState()
-        while state.step != .generating { state.next() }
+        for _ in 0..<20 where state.step != .generating { stepForward(state) }
+        XCTAssertEqual(state.step, .generating)
 
         XCTAssertFalse(state.canGoBack)
         state.back()
@@ -165,8 +192,8 @@ final class WizardStateTests: XCTestCase {
         XCTAssertEqual(state.progress, 0.1, accuracy: 0.0001)
 
         var previous = state.progress
-        while state.canGoForward {
-            state.next()
+        for _ in 0..<20 where !state.isLastStep {
+            stepForward(state)
             XCTAssertGreaterThan(state.progress, previous)
             previous = state.progress
         }

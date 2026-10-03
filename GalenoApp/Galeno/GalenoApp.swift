@@ -34,6 +34,11 @@ struct GalenoApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    /// Un `pair` huérfano seguiría escuchando por su cuenta; un `claude mcp login`, esperando.
+    func applicationWillTerminate(_ notification: Notification) {
+        ProcessRegistry.shared.killAll()
+    }
 }
 
 /// Deja la ventana fija: sin redimensionar, sin zoom, sin pantalla completa, y

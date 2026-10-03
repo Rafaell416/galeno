@@ -150,7 +150,14 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   cambia en caliente con `\.locale`: **no usar** `String(localized:)` ni `NSLocalizedString`
   (no lo siguen); los nombres de herramienta salen de `Tool.displayName(in:)`.
 - Logos de terceros solo monocromos y con licencia verificada, listados en
-  `GalenoApp/THIRD_PARTY.md`. Los textos de
+  `GalenoApp/THIRD_PARTY.md`.
+- Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
+  (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
+  lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no
+  ejecuta scripts remotos** (`curl … | bash`): muestra el comando y lo corre el usuario.
+- El bridge se usa desde su copia estable en `~/Library/Application Support/Galeno/bin/`, no
+  desde dentro de `Galeno.app` ni de DerivedData (`BridgeInstaller`). Compilarlo antes que la
+  app: `make -C whatsapp-bridge universal` (una fase de Run Script lo copia a `Resources`). Los textos de
   dopamina se escriben nativos en cada idioma, no traducidos literalmente.
 - Las skills nuestras se escriben en inglés, con la instrucción de idioma arriba.
 - UI: nativo primero. Controles de macOS, SF Symbols, serif del sistema (New York), tokens

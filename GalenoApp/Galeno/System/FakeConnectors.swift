@@ -1,0 +1,109 @@
+#if DEBUG
+import AppKit
+import Foundation
+
+/// Conectores con guion, solo en Debug (`-galeno-fake-connect`): permiten ver todas las
+/// pantallas del paso 5 —éxito, dato tardío, fallo, QR que rota, sincronización— sin
+/// tocar ninguna cuenta ni lanzar `claude` ni el bridge.
+///
+/// El guion: `fathom` falla la primera vez (tiempo agotado) y funciona al reintentar;
+/// `jira` encuentra "10+" y tarda en contarlo; `notion` no lleva dato; las demás encuentran
+/// un número.
+nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var registered: Set<String> = []
+    private var connected: Set<String> = []
+    private var failedOnce: Set<String> = []
+
+    func status(of server: String) async -> MCPStatus {
+        try? await Task.sleep(for: .milliseconds(400))
+        return lock.withLock {
+            connected.contains(server) ? .connected : (registered.contains(server) ? .needsAuthentication : .notRegistered)
+        }
+    }
+
+    func register(server: String, url: String) async throws {
+        try? await Task.sleep(for: .milliseconds(600))
+        lock.withLock { _ = registered.insert(server) }
+    }
+
+    func login(server: String) async throws {
+        try? await Task.sleep(for: .seconds(2.5))
+        let shouldFail = lock.withLock { server == "fathom" && failedOnce.insert(server).inserted }
+        if shouldFail { throw MCPConnectError.loginTimedOut }
+        lock.withLock { _ = connected.insert(server) }
+    }
+
+    func countItems(server: String, noun: String) async -> ItemCount? {
+        switch server {
+        case "jira":
+            try? await Task.sleep(for: .seconds(9))  // llega después de la transición
+            return ItemCount(value: 10, isPartial: true)
+        case "notion":
+            return nil  // sin dato: solo el éxito
+        default:
+            try? await Task.sleep(for: .seconds(2))
+            return ItemCount(value: server == "slack" ? 12 : 7, isPartial: false)
+        }
+    }
+}
+
+nonisolated final class ScriptedWhatsApp: WhatsAppLinking, @unchecked Sendable {
+    private let lock = NSLock()
+    private var reads = 0
+
+    func prepare() async throws { try? await Task.sleep(for: .milliseconds(500)) }
+    func linkState() async throws -> WhatsAppLinkState {
+        try? await Task.sleep(for: .milliseconds(500))
+        return .notLinked
+    }
+
+    func pair() -> AsyncStream<WhatsAppPairEvent> {
+        AsyncStream { continuation in
+            let task = Task {
+                try? await Task.sleep(for: .seconds(1))
+                for seed in 1...3 {
+                    continuation.yield(.qr(Self.fakeQR(seed: seed)))
+                    try? await Task.sleep(for: .seconds(3))
+                }
+                continuation.yield(.succeeded)
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func installLaunchd() async throws { try? await Task.sleep(for: .seconds(1)) }
+
+    func chatCounts() async -> ChatCounts? {
+        let count = lock.withLock { () -> Int in reads += 1; return reads }
+        let total = [0, 8, 24, 40, 40, 40, 40, 40][min(count - 1, 7)]
+        return ChatCounts(total: total, groups: total / 4)
+    }
+
+    /// Un PNG de cuadros que cambia con `seed`: no es un QR de verdad.
+    static func fakeQR(seed: Int) -> Data {
+        let image = NSImage(size: NSSize(width: 160, height: 160), flipped: false) { rect in
+            NSColor.white.setFill()
+            rect.fill()
+            NSColor.black.setFill()
+            for row in 0..<16 {
+                for column in 0..<16 where (row * 7 + column * 13 + seed * 5) % 3 == 0 {
+                    NSRect(x: column * 10, y: row * 10, width: 10, height: 10).fill()
+                }
+            }
+            return true
+        }
+        guard let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+            let png = bitmap.representation(using: .png, properties: [:])
+        else { return Data() }
+        return png
+    }
+}
+
+extension ConnectServices {
+    static func scripted() -> ConnectServices {
+        ConnectServices(makeMCP: { _ in ScriptedMCP() }, whatsapp: ScriptedWhatsApp())
+    }
+}
+#endif
