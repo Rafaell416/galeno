@@ -97,6 +97,9 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
             throw Task.isCancelled ? MCPConnectError.cancelled : MCPConnectError.loginTimedOut
         }
         guard result.status == 0 else { throw MCPConnectError.loginFailed(Self.tail(result.output)) }
+        // `login` imprime "Authenticated with …" al terminar bien: con eso no hace falta otro
+        // `get` (4 s). Si no lo imprime, se confirma el estado por si acaso.
+        if ManagedProcess.stripTerminalCodes(result.output).contains("Authenticated with") { return }
         guard await status(of: server) == .connected else { throw MCPConnectError.notConnectedAfterLogin }
     }
 

@@ -133,14 +133,26 @@ final class ClaudeMCPTests: XCTestCase {
     // MARK: - Autorizar
 
     func testLoginRunsInATerminalAndConfirmsTheServerIsConnected() async throws {
-        let terminal = FakeTerminal(ManagedProcess.Result(status: 0, output: "Authenticated with \"notion\".", wasStopped: false))
+        let terminal = FakeTerminal(ManagedProcess.Result(status: 0, output: "listo", wasStopped: false))
         let runner = FakeRunner(["\(claude) mcp get notion": ok("notion:\n  Status: ✔ Connected\n")])
         let client = ClaudeMCPClient(claudePath: claude, runner: runner, terminal: terminal)
 
         try await client.login(server: "notion")
 
         XCTAssertEqual(terminal.calls, ["\(claude) mcp login notion"])
-        XCTAssertEqual(runner.calls, ["\(claude) mcp get notion"], "se confirma con `get`, no se confía solo en la salida")
+        XCTAssertEqual(runner.calls, ["\(claude) mcp get notion"], "sin el aviso de éxito, se confirma con `get`")
+    }
+
+    /// "Authenticated with …" ya dice que quedó bien: no se gastan 4 s en otro `get`.
+    func testLoginThatSaysItAuthenticatedDoesNotAskAgain() async throws {
+        let terminal = FakeTerminal(ManagedProcess.Result(
+            status: 0, output: "Waiting…\r\nAuthenticated with \"notion\". Its tools are now available.\r\n", wasStopped: false))
+        let runner = FakeRunner([:])
+        let client = ClaudeMCPClient(claudePath: claude, runner: runner, terminal: terminal)
+
+        try await client.login(server: "notion")
+
+        XCTAssertTrue(runner.calls.isEmpty)
     }
 
     func testLoginThatTimesOutIsReportedAsSuch() async {
@@ -165,7 +177,7 @@ final class ClaudeMCPTests: XCTestCase {
     }
 
     func testLoginThatSucceedsButLeavesTheServerUnreachableIsNotConnected() async {
-        let terminal = FakeTerminal(ManagedProcess.Result(status: 0, output: "Authenticated", wasStopped: false))
+        let terminal = FakeTerminal(ManagedProcess.Result(status: 0, output: "listo", wasStopped: false))
         let runner = FakeRunner(["\(claude) mcp get notion": ok("notion:\n  Status: ✘ Failed to connect\n")])
         let client = ClaudeMCPClient(claudePath: claude, runner: runner, terminal: terminal)
 

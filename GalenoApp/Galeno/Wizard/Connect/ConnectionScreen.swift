@@ -193,6 +193,9 @@ struct PrimaryButton: View {
 
 private struct WorkingPanel: View {
     let step: ConnectFlow.Step
+    /// "Revisando…" dura 1–4 s y casi siempre menos: se muestra solo si tarda, para que una
+    /// comprobación rápida no parpadee como si fuera una espera.
+    @State private var visible = false
 
     var body: some View {
         VStack(spacing: Space.s8) {
@@ -202,6 +205,7 @@ private struct WorkingPanel: View {
                     .font(.galenoBody)
                     .foregroundStyle(Color.ink900)
             }
+            .opacity(visible ? 1 : 0)
             if step == .waitingForBrowser {
                 Text("connect.step.waitingForBrowser.hint")
                     .font(.galenoCaption)
@@ -209,6 +213,11 @@ private struct WorkingPanel: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+        .task {
+            // Solo el paso de comprobación espera; los demás pasos se ven desde el primer momento.
+            if step == .checking { try? await Task.sleep(for: .seconds(1)) }
+            visible = true
         }
     }
 
