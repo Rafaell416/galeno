@@ -167,6 +167,9 @@ nonisolated struct ProcessRunner: CommandRunning {
         let job = Job()
         job.process.executableURL = URL(fileURLWithPath: executable)
         job.process.arguments = arguments
+        // Un directorio neutro: así `claude` no carga el `CLAUDE.md` ni los ajustes
+        // de la carpeta desde la que se haya abierto la app.
+        job.process.currentDirectoryURL = FileManager.default.temporaryDirectory
         job.process.standardInput = FileHandle.nullDevice
         job.process.standardOutput = sink
         job.process.standardError = FileHandle.nullDevice
