@@ -18,4 +18,13 @@ public enum Language: String, Codable, CaseIterable, Sendable {
         case .english: "English"
         }
     }
+
+    /// El nombre del idioma en inglés, para las instrucciones que se escriben
+    /// en inglés (las de los subagentes) y nombran el idioma de respuesta.
+    public var englishName: String {
+        switch self {
+        case .spanish: "Spanish"
+        case .english: "English"
+        }
+    }
 }

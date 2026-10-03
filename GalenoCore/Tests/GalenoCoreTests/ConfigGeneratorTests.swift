@@ -287,6 +287,131 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         }
     }
 
+    // MARK: - Subagentes
+
+    private static let subagentNames = ["reporter", "scribe", "tracker"]
+
+    func testWritesTheThreeSubagents() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+
+        for name in Self.subagentNames {
+            XCTAssertTrue(exists(".claude/agents/\(name).md"), "falta el subagente \(name)")
+        }
+    }
+
+    /// Claude Code solo exige `name` y `description`; nosotros además exigimos
+    /// `tools`, porque sin esa lista blanca el subagente hereda todo.
+    func testSubagentFrontmatterIsWellFormed() throws {
+        try generate(GeneratorFixtures.englishEightTools)
+
+        for name in Self.subagentNames {
+            let subagent = try decodedSubagent(name)
+
+            XCTAssertEqual(subagent.frontmatter["name"], name)
+            XCTAssertFalse(try XCTUnwrap(subagent.frontmatter["description"]).isEmpty)
+            XCTAssertEqual(
+                Set(subagent.frontmatter.keys), ["name", "description", "tools"],
+                "\(name) lleva un campo de más o de menos")
+            XCTAssertFalse(subagent.body.isEmpty)
+        }
+    }
+
+    /// Lo que no está en `tools` no existe para el subagente: ni terminal, ni
+    /// edición de archivos, ni delegar a otros, ni skills.
+    func testSubagentsOnlyGetReadToolsAndGrantedServers() throws {
+        for config in [GeneratorFixtures.spanishThreeTools, GeneratorFixtures.englishEightTools] {
+            try generate(config)
+
+            for name in Self.subagentNames {
+                for tool in try decodedSubagent(name).tools {
+                    XCTAssertTrue(
+                        ["Glob", "Grep", "Read"].contains(tool) || tool.hasPrefix("mcp__"),
+                        "\(name) recibe \(tool)")
+                }
+            }
+        }
+    }
+
+    /// Un servidor se concede entero, así que el de una herramienta que puede
+    /// enviar no se concede: los subagentes no tienen cómo hablarle a nadie.
+    func testSubagentsNeverGetAServerThatCanSend() throws {
+        let everyTool = AgentConfig(
+            agentName: "Todo",
+            language: .spanish,
+            connections: Tool.allCases.map {
+                ToolConnection(
+                    tool: $0,
+                    status: .connected,
+                    sources: .everything,
+                    oauthClientID: $0.requiresUserProvidedOAuthClient ? "cliente-de-prueba" : nil
+                )
+            }
+        )
+        try generate(everyTool)
+
+        let senders = Tool.allCases
+            .filter { $0.externalSend != nil }
+            .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
+            .map { "mcp__\($0.serverName)" }
+        XCTAssertEqual(Set(senders), ["mcp__slack", "mcp__gmail"])
+
+        for name in Self.subagentNames {
+            let tools = try decodedSubagent(name).tools
+            for sender in senders {
+                XCTAssertFalse(tools.contains(sender), "\(name) recibe \(sender)")
+            }
+        }
+    }
+
+    func testSubagentsGetEveryConnectedServerThatCannotSend() throws {
+        try generate(GeneratorFixtures.englishEightTools)
+
+        for name in Self.subagentNames {
+            XCTAssertEqual(
+                try decodedSubagent(name).tools,
+                [
+                    "Glob", "Grep", "Read",
+                    "mcp__whatsapp", "mcp__notion",
+                    "mcp__google-drive", "mcp__google-docs", "mcp__google-sheets",
+                    "mcp__jira", "mcp__fireflies",
+                ])
+        }
+    }
+
+    func testSubagentsWithNothingConnectedOnlyReadLocalFiles() throws {
+        try generate(AgentConfig(agentName: "Solo", language: .english))
+
+        for name in Self.subagentNames {
+            XCTAssertEqual(try decodedSubagent(name).tools, ["Glob", "Grep", "Read"])
+        }
+    }
+
+    /// Los subagentes están escritos en inglés, pero responden en el idioma
+    /// del usuario: la instrucción va arriba, antes que cualquier otra cosa.
+    func testSubagentLanguageInstructionComesFirst() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        for name in Self.subagentNames {
+            let firstLine = try XCTUnwrap(try decodedSubagent(name).body.first)
+            XCTAssertTrue(firstLine.contains("**Spanish**"), "\(name): \(firstLine)")
+        }
+
+        try generate(GeneratorFixtures.englishEightTools)
+        for name in Self.subagentNames {
+            let firstLine = try XCTUnwrap(try decodedSubagent(name).body.first)
+            XCTAssertTrue(firstLine.contains("**English**"), "\(name): \(firstLine)")
+        }
+    }
+
+    /// El agente principal tiene que saber que existen para poder delegar.
+    func testAgentsFileNamesTheSubagents() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        let text = try contents(of: "AGENTS.md")
+
+        for name in Self.subagentNames {
+            XCTAssertTrue(text.contains("`\(name)`"), "AGENTS.md no menciona \(name)")
+        }
+    }
+
     // MARK: - Otros
 
     func testAnEmptyAgentNameFails() {
@@ -432,6 +557,46 @@ final class ConfigGeneratorTests: GeneratorTestCase {
     private func decodedPermissions() throws -> Permissions {
         let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
         return try JSONDecoder().decode(SettingsFile.self, from: data).permissions
+    }
+
+    private struct Subagent {
+        var frontmatter: [String: String]
+        /// Las líneas no vacías del cuerpo.
+        var body: [String]
+
+        var tools: [String] {
+            (frontmatter["tools"] ?? "")
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+        }
+    }
+
+    /// Lee un subagente tal como lo haría Claude Code: frontmatter entre dos
+    /// líneas `---` con pares `clave: valor`, y después el cuerpo.
+    private func decodedSubagent(_ name: String) throws -> Subagent {
+        let lines = try contents(of: ".claude/agents/\(name).md").components(separatedBy: "\n")
+        XCTAssertEqual(lines.first, "---", "\(name) no empieza con frontmatter")
+
+        let closing = try XCTUnwrap(
+            lines.dropFirst().firstIndex(of: "---"), "\(name) no cierra el frontmatter")
+
+        var frontmatter: [String: String] = [:]
+        for line in lines[1..<closing] {
+            let parts = line.split(separator: ":", maxSplits: 1)
+            XCTAssertEqual(parts.count, 2, "línea de frontmatter mal formada en \(name): \(line)")
+            guard parts.count == 2 else { continue }
+
+            let value = parts[1].trimmingCharacters(in: .whitespaces)
+            // Un `: ` o un `#` dentro del valor lo leería YAML como otra cosa.
+            XCTAssertFalse(value.contains(": "), "\(name): \(line)")
+            XCTAssertFalse(value.contains("#"), "\(name): \(line)")
+            frontmatter[String(parts[0])] = value
+        }
+
+        let body = lines[(closing + 1)...].filter {
+            !$0.trimmingCharacters(in: .whitespaces).isEmpty
+        }
+        return Subagent(frontmatter: frontmatter, body: Array(body))
     }
 
     private func decodedMCPServerNames() throws -> Set<String> {

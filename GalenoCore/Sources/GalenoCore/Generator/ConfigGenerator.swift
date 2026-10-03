@@ -72,6 +72,10 @@ public struct ConfigGenerator: Sendable {
             )
         }
 
+        for subagent in SubagentsRenderer.render(config) {
+            try write(subagent.contents, to: subagent.path, in: destination, &written)
+        }
+
         written.append(
             contentsOf: try SkillsInstaller.install(
                 config.skills,
