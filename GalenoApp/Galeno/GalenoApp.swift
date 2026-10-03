@@ -1,4 +1,5 @@
 import AppKit
+import GalenoCore
 import SwiftUI
 
 /// La ventana del wizard: fija, 720×560.
@@ -17,6 +18,9 @@ struct GalenoApp: App {
         Window("Galeno", id: "wizard") {
             WizardView()
                 .environmentObject(wizard)
+                // El idioma del paso 1 cambia toda la app en caliente. Por eso el código
+                // no usa `String(localized:)`: no sigue `\.locale`.
+                .environment(\.locale, Locale(identifier: wizard.language.rawValue))
                 .frame(width: WindowMetrics.width, height: WindowMetrics.height)
                 .background(WindowConfigurator())
         }

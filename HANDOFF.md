@@ -9,8 +9,9 @@ desde Claude Code, confirmar que no puede enviar); falta probar que `sync` sobre
 reinicio vía `launchd`. Tras la sesión de descubrimiento del 3 de octubre quedan ajustes
 pendientes (probar `sync` tras un reinicio): ver §6 y §12. El motor ya tiene subagentes,
 descripción y memoria del proyecto, varios agentes y regeneración. La app (`GalenoApp`) ya
-tiene proyecto Xcode y el **esqueleto del wizard** (10 pasos vacíos, navegación, progreso,
-ventana fija); las pantallas se llenan una a una. Faltan las skills, Sparkle y la distribución.
+tiene proyecto Xcode, el esqueleto del wizard y las **pantallas 1–4** (idioma en caliente,
+detección de Claude Code, tu agente y la grilla de herramientas); las demás se llenan una a
+una. Faltan las skills, Sparkle y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
 ---

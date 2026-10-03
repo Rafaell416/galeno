@@ -146,7 +146,11 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   hay lista de chats permitidos (se descartó: obligaba a volver a sincronizar cada vez que
   aparecía un grupo nuevo). Lo que lo protege es que no existe código de envío.
 - Los textos de la UI van en `Localizable.xcstrings` (String Catalog), en español e inglés,
-  con claves simbólicas (`step.agent.title`), nunca el texto a mano en la vista. Los textos de
+  con claves simbólicas (`step.agent.title`), nunca el texto a mano en la vista. El idioma
+  cambia en caliente con `\.locale`: **no usar** `String(localized:)` ni `NSLocalizedString`
+  (no lo siguen); los nombres de herramienta salen de `Tool.displayName(in:)`.
+- Logos de terceros solo monocromos y con licencia verificada, listados en
+  `GalenoApp/THIRD_PARTY.md`. Los textos de
   dopamina se escriben nativos en cada idioma, no traducidos literalmente.
 - Las skills nuestras se escriben en inglés, con la instrucción de idioma arriba.
 - UI: nativo primero. Controles de macOS, SF Symbols, serif del sistema (New York), tokens
