@@ -130,6 +130,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 ### Código
 
 - La app consume el motor y no duplica su lógica.
+- Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
+  Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
+  completos. Lo único que el motor nunca toca al regenerar es `memoria/`.
+- El agente generado no ejecuta código y solo escribe archivos dentro de `memoria/`.
+- El bridge de WhatsApp solo expone los chats permitidos para ese agente; sin lista de
+  permitidos no expone ninguno (falla cerrado).
 - Los textos de la UI van en `Localizable.strings`, en español e inglés. Los textos de
   dopamina se escriben nativos en cada idioma, no traducidos literalmente.
 - Las skills nuestras se escriben en inglés, con la instrucción de idioma arriba.
@@ -157,12 +163,16 @@ Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezc
 3. Permitir un envío externo (Slack, email) sin aprobación humana, o debilitar la regla
    `ask` o el hook de aprobación en la config generada.
 4. Empaquetar Python, Node o cualquier runtime en la app.
-5. Dar a los subagentes generados Bash o edición de código.
+5. Dar a los subagentes generados Bash o edición de código, o dejar que el agente
+   generado escriba archivos fuera de `memoria/`.
 6. Abrir una puerta a código no revisado ("trae tu skill", plugins de terceros sin revisar).
 7. Reabrir una decisión cerrada: nombre, precio, solo PM, solo Mac, Swift, Go para
    WhatsApp, solo Claude Code.
-8. Construir algo fuera de v0.0.1: multi-proyecto, otras plantillas, Windows, soporte
-   para Codex/Cursor/Grok, marketplace, CLI de cara al usuario.
+8. Construir algo fuera de v0.0.1: separación garantizada de contexto entre agentes (más
+   allá del filtro de chats de WhatsApp), vista transversal, tareas programadas, ver
+   actividad, otras plantillas, Windows, soporte para Codex/Cursor/Grok, marketplace, CLI
+   de cara al usuario. Crear varios agentes, uno por proyecto, **sí** es v0.0.1
+   (`docs/03` §3b).
 9. Prometer en la UI o en el sitio que WhatsApp es "seguro" u "oficial", o que hay
    cumplimiento garantizado.
 

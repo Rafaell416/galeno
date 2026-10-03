@@ -161,8 +161,9 @@ La validación se hace **con la app**, no con un CLI:
 
 | Versión | Qué | Resultado |
 |---|---|---|
-| **v0.0.1** | Perfil PM, un proyecto, Mac. Motor interno + app SwiftUI en paralelo → MCP de WhatsApp read-only → pagos y DMG firmado y notarizado → validación con 5-10 PMs externos | Producto vendible para PMs |
-| **v0.2** | Multi-proyecto con separación de contexto; decisión sobre envío por WhatsApp; skills externas ("trae la tuya") con su guardrail | El perfil PM completo |
+| **v0.0.1** | Perfil PM, un agente por proyecto (sin separación garantizada), Mac. Motor interno + app SwiftUI en paralelo → MCP de WhatsApp read-only → pagos y DMG firmado y notarizado → validación con 5-10 PMs externos | Producto vendible para PMs |
+| **v0.0.2** | Ver actividad: qué hizo el agente y qué envió | Confianza en el uso diario |
+| **v0.2** | Separación garantizada de contexto entre agentes y vista transversal; decisión sobre envío por WhatsApp; skills externas ("trae la tuya") con su guardrail | El perfil PM completo |
 | **v0.3+** | Plantillas dev / legal / salud; soporte Codex / Cursor / Grok | Más perfiles y más agentes |
 | **Futuro** | Marketplace de skills; Windows; más industrias | Mercado más amplio |
 
