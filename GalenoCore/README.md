@@ -20,7 +20,7 @@ del usuario nunca pasan por aquí; en `.mcp.json` quedan como referencias a vari
 
 | Tipo | Qué representa | Paso del wizard |
 |---|---|---|
-| `AgentConfig` | La raíz: nombre del agente, idioma, rol, conexiones, skills y reglas | — |
+| `AgentConfig` | La raíz: nombre del agente, idioma, rol, descripción del proyecto, conexiones, skills y reglas | — |
 | `Language` · `AgentRole` | Español o inglés; en v0.0.1 solo Product Manager | 1 y 3 |
 | `Tool` | Las 10 herramientas, con sus capacidades (`allowsWriting`, `connectionMethod`, `requires`) | 4 |
 | `ToolConnection` · `ConnectionStatus` | Estado de cada conexión: marcada, conectada o saltada | 5 |
@@ -38,13 +38,22 @@ Dos líneas rojas viven en el sistema de tipos, no en la disciplina:
 
 `Sources/GalenoCore/Generator/` convierte un `AgentConfig` en la configuración de Claude Code
 de una carpeta destino (`AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.mcp.json`, el
-hook de aprobación, los subagentes, las skills). Probado con snapshots de árbol completo en `Tests/Snapshots/`
-(`GALENO_RECORD_SNAPSHOTS=1` para regrabarlos).
+hook de aprobación, los subagentes, las skills, la memoria). Probado con snapshots de árbol
+completo en `Tests/Snapshots/` (`GALENO_RECORD_SNAPSHOTS=1` para regrabarlos).
 
 Los subagentes (`scribe`, `tracker`, `reporter`) salen de `SubagentsRenderer`. Lo que
 pueden tocar lo fija su campo `tools`, una lista blanca: lecturas locales y el servidor MCP
 de cada herramienta conectada que no puede enviar. Slack y Gmail nunca entran, porque un
 servidor se concede entero. Detalle y motivo: `../docs/03-especificacion-v0.0.1.md` §6.
+
+La memoria del proyecto (`memoria/proyecto.md`) la crea el motor una sola vez y **nunca la
+sobrescribe**: regenerar la config no la toca, ni a nada más dentro de `memoria/`. Es lo único
+que el agente puede escribir sin que nadie lo apruebe. `SettingsRenderer` lo impone con
+reglas de permiso por ruta: niega por nombre lo que el motor genera (`protectedPaths`) y
+permite `Edit(/memoria/**)`. No se puede negar "todo menos `memoria/`" con una excepción `!`:
+Claude Code no reabre un directorio bloqueado entero. Cualquier otra ruta no tiene regla, así
+que pide permiso. Si el generador escribe un archivo nuevo fuera de `memoria/`, hay que
+añadirlo a `protectedPaths`; un test falla si se olvida.
 
 Las skills no van embebidas en el motor: el generador las copia desde el `skillsDirectory`
 que recibe. Eso es lo que permite que en producción vengan de una fuente remota versionada,

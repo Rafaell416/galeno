@@ -9,6 +9,7 @@ extension AgentConfig {
             agentName: "Hipócrates",
             language: .spanish,
             role: .productManager,
+            projectDescription: "App de citas para la clínica del Cliente A.",
             connections: [
                 ToolConnection(
                     tool: .whatsapp,

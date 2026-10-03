@@ -43,7 +43,7 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 | Varios proyectos | **Un agente por proyecto**, cada uno en `~/Galeno/<agente>/`. En v0.0.1 se pueden crear varios; la separación **garantizada** de contexto es v0.2. Las conexiones se hacen una vez y se comparten. Detalle: `docs/03` §3b |
 | Después del wizard | Home con la lista de agentes: abrir (en la app de Claude o en Terminal), crear otro (wizard corto), gestionar la config, salud y mantenimiento |
 | Contexto del proyecto | Una línea en el wizard; en la primera sesión el agente lee las fuentes y propone un resumen que el usuario confirma |
-| Memoria | El agente mantiene notas en `memoria/`. Es el único lugar donde puede escribir |
+| Memoria | El agente mantiene notas en `memoria/proyecto.md` (`CLAUDE.md` la importa). Es el único lugar donde escribe sin que nadie lo apruebe; lo que Galeno genera está bloqueado por regla y cualquier otra ruta pide permiso |
 | Dueño de la config | **Galeno**: regenera los archivos completos al cambiar algo; nunca toca `memoria/` |
 | Proactividad | El agente solo trabaja cuando se lo piden. Sin tareas programadas en v0.0.1 |
 | Actualizaciones | **De por vida, gratis**, sin renovación. Tres capas independientes: app (Sparkle), bridge de WhatsApp (viaja en la app, con versión propia) y skills (remotas, sin reinstalar). Sparkle va desde el primer build. Detalle: `docs/03` §4f |
@@ -139,7 +139,7 @@ Galeno.app  (Swift / SwiftUI)
 | Archivo | Contenido |
 |---|---|
 | `AGENTS.md` | Identidad del agente, rol PM, descripción del proyecto, herramientas, reglas y uso de la memoria. En el idioma elegido, con la instrucción "responde y genera todos los documentos en [idioma]" |
-| `.claude/settings.json` | Reglas deny/ask/allow: envíos externos en `ask`, nada de ejecutar código, escritura solo en `memoria/` |
+| `.claude/settings.json` | Reglas deny/ask/allow: envíos externos en `ask`, nada de ejecutar código, `Edit(/memoria/**)` en `allow`, y en `deny` por nombre lo que el motor genera fuera de `memoria/` |
 | `memoria/` | Notas del proyecto que mantiene el agente. El motor la crea si falta y nunca la sobrescribe |
 | `.mcp.json` | Los MCP conectados. Tokens como referencias a variables de entorno, nunca en texto plano |
 | `.claude/agents/` | `scribe`, `tracker`, `reporter`: solo lectura + Notion/Jira; sin Bash ni Edit de código |
@@ -373,9 +373,24 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 - **Carpetas visibles:** `~/Galeno/<agente>/` está a la vista; falta decidir qué hace el
   home si el usuario la borra, la mueve o la renombra, y cómo se renombra o elimina un
   agente desde Galeno.
-- **Memoria:** falta el mecanismo exacto que limita la escritura a `memoria/` (hoy `Write`
-  y `Edit` están en `deny`, que gana siempre, así que no basta con un `allow`), y qué se
-  hace cuando la memoria crece.
+- **Memoria, cómo se limita la escritura (resuelto):** reglas de permiso por ruta, no un
+  hook (un hook necesita `jq` para leer su entrada, y la documentación no dice si su
+  `allow` puede más que un `deny`). Un patrón que niegue todo el proyecto con `memoria/`
+  como excepción `!` **no funciona**: se probó contra Claude Code y la excepción no reabre
+  un directorio bloqueado entero. Se niega por nombre lo que genera el motor
+  (`SettingsRenderer.protectedPaths`; un test falla si el generador escribe algo fuera de
+  `memoria/` que no esté ahí) y se permite `Edit(/memoria/**)`. Consecuencia: una
+  escritura en cualquier otra ruta no está bloqueada, **pide permiso al usuario**.
+- **Memoria, la regla `allow` necesita confianza:** Claude Code ignora las reglas `allow`
+  de un `settings.json` de proyecto hasta que el usuario acepta el diálogo de confianza de
+  la carpeta. Sin eso, cada nota de `memoria/` pide permiso; el `deny` sigue en pie.
+- **Memoria y prompt injection:** el agente lee mensajes de terceros y escribe notas que
+  se cargan en todas las sesiones. El primer resumen exige confirmación del usuario y el
+  `AGENTS.md` dice que una nota es un hecho, nunca una orden; todo envío externo sigue
+  pidiendo aprobación. El riesgo de que una instrucción escondida se vuelva permanente
+  no desaparece: queda registrado.
+- **Memoria, crecimiento:** un solo archivo se carga entero en cada sesión. Falta decidir
+  qué se hace cuando crece (resumir, archivar, partir en archivos).
 - **Subagentes y reglas `ask`:** falta confirmar a mano que una regla `ask` de
   `settings.json` también detiene a un subagente (por ejemplo, `scribe` creando una tarea
   en Jira con Jira en "pedir confirmación"). La documentación confirma que los hooks sí

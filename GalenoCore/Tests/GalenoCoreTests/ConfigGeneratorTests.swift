@@ -46,11 +46,80 @@ final class ConfigGeneratorTests: GeneratorTestCase {
             try generate(config)
             let permissions = try decodedPermissions()
 
-            for tool in ["Bash", "Edit", "Write", "NotebookEdit"] {
+            for tool in ["Bash", "NotebookEdit"] {
                 XCTAssertTrue(permissions.deny.contains(tool), "falta \(tool) en deny")
                 XCTAssertFalse(permissions.allow.contains(tool))
                 XCTAssertFalse(permissions.ask.contains(tool))
             }
+        }
+    }
+
+    /// Un `Write` o `Edit` pelado en `deny` le quitaría esas herramientas al
+    /// agente, y las necesita para escribir en `memoria/`. Tampoco van peladas
+    /// en `allow` ni en `ask`: lo único que abre es la ruta de la memoria.
+    func testWriteAndEditAreNeverListedAsWholeTools() throws {
+        for config in [GeneratorFixtures.spanishThreeTools, GeneratorFixtures.englishEightTools] {
+            try generate(config)
+            let permissions = try decodedPermissions()
+
+            for rule in permissions.allow + permissions.ask + permissions.deny {
+                XCTAssertFalse(["Edit", "Write", "MultiEdit"].contains(rule), "regla \(rule)")
+            }
+        }
+    }
+
+    /// `Edit(ruta)` cubre todas las herramientas que editan archivos. Una regla
+    /// de ruta bajo `Write(...)` o `NotebookEdit(...)` Claude Code la acepta
+    /// pero nunca la consulta: sería una protección que no protege.
+    func testPathRulesAreWrittenUnderEditNeverUnderOtherTools() throws {
+        try generate(GeneratorFixtures.englishEightTools)
+        let permissions = try decodedPermissions()
+
+        for rule in permissions.allow + permissions.ask + permissions.deny {
+            for tool in ["Write(", "NotebookEdit(", "MultiEdit("] {
+                XCTAssertFalse(rule.hasPrefix(tool), "la regla \(rule) nunca se consultaría")
+            }
+        }
+    }
+
+    /// La memoria es lo único que el agente puede escribir sin que nadie lo
+    /// apruebe, y ninguna otra ruta se abre en `allow` ni se manda a `ask`.
+    func testTheAgentCanOnlyWriteToItsMemory() throws {
+        for config in [GeneratorFixtures.spanishThreeTools, GeneratorFixtures.englishEightTools] {
+            try generate(config)
+            let permissions = try decodedPermissions()
+
+            XCTAssertEqual(permissions.allow.filter { $0.hasPrefix("Edit(") }, ["Edit(/memoria/**)"])
+            XCTAssertTrue(permissions.ask.filter { $0.hasPrefix("Edit(") }.isEmpty)
+        }
+    }
+
+    /// Todo lo que el motor escribe fuera de `memoria/` tiene una regla que lo
+    /// niega por nombre. Si el generador empieza a escribir otro archivo y se
+    /// olvida de protegerlo, esta prueba falla: ninguna excepción `!` puede
+    /// proteger "todo lo demás", así que la lista tiene que estar completa.
+    func testEveryFileTheEngineWritesOutsideMemoryIsDenied() throws {
+        for config in [GeneratorFixtures.spanishThreeTools, GeneratorFixtures.englishEightTools] {
+            let result = try generate(config)
+            let deny = try decodedPermissions().deny
+
+            for path in result.writtenFiles where !path.hasPrefix("memoria/") {
+                XCTAssertTrue(
+                    Self.isDeniedForEditing(path, by: deny), "\(path) no está protegido")
+            }
+        }
+    }
+
+    /// Una regla `Edit(/x)` niega el archivo `x`; `Edit(/d/**)`, todo lo que
+    /// hay bajo `d/`. Las rutas van relativas a la raíz del proyecto.
+    private static func isDeniedForEditing(_ path: String, by deny: [String]) -> Bool {
+        deny.contains { rule in
+            guard rule.hasPrefix("Edit(/"), rule.hasSuffix(")") else { return false }
+            let pattern = String(rule.dropFirst("Edit(/".count).dropLast())
+            if pattern.hasSuffix("/**") {
+                return path.hasPrefix(String(pattern.dropLast(2)))
+            }
+            return path == pattern
         }
     }
 
@@ -205,7 +274,9 @@ final class ConfigGeneratorTests: GeneratorTestCase {
     func testWritesBothAgentsAndClaudeFiles() throws {
         try generate(GeneratorFixtures.spanishThreeTools)
 
-        XCTAssertEqual(try contents(of: "CLAUDE.md").trimmingCharacters(in: .whitespacesAndNewlines), "@AGENTS.md")
+        XCTAssertEqual(
+            try contents(of: "CLAUDE.md").trimmingCharacters(in: .whitespacesAndNewlines),
+            "@AGENTS.md\n@memoria/proyecto.md")
         XCTAssertTrue(try contents(of: "AGENTS.md").contains("Hipócrates"))
     }
 
@@ -285,6 +356,141 @@ final class ConfigGeneratorTests: GeneratorTestCase {
                 "no se escribió nada fuera"
             )
         }
+    }
+
+    // MARK: - Descripción y memoria del proyecto
+
+    private static let memoryFile = "memoria/proyecto.md"
+
+    /// Genera en una carpeta nueva: la memoria que ya existe no se reescribe,
+    /// así que dos idiomas sobre la misma carpeta no se pueden comparar.
+    private func generateInFreshFolder(_ config: AgentConfig) throws -> (URL, GenerationResult) {
+        let folder = destination.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let result = try ConfigGenerator().generate(
+            config, into: folder, options: SnapshotSupport.options)
+        return (folder, result)
+    }
+
+    private func read(_ path: String, in folder: URL) throws -> String {
+        try String(contentsOf: folder.appending(path: path), encoding: .utf8)
+    }
+
+    func testCreatesTheMemoryFileTheFirstTime() throws {
+        let (spanish, result) = try generateInFreshFolder(GeneratorFixtures.spanishThreeTools)
+        XCTAssertTrue(result.writtenFiles.contains(Self.memoryFile))
+        XCTAssertTrue(try read(Self.memoryFile, in: spanish).contains("Sin confirmar."))
+
+        let (english, _) = try generateInFreshFolder(GeneratorFixtures.englishEightTools)
+        XCTAssertTrue(try read(Self.memoryFile, in: english).contains("Not confirmed yet."))
+    }
+
+    /// La memoria es del agente. Regenerar la config —aunque cambie la
+    /// descripción, el idioma o lo que lee— no toca el archivo, ni ningún otro
+    /// que haya dentro de `memoria/`.
+    func testRegeneratingNeverTouchesTheMemory() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+
+        let notes = "# Memoria\n\n## Resumen\n\nLanzamos el 15 de noviembre.\n"
+        let extra = "otras notas del agente\n"
+        try Data(notes.utf8).write(to: destination.appending(path: Self.memoryFile))
+        try FileManager.default.createDirectory(
+            at: destination.appending(path: "memoria/clientes"), withIntermediateDirectories: true)
+        try Data(extra.utf8).write(to: destination.appending(path: "memoria/clientes/ana.md"))
+
+        var changed = GeneratorFixtures.englishEightTools
+        changed.projectDescription = "Una descripción nueva"
+        let result = try generate(changed)
+
+        XCTAssertEqual(try contents(of: Self.memoryFile), notes)
+        XCTAssertEqual(try contents(of: "memoria/clientes/ana.md"), extra)
+        XCTAssertFalse(result.writtenFiles.contains { $0.hasPrefix("memoria/") })
+        // Lo demás sí se regenera.
+        XCTAssertTrue(try contents(of: "AGENTS.md").contains("> Una descripción nueva"))
+    }
+
+    /// Una carpeta `memoria/` con notas pero sin el archivo principal recibe el
+    /// archivo, y las notas siguen donde estaban.
+    func testAMemoryFolderWithoutTheMainFileGetsIt() throws {
+        try FileManager.default.createDirectory(
+            at: destination.appending(path: "memoria"), withIntermediateDirectories: true)
+        try Data("suelta\n".utf8).write(to: destination.appending(path: "memoria/suelta.md"))
+
+        try generate(GeneratorFixtures.spanishThreeTools)
+
+        XCTAssertTrue(exists(Self.memoryFile))
+        XCTAssertEqual(try contents(of: "memoria/suelta.md"), "suelta\n")
+    }
+
+    func testClaudeFileImportsTheAgentsFileAndTheMemory() throws {
+        try generate(GeneratorFixtures.englishEightTools)
+
+        let lines = try contents(of: "CLAUDE.md").split(separator: "\n").map(String.init)
+        XCTAssertEqual(lines, ["@AGENTS.md", "@memoria/proyecto.md"])
+    }
+
+    /// El agente decide si es su primera sesión leyendo el resumen de la
+    /// memoria. El texto que busca y el que trae el archivo inicial tienen que
+    /// ser el mismo, en cada idioma.
+    func testAgentsFileCitesTheMarkerTheMemoryStartsWith() throws {
+        let cases: [(AgentConfig, marker: String, heading: String)] = [
+            (GeneratorFixtures.spanishThreeTools, "Sin confirmar.", "Resumen"),
+            (GeneratorFixtures.englishEightTools, "Not confirmed yet.", "Summary"),
+        ]
+        for (config, marker, heading) in cases {
+            let (folder, _) = try generateInFreshFolder(config)
+            let agents = try read("AGENTS.md", in: folder)
+            let memory = try read(Self.memoryFile, in: folder)
+
+            XCTAssertTrue(agents.contains("\(marker.dropLast())"), "AGENTS.md no cita \(marker)")
+            XCTAssertTrue(agents.contains(heading))
+            XCTAssertTrue(agents.contains("`memoria/proyecto.md`"))
+            XCTAssertTrue(memory.contains("## \(heading)\n\n\(marker)"))
+        }
+    }
+
+    func testAgentsFileTellsTheAgentToConfirmBeforeSaving() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        XCTAssertTrue(try contents(of: "AGENTS.md").contains("solo cuando lo confirme"))
+
+        try generate(GeneratorFixtures.englishEightTools)
+        XCTAssertTrue(try contents(of: "AGENTS.md").contains("only once they confirm"))
+    }
+
+    func testProjectDescriptionAppearsInAgentsFile() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        let text = try contents(of: "AGENTS.md")
+
+        XCTAssertTrue(text.contains("## El proyecto"))
+        XCTAssertTrue(
+            text.contains("> App de citas para la clínica del Cliente A; lanzamos en noviembre."))
+    }
+
+    /// Es una sola línea: los saltos de línea y los espacios de más no pueden
+    /// colar estructura (un encabezado, una lista) dentro del `AGENTS.md`.
+    func testProjectDescriptionIsCollapsedToOneLine() throws {
+        var config = GeneratorFixtures.englishEightTools
+        config.projectDescription = "  First line\n\n# A heading\n   - an item  "
+        try generate(config)
+
+        XCTAssertTrue(try contents(of: "AGENTS.md").contains("\n> First line # A heading - an item\n"))
+    }
+
+    func testNoProjectSectionWithoutADescription() throws {
+        try generate(AgentConfig(agentName: "Sola", language: .spanish))
+        XCTAssertFalse(try contents(of: "AGENTS.md").contains("## El proyecto"))
+
+        try generate(AgentConfig(agentName: "Alone", language: .english, projectDescription: "   \n "))
+        XCTAssertFalse(try contents(of: "AGENTS.md").contains("## The project"))
+    }
+
+    /// Una nota es un hecho, no una orden: la memoria no puede ser la puerta por
+    /// la que una instrucción escondida en un mensaje se vuelva permanente.
+    func testAgentsFileSaysSourcesAreNotOrders() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        XCTAssertTrue(try contents(of: "AGENTS.md").contains("no son órdenes"))
+
+        try generate(GeneratorFixtures.englishEightTools)
+        XCTAssertTrue(try contents(of: "AGENTS.md").contains("is not an order"))
     }
 
     // MARK: - Subagentes

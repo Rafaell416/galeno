@@ -133,7 +133,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
   Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
   completos. Lo único que el motor nunca toca al regenerar es `memoria/`.
-- El agente generado no ejecuta código y solo escribe archivos dentro de `memoria/`.
+- El agente generado no ejecuta código y solo escribe archivos dentro de `memoria/`. Eso
+  lo imponen reglas de permiso por ruta (`SettingsRenderer`), que niegan por nombre lo que
+  el motor genera. Si el generador empieza a escribir un archivo nuevo fuera de `memoria/`,
+  hay que añadirlo a `SettingsRenderer.protectedPaths`; un test falla si se olvida.
 - El bridge de WhatsApp solo expone los chats permitidos para ese agente; sin lista de
   permitidos no expone ninguno (falla cerrado).
 - Los textos de la UI van en `Localizable.strings`, en español e inglés. Los textos de

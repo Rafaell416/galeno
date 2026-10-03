@@ -32,7 +32,11 @@ final class SnapshotTests: GeneratorTestCase {
             try contents(of: $0)
         }
 
-        XCTAssertEqual(first, second)
+        // La memoria ya existía la segunda vez: no se vuelve a escribir, así que
+        // no figura entre lo escrito. Todo lo demás es idéntico.
+        XCTAssertEqual(
+            second.writtenFiles, first.writtenFiles.filter { $0 != MemoryRenderer.mainFile })
+        XCTAssertEqual(first.warnings, second.warnings)
         XCTAssertEqual(firstContents, secondContents)
     }
 }

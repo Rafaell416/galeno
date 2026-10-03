@@ -111,7 +111,7 @@ El wizard termina, pero el producto no. Un agente de Galeno es **una carpeta** (
 
 **La primera sesión.** La descripción del wizard es una línea. La primera vez que el usuario abre su agente, este lee las fuentes elegidas y **propone un resumen del proyecto** (quién participa, qué está en curso, fechas). El usuario lo corrige o lo confirma, y queda guardado en la memoria.
 
-**Memoria del proyecto.** Cada agente mantiene notas propias (decisiones, quién es quién, pendientes) en la carpeta `memoria/` de su proyecto, y las actualiza él mismo. Es el **único lugar donde puede escribir**: cualquier otra escritura de archivos está bloqueada, igual que la ejecución de código.
+**Memoria del proyecto.** Cada agente mantiene notas propias (decisiones, quién es quién, pendientes) en la carpeta `memoria/` de su proyecto, y las actualiza él mismo. Es el **único lugar donde puede escribir sin que nadie lo apruebe**. Lo que el propio Galeno genera (`AGENTS.md`, `CLAUDE.md`, `.mcp.json`, todo `.claude/`) está bloqueado por regla, y cualquier otra ruta pide permiso al usuario cada vez; la ejecución de código está bloqueada del todo. La memoria es un archivo, `memoria/proyecto.md`, que `CLAUDE.md` importa para que cargue en cada sesión; el agente decide que es su primera sesión cuando la sección «Resumen» sigue diciendo «Sin confirmar.». Las notas son hechos sobre el proyecto, nunca instrucciones: el agente ignora y avisa si un mensaje o un documento le pide guardar algo en su memoria.
 
 **Galeno es el dueño de la config.** Galeno guarda las respuestas del wizard de cada agente. Cuando el usuario cambia algo, el motor **regenera los archivos completos**; lo que alguien haya editado a mano se pierde. La excepción es `memoria/`, que Galeno nunca toca.
 
@@ -252,7 +252,7 @@ Los scopes que v0.0.1 pide a la app de Slack del cliente (verificados contra la 
 Para el perfil PM, el motor escribe en la máquina del usuario:
 
 - `AGENTS.md` — identidad del agente, rol PM, la descripción del proyecto, qué herramientas tiene, reglas, y cómo usar la memoria.
-- `.claude/settings.json` — reglas deny/ask/allow: envíos externos en `ask`, nada de ejecutar código, y escritura de archivos solo dentro de `memoria/`.
+- `.claude/settings.json` — reglas deny/ask/allow: envíos externos en `ask`, nada de ejecutar código, `Edit(/memoria/**)` en `allow`, y en `deny` por nombre lo que el motor genera fuera de `memoria/`. (Un patrón que niegue todo el proyecto y deje `memoria/` como excepción no funciona: probado contra Claude Code, la excepción `!` no reabre un directorio bloqueado entero.)
 - `memoria/` — las notas del proyecto que mantiene el agente (§3b). El motor la crea si no existe y **nunca la sobrescribe** al regenerar.
 - `.mcp.json` — los MCP conectados (WhatsApp read-only, Slack, Notion, Google Drive/Docs/Sheets, Jira, Gmail, Fireflies/Granola/Fathom), con tokens como referencias a variables de entorno, nunca en texto plano.
 - `.claude/agents/` — subagentes del perfil PM: `scribe`, `tracker`, `reporter` (solo lectura + Notion/Jira; sin Bash, sin Edit de código). Su lista de herramientas es una lista blanca. Reciben los servidores de las herramientas conectadas que no pueden enviar (WhatsApp, transcripciones, Notion, Jira, Google Drive/Docs/Sheets) y **nunca los de Slack ni Gmail**: un servidor se concede entero, así que un subagente con Slack tendría también la herramienta de enviar. El agente principal lee Slack y el correo, les pasa lo relevante, y es el único que envía.
@@ -326,7 +326,7 @@ El nivel "trae la tuya" (pegar un link de GitHub) se pospone. Cuando se añada, 
 1. **Motor interno** — librería/binario que genera toda la config a partir de las respuestas del wizard. **No es una interfaz de usuario**: es la lógica que la app invoca por debajo. Se separa de la app por razones de ingeniería (testeable, reutilizable, la app no acumula lógica), no para que alguien lo use directo.
    - [x] Modelo (`AgentConfig`) y generadores de `AGENTS.md`, `settings.json`, `.mcp.json`, hook de aprobación y skills, con snapshots.
    - [x] Subagentes `scribe`, `tracker` y `reporter` en `.claude/agents/` (§6).
-   - [ ] Descripción del proyecto y memoria (`memoria/`, con la escritura limitada a esa carpeta) (§3b).
+   - [x] Descripción del proyecto y memoria (`memoria/`, con la escritura limitada a esa carpeta) (§3b).
    - [ ] Varios agentes: conexiones compartidas + lista de agentes, y regeneración sobre una carpeta existente sin tocar `memoria/` (§3b).
 2. **App Swift/SwiftUI (en paralelo al motor)** — el wizard de §3 y el home de §3b. **Es lo único que el usuario ve.** Consume el motor; no duplica lógica.
    - **Validación con los 2 PMs del equipo:** con una versión temprana de la app, aunque tenga solo dos pantallas y sea fea. Validan el wizard, no el motor. Darles un CLI no sirve: validarían una experiencia que nunca tendrán.
