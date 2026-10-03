@@ -171,8 +171,8 @@ Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezc
 6. Abrir una puerta a código no revisado ("trae tu skill", plugins de terceros sin revisar).
 7. Reabrir una decisión cerrada: nombre, precio, solo PM, solo Mac, Swift, Go para
    WhatsApp, solo Claude Code.
-8. Construir algo fuera de v0.0.1: separación garantizada de contexto entre agentes (más
-   allá del filtro de chats de WhatsApp), vista transversal, tareas programadas, ver
+8. Construir algo fuera de v0.0.1: separación garantizada de contexto entre agentes,
+   vista transversal, tareas programadas, ver
    actividad, otras plantillas, Windows, soporte para Codex/Cursor/Grok, marketplace, CLI
    de cara al usuario. Crear varios agentes, uno por proyecto, **sí** es v0.0.1
    (`docs/03` §3b).

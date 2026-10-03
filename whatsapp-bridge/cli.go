@@ -37,6 +37,10 @@ func main() {
 		runStatus()
 	case "install-launchd":
 		runInstallLaunchd()
+	case "chats":
+		runChats()
+	case "version", "--version":
+		runVersion()
 	case "-h", "--help", "help":
 		printUsage()
 	default:
@@ -58,6 +62,9 @@ Uso:
   galeno-whatsapp status           Dice si hay una sesión vinculada, sin conectar a WhatsApp
   galeno-whatsapp install-launchd  Instala "sync" como LaunchAgent, para que arranque
                                    solo al iniciar sesión
+  galeno-whatsapp chats --json     Lista los chats guardados (la app arma con esto la
+                                   pantalla "elige qué leer"); no conecta a WhatsApp
+  galeno-whatsapp version          Imprime la versión del bridge
 
 El estado (sesión y mensajes) vive en:
   ~/Library/Application Support/Galeno/whatsapp/`)

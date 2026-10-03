@@ -25,7 +25,7 @@ const (
 )
 
 func newMCPServer(store *MessageStore) *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "galeno-whatsapp", Version: "0.1.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "galeno-whatsapp", Version: bridgeVersion}, nil)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "search_contacts",
