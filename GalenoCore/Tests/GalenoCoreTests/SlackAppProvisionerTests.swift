@@ -33,6 +33,103 @@ private actor FakeSlackAPISession: SlackAPISession {
 
 final class SlackAppProvisionerTests: XCTestCase {
 
+    // MARK: - validate
+
+    func testValidateSendsTheTokenAndTheManifestAndCreatesNothing() async throws {
+        let session = FakeSlackAPISession(.json(status: 200, body: #"{"ok": true}"#))
+
+        try await SlackAppProvisioner.validate(
+            manifestJSON: #"{"display_information":{"name":"x"}}"#,
+            configurationToken: "xoxe.xoxp-prueba", session: session)
+
+        let last = await session.lastRequest
+        let request = try XCTUnwrap(last)
+        XCTAssertEqual(request.url?.absoluteString, "https://slack.com/api/apps.manifest.validate")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer xoxe.xoxp-prueba")
+        let body = try XCTUnwrap(request.httpBody)
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: String])
+        XCTAssertEqual(json["manifest"], #"{"display_information":{"name":"x"}}"#)
+    }
+
+    func testValidateReportsABadTokenAsSlackRejected() async {
+        let session = FakeSlackAPISession(.json(status: 200, body: #"{"ok": false, "error": "invalid_auth"}"#))
+
+        await assertThrows(.slackRejected(error: "invalid_auth")) {
+            try await SlackAppProvisioner.validate(manifestJSON: "{}", configurationToken: "mal", session: session)
+        }
+    }
+
+    func testValidateReportsManifestProblems() async {
+        let session = FakeSlackAPISession(
+            .json(
+                status: 200,
+                body: #"{"ok": false, "error": "invalid_manifest", "errors": [{"message": "nombre muy largo", "pointer": "/display_information/name"}]}"#
+            ))
+
+        await assertThrows(.invalidManifest(messages: ["nombre muy largo"])) {
+            try await SlackAppProvisioner.validate(manifestJSON: "{}", configurationToken: "t", session: session)
+        }
+    }
+
+    func testValidateReportsTransportFailures() async {
+        let session = FakeSlackAPISession(.failure(URLError(.notConnectedToInternet)))
+
+        do {
+            try await SlackAppProvisioner.validate(manifestJSON: "{}", configurationToken: "t", session: session)
+            XCTFail("debía fallar")
+        } catch let error as SlackAppProvisioner.ProvisioningError {
+            guard case .transport = error else { return XCTFail("\(error)") }
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
+
+    // MARK: - Los secretos no se dejan ver
+
+    /// Un `print`, un `dump` o un fallo de prueba no deben revelar los secretos.
+    func testCredentialsNeverRevealTheirSecrets() {
+        let credentials = SlackAppProvisioner.Credentials(
+            appID: "A012", clientID: "1234.5678", clientSecret: "SECRETO-CLIENTE",
+            verificationToken: "SECRETO-VERIFICACION", signingSecret: "SECRETO-FIRMA")
+
+        var dumped = ""
+        dump(credentials, to: &dumped)
+        let everything = [
+            "\(credentials)", String(describing: credentials), String(reflecting: credentials), dumped,
+            "\(Mirror(reflecting: credentials).children.map { "\($0.value)" })",
+        ].joined(separator: "\n")
+
+        for secret in ["SECRETO-CLIENTE", "SECRETO-VERIFICACION", "SECRETO-FIRMA"] {
+            XCTAssertFalse(everything.contains(secret), secret)
+        }
+        XCTAssertTrue(everything.contains("1234.5678"), "el identificador público sí se ve")
+    }
+
+    func testConfigurationTokensNeverRevealThemselves() {
+        let token = SlackAppProvisioner.ConfigurationToken(
+            accessToken: "xoxe.xoxp-SECRETO", refreshToken: "xoxe-SECRETO")
+
+        var dumped = ""
+        dump(token, to: &dumped)
+        let everything = "\(token) \(String(reflecting: token)) \(dumped)"
+
+        XCTAssertFalse(everything.contains("SECRETO"))
+    }
+
+    private func assertThrows(
+        _ expected: SlackAppProvisioner.ProvisioningError, line: UInt = #line,
+        _ body: () async throws -> Void
+    ) async {
+        do {
+            try await body()
+            XCTFail("debía fallar", line: line)
+        } catch let error as SlackAppProvisioner.ProvisioningError {
+            XCTAssertEqual(error, expected, line: line)
+        } catch {
+            XCTFail("\(error)", line: line)
+        }
+    }
+
     // MARK: - createApp
 
     func testCreateAppParsesCredentialsFromASuccessfulResponse() async throws {

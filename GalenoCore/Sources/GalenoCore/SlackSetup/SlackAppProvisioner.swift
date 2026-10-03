@@ -10,14 +10,17 @@ import Foundation
 /// falta abrir el enlace de instalación ni copiar nada de la pantalla de
 /// "Información básica" de Slack.
 ///
-/// **Lo único que Slack no deja automatizar:** la primera vez, alguien tiene
-/// que generar a mano un "token de configuración de apps" en
-/// `api.slack.com/apps` → "Your App Configuration Tokens" → "Generate
-/// Token". La propia documentación de Slack lo dice explícitamente: no existe
-/// una forma programática de arrancar ese primer token. Es un paso único por
-/// workspace —no por conexión, no por app—, y de ahí en adelante
-/// ``rotate(refreshToken:session:)`` lo renueva solo, sin que nadie vuelva a
-/// tocar nada.
+/// **Lo único que Slack no deja automatizar por API:** generar el primer
+/// "token de configuración de apps" en `api.slack.com/apps` → "Your App
+/// Configuration Tokens" → "Generate Token". La documentación de Slack lo dice
+/// explícitamente: es solo por interfaz. Eso lo resuelve `GalenoApp` (una guía,
+/// y después un agente de navegador que se detiene antes de ver el token), no
+/// este módulo.
+///
+/// **El token de configuración no se guarda.** Se usa una vez para crear la app
+/// y se descarta: hay una app por workspace, compartida por todos los agentes,
+/// así que no hace falta renovarlo. ``rotate(refreshToken:session:)`` queda
+/// disponible por si algún día se necesita, pero ningún flujo actual lo usa.
 ///
 /// **El `client_secret` pasa por aquí, en memoria, una sola vez.** Esto
 /// cambia algo respecto al resto del motor: `GalenoCore` nunca lo escribe a
@@ -33,7 +36,13 @@ public enum SlackAppProvisioner {
     // MARK: - Tipos públicos
 
     /// Lo que devuelve Slack al crear la app.
-    public struct Credentials: Hashable, Sendable {
+    ///
+    /// Trae tres secretos (`clientSecret`, `verificationToken`, `signingSecret`). Para que
+    /// un `print`, un `dump`, un registro o el mensaje de una prueba que falla no los
+    /// revelen, la descripción y el espejo ocultan todo salvo los identificadores públicos.
+    public struct Credentials: Hashable, Sendable, CustomStringConvertible,
+        CustomDebugStringConvertible, CustomReflectable
+    {
         public var appID: String
         public var clientID: String
         /// Ver la nota de confianza en la documentación del tipo: vive solo
@@ -41,14 +50,29 @@ public enum SlackAppProvisioner {
         public var clientSecret: String
         public var verificationToken: String
         public var signingSecret: String
+
+        public var description: String {
+            "Credentials(appID: \(appID), clientID: \(clientID), secretos: ocultos)"
+        }
+        public var debugDescription: String { description }
+        public var customMirror: Mirror {
+            Mirror(self, children: ["appID": appID, "clientID": clientID], displayStyle: .struct)
+        }
     }
 
-    /// El par de tokens de configuración de Slack.
-    public struct ConfigurationToken: Hashable, Sendable {
+    /// El par de tokens de configuración de Slack. Se muestra oculto por la misma razón
+    /// que ``Credentials``: con ellos se pueden crear apps en el workspace.
+    public struct ConfigurationToken: Hashable, Sendable, CustomStringConvertible,
+        CustomDebugStringConvertible, CustomReflectable
+    {
         /// `xoxe.xoxp-...`. Expira a las 12 horas.
         public var accessToken: String
         /// `xoxe-...`. Sirve para renovar el de arriba indefinidamente.
         public var refreshToken: String
+
+        public var description: String { "ConfigurationToken(ocultos)" }
+        public var debugDescription: String { description }
+        public var customMirror: Mirror { Mirror(self, children: [:], displayStyle: .struct) }
     }
 
     public enum ProvisioningError: Error, Equatable, CustomStringConvertible {
@@ -115,6 +139,34 @@ public enum SlackAppProvisioner {
         )
     }
 
+    /// Comprueba el token y el manifiesto **sin crear nada** (`apps.manifest.validate`).
+    ///
+    /// Sirve para decirle al usuario "ese token no vale" antes de crear una app, y para no
+    /// dejar apps a medias. Lanza lo mismo que ``createApp(manifestJSON:configurationToken:session:)``:
+    /// `slackRejected` con `invalid_auth`, `token_expired`, `not_allowed_token_type`…, o
+    /// `invalidManifest`.
+    public static func validate(
+        manifestJSON: String,
+        configurationToken: String,
+        session: SlackAPISession = URLSessionSlackAPISession()
+    ) async throws {
+        var request = URLRequest(url: Endpoint.validateManifest)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(configurationToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["manifest": manifestJSON])
+
+        let data = try await send(request, session: session)
+        let response = try decode(ValidateResponse.self, from: data)
+
+        guard response.ok else {
+            if let messages = response.errors?.map(\.message), !messages.isEmpty {
+                throw ProvisioningError.invalidManifest(messages: messages)
+            }
+            throw ProvisioningError.slackRejected(error: response.error ?? "desconocido")
+        }
+    }
+
     /// Renueva el token de configuración usando el `refresh_token`. Se llama
     /// cuando el `accessToken` —de 12 horas— venció; el `refreshToken` en sí
     /// no se consume y sigue sirviendo para la próxima vez.
@@ -146,6 +198,7 @@ public enum SlackAppProvisioner {
 
     private enum Endpoint {
         static let createApp = URL(string: "https://slack.com/api/apps.manifest.create")!
+        static let validateManifest = URL(string: "https://slack.com/api/apps.manifest.validate")!
         static let rotateToken = URL(string: "https://slack.com/api/tooling.tokens.rotate")!
     }
 
@@ -187,6 +240,12 @@ public enum SlackAppProvisioner {
             var verificationToken: String
             var signingSecret: String
         }
+    }
+
+    private struct ValidateResponse: Decodable {
+        var ok: Bool
+        var error: String?
+        var errors: [ManifestFieldError]?
     }
 
     private struct ManifestFieldError: Decodable {
