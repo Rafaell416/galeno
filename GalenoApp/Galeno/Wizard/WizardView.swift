@@ -86,6 +86,7 @@ private struct NavigationBar: View {
             .buttonStyle(.borderedProminent)
             .tint(Color.ink900)
             .keyboardShortcut(.defaultAction)
+            .disabled(!wizard.canGoForward && !wizard.isLastStep)
         }
         .controlSize(.large)
         .padding(.horizontal, Space.s48)

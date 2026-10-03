@@ -88,6 +88,24 @@ Un usuario con Claude Code instalado abre la app, responde un wizard, y queda co
 9. **Generando** — el motor escribe la config. Con una animación de "construyendo tu agente" (pasos visibles: escribiendo reglas, conectando herramientas, creando skills) para que la espera también sea parte de la experiencia.
 10. **Listo** — cómo usarlo, primeros comandos sugeridos, dónde está la config. Y la primera invitación a probarlo: "Pídele: resume lo que pasó esta semana en Slack". El usuario elige dónde abrir su agente: **en la app de Claude o en Terminal**. Desde aquí se llega al home (§3b).
 
+### Detalles de las pantallas 1–4 (decididos al construirlas, Fase 4)
+
+La línea de cada pantalla de arriba no bastaba para construirlas. Esto es lo que se decidió; cualquier punto se puede cambiar.
+
+| Tema | Decisión |
+|---|---|
+| Idioma | Selector segmentado en la pantalla 1, con cada idioma en su propio idioma ("Español" / "English"). Cambia **toda la app en caliente**, sin reiniciar. |
+| Detectar `claude` | Una app abierta desde Finder hereda un PATH mínimo (sin Homebrew ni `~/.local/bin`). Se miran primero las rutas de los instaladores (`~/.local/bin/claude`, `/opt/homebrew/bin`, `/usr/local/bin`, `~/.claude/local/claude`) y, si no está, un shell de login (`zsh -lic 'command -v claude'`, máx. 5 s) que cubre npm/nvm. Luego `claude --version` y `claude auth status` (solo se lee `loggedIn`; el correo no se guarda ni se muestra). |
+| Versión mínima | Ninguna. Solo se muestra la versión. |
+| Si no está instalado | Galeno **no lo instala** (sería descargar y ejecutar un script remoto). Muestra el comando oficial (`curl -fsSL https://claude.ai/install.sh \| bash`) con botón Copiar, el enlace a `https://code.claude.com/docs/en/setup` y "Comprobar de nuevo". |
+| Sin sesión iniciada | Aviso **no bloqueante**: se necesita para usar el agente, no para configurarlo. |
+| Siguiente se bloquea | Pantalla 2: hasta encontrar `claude` (el paso 5 usa `claude mcp add`). Pantalla 3: sin nombre válido. Pantalla 4: sin ninguna herramienta. |
+| Nombre del agente | Obligatorio, máx. 60 caracteres (el tope de `AgentFolder`). El rol se muestra fijo ("Product Manager"). |
+| Descripción | Opcional, una línea, máx. 140 caracteres. |
+| Google Meet | Se lee con Drive (`Tool.requires`): marcar Meet marca "Google Drive, Docs y Sheets", que no se puede desmarcar mientras Meet siga marcado. |
+| Tiempo por herramienta | Estimación (no medida): WhatsApp 3 min; Slack, Gmail y Google Workspace (traen su propia app OAuth) 2; las demás 1; Meet 0. El "~X min" es la suma. Se calibra con la prueba de la Fase 4. |
+| Logos | Monocromos `ink-700`: Simple Icons (CC0) para WhatsApp, Notion, Google Drive, Gmail, Jira, Google Meet y Fathom; un SF Symbol para Slack, Fireflies y Granola, que no están en esa colección, hasta tener el SVG oficial. Ver `GalenoApp/THIRD_PARTY.md`. |
+
 ---
 
 ## 3b. Después del wizard
@@ -173,7 +191,7 @@ El modelo es multilingüe: un usuario hispanohablante obtiene la misma calidad q
 
 | Capa | Decisión |
 |---|---|
-| **Wizard (la app)** | Se traduce: i18n nativa de Swift (`Localizable.strings`), español e inglés. El usuario elige al inicio; preseleccionado según el idioma del Mac. Los textos de dopamina se escriben **nativamente en cada idioma**, no como traducción literal: "¡Vas por la mitad!" tiene que sonar a alguien que te habla. |
+| **Wizard (la app)** | Se traduce: i18n nativa de Swift (String Catalog, `Localizable.xcstrings`), español e inglés. El usuario elige al inicio; preseleccionado según el idioma del Mac, y el cambio es en caliente (`\.locale`). Los textos de dopamina se escriben **nativamente en cada idioma**, no como traducción literal: "¡Vas por la mitad!" tiene que sonar a alguien que te habla. |
 | **AGENTS.md y config generada** | El motor los genera en el idioma elegido, e inyecta la instrucción explícita: *"responde y genera todos los documentos en [idioma]"*. Esto evita que el agente devuelva un PRD en inglés porque el ticket de Jira estaba en inglés. |
 | **Skills nuestras** | Se escriben **en inglés** (estándar del ecosistema, una sola fuente que mantener), con la instrucción de idioma arriba. Una skill en inglés funciona para un usuario en español: el agente lee la instrucción y responde en la lengua del usuario. |
 | **Skills curadas** | Se ofrecen **tal cual**, sin tratamiento de idioma en v0.0.1. |

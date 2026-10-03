@@ -148,7 +148,7 @@ La litografía es de dominio público (Vigneron, lit. de G. Engelmann). En el si
 - **Capturas del producto:** siempre reales, con la app en su paleta. Enmarcadas con borde 1px `ink-300`, sin mockups de MacBook.
 - **Ornamento permitido:** el subtítulo griego ΓΑΛΗΝΟΥ ΑΠΑΝΤΑ como guiño, el `·  ·  ·` como separador, y numerales romanos para las fases en la guía (I, II, III…) si se quiere acentuar.
 - **Ornamento prohibido:** florituras, marcos, viñetas dibujadas, sellos de lacre ilustrados, plumas, pergaminos enrollados.
-- **Iconografía:** SF Symbols en la app (monocromos `ink-700`); en la web, íconos de línea fina monocromos. Nunca íconos de color ni ilustraciones de stock.
+- **Iconografía:** SF Symbols en la app (monocromos `ink-700`); en la web, íconos de línea fina monocromos. Nunca íconos de color ni ilustraciones de stock. Los logos de las herramientas de terceros (grilla del paso 4) se permiten **solo en monocromo `ink-700`**, para identificar la herramienta y nada más; sin logo disponible, un SF Symbol del mismo color.
 
 ---
 

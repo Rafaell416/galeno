@@ -9,6 +9,17 @@ final class WizardStateTests: XCTestCase {
         WizardState(preferredLanguages: languages)
     }
 
+    /// Un wizard con lo mínimo para que "Siguiente" no se bloquee en ningún paso:
+    /// Claude Code encontrado, un nombre y una herramienta.
+    private func makeReadyState() -> WizardState {
+        let state = WizardState(
+            preferredLanguages: ["es-CO"],
+            claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true))
+        state.agentName = "Aurora"
+        state.toggle(.notion)
+        return state
+    }
+
     // MARK: - Los pasos
 
     func testThereAreTenStepsInTheOrderOfTheSpec() {
@@ -41,19 +52,56 @@ final class WizardStateTests: XCTestCase {
         }
     }
 
-    func testTheNavigationStringsExistInBothLanguages() throws {
+    /// Toda cadena del catálogo está en español y en inglés, y compilada en los dos
+    /// `.lproj`. Recorre el catálogo entero, así que una clave nueva sin traducir
+    /// rompe esta prueba sin que haya que acordarse de añadirla a una lista.
+    func testEveryCatalogStringIsTranslatedAndCompiledInBothLanguages() throws {
+        let catalogURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Galeno/Localizable.xcstrings")
+        let catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: catalogURL)) as? [String: Any]
+        let strings = try XCTUnwrap(catalog?["strings"] as? [String: [String: Any]])
+        XCTAssertGreaterThan(strings.count, 50)
+
         let app = Bundle(for: WizardState.self)
         for language in ["es", "en"] {
             let bundle = try XCTUnwrap(
                 Bundle(path: try XCTUnwrap(app.path(forResource: language, ofType: "lproj"))))
-            for key in [
-                "wizard.back", "wizard.next", "wizard.finish", "wizard.progress.label",
-                "wizard.placeholder", "wizard.progress.step %lld %lld",
-            ] {
+            for (key, entry) in strings {
+                // Las claves que Xcode extrae solas (el nombre de la app) no se traducen.
+                guard let localizations = entry["localizations"] as? [String: Any] else { continue }
+
+                let unit = (localizations[language] as? [String: Any])?["stringUnit"] as? [String: Any]
+                let value = unit?["value"] as? String
+                XCTAssertFalse(value?.isEmpty ?? true, "\(key) no tiene texto en \(language)")
+
                 XCTAssertNotEqual(
                     bundle.localizedString(forKey: key, value: "⟂", table: nil), "⟂",
-                    "\(key) no está en \(language)")
+                    "\(key) no está compilada en \(language)")
             }
+        }
+    }
+
+    /// Cada idioma que ofrece el selector tiene su `.lproj`: si se añade un
+    /// `Language` en el motor sin traducir la app, esta prueba lo avisa.
+    func testEveryLanguageOfTheEngineHasALocalizationInTheApp() {
+        let app = Bundle(for: WizardState.self)
+        for language in Language.allCases {
+            XCTAssertNotNil(
+                app.path(forResource: language.rawValue, ofType: "lproj"),
+                "la app no tiene \(language.rawValue).lproj")
+        }
+    }
+
+    /// Los textos de dopamina los escribe Rafa; mientras tanto deben seguir
+    /// marcados para que no se cuelen a una versión.
+    func testTheDopamineSlotsAreStillMarkedTODO() throws {
+        let app = Bundle(for: WizardState.self)
+        let bundle = try XCTUnwrap(
+            Bundle(path: try XCTUnwrap(app.path(forResource: "es", ofType: "lproj"))))
+        for slot in ["welcome", "detection", "agent", "tools"] {
+            let text = bundle.localizedString(forKey: "dopamine.\(slot)", value: "⟂", table: nil)
+            XCTAssertTrue(text.hasPrefix("TODO(dopamina)"), "dopamine.\(slot): \(text)")
         }
     }
 
@@ -67,7 +115,7 @@ final class WizardStateTests: XCTestCase {
     }
 
     func testNextWalksEveryStepInOrderAndBackWalksThemBack() {
-        let state = makeState()
+        let state = makeReadyState()
 
         for expected in WizardStep.allCases.dropFirst() {
             state.next()
@@ -81,7 +129,7 @@ final class WizardStateTests: XCTestCase {
     }
 
     func testNextStopsAtTheLastStep() {
-        let state = makeState()
+        let state = makeReadyState()
         for _ in 0..<30 { state.next() }
 
         XCTAssertEqual(state.step, .done)
@@ -98,7 +146,7 @@ final class WizardStateTests: XCTestCase {
     }
 
     func testThereIsNoGoingBackFromGenerating() {
-        let state = makeState()
+        let state = makeReadyState()
         while state.step != .generating { state.next() }
 
         XCTAssertFalse(state.canGoBack)
@@ -113,7 +161,7 @@ final class WizardStateTests: XCTestCase {
     }
 
     func testProgressGoesFromOneTenthToOne() {
-        let state = makeState()
+        let state = makeReadyState()
         XCTAssertEqual(state.progress, 0.1, accuracy: 0.0001)
 
         var previous = state.progress
