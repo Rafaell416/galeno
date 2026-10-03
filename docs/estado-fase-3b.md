@@ -215,6 +215,8 @@ cd galeno
 REPO="$PWD"
 ```
 
+> `REPO` solo existe en esta terminal. Si abres otra, vuelve a entrar al repo (`cd` a donde lo clonaste) y repite `REPO="$PWD"`, o usa los comandos de los pasos 6 y 7, que no la necesitan.
+
 ### 2. El motor: compilar y probar
 
 ```bash
@@ -352,7 +354,7 @@ Esperado: `Conectado a WhatsApp` y luego `Sincronizando`. La primera carga del h
 ```bash
 sqlite3 "$HOME/Library/Application Support/Galeno/whatsapp/messages.db" \
   "select count(*) as chats from chats; select count(*) as mensajes from messages;"
-cd "$REPO/whatsapp-bridge" && ./bin/galeno-whatsapp chats --json | head -20
+./bin/galeno-whatsapp chats --json | head -20      # desde la carpeta whatsapp-bridge
 ```
 
 Los chats nuevos aparecen en la lista; los grupos salen con nombre.
@@ -360,10 +362,15 @@ Los chats nuevos aparecen en la lista; los grupos salen con nombre.
 ### 7. Conectarlo a Claude Code y probar la lectura
 
 ```bash
-claude mcp add whatsapp -- "$REPO/whatsapp-bridge/bin/galeno-whatsapp" serve
+cd whatsapp-bridge                       # (si no estás ya ahí)
+test -x "$PWD/bin/galeno-whatsapp" || echo "Aquí no está el binario: compílalo en el paso 4"
+claude mcp add whatsapp -- "$PWD/bin/galeno-whatsapp" serve
+claude mcp get whatsapp                  # Command debe ser la ruta COMPLETA, y el estado ✔ Connected
 ```
 
-> Usa la **ruta absoluta**. Con una relativa Claude Code no encuentra el binario y falla con `ENOENT`.
+> Usa la **ruta absoluta**. Si el `Command` que muestra `claude mcp get` empieza en `/whatsapp-bridge/...` (sin el resto de la ruta), la variable estaba vacía y Claude Code fallará con `ENOENT`: bórralo con `claude mcp remove whatsapp` y regístralo otra vez con el comando de arriba.
+>
+> El registro vale para el proyecto donde lo hiciste: abre `claude` desde esa misma carpeta (la raíz del repo o `whatsapp-bridge`, la que uses al registrar). Compruébalo con `claude mcp list` desde ahí.
 
 Abre una sesión **nueva** de `claude` (el MCP se carga al iniciar) y prueba:
 
