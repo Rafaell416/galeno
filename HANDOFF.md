@@ -169,9 +169,15 @@ tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
 
 - **Base:** fork de `lharries/whatsapp-mcp` (MIT). Original: puente en Go (`whatsmeow`,
   QR, SQLite) + servidor MCP en Python con 12 herramientas, 3 de envío.
-- **Trabajo sobre el fork:** eliminar las 3 de envío; portar el MCP a Go dentro del binario
-  del puente; añadir `launchd`; renderizar el QR rotativo en la app; empaquetar y firmar.
-- **Quedan:** contactos, chats, mensajes, contexto, descarga de media.
+- **Hecho:** las 3 de envío eliminadas (no comentadas); el MCP portado a Go dentro del
+  mismo binario, con el SDK oficial (`modelcontextprotocol/go-sdk`); subcomandos
+  `pair`/`serve`/`status`; estado en `~/Library/Application Support/Galeno/whatsapp/`;
+  build universal arm64+amd64. Detalle: `whatsapp-bridge/README.md`.
+- **Falta (Fase 4, GalenoApp):** `launchd` para que `serve` arranque solo; renderizar el QR
+  de `pair` dentro de la app en vez del terminal; empaquetar y firmar el binario.
+- **Las 9 herramientas que quedan:** `search_contacts`, `list_messages`, `list_chats`,
+  `get_chat`, `get_direct_chat_by_contact`, `get_contact_chats`, `get_last_interaction`,
+  `get_message_context`, `download_media`.
 - **UX obligatoria:** re-vinculación cada ~20 días (aviso y re-escaneo); la carga inicial
   del historial tarda minutos (barra de "sincronizando").
 - **Referencias, no código:** `joaohts/whatsapp-mcp` solo por ideas de UX (QR en pantalla,

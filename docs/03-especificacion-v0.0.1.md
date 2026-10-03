@@ -267,7 +267,17 @@ El nivel "trae la tuya" (pegar un link de GitHub) se pospone. Cuando se añada, 
 1. **Motor interno** — librería/binario que genera toda la config a partir de las respuestas del wizard. **No es una interfaz de usuario**: es la lógica que la app invoca por debajo. Se separa de la app por razones de ingeniería (testeable, reutilizable, la app no acumula lógica), no para que alguien lo use directo.
 2. **App Swift/SwiftUI (en paralelo al motor)** — el wizard de §3. **Es lo único que el usuario ve.** Consume el motor; no duplica lógica.
    - **Validación con los 2 PMs del equipo:** con una versión temprana de la app, aunque tenga solo dos pantallas y sea fea. Validan el wizard, no el motor. Darles un CLI no sirve: validarían una experiencia que nunca tendrán.
-3. **MCP de WhatsApp read-only** — fork de lharries (MIT). **Eliminar las 3 herramientas de envío**, **portar el MCP de Python a Go** dentro del binario del puente, añadir `launchd`, renderizar el QR rotativo en la app, empaquetar el binario. Tomar de joaohts las ideas de UX. Conservar los avisos de licencia MIT.
+3. **MCP de WhatsApp read-only** — fork de lharries (MIT).
+   - [x] Eliminar las 3 herramientas de envío (y todo lo que solo existía para ellas).
+   - [x] Portar el MCP de Python a Go dentro del binario del puente: 9 herramientas de
+     solo lectura, SDK oficial (`modelcontextprotocol/go-sdk`), subcomandos
+     `pair`/`serve`/`status`, estado en `~/Library/Application Support/Galeno/whatsapp/`,
+     build universal arm64+amd64. Detalle en `whatsapp-bridge/README.md`.
+   - [ ] Añadir `launchd`, renderizar el QR rotativo en la app, empaquetar y firmar el
+     binario. Tomar de joaohts las ideas de UX. Esto es trabajo de `GalenoApp` (Fase 4):
+     el puente ya expone `pair` (QR por terminal) y `serve` (MCP por stdio) para que la
+     app los invoque como procesos.
+   - Conservar los avisos de licencia MIT (ya en `whatsapp-bridge/LICENSE`/`NOTICE`).
 4. **Pagos + distribución** — pago único, DMG firmado y notarizado (Apple lo exige para que abra sin sustos).
 5. **Validación con 5-10 PMs externos** antes de abrir la venta.
 
