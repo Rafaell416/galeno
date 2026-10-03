@@ -29,10 +29,12 @@ extension Tool {
     }
 }
 
-/// El logo de una herramienta, siempre en `ink-700` (`docs/04` §7: nada de color).
+/// El logo de una herramienta, en `ink-700` salvo que se pida otro tono de tinta (`docs/04` §7:
+/// nada de color). La pantalla de conexión lo enciende en `ink-900` al conectar.
 struct ToolIcon: View {
     let tool: Tool
     var size: CGFloat = 28
+    var color: Color = .ink700
 
     var body: some View {
         Group {
@@ -49,7 +51,7 @@ struct ToolIcon: View {
                     .fontWeight(.light)
             }
         }
-        .foregroundStyle(Color.ink700)
+        .foregroundStyle(color)
         .frame(width: size, height: size)
         .accessibilityHidden(true)
     }

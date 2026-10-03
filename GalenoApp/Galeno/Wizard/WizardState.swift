@@ -24,6 +24,13 @@ final class WizardState: ObservableObject {
     @Published private(set) var claudeStatus: ClaudeCodeStatus
 
     private let claudeDetector: ClaudeCodeDetector
+    private let connectServices: ConnectServices
+
+    /// El sub-wizard del paso 5. Se crea al entrar en él y se recrea si cambian las
+    /// herramientas elegidas.
+    @Published private(set) var connectFlow: ConnectFlow?
+    private var connectFlowTools: [Tool] = []
+    private var connectFlowObserver: AnyCancellable?
 
     /// - Parameters:
     ///   - preferredLanguages: los idiomas del Mac, en orden de preferencia.
@@ -33,11 +40,13 @@ final class WizardState: ObservableObject {
     init(
         preferredLanguages: [String] = Locale.preferredLanguages,
         claudeStatus: ClaudeCodeStatus = .checking,
-        claudeDetector: ClaudeCodeDetector = .live
+        claudeDetector: ClaudeCodeDetector = .live,
+        connectServices: ConnectServices = .live()
     ) {
         language = Self.defaultLanguage(from: preferredLanguages)
         self.claudeStatus = claudeStatus
         self.claudeDetector = claudeDetector
+        self.connectServices = connectServices
     }
 
     /// El idioma del paso 1 viene preseleccionado según el Mac: español si el
@@ -61,6 +70,12 @@ final class WizardState: ObservableObject {
     var canGoBack: Bool { step.allowsGoingBack }
     var canGoForward: Bool { !isLastStep && isCurrentStepComplete }
 
+    /// El sub-wizard del paso 5 lleva sus propios botones (Conectar, Conectar después,
+    /// Reintentar…): la barra Atrás/Siguiente se oculta hasta que llega a la celebración.
+    var hidesNavigation: Bool {
+        step == .connect && connectFlow?.isFinished != true
+    }
+
     /// Si el paso actual tiene lo que necesita para seguir. Los pasos que
     /// todavía no se construyen no piden nada.
     var isCurrentStepComplete: Bool {
@@ -68,7 +83,9 @@ final class WizardState: ObservableObject {
         case .detection: claudeStatus.isFound
         case .agent: agentNameIssue == nil
         case .tools: !connections.isEmpty
-        case .welcome, .connect, .sources, .skills, .rules, .generating, .done: true
+        // Se sale del sub-wizard cuando llega a la celebración: todas conectadas o saltadas.
+        case .connect: connectFlow?.isFinished == true
+        case .welcome, .sources, .skills, .rules, .generating, .done: true
         }
     }
 
@@ -145,6 +162,52 @@ final class WizardState: ObservableObject {
 
     /// "~X min" del pie de la grilla.
     var estimatedSetupMinutes: Int { ToolEstimate.minutes(for: selectedTools) }
+
+    // MARK: Paso 5: conectar
+
+    /// Crea el sub-wizard (o conserva el que ya hay, si las herramientas son las mismas).
+    func beginConnecting() {
+        let tools = ConnectTarget.connectionTools(from: selectedTools)
+        if connectFlow != nil, connectFlowTools == tools { return }
+
+        connectFlow?.cancelAll()
+        connectFlowTools = tools
+        let claudePath: String
+        if case .found(_, let path, _) = claudeStatus { claudePath = path } else { claudePath = "claude" }
+
+        let flow = ConnectFlow(
+            tools: selectedTools,
+            statuses: Dictionary(uniqueKeysWithValues: connections.map { ($0.tool, $0.status) }),
+            mcp: connectServices.makeMCP(claudePath),
+            whatsapp: connectServices.whatsapp,
+            fetchRealData: connectServices.fetchRealData,
+            timing: connectServices.timing,
+            sleep: connectServices.sleep,
+            onStatus: { [weak self] tool, status in self?.setConnectionStatus(tool, status) })
+        connectFlow = flow
+        // Que `canGoForward` y la barra de navegación se enteren de lo que hace el sub-wizard.
+        connectFlowObserver = flow.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+    }
+
+    /// Marca el estado de una conexión. Google Meet no tiene servidor: queda como
+    /// Google Workspace, que es con lo que se lee.
+    func setConnectionStatus(_ tool: Tool, _ status: ConnectionStatus) {
+        for index in connections.indices where connections[index].tool == tool {
+            connections[index].status = status
+        }
+        if tool == .googleWorkspace {
+            for index in connections.indices where connections[index].tool == .googleMeet {
+                connections[index].status = status
+            }
+        }
+    }
+
+    /// Al cerrar la app: nada de procesos huérfanos.
+    func stopConnecting() {
+        connectFlow?.cancelAll()
+    }
 
     // MARK: El resultado
 

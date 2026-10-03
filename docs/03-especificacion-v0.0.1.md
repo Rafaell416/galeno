@@ -106,6 +106,26 @@ La línea de cada pantalla de arriba no bastaba para construirlas. Esto es lo qu
 | Tiempo por herramienta | Estimación (no medida): WhatsApp 3 min; Slack, Gmail y Google Workspace (traen su propia app OAuth) 2; las demás 1; Meet 0. El "~X min" es la suma. Se calibra con la prueba de la Fase 4. |
 | Logos | Monocromos `ink-700`: Simple Icons (CC0) para WhatsApp, Notion, Google Drive, Gmail, Jira, Google Meet y Fathom; un SF Symbol para Slack, Fireflies y Granola, que no están en esa colección, hasta tener el SVG oficial. Ver `GalenoApp/THIRD_PARTY.md`. |
 
+### Detalles de la pantalla 5 (decididos al construirla, Fase 4)
+
+Probado con Claude Code 2.1.277. El paso 5 es un sub-wizard: oculta la barra Atrás/Siguiente y lleva sus propios botones; la barra vuelve en la celebración final.
+
+| Tema | Decisión |
+|---|---|
+| Conectar un MCP hospedado | (1) `claude mcp get <nombre>`: si ya está `Connected`, éxito inmediato ("ya estaba conectada"); si pide autorización, solo el paso 3. (2) Si no existe: `claude mcp add --transport http -s user <nombre> <url>`. (3) `claude mcp login <nombre>`, que abre el navegador y espera el OAuth. Nunca se hace `remove` (puede ser configuración del usuario). Es idempotente: cerrar la app a mitad y volver no repite trabajo. |
+| Alcance `-s user` | La conexión se hace una vez y la comparten todos los agentes (§3b). Comprobado: un servidor registrado así se ve `Connected` desde cualquier carpeta. |
+| `login` pide un terminal | Sin terminal se niega ("stdin isn't a terminal"), aunque el OAuth se complete solo por el navegador (callback en `localhost`). La app lo lanza bajo un pseudo-terminal que ella misma crea. |
+| Cómo se sabe que conectó | Por el **texto** de `claude mcp get` (`Status: ✔ Connected` / `! Needs authentication` / `✘ Failed to connect`): sale con código 0 en todos los casos. Se usa `get` por servidor y no `list` (7 s con 8 servidores, y comprueba también los del usuario). |
+| Dato real ("Encontré 12 canales") | Galeno no toca el token (lo guarda Claude Code), así que le pide a Claude Code que mire: `claude -p` con solo ese servidor permitido, modelo `haiku`, `--output-format json`, sin guardar sesión y con tope de gasto de $0,15, pidiendo **solo un entero** (con `+` si fue una primera página). **Costo medido:** entre $0,01 y $0,06 por consulta (Notion: $0,058) y 10–20 s, de la cuota del usuario. Va en segundo plano: la pantalla de éxito espera como máximo 4 s y, si no llegó, muestra solo el éxito; lo que llegue tarde suma a los totales. `--bare` no sirve (no lee el llavero). Todo lo que no sea un entero se descarta. |
+| Transición | 1,5 s tras el éxito. "Conectar después" (discreto) y, si falla, "Reintentar" y "Saltar por ahora": la herramienta queda `skipped`. |
+| Dopamina | Pantalla completa tras las 2 primeras, a la mitad y antes de la última; nunca pegadas ni con 1–2 conexiones. Botón Continuar y avance a los 3 s. |
+| Meet | Sin pantalla propia: queda como Google Workspace. "N de M" no la cuenta. |
+| Slack, Gmail, Google | Necesitan la app OAuth del cliente (§4e), que es el paso siguiente de la fase. Aquí solo el punto de entrada: una pantalla que lo explica y las deja `skipped`. El secreto irá por la variable `MCP_CLIENT_SECRET` del `Process`, nunca en argumentos. |
+| WhatsApp | (1) Advertencia de §4 **antes** del QR, con "Entiendo, continuar". (2) `status`: si ya hay sesión se salta el QR (`pair` solo diría "Ya hay una sesión vinculada"). (3) `pair` como proceso hijo; el QR se lee del PNG `~/Library/Application Support/Galeno/whatsapp/pair-qr.png` cada ~0,7 s (el bridge lo reescribe cada ~60 s, sin atomicidad: si no es un PNG completo se conserva el anterior). (4) `install-launchd` —siempre, también si ya estaba vinculado: es idempotente y `sync` tiene que estar corriendo—. (5) La sincronización inicial **no tiene progreso ni señal de fin**: barra indeterminada con los chats que van apareciendo (`chats --json`); se da por estable tras 3 lecturas iguales o a los 3 min, y siempre se puede "Seguir mientras sincroniza". "Encontré N grupos" cuenta `is_group`. |
+| Ruta estable del bridge | `install-launchd` escribe en el plist la ruta del propio ejecutable: dentro de `Galeno.app` (que se mueve y se actualiza) o de DerivedData se rompería. La app copia el bridge empaquetado a `~/Library/Application Support/Galeno/bin/galeno-whatsapp` (de nuevo si cambia `version`) y desde ahí corre todo y apunta `.mcp.json`. Es la capa 2 de §4f. |
+| Al cerrar la app | Los procesos hijo (`pair`, `login`) se matan: un `pair` huérfano seguiría hasta agotar sus 3 minutos. Un cierre brusco no se cubre. |
+| Persistencia | Los estados (`connected`/`skipped`) viven en `WizardState`; guardarlos en `GalenoInstallation` es del paso 9. |
+
 ---
 
 ## 3b. Después del wizard

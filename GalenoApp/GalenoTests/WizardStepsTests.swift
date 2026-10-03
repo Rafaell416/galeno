@@ -8,7 +8,7 @@ import XCTest
 @MainActor
 final class WizardStepsTests: XCTestCase {
     private func advance(_ state: WizardState, to step: WizardStep) {
-        while state.step != step, state.canGoForward { state.next() }
+        for _ in 0..<20 where state.step != step && state.canGoForward { state.next() }
         XCTAssertEqual(state.step, step)
     }
 
