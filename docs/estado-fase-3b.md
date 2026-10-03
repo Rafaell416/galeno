@@ -284,7 +284,7 @@ diff -r carpeta antes && echo "CARPETA INTACTA"
 cd /tmp/galeno-prueba/carpeta && claude
 ```
 
-Dentro: `/agents` debe mostrar `scribe`, `tracker` y `reporter`. La primera vez te enseña el diálogo de confianza de la carpeta: acéptalo. Pídele "anota en tu memoria que lanzamos el 15 de noviembre" (lo escribe sin preguntar) y luego "edita el AGENTS.md" (queda bloqueado).
+Dentro, escribe `@`: en la lista deben salir `scribe`, `tracker` y `reporter` (o pregunta "¿qué subagentes tienes?"). El comando `/agents` ya no los lista: desde la v2.1.197 solo avisa de dónde viven los archivos. Para comprobar que los archivos son válidos: `claude plugin validate .claude/agents`, que debe decir `Validation passed`. La primera vez te enseña el diálogo de confianza de la carpeta: acéptalo. Pídele "anota en tu memoria que lanzamos el 15 de noviembre" (lo escribe sin preguntar) y luego "edita el AGENTS.md" (queda bloqueado).
 
 ### 4. El bridge: compilar y probar
 
