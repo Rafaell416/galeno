@@ -10,7 +10,7 @@ final class ConnectIntegrationTests: XCTestCase {
         _ tools: [Tool], mcp: FakeMCP = FakeMCP(), whatsapp: FakeWhatsApp = FakeWhatsApp()
     ) -> WizardState {
         let services = ConnectServices(
-            makeMCP: { _ in mcp }, whatsapp: whatsapp, fetchRealData: false,
+            makeMCP: { _ in mcp }, whatsapp: whatsapp, installer: .sandboxed(), fetchRealData: false,
             sleep: SleepLog.holdingSuccess.sleeper)
         let state = WizardState(
             preferredLanguages: ["es"],
@@ -124,7 +124,8 @@ final class ConnectIntegrationTests: XCTestCase {
             makeMCP: { path in
                 receivedPath = path
                 return mcp
-            }, whatsapp: FakeWhatsApp(), fetchRealData: false, sleep: SleepLog.holdingSuccess.sleeper)
+            }, whatsapp: FakeWhatsApp(), installer: .sandboxed(), fetchRealData: false,
+            sleep: SleepLog.holdingSuccess.sleeper)
         let state = WizardState(
             preferredLanguages: ["es"],
             claudeStatus: .found(version: "2.1.277", path: "/opt/homebrew/bin/claude", loggedIn: true),

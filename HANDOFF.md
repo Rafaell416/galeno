@@ -9,13 +9,16 @@ desde Claude Code, confirmar que no puede enviar); falta probar que `sync` sobre
 reinicio vía `launchd`. Tras la sesión de descubrimiento del 3 de octubre quedan ajustes
 pendientes (probar `sync` tras un reinicio): ver §6 y §12. El motor ya tiene subagentes,
 descripción y memoria del proyecto, varios agentes y regeneración. La app (`GalenoApp`) ya
-tiene proyecto Xcode, el esqueleto del wizard y las **pantallas 1–5** (idioma en caliente,
-detección de Claude Code, tu agente, la grilla de herramientas y el sub-wizard de conexión con
-MCP hospedados y WhatsApp); las demás se llenan una a una. **Slack ya crea su propia app
+tiene proyecto Xcode, el esqueleto del wizard y las **pantallas 1–10** (idioma en caliente,
+detección de Claude Code, tu agente, la grilla de herramientas, el sub-wizard de conexión,
+qué leer, skills, reglas, generar la carpeta del agente y abrirlo en la app de Claude o en
+Terminal). **Slack ya crea su propia app
 OAuth y el usuario solo inicia sesión** (ventana de Galeno que captura el token de configuración);
 Gmail y Google siguen en "conectar
 después" y su automatización de navegador está diseñada, no construida (`docs/03` §4e,
-"Diseño de la conexión con app propia"). Faltan las skills, Sparkle y la distribución.
+"Diseño de la conexión con app propia"). Las skills tienen catálogo y `SKILL.md` mínimos
+válidos (el contenido bueno y las curadas con su licencia son de la Fase 5); faltan el home,
+Sparkle y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
 ---

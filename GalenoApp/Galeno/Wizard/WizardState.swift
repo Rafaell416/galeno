@@ -26,6 +26,28 @@ final class WizardState: ObservableObject {
     private let claudeDetector: ClaudeCodeDetector
     private let connectServices: ConnectServices
 
+    // MARK: Pantallas 6 a 10
+
+    /// Las listas de la pantalla 6. Se crea al entrar y se recrea si cambian las conexiones.
+    @Published private(set) var sourcesFlow: SourcesFlow?
+    private var sourcesFlowKey: [String] = []
+    private var sourcesObserver: AnyCancellable?
+
+    enum SkillCatalogState: Equatable {
+        case notLoaded
+        case loaded(SkillCatalog)
+        case failed(String)
+    }
+    /// El catálogo de la pantalla 7.
+    @Published private(set) var skillCatalog: SkillCatalogState = .notLoaded
+    private var skillsInitialized = false
+
+    /// La generación de la pantalla 9, y el agente que dejó (para la 10 y para regenerar sin crear otro).
+    @Published private(set) var generation: GenerationFlow?
+    @Published private(set) var generatedAgent: AgentRecord?
+    @Published private(set) var lastGeneration: GenerationResult?
+    private var generationObserver: AnyCancellable?
+
     /// El sub-wizard del paso 5. Se crea al entrar en él y se recrea si cambian las
     /// herramientas elegidas.
     @Published private(set) var connectFlow: ConnectFlow?
@@ -73,7 +95,7 @@ final class WizardState: ObservableObject {
     /// El sub-wizard del paso 5 lleva sus propios botones (Conectar, Conectar después,
     /// Reintentar…): la barra Atrás/Siguiente se oculta hasta que llega a la celebración.
     var hidesNavigation: Bool {
-        step == .connect && connectFlow?.isFinished != true
+        (step == .connect && connectFlow?.isFinished != true) || step == .generating
     }
 
     /// Si el paso actual tiene lo que necesita para seguir. Los pasos que
@@ -85,18 +107,26 @@ final class WizardState: ObservableObject {
         case .tools: !connections.isEmpty
         // Se sale del sub-wizard cuando llega a la celebración: todas conectadas o saltadas.
         case .connect: connectFlow?.isFinished == true
-        case .welcome, .sources, .skills, .rules, .generating, .done: true
+        case .generating: generation?.phase == .succeeded
+        case .welcome, .sources, .skills, .rules, .done: true
         }
     }
 
     func next() {
         guard canGoForward, let following = WizardStep(rawValue: step.rawValue + 1) else { return }
+        // Cada vez que se entra a «Generando» es una generación nueva: la de antes ya no cuenta.
+        if following == .generating {
+            generation?.cancel()
+            generation = nil
+        }
         step = following
     }
 
     func back() {
         guard canGoBack, let previous = WizardStep(rawValue: step.rawValue - 1) else { return }
-        step = previous
+        // Desde «Listo» se vuelve a las reglas, no a la pantalla de generar: al avanzar se
+        // regenera el mismo agente, en la misma carpeta.
+        step = step == .done ? .rules : previous
     }
 
     // MARK: Paso 2: Claude Code
@@ -233,6 +263,178 @@ final class WizardState: ObservableObject {
     /// Al cerrar la app: nada de procesos huérfanos.
     func stopConnecting() {
         connectFlow?.cancelAll()
+    }
+
+    // MARK: Paso 6: qué leer
+
+    /// Pide las listas de lo que se puede elegir (canales, chats, carpetas, proyectos). Se llama al
+    /// entrar al paso; es idempotente mientras no cambien las conexiones.
+    func beginSources() {
+        // Las herramientas sin nada que elegir (reuniones transcritas) leen todo.
+        for index in connections.indices
+        where connections[index].status == .connected && connections[index].tool.selectableSourceKinds.isEmpty {
+            connections[index].sources = .everything
+        }
+
+        let connected = connections.filter { $0.status == .connected }
+        let key = connected.map { "\($0.tool.rawValue):\($0.serverNamePrefix ?? "")" }
+        if sourcesFlow == nil || key != sourcesFlowKey {
+            sourcesFlow?.cancelAll()
+            let claudePath: String
+            if case .found(_, let path, _) = claudeStatus { claudePath = path } else { claudePath = "claude" }
+            let flow = SourcesFlow(connections: connected, lister: connectServices.makeLister(claudePath))
+            sourcesFlow = flow
+            sourcesFlowKey = key
+            sourcesObserver = flow.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        }
+        sourcesFlow?.start()
+    }
+
+    func sourceSelection(for tool: Tool) -> SourceSelection {
+        connection(for: tool)?.sources ?? .nothing
+    }
+
+    func isSourceSelected(_ source: Source, in tool: Tool) -> Bool {
+        let selection = sourceSelection(for: tool)
+        return !selection.readsEverything && selection.selected.contains { $0.id == source.id }
+    }
+
+    /// Marca o desmarca una fuente. Elegir una la vuelve el foco del agente; sin ninguna, el agente
+    /// no tiene un foco concreto (y sigue pudiendo leer lo que tenga a la vista).
+    func toggleSource(_ source: Source, in tool: Tool) {
+        let current = sourceSelection(for: tool)
+        var chosen = current.readsEverything ? [] : current.selected
+        if let index = chosen.firstIndex(where: { $0.id == source.id }) {
+            chosen.remove(at: index)
+        } else {
+            chosen.append(source)
+        }
+        setSelection(chosen.isEmpty ? .nothing : .only(chosen), for: tool)
+    }
+
+    /// «Que lea todo»: lo que se ofrece cuando no se pudo listar. Desactivarlo vuelve a «sin elegir».
+    func setReadsEverything(_ on: Bool, for tool: Tool) {
+        setSelection(on ? .everything : .nothing, for: tool)
+    }
+
+    private func setSelection(_ selection: SourceSelection, for tool: Tool) {
+        for index in connections.indices where connections[index].tool == tool {
+            connections[index].sources = selection
+        }
+    }
+
+    func connection(for tool: Tool) -> ToolConnection? {
+        connections.first { $0.tool == tool }
+    }
+
+    /// Las herramientas que quedaron conectadas, en el orden de las conexiones.
+    var connectedTools: [Tool] { connections.filter { $0.status == .connected }.map(\.tool) }
+
+    // MARK: Paso 7: skills
+
+    /// Lee `skills/catalog.json`. Las nuestras vienen marcadas la primera vez; lo que el usuario
+    /// desmarque se respeta si vuelve a esta pantalla.
+    func loadSkillCatalog() {
+        guard let directory = connectServices.skillsDirectory else {
+            skillCatalog = .failed("no hay carpeta de skills")
+            return
+        }
+        do {
+            let catalog = try SkillCatalog.load(from: directory)
+            skillCatalog = .loaded(catalog)
+            if !skillsInitialized {
+                skillsInitialized = true
+                skills = catalog.defaultSelection
+            }
+        } catch {
+            skillCatalog = .failed(String(describing: error))
+        }
+    }
+
+    func isSkillSelected(_ id: String, source: SkillSource) -> Bool {
+        skills.contains { $0.id == id && $0.source == source }
+    }
+
+    func toggleSkill(_ id: String, source: SkillSource) {
+        // Una curada sin su contenido todavía no se instala: marcarla haría fallar la generación.
+        if source == .curated, !isSkillSelected(id, source: .curated) {
+            guard case .loaded(let catalog) = skillCatalog,
+                catalog.curated.contains(where: { $0.id == id && $0.available })
+            else { return }
+        }
+        if let index = skills.firstIndex(where: { $0.id == id && $0.source == source }) {
+            skills.remove(at: index)
+        } else {
+            skills.append(SelectedSkill(id: id, source: source))
+        }
+    }
+
+    // MARK: Paso 8: reglas
+
+    /// Las escrituras internas que aplican a lo que el usuario conectó. Los envíos externos
+    /// (Slack, email) no se configuran: siempre piden aprobación.
+    var configurableWrites: [InternalWrite] {
+        let tools = connectedTools
+        return InternalWrite.allCases.filter { write in tools.contains { $0.internalWrites.contains(write) } }
+    }
+
+    func policy(for write: InternalWrite) -> ApprovalPolicy { sendingRules.policy(for: write) }
+
+    func setPolicy(_ policy: ApprovalPolicy, for write: InternalWrite) {
+        sendingRules.setPolicy(policy, for: write)
+    }
+
+    /// Las herramientas conectadas por las que el agente puede hablarle a otras personas.
+    var externalSendTools: [Tool] { connectedTools.filter { $0.externalSend != nil } }
+
+    // MARK: Paso 9: generar
+
+    /// Escribe la carpeta del agente y lo registra. Se llama al entrar al paso.
+    func beginGeneration() {
+        generation?.cancel()
+        let config = makeConfig()
+        let installer = connectServices.installer
+        let existing = generatedAgent?.id
+        let flow = GenerationFlow(sleep: connectServices.sleep) {
+            try installer.install(config, existingAgentID: existing)
+        }
+        generation = flow
+        generationObserver = flow.$outcome.compactMap { $0 }.sink { [weak self] outcome in
+            self?.generatedAgent = outcome.record
+            self?.lastGeneration = outcome.result
+        }
+        flow.start()
+    }
+
+    /// Terminó bien: se pasa a «Listo».
+    func finishGeneration() {
+        guard step == .generating, generation?.phase == .succeeded,
+            let following = WizardStep(rawValue: step.rawValue + 1)
+        else { return }
+        step = following
+    }
+
+    /// Falló: se vuelve a las reglas para que el usuario pueda cambiar algo o reintentar.
+    func leaveFailedGeneration() {
+        guard step == .generating, case .failed? = generation?.phase else { return }
+        generation?.cancel()
+        step = .rules
+    }
+
+    /// Para abrir el agente y mostrar su carpeta (pantalla 10).
+    var opener: any AgentOpening { connectServices.opener }
+
+    /// La ruta de `claude` que encontró el paso 2.
+    var claudePath: String {
+        if case .found(_, let path, _) = claudeStatus { return path }
+        return "claude"
+    }
+
+    /// Se llama al cerrar la app.
+    func stopWorking() {
+        stopConnecting()
+        sourcesFlow?.cancelAll()
+        generation?.cancel()
     }
 
     // MARK: El resultado

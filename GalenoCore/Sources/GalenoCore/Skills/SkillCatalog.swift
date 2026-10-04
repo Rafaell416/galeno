@@ -1,0 +1,192 @@
+import Foundation
+
+/// Un texto en los dos idiomas del producto.
+public struct LocalizedText: Codable, Hashable, Sendable {
+    public var es: String
+    public var en: String
+
+    public init(es: String, en: String) {
+        self.es = es
+        self.en = en
+    }
+
+    public func text(in language: Language) -> String {
+        switch language {
+        case .spanish: es
+        case .english: en
+        }
+    }
+}
+
+/// Un grupo de skills en la pantalla 7 ("Producir documentos de producto"…).
+public struct SkillGroup: Codable, Hashable, Sendable, Identifiable {
+    public var id: String
+    public var name: LocalizedText
+}
+
+/// Una skill nuestra, tal como la lista el catálogo. El contenido está en
+/// `skills/galeno/<id>/SKILL.md`; esto es lo que la pantalla 7 muestra.
+public struct CatalogSkill: Codable, Hashable, Sendable, Identifiable {
+    public var id: String
+    public var group: String
+    public var name: LocalizedText
+    public var summary: LocalizedText
+    /// Dónde puede escribir, para decírselo al usuario ("Escribe en Notion o Google Docs").
+    public var writes: [Tool]
+    /// Si está vacío, la skill sirve con lo que sea. Si no, necesita **alguna** de estas
+    /// herramientas conectadas: sin ninguna, la pantalla avisa que todavía no le serviría.
+    public var needsAny: [Tool]
+
+    /// ¿Le serviría con estas herramientas conectadas?
+    public func isUseful(with connected: [Tool]) -> Bool {
+        needsAny.isEmpty || needsAny.contains { connected.contains($0) }
+    }
+}
+
+/// Una skill de la comunidad, seleccionada y revisada por nosotros. Siempre lleva el
+/// crédito a su autor y el link a su GitHub: es buena ética y buen marketing.
+public struct CuratedSkill: Codable, Hashable, Sendable, Identifiable {
+    /// El id con el que se instala (`.claude/skills/<id>/`) y con el que se guarda en la
+    /// config: único en todo el catálogo.
+    public var id: String
+    public var name: LocalizedText
+    public var summary: LocalizedText
+    /// El autor, tal como se acredita en la pantalla.
+    public var author: String
+    /// El repositorio de origen.
+    public var repository: URL
+    /// La ruta de la skill dentro del repositorio.
+    public var path: String
+    /// La licencia (SPDX). Solo se aceptan las verificadas: ver ``SkillCatalog/permittedLicenses``.
+    public var license: String
+    /// `false` mientras su contenido todavía no se ha traído a `skills/curated/<id>/`: se
+    /// muestra con su crédito pero no se puede marcar.
+    public var available: Bool
+
+    /// El link a la skill dentro de su GitHub.
+    public var sourceURL: URL {
+        repository.appending(path: "tree/main").appending(path: path)
+    }
+}
+
+public enum SkillCatalogError: Error, Equatable, CustomStringConvertible {
+    case unreadable(path: String, reason: String)
+    case newerThanThisApp(found: Int, supported: Int)
+    case invalid(String)
+
+    public var description: String {
+        switch self {
+        case let .unreadable(path, reason): "No pude leer el catálogo de skills en \(path): \(reason)."
+        case let .newerThanThisApp(found, supported):
+            "El catálogo de skills es de un formato más nuevo (\(found); esta versión lee hasta el \(supported))."
+        case let .invalid(reason): "El catálogo de skills no es válido: \(reason)."
+        }
+    }
+}
+
+/// El catálogo de skills (`skills/catalog.json`): las nuestras y las curadas.
+///
+/// No contiene el contenido de las skills, solo lo necesario para elegirlas. Es contenido y no
+/// código: se publica aparte de la app (`docs/03` §4f, capa 3).
+public struct SkillCatalog: Codable, Hashable, Sendable {
+    public static let supportedSchemaVersion = 1
+    public static let fileName = "catalog.json"
+
+    /// Las únicas licencias con las que se acepta contenido de terceros (`AGENTS.md`).
+    public static let permittedLicenses: Set<String> = ["Apache-2.0", "MIT"]
+
+    public var schemaVersion: Int
+    public var groups: [SkillGroup]
+    public var galeno: [CatalogSkill]
+    public var curated: [CuratedSkill]
+
+    public init(
+        schemaVersion: Int = SkillCatalog.supportedSchemaVersion, groups: [SkillGroup] = [],
+        galeno: [CatalogSkill] = [], curated: [CuratedSkill] = []
+    ) {
+        self.schemaVersion = schemaVersion
+        self.groups = groups
+        self.galeno = galeno
+        self.curated = curated
+    }
+
+    // MARK: Leer
+
+    /// Lee y valida `catalog.json` de la carpeta `skills/` (o de su copia dentro de la app).
+    public static func load(from skillsDirectory: URL) throws -> SkillCatalog {
+        let file = skillsDirectory.appending(path: fileName)
+        let data: Data
+        do { data = try Data(contentsOf: file) } catch {
+            throw SkillCatalogError.unreadable(path: file.path, reason: error.localizedDescription)
+        }
+        return try decode(data, at: file.path)
+    }
+
+    public static func decode(_ data: Data, at path: String = "catalog.json") throws -> SkillCatalog {
+        let catalog: SkillCatalog
+        do { catalog = try JSONDecoder().decode(SkillCatalog.self, from: data) } catch {
+            throw SkillCatalogError.unreadable(path: path, reason: String(describing: error))
+        }
+        guard catalog.schemaVersion <= supportedSchemaVersion else {
+            throw SkillCatalogError.newerThanThisApp(
+                found: catalog.schemaVersion, supported: supportedSchemaVersion)
+        }
+        try catalog.validate()
+        return catalog
+    }
+
+    /// Lo que tiene que cumplir un catálogo para que la app lo use. Se comprueba al leerlo y
+    /// en las pruebas del repositorio: un catálogo roto se nota antes de llegar al usuario.
+    public func validate() throws {
+        let ids = galeno.map(\.id) + curated.map(\.id)
+        if let repeated = Dictionary(grouping: ids, by: { $0 }).first(where: { $1.count > 1 })?.key {
+            throw SkillCatalogError.invalid("el id «\(repeated)» está repetido")
+        }
+        for id in ids {
+            do { try SkillsInstaller.validate(id) } catch {
+                throw SkillCatalogError.invalid("el id «\(id)» no es seguro como nombre de carpeta")
+            }
+        }
+        let groupIDs = Set(groups.map(\.id))
+        for skill in galeno where !groupIDs.contains(skill.group) {
+            throw SkillCatalogError.invalid("«\(skill.id)» está en un grupo que no existe: \(skill.group)")
+        }
+        for skill in curated {
+            guard Self.permittedLicenses.contains(skill.license) else {
+                throw SkillCatalogError.invalid("«\(skill.id)» tiene una licencia no permitida: \(skill.license)")
+            }
+            guard skill.repository.scheme == "https", skill.repository.host == "github.com" else {
+                throw SkillCatalogError.invalid("«\(skill.id)» no apunta a un repositorio de GitHub")
+            }
+            guard !skill.author.isEmpty else {
+                throw SkillCatalogError.invalid("«\(skill.id)» no tiene autor")
+            }
+        }
+    }
+
+    // MARK: Usar
+
+    /// Las skills nuestras de un grupo, en el orden del catálogo.
+    public func skills(in group: SkillGroup) -> [CatalogSkill] {
+        galeno.filter { $0.group == group.id }
+    }
+
+    /// Lo que viene marcado de fábrica: todas las nuestras. El usuario desmarca las que no quiere.
+    public var defaultSelection: [SelectedSkill] {
+        galeno.map { SelectedSkill(id: $0.id, source: .galeno) }
+    }
+
+    /// Las curadas que ya se pueden instalar.
+    public var availableCurated: [CuratedSkill] { curated.filter(\.available) }
+
+    /// Los ids de las skills que dicen estar disponibles pero a las que les falta su carpeta con
+    /// `SKILL.md` en `skillsDirectory`. Vacío = el catálogo y la carpeta cuadran.
+    public func missingFiles(in skillsDirectory: URL, fileManager: FileManager = .default) -> [String] {
+        let ours = galeno.map { (id: $0.id, source: SkillSource.galeno) }
+        let theirs = availableCurated.map { (id: $0.id, source: SkillSource.curated) }
+        return (ours + theirs).compactMap { entry in
+            let file = skillsDirectory.appending(path: "\(entry.source.rawValue)/\(entry.id)/SKILL.md")
+            return fileManager.fileExists(atPath: file.path) ? nil : entry.id
+        }
+    }
+}

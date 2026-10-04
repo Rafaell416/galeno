@@ -107,7 +107,7 @@
 				05CD2FC230719E6C008A9D10 /* Sources */,
 				05CD2FC330719E6C008A9D10 /* Frameworks */,
 				05CD2FC430719E6C008A9D10 /* Resources */,
-				05CD2FF330719EC5008A9D10 /* Copiar el bridge de WhatsApp */,
+				05CD2FF330719EC5008A9D10 /* Copiar el bridge de WhatsApp y las skills */,
 			);
 			buildRules = (
 			);
@@ -243,7 +243,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		05CD2FF330719EC5008A9D10 /* Copiar el bridge de WhatsApp */ = {
+		05CD2FF330719EC5008A9D10 /* Copiar el bridge de WhatsApp y las skills */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -253,14 +253,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Copiar el bridge de WhatsApp";
+			name = "Copiar el bridge de WhatsApp y las skills";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Copia el bridge de WhatsApp (Go) a Contents/Resources. Se compila aparte:\n#   make -C whatsapp-bridge universal\n# Para distribuir (Fase 8) este binario tambien tiene que firmarse y notarizarse.\nSRC=\"${SRCROOT}/../whatsapp-bridge/bin/galeno-whatsapp\"\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/galeno-whatsapp\"\nif [ -x \"$SRC\" ]; then\n  mkdir -p \"$(dirname \"$DST\")\"\n  # 54 MB: no se vuelve a copiar si no cambio.\n  if ! cmp -s \"$SRC\" \"$DST\"; then cp -f \"$SRC\" \"$DST\"; fi\nelif [ \"$CONFIGURATION\" = \"Release\" ]; then\n  echo \"error: falta whatsapp-bridge/bin/galeno-whatsapp. Corre: make -C whatsapp-bridge universal\"\n  exit 1\nelse\n  echo \"warning: no hay whatsapp-bridge/bin/galeno-whatsapp; WhatsApp no podra vincularse. Corre: make -C whatsapp-bridge universal\"\nfi\n";
+			shellScript = "# Copia el bridge de WhatsApp (Go) a Contents/Resources. Se compila aparte:\n#   make -C whatsapp-bridge universal\n# Para distribuir (Fase 8) este binario tambien tiene que firmarse y notarizarse.\nSRC=\"${SRCROOT}/../whatsapp-bridge/bin/galeno-whatsapp\"\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/galeno-whatsapp\"\nif [ -x \"$SRC\" ]; then\n  mkdir -p \"$(dirname \"$DST\")\"\n  # 54 MB: no se vuelve a copiar si no cambio.\n  if ! cmp -s \"$SRC\" \"$DST\"; then cp -f \"$SRC\" \"$DST\"; fi\nelif [ \"$CONFIGURATION\" = \"Release\" ]; then\n  echo \"error: falta whatsapp-bridge/bin/galeno-whatsapp. Corre: make -C whatsapp-bridge universal\"\n  exit 1\nelse\n  echo \"warning: no hay whatsapp-bridge/bin/galeno-whatsapp; WhatsApp no podra vincularse. Corre: make -C whatsapp-bridge universal\"\nfi\n\n# Copia las skills (catalog.json y sus carpetas) a Contents/Resources/skills: de ahi las lee la app para el paso 7 y las copia a la carpeta de cada agente. Es el respaldo local de la capa 3 de docs/03 4f (la fuente remota llega despues).\nSKILLS_SRC=\"${SRCROOT}/../skills/\"\nSKILLS_DST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/skills/\"\nif [ -f \"${SKILLS_SRC}catalog.json\" ]; then\n  mkdir -p \"$SKILLS_DST\"\n  rsync -a --delete --exclude README.md \"$SKILLS_SRC\" \"$SKILLS_DST\"\nelse\n  echo \"error: falta skills/catalog.json\"\n  exit 1\nfi\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
