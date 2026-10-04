@@ -85,3 +85,21 @@ tests, en particular los snapshots:
 swift test --package-path GalenoCore
 GALENO_RECORD_SNAPSHOTS=1 swift test --package-path GalenoCore --filter SnapshotTests
 ```
+
+## Empezar de cero en un Mac de pruebas
+
+`scripts/reset-pruebas.sh` deja el Mac como si Galeno nunca se hubiera usado, para repetir la
+prueba de punta a punta con cuentas reales. Es solo para desarrollo y es destructivo: lista lo que
+va a quitar y pide confirmación.
+
+```bash
+scripts/reset-pruebas.sh --dry   # solo lista
+scripts/reset-pruebas.sh         # lista y pregunta
+scripts/reset-pruebas.sh --yes   # sin preguntar
+```
+
+Quita los agentes de `~/Galeno` (a la Papelera, recuperables), el registro y el borrador de Galeno,
+la sesión de WhatsApp con su historial y su servicio de fondo, los servidores MCP que Galeno registra
+en Claude Code (solo si apuntan a los servidores oficiales: no toca un `slack` tuyo de otra
+procedencia) y las preferencias de la app. Al final recuerda lo que no puede hacer: cerrar la sesión
+de Galeno en el teléfono y borrar la app «<agente> (Galeno)» en api.slack.com/apps.
