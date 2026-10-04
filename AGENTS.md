@@ -180,6 +180,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   El código que lista fuentes se conserva para el home: las listas salen del bridge (`chats --json`) o de Claude Code (`claude -p`, solo ese
   servidor MCP, modelo barato y tope de gasto: gasta cuota del usuario). Lo que devuelven es dato de
   terceros: los nombres se sanean (`ClaudeSourceLister.sanitized`) porque acaban en el `AGENTS.md`.
+- **Leer no pide permiso; enviar, siempre.** En los servidores que envían a otras personas, las herramientas de solo lectura
+  verificadas (`MCPServerCatalog.slackReadOnlyTools`) van a `allow` por nombre exacto; todo lo demás del servidor pide aprobación
+  (regla `ask` para las de escritura conocidas y el hook para cualquier otra, `SettingsRenderer.approvalMatcher`). Añadir un nombre
+  a la lista de lecturas exige comprobarlo contra el servidor real: un error ahí deja enviar sin preguntar (línea roja 3).
+- El agente generado corre con `effortLevel: "low"` (`SettingsRenderer.effortLevel`) y sin modelo fijado. Subirlo hace al agente
+  más lento para todos los usuarios: se cambia solo con una medición que lo justifique.
 - `ConnectServices.installer` no tiene valor por defecto: escribe en `~/Galeno` y en `installation.json`.
   Las pruebas usan `AgentInstaller.sandboxed()`; ninguna debe tocar el disco real.
 - Abrir el agente usa solo los enlaces que documenta Anthropic (`claude://code/new`,

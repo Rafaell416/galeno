@@ -51,7 +51,7 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 | Precio | **USD 200, pago único** |
 | Varios proyectos | **Un agente por proyecto**, cada uno en `~/Galeno/<agente>/`. En v0.0.1 se pueden crear varios; la separación **garantizada** de contexto es v0.2. Las conexiones se hacen una vez y se comparten. Detalle: `docs/03` §3b |
 | Después del wizard | Home con la lista de agentes: abrir (en la app de Claude o en Terminal), crear otro (wizard corto), gestionar la config, salud y mantenimiento |
-| Contexto del proyecto | Una línea en el wizard; en la primera sesión el agente lee las fuentes y propone un resumen que el usuario confirma |
+| Contexto del proyecto | Una línea en el wizard (y, opcional, material traído de claude.ai que queda en `memoria/contexto/`); en la primera sesión el agente **contesta primero** y luego ofrece armar un resumen del proyecto, que el usuario confirma |
 | Memoria | El agente mantiene notas en `memoria/proyecto.md` (`CLAUDE.md` la importa). Es el único lugar donde escribe sin que nadie lo apruebe; lo que Galeno genera está bloqueado por regla y cualquier otra ruta pide permiso |
 | Dueño de la config | **Galeno**: regenera los archivos completos al cambiar algo; nunca toca `memoria/` |
 | Proactividad | El agente solo trabaja cuando se lo piden. Sin tareas programadas en v0.0.1 |
