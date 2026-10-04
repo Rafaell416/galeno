@@ -45,6 +45,9 @@ struct DoneContent: View {
 
     private enum Copied { case path, prompt }
 
+    /// La tarjeta «Dónde quedó» (ruta, Finder, copiar ruta). Apagada: ver el cuerpo.
+    private static let showsFolderCard = false
+
     private var prompt: String {
         FirstCommand.suggestion(for: wizard.connectedTools, language: wizard.language)
     }
@@ -65,10 +68,69 @@ struct DoneContent: View {
 
             warnings
 
-            LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 20, alignment: .top), GridItem(.flexible(), alignment: .top)],
-                spacing: 12
-            ) {
+            // Lo que importa ahora: probar el agente. Un solo bloque —el único con filete grueso y el rótulo
+            // en lacre— con la primera pregunta y dónde abrirlo; se abre con la pregunta ya escrita.
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    SmallCapsLabel("done.first.title", size: 12)
+                        .foregroundStyle(Color.seal700)
+                    HStack(alignment: .lastTextBaseline, spacing: 3) {
+                        Text(verbatim: "«\(prompt)»")
+                            .font(Typo.display(24, italic: true))
+                            .foregroundStyle(Color.ink900)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        InvitingCursor()
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    // Sin la app de Claude en el Mac, Terminal es la acción principal.
+                    if wizard.opener.isClaudeAppAvailable {
+                        Button("done.open.app") { open(inApp: true) }
+                            .buttonStyle(InkButtonStyle(.primary, padding: 18, isLoading: opening == .app))
+                            .disabled(opening != nil)
+                    }
+                    Button("done.open.terminal") { open(inApp: false) }
+                        .buttonStyle(
+                            InkButtonStyle(
+                                wizard.opener.isClaudeAppAvailable ? .secondary : .primary, padding: 18,
+                                isLoading: opening == .terminal)
+                        )
+                        .disabled(opening != nil)
+                    Spacer(minLength: 0)
+                    Button { copy(prompt, .prompt) } label: {
+                        CopyLabel(copied: copied == .prompt, idle: "done.first.copy")
+                    }
+                    .buttonStyle(InkButtonStyle(.secondary, padding: 14, quiet: true))
+                }
+
+                // Qué va a pasar al abrirlo; si no se pudo abrir, el texto cambia con un fundido.
+                Group {
+                    if openFailed {
+                        Text("done.open.failed").foregroundStyle(Color.seal700)
+                    } else {
+                        (Text("done.open.hint") + Text(verbatim: " ")
+                            + Text(wizard.opener.isClaudeAppAvailable ? "done.open.confirm" : "done.open.appMissing"))
+                            .foregroundStyle(Color.ink500)
+                    }
+                }
+                .id(openFailed)
+                .transition(.opacity)
+                .font(Typo.text(13))
+                .fixedSize(horizontal: false, vertical: true)
+                .animation(.easeOut(duration: Motion.micro), value: openFailed)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(lit == .prompt ? Color.parchment200 : Color.parchment100, in: RoundedRectangle(cornerRadius: Radius.b1))
+            .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.ink900, lineWidth: 1.5))
+            .staggered(0, base: 0.3)
+
+            // Dónde quedó la carpeta: oculto por ahora (decisión de Rafa: a quien acaba de crear su agente
+            // le importa probarlo, no la ruta). Se enciende con `showsFolderCard`.
+            if Self.showsFolderCard {
                 card("done.where.title", lit: lit == .path) {
                     Text(verbatim: displayPath)
                         .font(.system(size: 14, design: .monospaced))
@@ -85,60 +147,8 @@ struct DoneContent: View {
                         .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 12, quiet: true))
                     }
                 }
-                .staggered(0, base: 0.3)
-
-                card("done.open.title") {
-                    HStack(spacing: 8) {
-                        Button("done.open.app") { open(inApp: true) }
-                            .buttonStyle(InkButtonStyle(.primary, padding: 18, isLoading: opening == .app))
-                            .disabled(!wizard.opener.isClaudeAppAvailable || opening != nil)
-                        Button("done.open.terminal") { open(inApp: false) }
-                            .buttonStyle(InkButtonStyle(.secondary, padding: 18, isLoading: opening == .terminal))
-                            .disabled(opening != nil)
-                    }
-                    // Si no se pudo abrir, el texto de debajo cambia con un fundido.
-                    Group {
-                        if openFailed {
-                            Text("done.open.failed").foregroundStyle(Color.seal700)
-                        } else {
-                            Text(wizard.opener.isClaudeAppAvailable ? "done.open.confirm" : "done.open.appMissing")
-                                .foregroundStyle(Color.ink500)
-                        }
-                    }
-                    .id(openFailed)
-                    .transition(.opacity)
-                    .font(Typo.text(12.5))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .animation(.easeOut(duration: Motion.micro), value: openFailed)
-                }
                 .staggered(1, base: 0.3)
             }
-
-            // Lo primero que hay que pedirle: el único bloque con filete grueso y el rótulo en lacre.
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
-                    SmallCapsLabel("done.first.title", size: 12)
-                        .foregroundStyle(Color.seal700)
-                    HStack(alignment: .lastTextBaseline, spacing: 3) {
-                        Text(verbatim: "«\(prompt)»")
-                            .font(Typo.display(21, italic: true))
-                            .foregroundStyle(Color.ink900)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                        InvitingCursor()
-                    }
-                }
-                Spacer(minLength: 0)
-                Button { copy(prompt, .prompt) } label: {
-                    CopyLabel(copied: copied == .prompt, idle: "done.first.copy")
-                }
-                .buttonStyle(InkButtonStyle(.secondary, padding: 16, height: 40))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(lit == .prompt ? Color.parchment200 : Color.parchment100, in: RoundedRectangle(cornerRadius: Radius.b1))
-            .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.ink900, lineWidth: 1.5))
-            .staggered(2, base: 0.3)
 
             // Con Claude Design conectado, se dice cómo usarlo: pasarle el enlace de un diseño.
             if wizard.connectedTools.contains(.claudeDesign) {
@@ -146,14 +156,14 @@ struct DoneContent: View {
                     .font(Typo.text(13))
                     .foregroundStyle(Color.ink500)
                     .fixedSize(horizontal: false, vertical: true)
-                    .staggered(3, base: 0.3)
+                    .staggered(1, base: 0.3)
             }
 
             // La frase de dopamina entra al final, 400 ms después del contenido.
             Text("dopamine.done")
                 .font(Typo.display(16, italic: true))
                 .foregroundStyle(Color.ink500)
-                .appearing(after: 0.3 + 3 * Motion.stagger + 0.4)
+                .appearing(after: 0.3 + Motion.stagger + 0.4)
         }
         .onAppear { Sounds.play(.seal) }
     }

@@ -279,10 +279,42 @@ final class AgentLinkTests: XCTestCase {
             "#!/bin/zsh\ncd -- '/Users/ana/Galeno/O'\\''Brien; rm -rf ~' || exit 1\nexec '/opt/homebrew/bin/claude'\n")
     }
 
+    /// Con la primera pregunta: va citada, como la ruta, y nada de lo que diga puede salirse de las comillas.
+    func testTheTerminalFallbackScriptCarriesTheFirstQuestionQuoted() {
+        let script = AgentLink.terminalScript(
+            folder: URL(fileURLWithPath: "/Users/ana/Galeno/Hera", isDirectory: true),
+            claudePath: "/opt/homebrew/bin/claude", prompt: "Resume lo de 'hoy'; rm -rf ~")
+        XCTAssertEqual(
+            script,
+            "#!/bin/zsh\ncd -- '/Users/ana/Galeno/Hera' || exit 1\nexec '/opt/homebrew/bin/claude' 'Resume lo de '\\''hoy'\\''; rm -rf ~'\n")
+    }
+
     func testTheFirstCommandFollowsWhatTheUserConnected() {
-        XCTAssertEqual(FirstCommand.suggestion(for: [.notion, .slack], language: .spanish), "Resume lo que pasó esta semana en Slack")
-        XCTAssertEqual(FirstCommand.suggestion(for: [.whatsapp], language: .english), "Summarize what happened this week in my WhatsApp groups")
-        XCTAssertEqual(FirstCommand.suggestion(for: [.fathom], language: .spanish), "Resume mis últimas reuniones")
-        XCTAssertEqual(FirstCommand.suggestion(for: [], language: .spanish), "Resume lo que pasó esta semana en el proyecto")
+        XCTAssertEqual(
+            FirstCommand.suggestion(for: [.notion, .slack], language: .spanish),
+            "¿Cuáles son los 3 mensajes más recientes de Slack donde me mencionan?")
+        XCTAssertEqual(
+            FirstCommand.suggestion(for: [.slack, .notion, .whatsapp], language: .spanish),
+            "¿Qué hay de nuevo en mis 3 chats más recientes de WhatsApp?", "con WhatsApp conectado, la primera prueba es WhatsApp")
+        XCTAssertEqual(
+            FirstCommand.suggestion(for: [.jira, .notion], language: .spanish),
+            "¿Cuáles son las 3 páginas de Notion que cambiaron más recientemente?")
+        XCTAssertEqual(
+            FirstCommand.suggestion(for: [.whatsapp], language: .english), "What’s new in my 3 most recent WhatsApp chats?")
+        XCTAssertEqual(FirstCommand.suggestion(for: [.fathom], language: .spanish), "Resume mi última reunión")
+        XCTAssertEqual(FirstCommand.suggestion(for: [], language: .spanish), "Preséntate en tres líneas y dime qué puedes hacer por mí")
+    }
+
+    /// La primera pregunta tiene que responderse en segundos: acotada («3», «última»), nunca «resume la semana».
+    func testTheFirstCommandForAConnectedToolIsAlwaysBounded() {
+        for tool in Tool.allCases where tool != .claudeDesign {
+            for language in Language.allCases {
+                let suggestion = FirstCommand.suggestion(for: [tool], language: language)
+                XCTAssertNotNil(
+                    suggestion.range(of: #"3|tres|three|última|latest"#, options: .regularExpression),
+                    "\(tool) [\(language)]: \(suggestion)")
+                XCTAssertFalse(suggestion.contains("esta semana") || suggestion.contains("this week"), suggestion)
+            }
+        }
     }
 }

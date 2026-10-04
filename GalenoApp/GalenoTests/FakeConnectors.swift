@@ -20,6 +20,8 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
     private var authorizationURL: URL?
     private var held: [CheckedContinuation<Void, Never>] = []
     private var recorded: [String] = []
+    /// Servidores que quedan conectados nada más registrarlos (entran con la sesión de Claude Code, sin OAuth).
+    var connectsOnRegister: Set<String> = []
 
     init(
         statuses: [String: MCPStatus] = [:],
@@ -71,7 +73,7 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
         // que se anota en `calls` nunca lo lleva.
         let secretValue = oauth?.secret?.withValue { $0 }
         lock.withLock {
-            statuses[server] = .needsAuthentication
+            statuses[server] = connectsOnRegister.contains(server) ? .connected : .needsAuthentication
             if let oauth {
                 registrations[server] = (oauth.clientID, oauth.callbackPort, secretValue != nil, secretValue)
             }

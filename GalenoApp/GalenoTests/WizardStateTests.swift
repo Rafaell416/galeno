@@ -94,7 +94,15 @@ final class WizardStateTests: XCTestCase {
                 // Las claves que Xcode extrae solas (el nombre de la app) no se traducen.
                 guard let localizations = entry["localizations"] as? [String: Any],
                     let localization = localizations[language] as? [String: Any]
-                else { continue }
+                else {
+                    // Pero una clave simbólica sin traducción es un fallo: es lo que deja una clave armada con
+                    // interpolación dentro de `LocalizedStringKey` (`"…step\(n)"` → `…step%lld`), y en pantalla se
+                    // ve la clave en vez del texto. Se arma como `String` y se pasa entera.
+                    XCTAssertFalse(
+                        key.contains(".") && key.range(of: #"^[a-z]"#, options: .regularExpression) != nil,
+                        "\(key) no tiene texto en \(language)")
+                    continue
+                }
 
                 if let plural = (localization["variations"] as? [String: Any])?["plural"] as? [String: Any] {
                     // Un plural lleva una versión por categoría ("one", "other"…), todas con texto.

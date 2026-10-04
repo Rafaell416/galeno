@@ -45,9 +45,13 @@ struct RulesStepView: View {
             lead("rules.external.title", Text("rules.external.body"))
             let names = wizard.externalSendTools.map { $0.displayName(in: wizard.language) }
             if !names.isEmpty {
-                Text("rules.external.tools \(names.joined(separator: ", "))")
+                // Con las herramientas cuyas lecturas están verificadas (Slack), se dice que leer no pregunta.
+                let readsFreely = wizard.externalSendTools.allSatisfy(\.readsWithoutAsking)
+                (Text("rules.external.tools \(names.joined(separator: ", "))")
+                    + (readsFreely ? Text(verbatim: ". ") + Text("rules.external.reads") : Text(verbatim: "")))
                     .font(Typo.text(13))
                     .foregroundStyle(Color.ink500)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -111,6 +115,15 @@ extension PactRow {
         Rectangle()
             .fill(heavy ? Color.ink900 : Color.parchment300)
             .frame(height: heavy ? 1.5 : 1)
+    }
+}
+
+extension Tool {
+    /// Si leer con esta herramienta va sin pedir permiso aunque sus envíos siempre lo pidan: el catálogo
+    /// del motor trae la lista verificada de sus herramientas de solo lectura (hoy, Slack).
+    var readsWithoutAsking: Bool {
+        let servers = MCPServerCatalog.definitions(for: ToolConnection(tool: self), whatsAppBridgePath: "")
+        return !servers.isEmpty && servers.allSatisfy { !$0.readOnlyTools.isEmpty }
     }
 }
 

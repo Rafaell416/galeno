@@ -760,7 +760,7 @@ private struct QRPanel: View {
                     VStack(alignment: .leading, spacing: Space.s8) {
                         ForEach(1...3, id: \.self) { number in
                             NumberedLine(number: number, numberWidth: 22) {
-                                Text(LocalizedStringKey("connect.whatsapp.qr.step\(number)"))
+                                Text(LocalizedStringKey("connect.whatsapp.qr.step" + String(number)))
                                     .font(Typo.text(15.5))
                                     .foregroundStyle(reduceMotion || active == number - 1 ? Color.ink900 : Color.ink700)
                                     .fixedSize(horizontal: false, vertical: true)

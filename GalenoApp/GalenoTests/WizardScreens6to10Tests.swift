@@ -242,7 +242,7 @@ final class WizardScreens6to10Tests: XCTestCase {
         XCTAssertTrue(suggestion.contains("enlace de Claude Design"))
         XCTAssertEqual(
             FirstCommand.suggestion(for: [.claudeDesign, .slack], language: .spanish),
-            "Resume lo que pasó esta semana en Slack", "con otras herramientas manda la de siempre")
+            "¿Cuáles son los 3 mensajes más recientes de Slack donde me mencionan?", "con otras herramientas manda la de siempre")
     }
 
     func testContextLimitsAndEmptyTextAreRefused() {
