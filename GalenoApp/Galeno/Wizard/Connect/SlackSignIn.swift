@@ -1,8 +1,27 @@
 import AppKit
 import Combine
 import GalenoCore
+import OSLog
 import SwiftUI
 import WebKit
+
+#if DEBUG
+/// Solo en Debug: por dónde navega la ventana (esquema, host y primer segmento de la ruta; **nunca**
+/// el resto, la consulta ni el fragmento, que pueden llevar códigos de inicio de sesión). `log stream --predicate
+/// 'category == "slackSignIn"'`.
+private let signInLog = Logger(subsystem: "com.galeno.Galeno", category: "slackSignIn")
+private func trace(_ message: String) { signInLog.notice("\(message, privacy: .public)") }
+private func describe(_ url: URL?) -> String {
+    guard let url else { return "nil" }
+    // Solo el primer segmento: rutas como `/t/<equipo>/login/<código>` llevan un código de un solo uso.
+    let first = url.pathComponents.dropFirst().first.map { "/" + $0 } ?? ""
+    let more = url.pathComponents.count > 2 ? "/…" : ""
+    return "\(url.scheme ?? "?")://\(url.host ?? "")\(first)\(more)"
+}
+#else
+private func trace(_ message: @autoclosure () -> String) {}
+private func describe(_ url: URL?) -> String { "" }
+#endif
 
 /// La ventana donde el usuario inicia sesión en Slack y Galeno consigue el token de
 /// configuración por él (`docs/03` §4e).
@@ -27,11 +46,50 @@ final class SlackSignInModel: NSObject, ObservableObject {
         case chooseWorkspace
         /// Pasó un rato sin token: que el usuario pulse «Generate Token» él mismo.
         case needsClick
+        /// Galeno pulsó «Generate Token» y espera el diálogo.
+        case openingDialog
+        /// Galeno está eligiendo, en el desplegable, el workspace en el que el usuario entró.
+        case pickingWorkspace
+        /// Galeno confirmó y Slack está generando el token.
+        case generating
         case captured
         case loadFailed(String)
+
+        /// En cuál de los 4 pasos de la barra está: iniciar sesión, elegir workspace, generar el
+        /// token, listo.
+        var step: Int {
+            switch self {
+            case .loading, .signIn, .googleSignIn, .loadFailed: 1
+            case .chooseWorkspace, .pickingWorkspace: 2
+            case .working, .openingDialog, .generating, .needsClick: 3
+            case .captured: 4
+            }
+        }
+
+        /// ¿Es el turno del usuario? Entonces la barra no avanza sola: espera.
+        var isUserTurn: Bool {
+            switch self {
+            case .signIn, .googleSignIn, .chooseWorkspace, .needsClick: true
+            default: false
+            }
+        }
+
+        /// ¿Está Galeno haciendo algo ahora mismo? (Y no ha terminado ni falló.)
+        var isGalenoWorking: Bool {
+            switch self {
+            case .loading, .working, .openingDialog, .pickingWorkspace, .generating: true
+            default: false
+            }
+        }
     }
 
-    @Published private(set) var stage: Stage = .loading
+    @Published private(set) var stage: Stage = .loading {
+        didSet { if stage.step > progress { progress = stage.step } }
+    }
+    /// El paso más lejano al que se llegó: la barra de progreso nunca retrocede, aunque la
+    /// ventana vuelva a cargar una página.
+    @Published private(set) var progress = 1
+    static let totalSteps = 4
     @Published private(set) var host = ""
 
     let webView: WKWebView
@@ -45,6 +103,10 @@ final class SlackSignInModel: NSObject, ObservableObject {
     private var redirectsToTokensPage = 0
     private var openedSignIn = false
     private var returnedAfterSignIn = false
+    private var returnsFromAppLink = 0
+    private let freshOnly: Bool
+    /// En qué workspace entró el usuario (por las direcciones por las que pasó la ventana).
+    private(set) var workspaceHint = SlackCapture.WorkspaceHint()
 
     /// Cómo se navega. Las pruebas lo reemplazan para no salir a la red.
     var navigate: (URL) -> Void = { _ in }
@@ -58,6 +120,7 @@ final class SlackSignInModel: NSObject, ObservableObject {
         onToken: @escaping (OAuthSecret) -> Void
     ) {
         self.onToken = onToken
+        self.freshOnly = freshOnly
 
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = dataStore
@@ -87,6 +150,26 @@ final class SlackSignInModel: NSObject, ObservableObject {
 
     func start() {
         navigate(SlackCapture.tokensURL)
+    }
+
+    /// Apunta en qué workspace entró el usuario, si la dirección lo dice, y se lo pasa al script
+    /// para las páginas que se carguen a partir de ahora (el diálogo de generar el token).
+    func learnWorkspace(from url: URL?) {
+        guard let found = SlackCapture.workspaceHint(from: url) else { return }
+        var updated = workspaceHint
+        updated.merge(found)
+        guard updated != workspaceHint else { return }
+        workspaceHint = updated
+        trace("workspace: id=\(updated.teamID ?? "-") slug=\(updated.slug ?? "-")")
+        let controller = webView.configuration.userContentController
+        controller.removeAllUserScripts()
+        controller.addUserScript(
+            WKUserScript(
+                source: SlackCapture.configScript(freshOnly: freshOnly, hint: updated),
+                injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        controller.addUserScript(
+            WKUserScript(
+                source: SlackCapture.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
     }
 
     func goToTokensPage() {
@@ -124,6 +207,7 @@ final class SlackSignInModel: NSObject, ObservableObject {
             onToken(OAuthSecret(token))
         case "page":
             guard !captured, let state = message["state"] as? String else { return }
+            trace("página dice: \(state) en \(describe(webView.url)) \(message["kind"] ?? "") \(message["shape"] ?? "") \(message["html"] ?? "")")
             switch state {
             case "signedOut":
                 // Sin sesión: se abre el inicio de sesión de Slack, una sola vez.
@@ -136,9 +220,19 @@ final class SlackSignInModel: NSObject, ObservableObject {
                 }
             case "chooseWorkspace":
                 stage = .chooseWorkspace
+            case "clickedGenerate":
+                stage = .openingDialog
+                if hintTask == nil { startHintTimer() }
+            case "openingDropdown", "pickedWorkspace":
+                stage = .pickingWorkspace
+                if hintTask == nil { startHintTimer() }
+            case "generating", "copying":
+                stage = .generating
+                if hintTask == nil { startHintTimer() }
             default:
                 // Con sesión y en la página de tokens: Galeno trabaja; si tarda, se avisa.
-                if stage != .needsClick && stage != .chooseWorkspace { stage = .working }
+                let inProgress: [Stage] = [.needsClick, .chooseWorkspace, .openingDialog, .pickingWorkspace, .generating]
+                if !inProgress.contains(stage) { stage = .working }
                 if hintTask == nil { startHintTimer() }
             }
         default:
@@ -146,15 +240,27 @@ final class SlackSignInModel: NSObject, ObservableObject {
         }
     }
 
+    /// Slack intentó abrir su app de escritorio (`slack://`): el usuario ya eligió su workspace.
+    /// No se abre nada; se vuelve a la página de tokens (unas pocas veces, por si no hay sesión
+    /// de verdad y Slack insiste).
+    private func appLinkBlocked() {
+        guard !captured, returnsFromAppLink < 3 else { return }
+        returnsFromAppLink += 1
+        hintTask?.cancel()
+        hintTask = nil
+        stage = .loading
+        goToTokensPage()
+    }
+
     private func locationChanged(_ url: URL?) {
         guard !captured else { return }
         host = url?.host ?? ""
+        trace("ubicación \(describe(url)) → \(SlackSignInLocation.classify(url))")
         switch SlackSignInLocation.classify(url) {
         case .tokensPage:
             // Todavía no se sabe si hay sesión: lo dice el script en cuanto mira la página.
-            if stage != .working && stage != .chooseWorkspace && stage != .needsClick {
-                stage = .loading
-            }
+            let keep: [Stage] = [.working, .openingDialog, .pickingWorkspace, .generating, .chooseWorkspace, .needsClick]
+            if !keep.contains(stage) { stage = .loading }
         case .slackClient:
             // Ya inició sesión pero cayó en el cliente de Slack: se le lleva a la de tokens.
             hintTask?.cancel()
@@ -179,6 +285,7 @@ final class SlackSignInModel: NSObject, ObservableObject {
     /// Apareció la sesión de Slack: tras iniciar sesión, Slack deja al usuario en su página de
     /// workspaces, no en la de tokens. Se le lleva de vuelta, una sola vez.
     func sessionCookieAppeared() {
+        trace("cookie de sesión apareció; en \(describe(webView.url))")
         guard !captured, !returnedAfterSignIn,
             SlackSignInLocation.classify(webView.url) != .tokensPage
         else { return }
@@ -192,7 +299,7 @@ final class SlackSignInModel: NSObject, ObservableObject {
         hintTask = Task { [weak self] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled, let self, !self.captured else { return }
-            if self.stage == .working { self.stage = .needsClick }
+            if self.stage.isGalenoWorking, self.stage != .loading { self.stage = .needsClick }
         }
     }
 
@@ -223,12 +330,22 @@ extension SlackSignInModel: WKNavigationDelegate, WKUIDelegate {
     func webView(
         _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction
     ) async -> WKNavigationActionPolicy {
-        switch SlackCapture.navigationDecision(for: navigationAction.request.url) {
+        let decision = SlackCapture.navigationDecision(for: navigationAction.request.url)
+        // Slack lanza el enlace `slack://` desde un marco oculto: ese sí se mira aunque no sea el
+        // principal. Las demás direcciones, solo las de la página principal.
+        if decision == .slackDeepLink || (navigationAction.targetFrame?.isMainFrame ?? true) {
+            learnWorkspace(from: navigationAction.request.url)
+        }
+        trace("navegación \(describe(navigationAction.request.url)) → \(decision)")
+        switch decision {
         case .allow:
             return .allow
         case .blockedGoogleSignIn:
             // Solo cuenta la página principal: un recurso de Google incrustado no es un login.
             if navigationAction.targetFrame?.isMainFrame ?? true { stage = .googleSignIn }
+            return .cancel
+        case .slackDeepLink:
+            appLinkBlocked()
             return .cancel
         case .blocked:
             return .cancel
@@ -241,9 +358,13 @@ extension SlackSignInModel: WKNavigationDelegate, WKUIDelegate {
         _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
         for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        switch SlackCapture.navigationDecision(for: navigationAction.request.url) {
+        let decision = SlackCapture.navigationDecision(for: navigationAction.request.url)
+        learnWorkspace(from: navigationAction.request.url)
+        trace("ventana nueva \(describe(navigationAction.request.url)) → \(decision)")
+        switch decision {
         case .allow: webView.load(navigationAction.request)
         case .blockedGoogleSignIn: stage = .googleSignIn
+        case .slackDeepLink: appLinkBlocked()
         case .blocked: break
         }
         return nil
@@ -253,6 +374,7 @@ extension SlackSignInModel: WKNavigationDelegate, WKUIDelegate {
         _ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error
     ) {
         // -999 es una navegación cancelada (por otra más nueva o por la política de arriba).
+        trace("falló la carga: \((error as NSError).domain) \((error as NSError).code)")
         guard (error as NSError).code != NSURLErrorCancelled, !captured else { return }
         stage = .loadFailed(error.localizedDescription)
     }
@@ -263,12 +385,13 @@ extension SlackSignInModel: WKNavigationDelegate, WKUIDelegate {
 struct SlackSignInView: View {
     @ObservedObject var model: SlackSignInModel
     let onCancel: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
-            WebViewContainer(webView: model.webView)
+            SlackWebViewContainer(webView: model.webView)
         }
         .background(Color.parchment50)
     }
@@ -292,17 +415,43 @@ struct SlackSignInView: View {
                     .buttonStyle(.bordered)
             }
             HStack(alignment: .firstTextBaseline, spacing: Space.s8) {
-                if model.stage == .loading || model.stage == .working {
-                    ProgressView().controlSize(.small)
-                }
+                activityMark
                 statusText
                     .font(.galenoBody)
                     .foregroundStyle(isWarning ? Color.seal700 : Color.ink900)
                     .fixedSize(horizontal: false, vertical: true)
+                    .contentTransition(.opacity)
+                Spacer(minLength: Space.s8)
+                Text("connect.slack.window.step \(min(model.progress, SlackSignInModel.totalSteps)) \(SlackSignInModel.totalSteps)")
+                    .font(.galenoCaption.smallCaps())
+                    .kerning(1)
+                    .foregroundStyle(Color.ink500)
+                    .fixedSize()
             }
+            .animation(.easeOut(duration: 0.2), value: model.stage)
+            SignInProgressTrack(
+                step: model.progress, total: SlackSignInModel.totalSteps,
+                isGalenoWorking: model.stage.isGalenoWorking, isUserTurn: model.stage.isUserTurn)
         }
         .padding(.horizontal, Space.s16)
         .padding(.vertical, Space.s12)
+    }
+
+    /// A la izquierda del texto: un indicador de quién tiene el turno. Mientras Galeno trabaja, una
+    /// rueda; cuando es el turno del usuario, una mano que late; al terminar, una marca.
+    @ViewBuilder
+    private var activityMark: some View {
+        if model.stage.isGalenoWorking {
+            ProgressView().controlSize(.small)
+        } else if model.stage == .captured {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.moss700)
+        } else if model.stage.isUserTurn {
+            Image(systemName: "hand.point.up.left.fill")
+                .foregroundStyle(isWarning ? Color.seal700 : Color.ink900)
+                .symbolEffect(.pulse, options: .repeating, isActive: !reduceMotion)
+        } else {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.seal700)
+        }
     }
 
     private var isWarning: Bool {
@@ -318,6 +467,9 @@ struct SlackSignInView: View {
         case .signIn: Text("connect.slack.window.signIn")
         case .googleSignIn: Text("connect.slack.window.google")
         case .working: Text("connect.slack.window.working")
+        case .openingDialog: Text("connect.slack.window.openingDialog")
+        case .pickingWorkspace: Text("connect.slack.window.pickingWorkspace")
+        case .generating: Text("connect.slack.window.generating")
         case .chooseWorkspace: Text("connect.slack.window.chooseWorkspace")
         case .needsClick: Text("connect.slack.window.needsClick")
         case .captured: Text("connect.slack.window.captured")
@@ -326,7 +478,63 @@ struct SlackSignInView: View {
     }
 }
 
-private struct WebViewContainer: NSViewRepresentable {
+/// Los 4 pasos de la ventana como una barra: los hechos en tinta, el actual con movimiento si lo
+/// hace Galeno (un destello que corre) o latiendo si espera al usuario, y los que faltan en gris.
+/// Con «reducir movimiento» no se anima nada: el actual queda fijo.
+struct SignInProgressTrack: View {
+    let step: Int
+    let total: Int
+    let isGalenoWorking: Bool
+    let isUserTurn: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        HStack(spacing: Space.s4) {
+            ForEach(1...total, id: \.self) { index in
+                segment(index)
+            }
+        }
+        .frame(height: 3)
+        .accessibilityHidden(true)
+    }
+
+    private func segment(_ index: Int) -> some View {
+        let isCurrent = index == step
+        return Capsule()
+            .fill(index < step ? Color.ink900 : (isCurrent ? Color.ink700.opacity(0.35) : Color.parchment300))
+            .overlay {
+                if isCurrent && !reduceMotion {
+                    if isGalenoWorking { shimmer } else if isUserTurn { pulse }
+                } else if isCurrent {
+                    Capsule().fill(Color.ink700)
+                }
+            }
+            .clipShape(Capsule())
+    }
+
+    /// Un destello de tinta que cruza el tramo de izquierda a derecha.
+    private var shimmer: some View {
+        TimelineView(.animation) { context in
+            GeometryReader { proxy in
+                let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.3) / 1.3
+                Capsule()
+                    .fill(LinearGradient(colors: [.clear, Color.ink900, .clear], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: proxy.size.width * 0.6)
+                    .offset(x: proxy.size.width * 1.6 * phase - proxy.size.width * 0.6)
+            }
+        }
+    }
+
+    /// Late despacio: es el turno del usuario y la barra espera.
+    private var pulse: some View {
+        TimelineView(.animation) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            Capsule().fill(Color.ink700).opacity(0.35 + 0.65 * (0.5 + 0.5 * sin(t * 3)))
+        }
+    }
+}
+
+struct SlackWebViewContainer: NSViewRepresentable {
     let webView: WKWebView
     func makeNSView(context: Context) -> WKWebView { webView }
     func updateNSView(_ nsView: WKWebView, context: Context) {}
@@ -344,18 +552,23 @@ final class SlackSignInWindow: NSObject, NSWindowDelegate {
     private let model: SlackSignInModel
 
     static func present(
-        freshOnly: Bool, language: Language, onToken: @escaping @MainActor (OAuthSecret) -> Void
+        freshOnly: Bool, language: Language, dataStore: WKWebsiteDataStore = .nonPersistent(),
+        onToken: @escaping @MainActor (OAuthSecret) -> Void
     ) {
         current?.close()
-        current = SlackSignInWindow(freshOnly: freshOnly, language: language, onToken: onToken)
+        current = SlackSignInWindow(
+            freshOnly: freshOnly, language: language, dataStore: dataStore, onToken: onToken)
     }
 
-    private init(freshOnly: Bool, language: Language, onToken: @escaping @MainActor (OAuthSecret) -> Void) {
+    private init(
+        freshOnly: Bool, language: Language, dataStore: WKWebsiteDataStore,
+        onToken: @escaping @MainActor (OAuthSecret) -> Void
+    ) {
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         var deliver: ((OAuthSecret) -> Void)?
-        model = SlackSignInModel(freshOnly: freshOnly) { secret in deliver?(secret) }
+        model = SlackSignInModel(freshOnly: freshOnly, dataStore: dataStore) { secret in deliver?(secret) }
         super.init()
 
         deliver = { [weak self] secret in

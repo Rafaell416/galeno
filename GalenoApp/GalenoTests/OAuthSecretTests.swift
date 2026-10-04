@@ -180,7 +180,9 @@ final class ClaudeMCPOwnAppTests: XCTestCase {
 }
 
 private struct StubTerminal: TerminalRunning {
-    func runInTerminal(_ executable: String, arguments: [String], timeout: TimeInterval) async -> ManagedProcess.Result? { nil }
+    func runInTerminal(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> ManagedProcess.Result? { nil }
 }
 
 /// El servicio que crea la app de Slack, con una sesión HTTP falsa: nada habla con Slack.

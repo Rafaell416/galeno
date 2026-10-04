@@ -12,8 +12,8 @@ descripción y memoria del proyecto, varios agentes y regeneración. La app (`Ga
 tiene proyecto Xcode, el esqueleto del wizard y las **pantallas 1–5** (idioma en caliente,
 detección de Claude Code, tu agente, la grilla de herramientas y el sub-wizard de conexión con
 MCP hospedados y WhatsApp); las demás se llenan una a una. **Slack ya crea su propia app
-OAuth y el usuario solo inicia sesión** (ventana de Galeno que captura el token de configuración;
-respaldo: pegarlo a mano); Gmail y Google siguen en "conectar
+OAuth y el usuario solo inicia sesión** (ventana de Galeno que captura el token de configuración);
+Gmail y Google siguen en "conectar
 después" y su automatización de navegador está diseñada, no construida (`docs/03` §4e,
 "Diseño de la conexión con app propia"). Faltan las skills, Sparkle y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.

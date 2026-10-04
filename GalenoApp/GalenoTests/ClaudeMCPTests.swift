@@ -12,13 +12,37 @@ private final class FakeTerminal: TerminalRunning, @unchecked Sendable {
 
     var calls: [String] { lock.withLock { recorded } }
 
-    func runInTerminal(_ executable: String, arguments: [String], timeout: TimeInterval) async -> ManagedProcess.Result? {
-        lock.withLock { recorded.append(([executable] + arguments).joined(separator: " ")) }
+    private var recordedEnvironments: [[String: String]] = []
+    var environments: [[String: String]] { lock.withLock { recordedEnvironments } }
+    /// Qué hace el terminal falso mientras «corre» `claude` (por ejemplo, llamar a `$BROWSER`).
+    var whileRunning: (@Sendable ([String: String]) async -> Void)?
+
+    func runInTerminal(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> ManagedProcess.Result? {
+        lock.withLock {
+            recorded.append(([executable] + arguments).joined(separator: " "))
+            recordedEnvironments.append(environment)
+        }
+        await whileRunning?(environment)
         return result
     }
 }
 
 final class ClaudeMCPTests: XCTestCase {
+    func testReadsTheIssueLineOfAServerThatDoesNotConnect() {
+        let output = """
+            slack:
+              Scope: User config (available in all your projects)
+              Status: ✘ Failed to connect
+              Issue: HTTP 400: App is not enabled for Slack MCP server access.
+              Type: http
+            """
+        XCTAssertEqual(
+            ClaudeMCPClient.parseIssue(output), "HTTP 400: App is not enabled for Slack MCP server access.")
+        XCTAssertNil(ClaudeMCPClient.parseIssue("Status: ✔ Connected"))
+    }
+
     private let claude = "/opt/homebrew/bin/claude"
 
     // MARK: - El estado (`claude mcp get`)

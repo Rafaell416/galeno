@@ -50,6 +50,8 @@ final class SlackTokenPatternTests: XCTestCase {
         XCTAssertEqual(at("https://slack.com/signin"), .slack)
         XCTAssertEqual(at("https://eternals.slack.com/"), .slack)
         XCTAssertEqual(at("https://app.slack.com/client/T123"), .slackClient)
+        // El paso intermedio que completa el inicio de sesión no es «ya entró»: no se interrumpe.
+        XCTAssertEqual(at("https://app.slack.com/t/equipo/login/z-app-1-2-abc"), .slack)
         XCTAssertEqual(at("https://accounts.google.com/o/oauth2/auth"), .google)
         XCTAssertEqual(at("https://empresa.okta.com/login"), .other)
         XCTAssertEqual(SlackSignInLocation.classify(nil), .other)
@@ -94,6 +96,16 @@ final class SlackTokenPatternTests: XCTestCase {
         XCTAssertEqual(SlackCapture.navigationDecision(for: URL(string: "http://slack.com")), .blocked)
     }
 
+    /// Al elegir un workspace, Slack intenta abrir su app de escritorio (`slack://`). Nunca se abre
+    /// (sigue sin poder navegar la ventana), pero se reconoce: es la señal de que ya entró.
+    func testSlackDesktopAppLinksAreNeverFollowedButAreRecognized() {
+        for url in ["slack://open?team=T123", "slack://channel?team=T1&id=C1", "SLACK://open"] {
+            XCTAssertEqual(SlackCapture.navigationDecision(for: URL(string: url)), .slackDeepLink, url)
+            XCTAssertFalse(SlackCapture.allowsNavigation(to: URL(string: url)), url)
+        }
+        XCTAssertEqual(SlackCapture.navigationDecision(for: URL(string: "file:///etc/passwd")), .blocked)
+    }
+
     /// Slack rechaza un WebKit que no dice ser Safari («your browser is not supported»): la
     /// ventana declara la versión del Safari del sistema, como hace Safari.
     func testTheWindowIdentifiesItselfAsTheSystemSafari() {
@@ -135,7 +147,11 @@ private func replica(
     workspaces: [String] = ["Acme Test"], reveal: Reveal = .field, token: String = fakeToken(),
     existing: String? = nil, hasGenerateButton: Bool = true
 ) -> String {
-    let options = workspaces.map { "<option>\($0)</option>" }.joined()
+    // «valor|nombre» da a la opción un valor distinto del nombre, como el identificador del equipo.
+    let options = workspaces.map { entry -> String in
+        let pair = entry.split(separator: "|", maxSplits: 1).map(String.init)
+        return pair.count == 2 ? "<option value=\"\(pair[0])\">\(pair[1])</option>" : "<option>\(entry)</option>"
+    }.joined()
     // El token no va escrito tal cual en la página (se capturaría del propio código, antes de
     // "generarlo"): la página lo arma al vuelo, como una de verdad que lo recibe del servidor.
     let pieces = token.split(separator: ".", maxSplits: 1).map(String.init)
@@ -184,6 +200,47 @@ private func replica(
           };
           document.getElementById('copyRefresh').onclick = function () {
             navigator.clipboard.writeText('xoxe-1-REFRESH_FALSO_' + 'y'.repeat(50));
+          };
+        </script></body></html>
+        """
+}
+
+/// El diálogo de verdad de Slack: no es un `<select>` sino un desplegable propio (un `div` con rol
+/// `combobox` que, al pulsarlo, muestra una lista de opciones), como el de la pantalla real.
+private func dropdownReplica(workspaces: [(id: String, name: String)], token: String = fakeToken()) -> String {
+    let pieces = token.split(separator: ".", maxSplits: 1).map(String.init)
+    let items = workspaces.map {
+        "<li role=\"option\" data-team-id=\"\($0.id)\" tabindex=\"-1\">\($0.name)</li>"
+    }.joined()
+    return """
+        <!doctype html><html><head><meta charset="utf-8"><title>Slack API: Applications</title></head><body>
+        <h1>Your Apps</h1><h2>Your App Configuration Tokens</h2>
+        <button id="gen">Generate Token</button>
+        <div id="row" hidden><span id="slot"></span> <button id="copyAccess">Copy</button></div>
+        <dialog id="dlg"><h3>Generate Your App Configuration Token</h3><p>Workspace</p>
+          <div id="combo" role="combobox" aria-expanded="false" tabindex="0">Select a workspace</div>
+          <ul id="list" role="listbox" hidden>\(items)</ul>
+          <button id="close">Close</button> <button id="go" disabled>Generate</button>
+        </dialog>
+        <script>
+          var TOKEN = ["\(pieces[0])", "\(pieces[1])"].join(".");
+          var dlg = document.getElementById('dlg'), combo = document.getElementById('combo'),
+              list = document.getElementById('list'), go = document.getElementById('go');
+          document.getElementById('gen').onclick = function () { dlg.showModal(); };
+          // Solo reacciona a la secuencia completa de un clic de verdad (mousedown y luego click).
+          var downSeen = false;
+          combo.onmousedown = function () { downSeen = true; };
+          combo.onclick = function () { if (!downSeen) return; list.hidden = !list.hidden; };
+          Array.prototype.forEach.call(list.children, function (li) {
+            li.onclick = function () {
+              combo.textContent = li.textContent; list.hidden = true; go.disabled = false;
+              window.chosenTeam = li.getAttribute('data-team-id');
+            };
+          });
+          go.onclick = function () {
+            dlg.close();
+            document.getElementById('row').hidden = false;
+            document.getElementById('slot').innerHTML = '<input readonly value="' + TOKEN + '">';
           };
         </script></body></html>
         """
@@ -311,6 +368,94 @@ final class SlackSignInWebViewTests: XCTestCase {
         let done = await waitForCapture()
         XCTAssertTrue(done, "etapa: \(model.stage)")
         XCTAssertEqual(capturedValue, fakeToken())
+    }
+
+    // MARK: El workspace en el que el usuario ya entró no se vuelve a preguntar
+
+    func testTheWorkspaceTheUserSignedIntoIsChosenByItsTeamID() async {
+        let model = makeModel()
+        model.learnWorkspace(from: URL(string: "slack://T0FAKETEAM1/magic-login/codigo-de-un-solo-uso"))
+        load(replica(workspaces: ["T111AAAA|Acme Test", "T0FAKETEAM1|Acme Workspace", "T222BBBB|Otro"], reveal: .field), into: model)
+
+        let done = await waitForCapture()
+
+        XCTAssertTrue(done, "etapa: \(model.stage)")
+        XCTAssertNotEqual(model.stage, .chooseWorkspace)
+    }
+
+    func testTheWorkspaceTheUserSignedIntoIsChosenByItsName() async {
+        let model = makeModel()
+        model.learnWorkspace(from: URL(string: "https://app.slack.com/t/acme-workspace/login/z-app-1-2-abc"))
+        load(replica(workspaces: ["Acme Test", "Acme Workspace", "Otro"], reveal: .field), into: model)
+
+        let done = await waitForCapture()
+
+        XCTAssertTrue(done, "etapa: \(model.stage)")
+    }
+
+    /// Si lo que sabemos no coincide con ninguna opción, elige el usuario: no se adivina un workspace.
+    func testWithNoMatchItStillAsksTheUser() async {
+        let model = makeModel()
+        model.learnWorkspace(from: URL(string: "slack://T999ZZZZ9/magic-login/x"))
+        load(replica(workspaces: ["T111AAAA|Acme Test", "T222BBBB|Otro"], reveal: .field), into: model)
+
+        let asked = await waitUntil(timeout: 15) { model.stage == .chooseWorkspace }
+
+        XCTAssertTrue(asked, "etapa: \(model.stage)")
+        XCTAssertTrue(captured.isEmpty)
+    }
+
+    /// El desplegable propio de Slack: Galeno lo abre, elige el workspace en el que el usuario entró
+    /// (por el identificador que lleva la opción) y sigue solo.
+    func testItOpensSlacksCustomDropdownAndPicksTheWorkspaceTheUserSignedInto() async throws {
+        let model = makeModel()
+        model.learnWorkspace(from: URL(string: "slack://T0FAKETEAM1/magic-login/x"))
+        load(
+            dropdownReplica(workspaces: [("T111AAAA", "Acme Test"), ("T0FAKETEAM1", "Acme Co"), ("T222BBBB", "Otro")]),
+            into: model)
+
+        let done = await waitForCapture()
+
+        XCTAssertTrue(done, "etapa: \(model.stage)")
+        let chosen = try await model.webView.evaluateJavaScript("window.chosenTeam") as? String
+        XCTAssertEqual(chosen, "T0FAKETEAM1", "eligió el workspace correcto, no el primero")
+    }
+
+    func testTheCustomDropdownStillAsksTheUserWhenNothingMatches() async throws {
+        let model = makeModel()
+        model.learnWorkspace(from: URL(string: "slack://T999ZZZZ9/magic-login/x"))
+        load(dropdownReplica(workspaces: [("T111AAAA", "Acme Test"), ("T222BBBB", "Otro")]), into: model)
+
+        let asked = await waitUntil(timeout: 15) { model.stage == .chooseWorkspace }
+
+        XCTAssertTrue(asked, "etapa: \(model.stage)")
+        XCTAssertTrue(captured.isEmpty, "no se adivina un workspace")
+        let chosen = try await model.webView.evaluateJavaScript("window.chosenTeam") as? String
+        XCTAssertNil(chosen)
+    }
+
+    func testWorkspaceHintsComeOnlyFromRecognisedAddresses() {
+        let hint = { (url: String) in SlackCapture.workspaceHint(from: URL(string: url)) }
+        XCTAssertEqual(hint("slack://T0FAKETEAM1/magic-login/x"), .init(teamID: "T0FAKETEAM1", slug: nil))
+        XCTAssertEqual(hint("https://app.slack.com/t/acme-workspace/login/z-app-1"), .init(teamID: nil, slug: "acme-workspace"))
+        XCTAssertEqual(hint("https://app.slack.com/client/T0FAKETEAM1/C1"), .init(teamID: "T0FAKETEAM1", slug: nil))
+        XCTAssertEqual(hint("https://acme-workspace.slack.com/ssb/redirect"), .init(teamID: nil, slug: "acme-workspace"))
+        // Páginas de Slack que no son un workspace, esquemas ajenos y valores raros: nada.
+        XCTAssertNil(hint("https://api.slack.com/apps"))
+        XCTAssertNil(hint("https://slack.com/signin"))
+        XCTAssertNil(hint("https://edgeapi.slack.com/x"))
+        XCTAssertNil(hint("https://evil.example.com/t/acme-workspace/login"))
+        XCTAssertNil(hint("slack://open"))
+        XCTAssertNil(hint("https://app.slack.com/t/Acme'Workspace/login"))
+    }
+
+    func testTheHintReachesTheScriptWithoutBeingAbleToBreakIt() {
+        let script = SlackCapture.configScript(
+            freshOnly: true, hint: .init(teamID: "T0FAKETEAM1", slug: "acme-workspace"))
+        XCTAssertEqual(
+            script, "window.__galenoConfig = { freshOnly: true, teamID: 'T0FAKETEAM1', slug: 'acme-workspace' };")
+        XCTAssertEqual(
+            SlackCapture.configScript(freshOnly: false), "window.__galenoConfig = { freshOnly: false };")
     }
 
     /// Si la página nunca muestra el token entero, no se captura nada y se le pide al usuario que

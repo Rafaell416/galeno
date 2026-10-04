@@ -65,16 +65,18 @@ final class SlackOwnAppFlowTests: XCTestCase {
         XCTAssertTrue(slack.calls.isEmpty, "no se vuelve a crear la app")
     }
 
-    /// En tu máquina ya existe un `slack` de `npx`: ni se pisa ni se da por conectado.
-    func testAServerWithTheSameNameButOtherAddressIsNotOverwrittenNorTrusted() async {
-        let flow = makeFlow(mcp: FakeMCP(otherServers: ["slack"]))
+    /// En tu máquina ya existe un `slack` de `npx`: ni se pisa, ni se borra, ni se da por conectado:
+    /// se le pregunta al usuario.
+    func testAServerWithTheSameNameButOtherAddressIsNotOverwrittenNorTrustedNorDeleted() async {
+        let mcp = FakeMCP(otherServers: ["slack"])
+        let flow = makeFlow(mcp: mcp)
         defer { flow.cancelAll() }
 
-        let failed = await waitFor(flow, .failed(.nameInUse))
+        let asking = await waitFor(flow, .nameConflict(server: "slack"))
 
-        XCTAssertTrue(failed, "\(flow.phase)")
-        XCTAssertEqual(flow.failureDetail, "claude mcp remove slack -s user")
+        XCTAssertTrue(asking, "\(flow.phase)")
         XCTAssertTrue(recordedNothingConnected)
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("remove") || $0.hasPrefix("register") })
     }
 
     private var recordedNothingConnected: Bool { !statuses.contains { $0.1 == .connected } }
@@ -105,6 +107,72 @@ final class SlackOwnAppFlowTests: XCTestCase {
 
         XCTAssertEqual(clientIDs.map(\.1), ["1111.2222"], "el client_id público se conserva")
         XCTAssertTrue(statuses.contains { $0.0 == .slack && $0.1 == .connected })
+    }
+
+    // MARK: - Autorizado no es lo mismo que conectado
+
+    private static let notEnabledIssue =
+        #"HTTP 400: Error POSTing to endpoint: {"error":{"message":"App is not enabled for Slack MCP server access. Please enable it here: https:\/\/api.slack.com\/apps\/A0FAKEAPP01\/app-assistant"}}"#
+
+    /// Slack aceptó el inicio de sesión pero la app no tiene el MCP activado (pasó de verdad): no se
+    /// da por conectado, y se le dice dónde activarlo.
+    func testAuthorizingIsNotEnoughWhenSlackRefusesTheConnection() async {
+        let mcp = FakeMCP(issues: ["slack": Self.notEnabledIssue])
+        let flow = makeFlow(mcp: mcp)
+        defer { flow.cancelAll() }
+        _ = await waitFor(flow, .slackToken)
+
+        flow.submitSlackToken("xoxe.xoxp-token-de-prueba")
+        let failed = await waitFor(flow, .failed(.slackMCPNotEnabled))
+
+        XCTAssertTrue(failed, "\(flow.phase)")
+        XCTAssertEqual(flow.failureDetail, "https://api.slack.com/apps/A0FAKEAPP01/app-assistant")
+        XCTAssertFalse(statuses.contains { $0.0 == .slack && $0.1 == .connected }, "no se marcó como conectada")
+    }
+
+    func testOtherReasonsForNotConnectingAreReportedWithTheirText() async {
+        let mcp = FakeMCP(issues: ["slack": "HTTP 500: algo raro"])
+        let flow = makeFlow(mcp: mcp)
+        defer { flow.cancelAll() }
+        _ = await waitFor(flow, .slackToken)
+
+        flow.submitSlackToken("xoxe.xoxp-token-de-prueba")
+        let failed = await waitFor(flow, .failed(.stillNotConnected))
+
+        XCTAssertTrue(failed, "\(flow.phase)")
+        XCTAssertEqual(flow.failureDetail, "HTTP 500: algo raro")
+    }
+
+    func testOnlyTheAppIdentifierIsTakenFromSlacksMessage() {
+        let url = ConnectFlow.slackMCPSettingsURL(fromIssue: Self.notEnabledIssue)
+        XCTAssertEqual(url?.absoluteString, "https://api.slack.com/apps/A0FAKEAPP01/app-assistant")
+        // Otro error, o una dirección que no es de Slack: nada que abrir.
+        XCTAssertNil(ConnectFlow.slackMCPSettingsURL(fromIssue: "HTTP 500"))
+        XCTAssertNil(ConnectFlow.slackMCPSettingsURL(fromIssue: nil))
+        XCTAssertNil(ConnectFlow.slackMCPSettingsURL(
+            fromIssue: "App is not enabled for Slack MCP server access: https://evil.example.com/apps/A0FAKEAPP01/app-assistant"))
+    }
+
+    /// Al final se le lleva a la página de su app para que ponga el icono y la descripción.
+    func testTheCreatedAppsIdentifierIsKeptToSendTheUserToItsSettings() async {
+        let flow = makeFlow()
+        defer { flow.cancelAll() }
+        _ = await waitFor(flow, .slackToken)
+        XCTAssertNil(flow.slackAppID)
+
+        flow.submitSlackToken("xoxe.xoxp-token-de-prueba")
+        _ = await waitFor(flow, .succeeded(alreadyConnected: false))
+
+        XCTAssertEqual(flow.slackAppID, "A0TESTAPP01")
+    }
+
+    func testTheSettingsLinkOnlyUsesAWellFormedAppIdentifier() {
+        XCTAssertEqual(
+            SlackAppDetailsCard.pageURL(appID: "A0FAKEAPP01").absoluteString,
+            "https://api.slack.com/apps/A0FAKEAPP01/general")
+        for bad in [nil, "", "x", "../../evil", "A0FAKE/evil", "a0fakeapp01"] as [String?] {
+            XCTAssertEqual(SlackAppDetailsCard.pageURL(appID: bad).absoluteString, "https://api.slack.com/apps", "\(bad ?? "nil")")
+        }
     }
 
     func testTheSecretsAreWipedAndNothingKeepsThem() async throws {

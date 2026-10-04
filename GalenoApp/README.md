@@ -62,8 +62,9 @@ O abrir `Galeno.xcodeproj` en Xcode y ⌘R con destino **My Mac**.
 - El idioma cambia en caliente con `\.locale`: no usar `String(localized:)`.
 - En Debug, argumentos de arranque: `-galeno-claude-missing` finge que `claude` no está
   instalado; `-galeno-fake-connect` pone conectores con guion en el paso 5 (éxito, dato tardío,
-  un fallo en Fathom, QR que rota, sincronización) sin tocar cuentas; `-galeno-bridge-path <ruta>`
-  usa otro binario del bridge.
+  un fallo en Fathom, QR que rota, sincronización) sin tocar cuentas; con él,
+  `-galeno-fake-name-clash` deja `notion` y `slack` ocupados por otro servidor del usuario para ver
+  la pregunta de qué hacer; `-galeno-bridge-path <ruta>` usa otro binario del bridge.
 - El bridge se compila aparte y una fase de Run Script lo copia a `Contents/Resources`; sin él
   la compilación avisa (Debug) o falla (Release).
 - Diseño: nativo primero. Ver `docs/04-design-system.md`.

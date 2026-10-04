@@ -66,6 +66,9 @@ nonisolated struct OAuthClientRegistration: Sendable {
     /// con la URL de redirección registrada en la app.
     var callbackPort: Int?
     var secret: OAuthSecret?
+    /// El identificador de la app (`A0123ABCD`), público. Solo sirve para llevar al usuario a la
+    /// página de su app; no es parte del registro en Claude Code.
+    var appID: String?
 
     /// Un `client_id` es un identificador público, pero se pasa como argumento: se rechaza
     /// lo que pudiera leerse como una opción (`--algo`) o traiga espacios y comillas.

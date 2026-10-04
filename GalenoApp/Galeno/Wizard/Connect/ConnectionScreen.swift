@@ -51,10 +51,20 @@ struct ConnectionScreen: View {
                 header(lit: false)
                 FailurePanel(
                     failure: failure, detail: flow.failureDetail, agentName: wizard.agentName,
-                    language: wizard.language)
+                    language: wizard.language, onRecreateSlackApp: { flow.recreateSlackApp() })
             }
         case .slackToken:
             SlackTokenPanel(flow: flow, name: name)
+        case .nameConflict(let server):
+            VStack(spacing: Space.s16) {
+                header(lit: false)
+                NameConflictPanel(flow: flow, server: server)
+            }
+        case .confirmingRemoval(let server):
+            VStack(spacing: Space.s16) {
+                header(lit: false)
+                RemovalConfirmPanel(flow: flow, server: server)
+            }
         case .needsOwnApp:
             VStack(spacing: Space.s16) {
                 header(lit: false)
@@ -235,6 +245,7 @@ private struct WorkingPanel: View {
         case .installingSync: "connect.step.installingSync"
         case .validatingToken: "connect.step.validatingToken"
         case .creatingSlackApp: "connect.step.creatingSlackApp"
+        case .removingServer: "connect.step.removingServer"
         }
     }
 }
@@ -244,6 +255,7 @@ private struct FailurePanel: View {
     let detail: String
     let agentName: String
     let language: Language
+    var onRecreateSlackApp: () -> Void = {}
 
     var body: some View {
         NoticePanel(kind: .seal) {
@@ -251,8 +263,14 @@ private struct FailurePanel: View {
                 .font(.galenoBody.weight(.semibold))
                 .foregroundStyle(Color.ink900)
                 .fixedSize(horizontal: false, vertical: true)
-            if failure == .nameInUse, !detail.isEmpty {
-                // Para este fallo el detalle es el comando que lo arregla.
+            if failure == .slackAppMissing {
+                Button("connect.slack.recreate", action: onRecreateSlackApp)
+                    .buttonStyle(.bordered)
+            } else if failure == .slackMCPNotEnabled, let url = URL(string: detail) {
+                Button("connect.slack.openAppPage") { NSWorkspace.shared.open(url) }
+                    .buttonStyle(.bordered)
+            } else if failure == .nameInUse, !detail.isEmpty {
+                // Para este fallo el detalle es el nombre que está ocupado.
                 Text(verbatim: detail)
                     .font(.system(.callout, design: .monospaced))
                     .foregroundStyle(Color.ink900)
@@ -298,6 +316,69 @@ private struct FailurePanel: View {
         case .slackManifest: "connect.failure.slackManifest"
         case .slackUnreachable: "connect.failure.slackUnreachable"
         case .nameInUse: "connect.failure.nameInUse"
+        case .couldNotRemove: "connect.failure.couldNotRemove"
+        case .slackMCPNotEnabled: "connect.failure.slackMCPNotEnabled"
+        case .slackAppMissing: "connect.failure.slackAppMissing"
+        }
+    }
+}
+
+// MARK: - Un servidor con el mismo nombre
+
+/// Ya hay otro servidor con el nombre normal en Claude Code. Lo predeterminado es **no tocarlo**:
+/// Galeno registra el suyo con otro nombre. Borrarlo es una opción aparte y pide confirmación.
+private struct NameConflictPanel: View {
+    @ObservedObject var flow: ConnectFlow
+    let server: String
+
+    var body: some View {
+        NoticePanel(kind: .seal) {
+            Text("connect.nameConflict.title \(server)")
+                .font(.galenoBody.weight(.semibold))
+                .foregroundStyle(Color.ink900)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("connect.nameConflict.body")
+                .font(.galenoBody)
+                .foregroundStyle(Color.ink700)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Space.s12) {
+                PrimaryButton("connect.nameConflict.useOther") { flow.useAlternateName() }
+                Button("connect.nameConflict.remove") { flow.askToRemoveConflictingServer() }
+                    .buttonStyle(.bordered)
+            }
+            .controlSize(.large)
+            .padding(.top, Space.s4)
+        }
+    }
+}
+
+/// La confirmación de borrar: dice qué se borra y qué no, y el botón destructivo no es el
+/// predeterminado (Enter no borra).
+private struct RemovalConfirmPanel: View {
+    @ObservedObject var flow: ConnectFlow
+    let server: String
+
+    var body: some View {
+        NoticePanel(kind: .seal) {
+            Text("connect.removal.title \(server)")
+                .font(.galenoBody.weight(.semibold))
+                .foregroundStyle(Color.ink900)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("connect.removal.body")
+                .font(.galenoBody)
+                .foregroundStyle(Color.ink700)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Space.s12) {
+                Button("connect.removal.cancel") { flow.cancelRemoval() }
+                    .buttonStyle(.bordered)
+                    .keyboardShortcut(.defaultAction)
+                Button("connect.removal.confirm \(server)", role: .destructive) {
+                    flow.removeConflictingServer()
+                }
+                .buttonStyle(.bordered)
+            }
+            .controlSize(.large)
+            .padding(.top, Space.s4)
         }
     }
 }

@@ -9,17 +9,22 @@ import GalenoCore
 ///
 /// El guion: `fathom` falla la primera vez (tiempo agotado) y funciona al reintentar;
 /// `jira` encuentra "10+" y tarda en contarlo; `notion` no lleva dato; las demás encuentran
-/// un número.
+/// un número. Con `-galeno-fake-name-clash`, `notion` y `slack` ya están ocupados por otro
+/// servidor del usuario (hasta que "se borren"), para ver la pregunta de qué hacer.
 nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
     private let lock = NSLock()
     private var registered: Set<String> = []
     private var connected: Set<String> = []
     private var failedOnce: Set<String> = []
+    private var occupied: Set<String>
+
+    init(occupiedByOthers: Set<String> = []) { occupied = occupiedByOthers }
 
     func status(of server: String, expectingURL: String?) async -> MCPStatus {
         try? await Task.sleep(for: .milliseconds(400))
         return lock.withLock {
-            connected.contains(server) ? .connected : (registered.contains(server) ? .needsAuthentication : .notRegistered)
+            if occupied.contains(server) { return .differentServer }
+            return connected.contains(server) ? .connected : (registered.contains(server) ? .needsAuthentication : .notRegistered)
         }
     }
 
@@ -28,7 +33,12 @@ nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
         lock.withLock { _ = registered.insert(server) }
     }
 
-    func login(server: String) async throws {
+    func remove(server: String) async throws {
+        try? await Task.sleep(for: .milliseconds(500))
+        lock.withLock { _ = occupied.remove(server) }
+    }
+
+    func login(server: String, openAuthorization: AuthorizationOpener?) async throws {
         try? await Task.sleep(for: .seconds(2.5))
         let shouldFail = lock.withLock { server == "fathom" && failedOnce.insert(server).inserted }
         if shouldFail { throw MCPConnectError.loginTimedOut }
@@ -115,14 +125,18 @@ nonisolated struct ScriptedSlackSetup: SlackAppSetting {
         try? await Task.sleep(for: .milliseconds(900))
         return OAuthClientRegistration(
             clientID: "1111111111111.2222222222222", callbackPort: SlackOAuth.callbackPort,
-            secret: OAuthSecret("secreto-falso-de-depuracion"))
+            secret: OAuthSecret("secreto-falso-de-depuracion"), appID: "A0DEBUG0001")
     }
 }
 
 extension ConnectServices {
     static func scripted() -> ConnectServices {
         ConnectServices(
-            makeMCP: { _ in ScriptedMCP() }, whatsapp: ScriptedWhatsApp(), slack: ScriptedSlackSetup())
+            makeMCP: { _ in
+                ScriptedMCP(
+                    occupiedByOthers: ProcessInfo.processInfo.arguments.contains("-galeno-fake-name-clash")
+                        ? ["notion", "slack"] : [])
+            }, whatsapp: ScriptedWhatsApp(), slack: ScriptedSlackSetup())
     }
 }
 #endif

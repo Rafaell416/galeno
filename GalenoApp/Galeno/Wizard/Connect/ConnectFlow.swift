@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import GalenoCore
+import WebKit
 
 /// A qué servidor o servidores se conecta una herramienta (sale del catálogo del motor).
 struct ConnectTarget: Equatable {
@@ -26,8 +27,12 @@ struct ConnectTarget: Equatable {
 
     /// `nil` para las herramientas que no se conectan con `claude mcp add`: WhatsApp
     /// (su propio bridge) y Google Meet (se lee por Drive y no tiene servidor).
-    init?(tool: Tool) {
-        let servers = MCPServerCatalog.definitions(for: tool, whatsAppBridgePath: "")
+    ///
+    /// `namePrefix`: el nombre alternativo (`galeno-`) cuando el normal ya lo ocupa otro servidor
+    /// del usuario. Es el mismo que usa el motor para `.mcp.json` y los permisos.
+    init?(tool: Tool, namePrefix: String? = nil) {
+        let connection = ToolConnection(tool: tool, serverNamePrefix: namePrefix)
+        let servers = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
             .compactMap { definition -> Server? in
                 guard case .http(let url) = definition.transport else { return nil }
                 return Server(name: definition.serverName, url: url)
@@ -73,6 +78,7 @@ final class ConnectFlow: ObservableObject {
         case installingSync
         case validatingToken
         case creatingSlackApp
+        case removingServer
     }
 
     enum Failure: Equatable {
@@ -89,8 +95,15 @@ final class ConnectFlow: ObservableObject {
         case slackNotAllowed
         case slackManifest
         case slackUnreachable
-        /// Ya hay un servidor con ese nombre en Claude Code, pero es otro.
+        /// Ni siquiera el nombre alternativo está libre: ya hay otro servidor con él.
         case nameInUse
+        /// El usuario pidió borrar el servidor que estorbaba y Claude Code no pudo.
+        case couldNotRemove
+        /// Slack ya no conoce la app a la que apunta el registro (alguien la borró).
+        case slackAppMissing
+        /// Autorizó, pero Slack dice que la app no tiene activado el servidor MCP. El detalle es la
+        /// página donde se activa (`api.slack.com/apps/<id>/app-assistant`).
+        case slackMCPNotEnabled
     }
 
     enum Phase: Equatable {
@@ -107,6 +120,10 @@ final class ConnectFlow: ObservableObject {
         case slackToken
         /// Necesita la app OAuth del cliente: todavía no se puede conectar aquí.
         case needsOwnApp
+        /// Ya hay otro servidor con el nombre normal. Se le pregunta al usuario qué prefiere.
+        case nameConflict(server: String)
+        /// Eligió borrarlo: se le dice qué se borra y se confirma. Nunca se borra sin esto.
+        case confirmingRemoval(server: String)
     }
 
     /// Lo que se cuenta de cada herramienta, para el mensaje de éxito y los totales.
@@ -148,7 +165,7 @@ final class ConnectFlow: ObservableObject {
     var canReturnToToolSelection: Bool {
         guard position == 0, connectedCount == 0 else { return false }
         switch phase {
-        case .ready, .failed, .needsOwnApp, .slackToken: return true
+        case .ready, .failed, .needsOwnApp, .slackToken, .nameConflict, .confirmingRemoval: return true
         default: return false
         }
     }
@@ -189,6 +206,17 @@ final class ConnectFlow: ObservableObject {
     private let timing: Timing
     private let onStatus: @MainActor (Tool, ConnectionStatus) -> Void
     private let onClientID: @MainActor (Tool, String) -> Void
+    private let onNamePrefix: @MainActor (Tool, String?) -> Void
+    private let authorizer: (any SlackAuthorizationPresenting)?
+    private let language: @MainActor () -> Language
+    /// La sesión efímera de Slack, compartida entre la ventana de inicio de sesión y la de
+    /// autorización. Se descarta cuando termina la conexión.
+    let webSession = SlackWebSession()
+    /// El identificador (público) de la app de Slack que se acaba de crear, para llevar al usuario
+    /// a su configuración al final. `nil` si no se creó en esta sesión.
+    @Published private(set) var slackAppID: String?
+    /// Las herramientas que se registran con el nombre alternativo (`galeno-slack`).
+    private var namePrefixes: [Tool: String]
 
     /// Slack rechazó el último token: la próxima vez hay que generar uno nuevo, no reusar el que
     /// siga a la vista en la página.
@@ -214,8 +242,14 @@ final class ConnectFlow: ObservableObject {
         timing: Timing = Timing(),
         sleep: @escaping Sleeper = { _ = try? await Task.sleep(for: $0) },
         onStatus: @escaping @MainActor (Tool, ConnectionStatus) -> Void = { _, _ in },
-        onClientID: @escaping @MainActor (Tool, String) -> Void = { _, _ in }
+        onClientID: @escaping @MainActor (Tool, String) -> Void = { _, _ in },
+        namePrefixes: [Tool: String] = [:],
+        onNamePrefix: @escaping @MainActor (Tool, String?) -> Void = { _, _ in },
+        authorizer: (any SlackAuthorizationPresenting)? = nil,
+        language: @escaping @MainActor () -> Language = { .spanish }
     ) {
+        self.authorizer = authorizer
+        self.language = language
         let connectionTools = ConnectTarget.connectionTools(from: tools)
         self.tools = connectionTools
         self.statuses = statuses
@@ -228,6 +262,8 @@ final class ConnectFlow: ObservableObject {
         self.sleep = sleep
         self.onStatus = onStatus
         self.onClientID = onClientID
+        self.namePrefixes = namePrefixes
+        self.onNamePrefix = onNamePrefix
         self.screens = Self.makeSequence(connectionTools)
 
         // Si se vuelve a este paso, se sigue por la primera sin resolver.
@@ -272,7 +308,7 @@ final class ConnectFlow: ObservableObject {
             if statuses[tool] == .connected {
                 phase = .succeeded(alreadyConnected: true)
                 scheduleAdvance(after: timing.successHold, waitingFor: nil)
-            } else if let target = ConnectTarget(tool: tool), target.requiresOwnOAuthApp {
+            } else if let target = target(for: tool), target.requiresOwnOAuthApp {
                 if target.supportsOwnApp {
                     // Puede que la app ya exista de una vez anterior: se mira antes de pedir
                     // un token nuevo (y de crear una segunda app).
@@ -308,7 +344,7 @@ final class ConnectFlow: ObservableObject {
         workTask = Task { [weak self] in
             if tool == .whatsapp {
                 await self?.linkWhatsApp()
-            } else if let target = ConnectTarget(tool: tool) {
+            } else if let target = self?.target(for: tool) {
                 await self?.connectHosted(target)
             }
         }
@@ -331,6 +367,8 @@ final class ConnectFlow: ObservableObject {
     func skip() {
         guard case .connection(let tool) = screen else { return }
         cancelWork()
+        authorizer?.dismissAuthorization()
+        webSession.reset()
         setStatus(tool, .skipped)
         advance()
     }
@@ -357,9 +395,8 @@ final class ConnectFlow: ObservableObject {
             return
         case .differentServer:
             // Ya hay un servidor con ese nombre que no es el nuestro (por ejemplo uno local de
-            // `npx`): ni se pisa ni se da por conectado.
-            failureDetail = "claude mcp remove \(server.name) -s user"
-            fail(.nameInUse)
+            // `npx`): ni se pisa, ni se borra, ni se da por conectado.
+            resolveNameConflict(target, server: server)
             return
         case .notRegistered:
             // Una herramienta con app OAuth propia no se registra a ciegas: sin su app no hay
@@ -383,8 +420,14 @@ final class ConnectFlow: ObservableObject {
         }
 
         update(.working(.waitingForBrowser))
+        // Con la app propia de Slack, la autorización se muestra en la ventana de Galeno (con la
+        // sesión que ya tiene) y se cierra sola; las demás herramientas usan el navegador del usuario.
+        let opener: AuthorizationOpener? =
+            (target.requiresOwnOAuthApp && authorizer != nil)
+            ? { @MainActor [weak self] url in self?.showAuthorization(url) ?? false } : nil
+        defer { authorizer?.dismissAuthorization() }
         do {
-            try await mcp.login(server: server.name)
+            try await mcp.login(server: server.name, openAuthorization: opener)
         } catch let error as MCPConnectError {
             if Task.isCancelled || error == .cancelled { return }
             switch error {
@@ -401,7 +444,167 @@ final class ConnectFlow: ObservableObject {
             return
         }
         if Task.isCancelled { return }
+
+        // Con una app propia, «autorizado» no basta: Slack puede aceptar el inicio de sesión y
+        // rechazar luego la conexión (la app sin el MCP activado). Se comprueba antes de decir
+        // que está conectado.
+        if target.requiresOwnOAuthApp {
+            update(.working(.checking))
+            if await mcp.status(of: server.name) != .connected {
+                if Task.isCancelled { return }
+                let issue = await mcp.issue(of: server.name)
+                if let url = Self.slackMCPSettingsURL(fromIssue: issue) {
+                    failureDetail = url.absoluteString
+                    fail(.slackMCPNotEnabled)
+                } else {
+                    failureDetail = issue ?? ""
+                    fail(.stillNotConnected)
+                }
+                return
+            }
+            if Task.isCancelled { return }
+        }
         finishHosted(target, alreadyConnected: false)
+    }
+
+    /// Slack dice, en el error, dónde activar el MCP: `…/apps/A0123ABCD/app-assistant`. Se
+    /// reconstruye la dirección solo con el identificador de la app: nunca se abre una dirección
+    /// que venga tal cual del texto.
+    nonisolated static func slackMCPSettingsURL(fromIssue issue: String?) -> URL? {
+        guard let issue, issue.lowercased().contains("not enabled for slack mcp") else { return nil }
+        let cleaned = issue.replacingOccurrences(of: "\\", with: "")
+        guard let range = cleaned.range(of: #"api\.slack\.com/apps/(A[A-Z0-9]{5,})/app-assistant"#, options: .regularExpression)
+        else { return nil }
+        let path = cleaned[range]
+        guard let id = path.split(separator: "/").dropFirst(2).first else { return nil }
+        return URL(string: "https://api.slack.com/apps/\(id)/app-assistant")
+    }
+
+    // MARK: - La autorización de Slack en la ventana de Galeno
+
+    /// `claude` quiere abrir la página de autorización: se muestra aquí, solo si es de Slack.
+    /// `false` = no se mostró, y se abre en el navegador del sistema como siempre.
+    private func showAuthorization(_ url: URL) -> Bool {
+        guard let authorizer, SlackAuthorization.isSlackAuthorizationURL(url) else { return false }
+        authorizer.presentAuthorization(
+            url: url, dataStore: webSession.dataStore, language: language(),
+            onCancel: { [weak self] in self?.authorizationWindowClosedByUser() },
+            onAppNotFound: { [weak self] in self?.slackAppIsGone() })
+        return true
+    }
+
+    /// Slack contestó «Invalid client_id»: la app ya no existe. Se deja de esperar la autorización
+    /// y se le explica al usuario, con la opción de rehacerla.
+    private func slackAppIsGone() {
+        guard case .working(.waitingForBrowser) = phase else { return }
+        cancelWork()
+        failureDetail = ""
+        slackAppRegistered = false
+        phase = .failed(.slackAppMissing)
+    }
+
+    /// «Crear la app de nuevo»: el usuario lo pidió desde el aviso. Quita de Claude Code el
+    /// registro que apunta a la app borrada (el que Galeno creó) y vuelve a empezar por el token.
+    func recreateSlackApp() {
+        guard case .failed(.slackAppMissing) = phase, let target = target(for: .slack),
+            let server = target.servers.first
+        else { return }
+        cancelWork()
+        failureDetail = ""
+        phase = .working(.removingServer)
+        workTask = Task { [weak self] in
+            guard let self else { return }
+            do { try await self.mcp.remove(server: server.name) } catch {
+                if Task.isCancelled { return }
+                if let error = error as? MCPConnectError, case .removeFailed(let detail) = error {
+                    self.failureDetail = detail
+                }
+                self.fail(.couldNotRemove)
+                return
+            }
+            if Task.isCancelled { return }
+            self.slackAppID = nil
+            self.restartCurrentConnection(.slack)
+        }
+    }
+
+    /// El usuario cerró la ventana de autorización sin terminar: no se espera a que venza el tiempo.
+    private func authorizationWindowClosedByUser() {
+        guard case .working(.waitingForBrowser) = phase else { return }
+        cancelWork()
+        failureDetail = ""
+        phase = .failed(.notAuthorizedInTime)
+    }
+
+    // MARK: - Un servidor con el mismo nombre
+
+    /// El destino de una herramienta, con el nombre alternativo si ya se eligió.
+    private func target(for tool: Tool) -> ConnectTarget? {
+        ConnectTarget(tool: tool, namePrefix: namePrefixes[tool])
+    }
+
+    /// Hay otro servidor con ese nombre: se le pregunta al usuario. Si ya se estaba usando el nombre
+    /// alternativo y también está ocupado, no se vuelve a preguntar: es un fallo.
+    private func resolveNameConflict(_ target: ConnectTarget, server: ConnectTarget.Server) {
+        if namePrefixes[target.tool] != nil {
+            failureDetail = server.name
+            fail(.nameInUse)
+        } else {
+            update(.nameConflict(server: server.name))
+        }
+    }
+
+    /// "Usar otro nombre": el predeterminado. Nada se borra; Galeno registra el suyo como
+    /// `galeno-<nombre>` y el motor genera todo con ese nombre.
+    func useAlternateName() {
+        guard case .connection(let tool) = screen, case .nameConflict = phase else { return }
+        namePrefixes[tool] = MCPServerCatalog.alternateNamePrefix
+        onNamePrefix(tool, MCPServerCatalog.alternateNamePrefix)
+        restartCurrentConnection(tool)
+    }
+
+    /// "Borrar el existente…": todavía no borra nada, pide confirmación.
+    func askToRemoveConflictingServer() {
+        guard case .nameConflict(let server) = phase else { return }
+        phase = .confirmingRemoval(server: server)
+    }
+
+    /// "Mejor no": vuelve a la pregunta.
+    func cancelRemoval() {
+        guard case .confirmingRemoval(let server) = phase else { return }
+        phase = .nameConflict(server: server)
+    }
+
+    /// El usuario confirmó: se borra ese servidor de Claude Code y se conecta con el nombre normal.
+    func removeConflictingServer() {
+        guard case .connection(let tool) = screen, case .confirmingRemoval(let server) = phase else { return }
+        cancelWork()
+        failureDetail = ""
+        phase = .working(.removingServer)
+        workTask = Task { [weak self] in
+            guard let self else { return }
+            do { try await self.mcp.remove(server: server) } catch {
+                if Task.isCancelled { return }
+                if let error = error as? MCPConnectError, case .removeFailed(let detail) = error {
+                    self.failureDetail = detail
+                }
+                self.fail(.couldNotRemove)
+                return
+            }
+            if Task.isCancelled { return }
+            self.namePrefixes[tool] = nil
+            self.onNamePrefix(tool, nil)
+            self.restartCurrentConnection(tool)
+        }
+    }
+
+    /// Vuelve a empezar la conexión de esta pantalla (Slack revisa primero si ya hay app).
+    private func restartCurrentConnection(_ tool: Tool) {
+        if tool == .slack {
+            enter(screen)
+        } else {
+            connect()
+        }
     }
 
     // MARK: - Slack: la app OAuth del cliente
@@ -425,8 +628,7 @@ final class ConnectFlow: ObservableObject {
         case .connected:
             finishHosted(target, alreadyConnected: true)
         case .differentServer:
-            failureDetail = "claude mcp remove \(server.name) -s user"
-            fail(.nameInUse)
+            resolveNameConflict(target, server: server)
         case .needsAuthentication, .failed:
             // Registrado antes con su app: solo falta autorizar.
             slackAppRegistered = true
@@ -445,7 +647,7 @@ final class ConnectFlow: ObservableObject {
     /// El token que capturó la ventana de inicio de sesión, ya envuelto: nunca fue un `String`
     /// en manos del flujo.
     func submitSlackSecret(_ token: OAuthSecret) {
-        guard case .connection(.slack) = screen, let target = ConnectTarget(tool: .slack) else {
+        guard case .connection(.slack) = screen, let target = target(for: .slack) else {
             token.wipe()
             return
         }
@@ -477,6 +679,7 @@ final class ConnectFlow: ObservableObject {
 
         // El `client_id` es público: es lo único que se conserva (va al `.mcp.json`).
         onClientID(.slack, registration.clientID)
+        slackAppID = registration.appID
         await connectHosted(target, oauth: registration)
     }
 
@@ -502,6 +705,7 @@ final class ConnectFlow: ObservableObject {
     }
 
     private func finishHosted(_ target: ConnectTarget, alreadyConnected: Bool) {
+        if target.requiresOwnOAuthApp { webSession.reset() }  // la sesión de Slack no se guarda
         setStatus(target.tool, .connected)
         if fetchRealData, let server = target.servers.first, let noun = Self.noun(for: target.tool) {
             startDataFetch(for: target.tool, server: server.name, noun: noun)
@@ -669,6 +873,8 @@ final class ConnectFlow: ObservableObject {
     /// Detiene todo (por ejemplo, al cerrar la app o salir del paso).
     func cancelAll() {
         cancelWork()
+        authorizer?.dismissAuthorization()
+        webSession.reset()
         for task in dataTasks.values { task.cancel() }
         dataTasks = [:]
         pendingData = []

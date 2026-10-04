@@ -55,7 +55,8 @@ nonisolated struct SlackAppSetupService: SlackAppSetting {
         return OAuthClientRegistration(
             clientID: credentials.clientID,
             callbackPort: SlackOAuth.callbackPort,
-            secret: OAuthSecret(credentials.clientSecret))
+            secret: OAuthSecret(credentials.clientSecret),
+            appID: credentials.appID)
     }
 
     private func manifestJSON(_ agentName: String) throws -> String {

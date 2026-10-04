@@ -9,10 +9,15 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
     private var statuses: [String: MCPStatus]
     private var otherServers: Set<String>
     private var registerError: MCPConnectError?
+    private var removeError: MCPConnectError?
     private var loginFailures: [String: [MCPConnectError]]
     private var counts: [String: ItemCount]
     private var holdCounts: Bool
     private var holdLogin: Bool
+    /// Servidores que, aun tras autorizar, no conectan: por qué (la línea `Issue:`).
+    private var issues: [String: String]
+    /// La dirección que «abre» `claude` al autorizar (si se le dio dónde mostrarla).
+    private var authorizationURL: URL?
     private var held: [CheckedContinuation<Void, Never>] = []
     private var recorded: [String] = []
 
@@ -20,14 +25,20 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
         statuses: [String: MCPStatus] = [:],
         otherServers: Set<String> = [],
         registerError: MCPConnectError? = nil,
+        removeError: MCPConnectError? = nil,
         loginFailures: [String: [MCPConnectError]] = [:],
         counts: [String: ItemCount] = [:],
         holdCounts: Bool = false,
-        holdLogin: Bool = false
+        holdLogin: Bool = false,
+        issues: [String: String] = [:],
+        authorizationURL: URL? = nil
     ) {
+        self.issues = issues
+        self.authorizationURL = authorizationURL
         self.statuses = statuses
         self.otherServers = otherServers
         self.registerError = registerError
+        self.removeError = removeError
         self.loginFailures = loginFailures
         self.counts = counts
         self.holdCounts = holdCounts
@@ -67,21 +78,46 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
         }
     }
 
-    func login(server: String) async throws {
+    func remove(server: String) async throws {
+        let error: MCPConnectError? = lock.withLock {
+            recorded.append("remove \(server)")
+            return removeError
+        }
+        if let error { throw error }
+        lock.withLock {
+            otherServers.remove(server)
+            statuses[server] = nil
+        }
+    }
+
+    func login(server: String, openAuthorization: AuthorizationOpener?) async throws {
         let failure: MCPConnectError? = lock.withLock {
             recorded.append("login \(server)")
+            if openAuthorization != nil { recorded.append("login \(server) con autorización propia") }
             guard var pending = loginFailures[server], !pending.isEmpty else { return nil }
             let first = pending.removeFirst()
             loginFailures[server] = pending
             return first
         }
         if let failure { throw failure }
+        // Como `claude`: pide mostrar la dirección de autorización, si se le dio dónde.
+        if let openAuthorization, let url = authorizationURL {
+            let handled = await openAuthorization(url)
+            lock.withLock { recorded.append("autorización \(handled ? "mostrada" : "no mostrada") \(url.host ?? "")") }
+        }
         // Como el usuario que todavía no autorizó: espera hasta que lo cancelen.
         while lock.withLock({ holdLogin }) {
             if Task.isCancelled { throw MCPConnectError.cancelled }
             try? await Task.sleep(for: .milliseconds(5))
         }
-        lock.withLock { statuses[server] = .connected }
+        lock.withLock { statuses[server] = issues[server] == nil ? .connected : .failed }
+    }
+
+    func issue(of server: String) async -> String? {
+        lock.withLock {
+            recorded.append("issue \(server)")
+            return issues[server]
+        }
     }
 
     func countItems(server: String, noun: String) async -> ItemCount? {
@@ -213,6 +249,6 @@ final class FakeSlackSetup: SlackAppSetting, @unchecked Sendable {
         if let createError { throw createError }
         let secret = OAuthSecret(secretValue)
         lock.withLock { issued.append(secret) }
-        return OAuthClientRegistration(clientID: clientID, callbackPort: 51820, secret: secret)
+        return OAuthClientRegistration(clientID: clientID, callbackPort: 51820, secret: secret, appID: "A0TESTAPP01")
     }
 }

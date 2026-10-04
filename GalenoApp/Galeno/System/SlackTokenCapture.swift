@@ -20,7 +20,7 @@ nonisolated enum SlackTokenPattern {
 nonisolated enum SlackSignInLocation: Equatable {
     /// `api.slack.com/apps`: aquí se genera el token.
     case tokensPage
-    /// El cliente de Slack (`app.slack.com`): ya inició sesión, pero no es la página de tokens.
+    /// El cliente de Slack (`app.slack.com/client/…`): ya inició sesión, pero no es la página de tokens.
     case slackClient
     /// Otra página de Slack: lo normal mientras inicia sesión.
     case slack
@@ -34,7 +34,11 @@ nonisolated enum SlackSignInLocation: Equatable {
         if host == "api.slack.com" {
             return url?.path.hasPrefix("/apps") == true ? .tokensPage : .slack
         }
-        if host == "app.slack.com" { return .slackClient }
+        if host == "app.slack.com" {
+            // Solo el cliente en sí. Las rutas `/t/<workspace>/login/…` son el paso intermedio que
+            // completa el inicio de sesión: interrumpirlas deja la sesión a medias.
+            return url?.path.hasPrefix("/client") == true ? .slackClient : .slack
+        }
         if host == "slack.com" || host.hasSuffix(".slack.com") { return .slack }
         if host == "accounts.google.com" { return .google }
         return .other
@@ -67,6 +71,10 @@ nonisolated enum SlackCapture {
         /// Google no permite iniciar sesión en ventanas embebidas en apps. Galeno respeta esa
         /// política: no abre su inicio de sesión aquí, y le dice al usuario que use otro método.
         case blockedGoogleSignIn
+        /// `slack://…`: Slack intenta abrir su app de escritorio, lo que pasa al elegir un workspace
+        /// en su página de inicio de sesión. No se abre nada, pero **es la señal de que el usuario
+        /// ya entró**: la ventana vuelve a la página de tokens.
+        case slackDeepLink
         case blocked
     }
 
@@ -75,6 +83,7 @@ nonisolated enum SlackCapture {
     static func navigationDecision(for url: URL?) -> NavigationDecision {
         guard let scheme = url?.scheme?.lowercased() else { return .blocked }
         if scheme == "about" { return .allow }
+        if scheme == "slack" { return .slackDeepLink }
         guard scheme == "https" else { return .blocked }
         if SlackSignInLocation.classify(url) == .google { return .blockedGoogleSignIn }
         return .allow
@@ -99,10 +108,67 @@ nonisolated enum SlackCapture {
         return "Version/\(version ?? "17.6") Safari/605.1.15"
     }
 
+    /// El workspace en el que el usuario acaba de entrar, según las direcciones por las que pasó la
+    /// ventana: así el diálogo de generar el token no le pregunta lo que ya eligió. Son
+    /// identificadores públicos (`T0123ABCD`, `mi-equipo`); nunca se guarda nada de la ruta que
+    /// lleve un código de inicio de sesión.
+    struct WorkspaceHint: Equatable {
+        var teamID: String?
+        var slug: String?
+
+        var isEmpty: Bool { teamID == nil && slug == nil }
+
+        /// Lo nuevo manda sobre lo viejo, pero solo en lo que traiga.
+        mutating func merge(_ other: WorkspaceHint) {
+            if let id = other.teamID { teamID = id }
+            if let newSlug = other.slug { slug = newSlug }
+        }
+    }
+
+    /// Subdominios de slack.com que no son un workspace.
+    private static let notWorkspaces: Set<String> = [
+        "www", "api", "app", "edgeapi", "files", "status", "join", "help", "slack", "a", "b",
+        "wss-primary", "wss-backup", "slackb", "docs", "get", "my",
+    ]
+
+    static func workspaceHint(from url: URL?) -> WorkspaceHint? {
+        guard let url, let scheme = url.scheme?.lowercased(), let host = url.host?.lowercased()
+        else { return nil }
+        let parts = url.pathComponents.dropFirst()
+        var hint = WorkspaceHint()
+
+        func isTeamID(_ value: String) -> Bool {
+            value.range(of: #"^T[A-Z0-9]{5,}$"#, options: .regularExpression) != nil
+        }
+        func isSlug(_ value: String) -> Bool {
+            value.range(of: #"^[a-z0-9][a-z0-9-]{0,62}$"#, options: .regularExpression) != nil
+        }
+
+        if scheme == "slack" {
+            // `slack://T0123ABCD/magic-login/<código>`: solo interesa el host.
+            if isTeamID(host.uppercased()) { hint.teamID = host.uppercased() }
+        } else if scheme == "https" {
+            if host == "app.slack.com" {
+                let list = Array(parts)
+                if list.count >= 2, list[0] == "t", isSlug(list[1].lowercased()) { hint.slug = list[1].lowercased() }
+                if list.count >= 2, list[0] == "client", isTeamID(list[1]) { hint.teamID = list[1] }
+            } else if host.hasSuffix(".slack.com") {
+                let sub = String(host.dropLast(".slack.com".count))
+                if !sub.contains("."), isSlug(sub), !notWorkspaces.contains(sub) { hint.slug = sub }
+            }
+        }
+        return hint.isEmpty ? nil : hint
+    }
+
     /// La configuración que lee el script. `freshOnly`: ignora los tokens que ya estaban en la
-    /// página y genera uno nuevo (después de que Slack rechazara el anterior).
-    static func configScript(freshOnly: Bool) -> String {
-        "window.__galenoConfig = { freshOnly: \(freshOnly ? "true" : "false") };"
+    /// página y genera uno nuevo (después de que Slack rechazara el anterior). `hint`: en qué
+    /// workspace entró el usuario, para elegirlo en el diálogo en vez de preguntarle.
+    static func configScript(freshOnly: Bool, hint: WorkspaceHint? = nil) -> String {
+        var fields = ["freshOnly: \(freshOnly ? "true" : "false")"]
+        // Ya validados por `workspaceHint` (solo letras, dígitos y guiones): seguros de incrustar.
+        if let id = hint?.teamID { fields.append("teamID: '\(id)'") }
+        if let slug = hint?.slug { fields.append("slug: '\(slug)'") }
+        return "window.__galenoConfig = { \(fields.joined(separator: ", ")) };"
     }
 
     /// El script que corre en la ventana de inicio de sesión.
@@ -274,15 +340,109 @@ nonisolated enum SlackCapture {
         return null;
       }
 
+      // ¿Es este el workspace en el que el usuario acaba de entrar? Por su identificador, o por su
+      // nombre: «Mi Equipo» ↔ `mi-equipo`.
+      function norm(text) { return String(text || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+      function isHinted(value, label) {
+        if (config.teamID && value === config.teamID) return true;
+        if (config.slug) {
+          var slug = norm(config.slug), name = norm(label);
+          if (name === slug || name === slug + 'slackcom') return true;
+        }
+        return false;
+      }
+      // Qué opción elegir sin preguntar: la única, o la única que coincide con el workspace en el
+      // que el usuario entró. Si hay duda, ninguna: elige el usuario.
+      function pickFor(items, valueOf, labelOf) {
+        if (items.length === 1) return items[0];
+        var hinted = items.filter(function (item) { return isHinted(valueOf(item), labelOf(item)); });
+        return hinted.length === 1 ? hinted[0] : null;
+      }
+      // Para diagnosticar (solo se muestra en Debug): cómo es la lista que no se pudo resolver.
+      function shapeOf(items, valueOf, labelOf) {
+        return items.slice(0, 20).map(function (item) {
+          return valueOf(item) + '|' + labelOf(item);
+        }).join(';;');
+      }
+
+      // --- El desplegable propio de Slack (no es un <select>): se abre, se mira qué opciones salen
+      // y se elige la del workspace en el que el usuario entró. Todo por lo que dice la página
+      // (roles y texto), sin depender de clases de CSS.
+      var dropdownAttempts = 0, dropdownAt = 0;
+      function press(element) {
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (type) {
+          var Ctor = type.indexOf('pointer') === 0 && window.PointerEvent ? PointerEvent : MouseEvent;
+          element.dispatchEvent(new Ctor(type, { bubbles: true, cancelable: true, view: window, button: 0 }));
+        });
+      }
+      // Todo lo que dicen los atributos de un elemento y de lo que lleva dentro (ids, data-*…).
+      function attributeText(element) {
+        var parts = [], nodes = [element].concat(Array.prototype.slice.call(element.querySelectorAll('*')));
+        nodes.slice(0, 60).forEach(function (node) {
+          Array.prototype.forEach.call(node.attributes, function (a) { parts.push(a.value); });
+        });
+        return parts.join(' ');
+      }
+      function dropdownTrigger(box) {
+        var direct = box.querySelector('[role="combobox"], [aria-haspopup="listbox"], select ~ *, button[aria-expanded]');
+        if (direct && visible(direct)) return direct;
+        // Si no, el elemento más pequeño que dice «Select a workspace».
+        var best = null;
+        Array.prototype.forEach.call(box.querySelectorAll('*'), function (node) {
+          if (!visible(node) || !/select a workspace/i.test(node.innerText || '')) return;
+          if (!best || (node.innerText || '').length <= (best.innerText || '').length) best = node;
+        });
+        return best && (best.closest('button, [role="button"], [tabindex]') || best);
+      }
+      function openOptions() {
+        var all = document.querySelectorAll(
+          '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="listbox"] li');
+        return Array.prototype.filter.call(all, visible);
+      }
+      function optionIsHinted(option) {
+        var blob = attributeText(option);
+        if (config.teamID && blob.indexOf(config.teamID) >= 0) return true;
+        return isHinted('', textOf(option));
+      }
+      // Devuelve true si ya hizo algo (o está esperando); false si no es este tipo de diálogo.
+      function handleCustomDropdown(box) {
+        var placeholder = /select a workspace/i.test(box.innerText || '');
+        if (!placeholder) return false;  // ya hay un workspace elegido
+        var options = openOptions();
+        if (options.length) {
+          var hinted = options.length === 1 ? options : options.filter(optionIsHinted);
+          if (hinted.length === 1) { press(hinted[0]); report('pickedWorkspace'); return true; }
+          report('chooseWorkspace', { count: options.length, kind: 'custom',
+            shape: options.slice(0, 12).map(function (o) {
+              return o.tagName + '|' + (o.getAttribute('role') || '') + '|' + attributeText(o).slice(0, 160) + '|' + textOf(o).slice(0, 60);
+            }).join(';;') });
+          return true;
+        }
+        var trigger = dropdownTrigger(box);
+        if (trigger && dropdownAttempts < 4 && Date.now() - dropdownAt > 1200) {
+          dropdownAttempts++; dropdownAt = Date.now();
+          press(trigger);
+          report('openingDropdown', { n: dropdownAttempts });
+          return true;
+        }
+        if (trigger && dropdownAttempts < 4) return true;  // esperando a que se abra
+        report('chooseWorkspace', { count: 0, kind: 'custom', shape: 'sin opciones', html: box.outerHTML.slice(0, 2500) });
+        return true;
+      }
+
       function handleDialog(box) {
         var select = box.querySelector('select');
         if (select && !select.value) {
           var options = Array.prototype.filter.call(select.options, function (o) {
             return o.value !== '' && !o.disabled;
           });
-          // Con un solo workspace no hay nada que preguntar; con varios, elige el usuario.
-          if (options.length !== 1) { report('chooseWorkspace', { count: options.length }); return; }
-          select.value = options[0].value;
+          var choice = pickFor(options, function (o) { return o.value; }, function (o) { return o.text; });
+          if (!choice) {
+            report('chooseWorkspace', { count: options.length, kind: 'select',
+              shape: shapeOf(options, function (o) { return o.value; }, function (o) { return o.text; }) });
+            return;
+          }
+          select.value = choice.value;
           select.dispatchEvent(new Event('input', { bubbles: true }));
           select.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -290,10 +450,21 @@ nonisolated enum SlackCapture {
         if (!select && radios.length) {
           var checked = Array.prototype.some.call(radios, function (r) { return r.checked; });
           if (!checked) {
-            if (radios.length !== 1) { report('chooseWorkspace', { count: radios.length }); return; }
-            radios[0].click();
+            var radioList = Array.prototype.slice.call(radios);
+            var radioLabel = function (r) {
+              var label = r.closest('label') || (r.id && document.querySelector('label[for="' + r.id + '"]'));
+              return (label && label.innerText) || (r.parentElement && r.parentElement.innerText) || '';
+            };
+            var radio = pickFor(radioList, function (r) { return r.value; }, radioLabel);
+            if (!radio) {
+              report('chooseWorkspace', { count: radios.length, kind: 'radio',
+                shape: shapeOf(radioList, function (r) { return r.value; }, radioLabel) });
+              return;
+            }
+            radio.click();
           }
         }
+        if (!select && !radios.length && handleCustomDropdown(box)) return;
         var confirm = findButton(/^generate(\s+token)?$/i, box);
         if (!confirm) { report('chooseWorkspace', { count: 0 }); return; }
         if (confirm.disabled || confirm.getAttribute('aria-disabled') === 'true') {
