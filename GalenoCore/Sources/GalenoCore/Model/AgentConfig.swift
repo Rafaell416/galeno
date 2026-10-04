@@ -90,6 +90,11 @@ extension AgentConfig {
         connections.filter { $0.status == .connected }.map(\.tool)
     }
 
+    /// Las conexiones efectivamente conectadas, con todo lo que las describe.
+    var connectedConnections: [ToolConnection] {
+        connections.filter { $0.status == .connected }
+    }
+
     /// La conexión de una herramienta, si el usuario la marcó.
     public func connection(for tool: Tool) -> ToolConnection? {
         connections.first { $0.tool == tool }

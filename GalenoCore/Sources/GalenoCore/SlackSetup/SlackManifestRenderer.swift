@@ -68,9 +68,17 @@ public enum SlackManifestRenderer {
         var scopes: OAuthScopes
     }
 
+    /// `is_mcp_enabled` es el interruptor «Slack Model Context Protocol (MCP) Server» de la página
+    /// *Agents & AI Apps* de la app (documentado en la referencia del manifiesto). Sin él, Slack
+    /// responde «App is not enabled for Slack MCP server access» aunque la autorización salga bien.
+    private struct Settings: Encodable {
+        var is_mcp_enabled: Bool
+    }
+
     private struct Manifest: Encodable {
         var display_information: DisplayInformation
         var oauth_config: OAuthConfig
+        var settings: Settings
     }
 
     /// `agentName` es el nombre del agente del usuario ("Hipócrates"); se usa
@@ -88,7 +96,8 @@ public enum SlackManifestRenderer {
             oauth_config: OAuthConfig(
                 redirect_urls: [SlackOAuth.redirectURL],
                 scopes: OAuthScopes(user: requiredScopes)
-            )
+            ),
+            settings: Settings(is_mcp_enabled: true)
         )
 
         let encoder = JSONEncoder()

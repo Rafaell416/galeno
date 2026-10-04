@@ -23,6 +23,16 @@ final class SlackManifestRendererTests: XCTestCase {
         XCTAssertNil(scopes["bot"])
     }
 
+    /// Sin `is_mcp_enabled`, Slack contesta «App is not enabled for Slack MCP server access» aunque
+    /// el usuario autorice la app: se comprobó con una app real.
+    func testManifestTurnsOnTheSlackMCPServerForTheApp() throws {
+        let result = try SlackManifestRenderer.render(agentName: "Hipócrates")
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(result.manifestJSON.utf8)) as? [String: Any])
+        let settings = try XCTUnwrap(object["settings"] as? [String: Any])
+        XCTAssertEqual(settings["is_mcp_enabled"] as? Bool, true)
+    }
+
     /// No le pega el nombre "Galeno" dos veces si el usuario ya lo incluyó.
     func testDoesNotDoubleUpGalenoInTheName() throws {
         let result = try SlackManifestRenderer.render(agentName: "Galeno de Acme")

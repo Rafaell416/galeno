@@ -71,8 +71,8 @@ enum SettingsRenderer {
     /// tener más de un servidor físico (Google Workspace tiene tres), aunque
     /// hoy ninguna de las que envían externamente lo tiene.
     static func serversRequiringApproval(in config: AgentConfig) -> [String] {
-        config.connectedTools
-            .filter { $0.externalSend != nil }
+        config.connectedConnections
+            .filter { $0.tool.externalSend != nil }
             .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
             .map(\.serverName)
     }
@@ -81,8 +81,9 @@ enum SettingsRenderer {
         var allow = allowedReadTools + [memoryAllowRule]
         var ask: [String] = []
 
-        for tool in config.connectedTools {
-            let servers = MCPServerCatalog.definitions(for: tool, whatsAppBridgePath: "")
+        for connection in config.connectedConnections {
+            let tool = connection.tool
+            let servers = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
             guard !servers.isEmpty else { continue }  // Google Meet
 
             // Una sola decisión por herramienta, aplicada a todos sus
