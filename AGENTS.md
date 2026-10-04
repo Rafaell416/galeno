@@ -16,8 +16,20 @@ para WhatsApp (solo lectura) y registra MCP hospedados con `claude mcp add`.
 - **Nada más**: ni Python, ni Node, ni Rust, ni contenedor web dentro de la app.
 - **Sparkle** para las actualizaciones de la app (framework estándar de Mac fuera del App
   Store). Va desde el primer build. Ver `docs/03` §4f.
-- Los MCP hospedados (Notion, Slack, Gmail, Drive, Jira, Fireflies, Granola, Fathom, y Claude Design, que es la excepción: su endpoint no está documentado, ver `docs/03`) no se
+- Los MCP hospedados (Notion, Slack, Jira, Fireflies, Granola, Fathom, y Claude Design, que es la excepción: su endpoint no está documentado, ver `docs/03`) no se
   empaquetan: se conectan por OAuth contra los servidores de cada proveedor.
+- **Gmail, Google Drive/Docs/Sheets y Google Calendar** van por los conectores de la cuenta de Claude del usuario (`docs/03` §4e):
+  Galeno no registra nada ni trae app OAuth; solo guía al usuario a conectarlos y escribe sus reglas de permiso.
+  El estado de un conector se lee con `ClaudeSessionProbe` (el arranque de una sesión real), **nunca con `claude mcp get`**,
+  que da por conectado uno al que le falta la autorización.
+  En la app de Claude (escritorio) los conectores se encienden por conversación y nada del proyecto los enciende:
+  el `AGENTS.md` generado le dice al agente cómo encender **solo los suyos**; los demás de la cuenta se heredan apagados.
+  Allí sus herramientas se llaman `mcp__<uuid>__…` y ninguna regla de permiso coincide: lo cubren dos hooks por nombre de
+  herramienta (`SettingsRenderer.desktopConnectorPrefix`): aprobación para todo lo que no sea una lectura conocida, y paso
+  libre **solo a lecturas**. No añadir escrituras al hook de lecturas. «Abrir en la app de Claude» es el botón principal.
+  Las listas de herramientas del catálogo son las vistas en una cuenta real; una nueva de Google cae en el hook hasta revisarla.
+  El comando de un hook va siempre entre comillas (`SettingsRenderer.hookCommand`): la carpeta del agente puede llevar espacios.
+  No registrar la URL del servidor de Google (`*.googleapis.com/mcp/v1`) en `.mcp.json`: pide una app de Google Cloud (`docs/03` §4e).
 
 ## Estructura
 
@@ -84,8 +96,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   analítica ni backend que reciba credenciales o contenido del usuario.
 - La config generada nunca lleva tokens en texto plano: solo referencias a variables de entorno.
 - **`client_id` no es secreto** (es un identificador público, como un nombre de usuario) y sí
-  puede vivir en texto plano en `AgentConfig` y en `.mcp.json` — es el caso de Slack, Gmail y
-  Google Workspace, cuya app OAuth trae el propio cliente. El **`client_secret` nunca entra a
+  puede vivir en texto plano en `AgentConfig` y en `.mcp.json` — es el caso de Slack, cuya app
+  OAuth trae el propio cliente. El **`client_secret` nunca entra a
   este modelo ni a ningún archivo generado**: Claude Code lo guarda en el keychain del sistema.
 - **Única excepción, documentada a propósito:** `SlackAppProvisioner` (crea la app de Slack
   del cliente por API) sí recibe el `client_secret` de vuelta en la respuesta de Slack, en
@@ -191,6 +203,9 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - Abrir el agente usa solo los enlaces que documenta Anthropic (`claude://code/new`,
   `claude-cli://open`) y, de respaldo, un `.command` en `$TMPDIR`. Nada se escribe dentro de la
   carpeta del agente y nada se ejecuta con datos que no sean la ruta (citada) y el texto sugerido.
+  Único caso en que Galeno cierra otra app: si el agente usa conectores de la cuenta de Claude y la app de Claude lleva
+  abierta desde antes, «Abrir en la app de Claude» le pide salir (como Cmd+Q, nunca matarla) y la reabre en el agente,
+  avisándolo antes en la pantalla (`docs/03` §4e). No extenderlo a otras apps ni a otros momentos.
 - Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
   (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
   lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no
