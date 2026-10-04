@@ -190,6 +190,10 @@ final class ConnectFlow: ObservableObject {
     private let onStatus: @MainActor (Tool, ConnectionStatus) -> Void
     private let onClientID: @MainActor (Tool, String) -> Void
 
+    /// Slack rechazó el último token: la próxima vez hay que generar uno nuevo, no reusar el que
+    /// siga a la vista en la página.
+    @Published private(set) var slackNeedsFreshToken = false
+
     /// La app de Slack ya se creó y se registró en Claude Code: si falla después, reintentar
     /// no debe crear **otra** app (el secreto no se guarda), solo volver a autorizar.
     private var slackAppRegistered = false
@@ -435,8 +439,16 @@ final class ConnectFlow: ObservableObject {
     /// El usuario pegó el token de configuración. Se envuelve en un `OAuthSecret` al instante, se
     /// usa una vez y se descarta: no se guarda en ninguna parte.
     func submitSlackToken(_ pasted: String) {
-        guard case .connection(.slack) = screen, let target = ConnectTarget(tool: .slack) else { return }
-        let token = OAuthSecret(pasted.trimmingCharacters(in: .whitespacesAndNewlines))
+        submitSlackSecret(OAuthSecret(pasted.trimmingCharacters(in: .whitespacesAndNewlines)))
+    }
+
+    /// El token que capturó la ventana de inicio de sesión, ya envuelto: nunca fue un `String`
+    /// en manos del flujo.
+    func submitSlackSecret(_ token: OAuthSecret) {
+        guard case .connection(.slack) = screen, let target = ConnectTarget(tool: .slack) else {
+            token.wipe()
+            return
+        }
         cancelWork()
         failureDetail = ""
         workTask = Task { [weak self] in await self?.setUpSlack(target, token: token) }
@@ -473,6 +485,7 @@ final class ConnectFlow: ObservableObject {
         switch error as? SlackSetupError {
         case .tokenRejected(let code):
             failureDetail = code
+            slackNeedsFreshToken = true
             fail(.tokenRejected)
         case .notAllowed(let code):
             failureDetail = code

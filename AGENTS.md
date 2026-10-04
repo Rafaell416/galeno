@@ -154,9 +154,16 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - El `client_secret` y los tokens de configuración viven en un `OAuthSecret` (no es `Codable`,
   se oculta en `print`/`dump`, se borra al terminar). Nunca en un `String` que se guarde, y las
   credenciales de `GalenoCore` ya ocultan sus secretos en `description` y en el espejo.
-- Un agente de navegador (Claude con `--chrome`, diseñado en `docs/03` §4e) **nunca ve un
-  secreto**: la tarea se corta antes de la pantalla donde aparece, y contraseñas, 2FA, CAPTCHAs,
-  aceptar términos, publicar y conceder permisos los hace el usuario.
+- **La única vista web de la app** es la ventana de inicio de sesión de Slack
+  (`SlackSignInWindow`, decidida por Rafa; `docs/03` §4e). La interfaz sigue siendo nativa: "ni
+  contenedor web" se refiere a no hacer la app con tecnología web. Esa ventana cumple siempre:
+  sesión efímera (`WKWebsiteDataStore.nonPersistent()`); el script de captura solo actúa en
+  `api.slack.com` y nunca lee campos de contraseña; el token va a un `OAuthSecret`, no al
+  portapapeles; el dominio está a la vista; el inicio de sesión de Google se bloquea (no se
+  esquiva su política); y no se aceptan cookies ni términos por el usuario. Añadir otra vista
+  web, o relajar cualquiera de estas condiciones, exige preguntar antes.
+- Un agente de navegador con un modelo (Claude con `--chrome`) **nunca ve un secreto**; para
+  Slack se probó y se descartó (`docs/03` §4e).
 - Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
   (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
   lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no

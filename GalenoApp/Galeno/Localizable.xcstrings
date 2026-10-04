@@ -1061,6 +1061,23 @@
         }
       }
     },
+    "connect.slack.manual" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I'd rather generate the token myself and paste it"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prefiero generar el token yo y pegarlo"
+          }
+        }
+      }
+    },
     "connect.slack.open" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1108,6 +1125,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ese es el Refresh Token. Copia el Access Token, que empieza con xoxe.xoxp-."
+          }
+        }
+      }
+    },
+    "connect.slack.signin.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack requires the connection to go through an app created in your own account. Sign in to Slack and Galeno creates it for you."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack pide que la conexión pase por una app creada en tu propia cuenta. Inicia sesión en Slack y Galeno la crea por ti."
+          }
+        }
+      }
+    },
+    "connect.slack.signin.button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to Slack"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión en Slack"
+          }
+        }
+      }
+    },
+    "connect.slack.signin.privacy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Galeno window opens with Slack's page. Galeno doesn't read or store your password, and the session is erased when the window closes. If you sign in with Google, choose “Sign in with email”: Google doesn't allow signing in inside other apps' windows."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se abre una ventana de Galeno con la página de Slack. Galeno no lee ni guarda tu contraseña, y la sesión se borra al cerrar la ventana. Si entras con Google, elige «Sign in with email»: Google no permite iniciar sesión en ventanas de otras apps."
           }
         }
       }
@@ -1193,6 +1261,176 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "xoxe.xoxp-…"
+          }
+        }
+      }
+    },
+    "connect.slack.window.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
+          }
+        }
+      }
+    },
+    "connect.slack.window.captured" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done. Creating your Slack app…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listo. Creando tu app de Slack…"
+          }
+        }
+      }
+    },
+    "connect.slack.window.chooseWorkspace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick your workspace on the page and press “Generate”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige tu workspace en la página y pulsa «Generate»."
+          }
+        }
+      }
+    },
+    "connect.slack.window.google" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google doesn't allow signing in inside other apps' windows, so it doesn't open here. Choose “Sign in with email”: Slack emails you a code."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google no permite iniciar sesión en ventanas de otras apps, así que no se abre aquí. Elige «Sign in with email»: Slack te envía un código por correo."
+          }
+        }
+      }
+    },
+    "connect.slack.window.loadFailed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't open Slack: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo abrir Slack: %@"
+          }
+        }
+      }
+    },
+    "connect.slack.window.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening Slack…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abriendo Slack…"
+          }
+        }
+      }
+    },
+    "connect.slack.window.needsClick" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If it doesn't move on by itself, press “Generate Token” on the page and pick your workspace. Galeno picks up the result."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si no avanza solo, pulsa «Generate Token» en la página y elige tu workspace. Galeno recoge el resultado."
+          }
+        }
+      }
+    },
+    "connect.slack.window.signIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to Slack. Galeno continues on its own once you're in."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia sesión en Slack. Galeno sigue solo en cuanto entres."
+          }
+        }
+      }
+    },
+    "connect.slack.window.tokensPage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to the tokens page"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a la página de tokens"
+          }
+        }
+      }
+    },
+    "connect.slack.window.working" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generating the permission to create your app…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generando el permiso para crear tu app…"
           }
         }
       }

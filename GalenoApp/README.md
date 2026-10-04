@@ -35,6 +35,7 @@ O abrir `Galeno.xcodeproj` en Xcode y ⌘R con destino **My Mac**.
 | `Galeno/System/LongRunningProcess.swift` | `ManagedProcess` (hijo cancelable, con terminal opcional) y `ProcessRegistry` (mata todo al cerrar la app) |
 | `Galeno/System/ClaudeMCP.swift` | `claude mcp get/add/login` y el dato real con `claude -p` |
 | `Galeno/System/OAuthSecret.swift`, `SlackAppSetup.swift` | El `client_secret` en memoria (no se imprime ni se guarda) y la creación de la app de Slack |
+| `Galeno/System/SlackTokenCapture.swift`, `Wizard/Connect/SlackSignIn.swift` | La ventana de inicio de sesión de Slack: el script de captura, sus reglas (solo `api.slack.com`, solo `https`, Google bloqueado) y el modelo |
 | `Galeno/System/WhatsAppBridge.swift` | El contrato con el bridge, `BridgeInstaller` (copia a ruta estable) y vincular/sincronizar |
 | `Galeno/Wizard/Connect/` | El sub-wizard del paso 5: `ConnectFlow` (máquina de estados) y sus pantallas |
 | `THIRD_PARTY.md` | Origen y licencia de los logos |

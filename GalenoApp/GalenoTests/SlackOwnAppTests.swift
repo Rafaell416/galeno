@@ -242,6 +242,48 @@ final class SlackOwnAppFlowTests: XCTestCase {
         XCTAssertTrue(slack.calls.isEmpty)
     }
 
+    // MARK: - El token que captura la ventana de inicio de sesión
+
+    func testATokenCapturedByTheSignInWindowFollowsTheSamePathAndIsWiped() async {
+        let slack = FakeSlackSetup()
+        let flow = makeFlow(slack: slack)
+        defer { flow.cancelAll() }
+        _ = await waitFor(flow, .slackToken)
+        let secret = OAuthSecret("xoxe.xoxp-capturado-por-la-ventana")
+
+        flow.submitSlackSecret(secret)
+        let done = await waitFor(flow, .succeeded(alreadyConnected: false))
+
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertEqual(slack.tokens, ["xoxe.xoxp-capturado-por-la-ventana"])
+        XCTAssertEqual(slack.calls, ["validate", "createApp"])
+        XCTAssertTrue(secret.isEmpty, "el token se borra en cuanto se usó")
+    }
+
+    func testAfterARejectedTokenTheWindowIsAskedForAFreshOne() async {
+        let flow = makeFlow(slack: FakeSlackSetup(validateError: .tokenRejected("token_expired")))
+        defer { flow.cancelAll() }
+        _ = await waitFor(flow, .slackToken)
+        XCTAssertFalse(flow.slackNeedsFreshToken)
+
+        flow.submitSlackSecret(OAuthSecret("xoxe.xoxp-vencido"))
+        _ = await waitFor(flow, .failed(.tokenRejected))
+
+        XCTAssertTrue(flow.slackNeedsFreshToken, "el mismo token sigue en la página: hay que generar otro")
+    }
+
+    func testASecretThatArrivesOutsideTheSlackScreenIsWipedAndIgnored() {
+        let slack = FakeSlackSetup()
+        let flow = ConnectFlow(tools: [.notion, .slack], mcp: FakeMCP(), whatsapp: FakeWhatsApp(), slack: slack)
+        defer { flow.cancelAll() }
+        let secret = OAuthSecret("xoxe.xoxp-token")
+
+        flow.submitSlackSecret(secret)  // la pantalla actual es la de Notion
+
+        XCTAssertTrue(slack.calls.isEmpty)
+        XCTAssertTrue(secret.isEmpty, "no se deja un token suelto en memoria")
+    }
+
     // MARK: - El token que se pega
 
     func testRecognisesTheAccessTokenAndNotTheRefreshToken() {

@@ -2,16 +2,20 @@ import AppKit
 import GalenoCore
 import SwiftUI
 
-/// Slack: el usuario genera un "token de configuración" en `api.slack.com/apps` y lo pega
-/// aquí (`docs/03` §4e). Slack dice que ese primer token solo se genera por interfaz.
+/// Slack necesita una app OAuth del propio cliente (`docs/03` §4e). Para crearla hace falta un
+/// "token de configuración" que Slack solo entrega desde su página.
 ///
-/// Se pega en un campo seguro: el valor sale del campo en cuanto se envía, se envuelve en un
-/// `OAuthSecret`, se usa una vez para crear la app y se descarta. No se guarda en ninguna parte.
+/// El camino principal: el usuario pulsa **Iniciar sesión en Slack**, se autentica en una
+/// ventana de Galeno y Galeno consigue el token por él (`SlackSignInWindow`). El de respaldo:
+/// generarlo a mano y pegarlo en un campo seguro. En los dos casos el token se usa una vez
+/// para crear la app y se descarta; no se guarda en ninguna parte.
 struct SlackTokenPanel: View {
     @ObservedObject var flow: ConnectFlow
+    @EnvironmentObject private var wizard: WizardState
     let name: String
 
     @State private var token = ""
+    @State private var showsManual = false
 
     private static let appsURL = URL(string: "https://api.slack.com/apps")!
 
@@ -28,44 +32,69 @@ struct SlackTokenPanel: View {
                         .foregroundStyle(Color.ink900)
                 }
 
-                VStack(alignment: .leading, spacing: Space.s8) {
-                    StepRow(number: 1, text: "connect.slack.step1") {
-                        Button("connect.slack.open") { NSWorkspace.shared.open(Self.appsURL) }
-                            .buttonStyle(.bordered)
-                    }
-                    StepRow(number: 2, text: "connect.slack.step2") { EmptyView() }
-                    StepRow(number: 3, text: "connect.slack.step3") { EmptyView() }
-                }
+                Text("connect.slack.signin.body")
+                    .font(.galenoBody)
+                    .foregroundStyle(Color.ink900)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                // Un campo seguro: el token no se ve ni se queda en pantalla.
-                SecureField("connect.slack.tokenField", text: $token, prompt: Text("connect.slack.tokenPlaceholder"))
-                    .textFieldStyle(.roundedBorder)
-                    .labelsHidden()
-                    .frame(maxWidth: 440)
-                    .onSubmit(submit)
-                    .accessibilityLabel(Text("connect.slack.tokenField"))
+                PrimaryButton("connect.slack.signin.button", action: openSignIn)
+                    .controlSize(.large)
 
-                if pastedTheRefreshToken {
-                    Label("connect.slack.refreshTokenHint", systemImage: "exclamationmark.circle")
-                        .font(.galenoCaption)
-                        .foregroundStyle(Color.seal700)
-                }
-
-                Text("connect.slack.privacy")
+                Text("connect.slack.signin.privacy")
                     .font(.galenoCaption)
                     .foregroundStyle(Color.ink700)
                     .fixedSize(horizontal: false, vertical: true)
 
-                HStack {
-                    Spacer()
-                    PrimaryButton("connect.slack.create", action: submit)
-                        .controlSize(.large)
-                        .disabled(!isReady)
+                DisclosureGroup("connect.slack.manual", isExpanded: $showsManual) {
+                    manual.padding(.top, Space.s8)
                 }
+                .font(.galenoCaption)
+                .foregroundStyle(Color.ink700)
             }
             .padding(.horizontal, Space.s4)
         }
         .scrollBounceBehavior(.basedOnSize)
+    }
+
+    /// El respaldo: generar el token a mano y pegarlo.
+    private var manual: some View {
+        VStack(alignment: .leading, spacing: Space.s8) {
+            StepRow(number: 1, text: "connect.slack.step1") {
+                Button("connect.slack.open") { NSWorkspace.shared.open(Self.appsURL) }
+                    .buttonStyle(.bordered)
+            }
+            StepRow(number: 2, text: "connect.slack.step2") { EmptyView() }
+            StepRow(number: 3, text: "connect.slack.step3") { EmptyView() }
+
+            HStack(spacing: Space.s12) {
+                // Un campo seguro: el token no se ve ni se queda en pantalla.
+                SecureField("connect.slack.tokenField", text: $token, prompt: Text("connect.slack.tokenPlaceholder"))
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+                    .frame(maxWidth: 380)
+                    .onSubmit(submit)
+                    .accessibilityLabel(Text("connect.slack.tokenField"))
+                Button("connect.slack.create", action: submit)
+                    .buttonStyle(.bordered)
+                    .disabled(!isReady)
+            }
+
+            if pastedTheRefreshToken {
+                Label("connect.slack.refreshTokenHint", systemImage: "exclamationmark.circle")
+                    .font(.galenoCaption)
+                    .foregroundStyle(Color.seal700)
+            }
+            Text("connect.slack.privacy")
+                .font(.galenoCaption)
+                .foregroundStyle(Color.ink700)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func openSignIn() {
+        SlackSignInWindow.present(freshOnly: flow.slackNeedsFreshToken, language: wizard.language) { secret in
+            flow.submitSlackSecret(secret)
+        }
     }
 
     private func submit() {
