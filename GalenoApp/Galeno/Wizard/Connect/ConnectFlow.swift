@@ -25,6 +25,10 @@ struct ConnectTarget: Equatable {
     /// Workspace todavía no.
     var supportsOwnApp: Bool { tool == .slack }
 
+    /// Claude Design no tiene OAuth propio: entra con la sesión de Claude Code. `claude mcp login`
+    /// responde que no hay nada que autorizar, así que tras registrarlo solo se comprueba el estado.
+    var usesClaudeCodeSession: Bool { tool == .claudeDesign }
+
     /// `nil` para las herramientas que no se conectan con `claude mcp add`: WhatsApp
     /// (su propio bridge) y Google Meet (se lee por Drive y no tiene servidor).
     ///
@@ -209,6 +213,9 @@ final class ConnectFlow: ObservableObject {
     private let onNamePrefix: @MainActor (Tool, String?) -> Void
     private let authorizer: (any SlackAuthorizationPresenting)?
     private let language: @MainActor () -> Language
+    /// Trae Galeno al frente cuando el usuario termina de autorizar en su navegador: la pestaña se
+    /// queda allá, pero él vuelve solo al asistente.
+    private let returnToApp: @MainActor () -> Void
     /// La sesión efímera de Slack, compartida entre la ventana de inicio de sesión y la de
     /// autorización. Se descarta cuando termina la conexión.
     let webSession = SlackWebSession()
@@ -246,10 +253,12 @@ final class ConnectFlow: ObservableObject {
         namePrefixes: [Tool: String] = [:],
         onNamePrefix: @escaping @MainActor (Tool, String?) -> Void = { _, _ in },
         authorizer: (any SlackAuthorizationPresenting)? = nil,
-        language: @escaping @MainActor () -> Language = { .spanish }
+        language: @escaping @MainActor () -> Language = { .spanish },
+        returnToApp: @escaping @MainActor () -> Void = {}
     ) {
         self.authorizer = authorizer
         self.language = language
+        self.returnToApp = returnToApp
         let connectionTools = ConnectTarget.connectionTools(from: tools)
         self.tools = connectionTools
         self.statuses = statuses
@@ -373,6 +382,12 @@ final class ConnectFlow: ObservableObject {
         advance()
     }
 
+    /// «Continuar» tras un éxito: no hace falta esperar a que la pantalla avance sola.
+    func continueFromSuccess() {
+        guard case .succeeded = phase else { return }
+        advance()
+    }
+
     func continueFromDopamine() {
         guard case .dopamine = screen else { return }
         advance()
@@ -419,6 +434,21 @@ final class ConnectFlow: ObservableObject {
             break
         }
 
+        // Un servidor que entra con la sesión de Claude Code (Claude Design) no abre ningún navegador:
+        // si ya responde, está conectado; si no, falta iniciar sesión en Claude Code.
+        if target.usesClaudeCodeSession {
+            update(.working(.checking))
+            let status = await mcp.status(of: server.name, expectingURL: server.url)
+            if Task.isCancelled { return }
+            if status == .connected {
+                finishHosted(target, alreadyConnected: false)
+            } else {
+                failureDetail = await mcp.issue(of: server.name) ?? ""
+                fail(.stillNotConnected)
+            }
+            return
+        }
+
         update(.working(.waitingForBrowser))
         // Con la app propia de Slack, la autorización se muestra en la ventana de Galeno (con la
         // sesión que ya tiene) y se cierra sola; las demás herramientas usan el navegador del usuario.
@@ -444,6 +474,8 @@ final class ConnectFlow: ObservableObject {
             return
         }
         if Task.isCancelled { return }
+        // Autorizó en su navegador: se le trae de vuelta. (Con la ventana propia de Slack nunca salió de Galeno.)
+        if opener == nil { returnToApp() }
 
         // Con una app propia, «autorizado» no basta: Slack puede aceptar el inicio de sesión y
         // rechazar luego la conexión (la app sin el MCP activado). Se comprueba antes de decir
@@ -892,7 +924,7 @@ final class ConnectFlow: ObservableObject {
         case .gmail: .labels
         case .fireflies, .granola, .fathom: .meetings
         case .whatsapp: .groups
-        case .notion, .googleWorkspace, .googleMeet: nil
+        case .notion, .googleWorkspace, .googleMeet, .claudeDesign: nil
         }
     }
 }

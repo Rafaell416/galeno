@@ -23,9 +23,11 @@ nonisolated enum AgentLink {
     }
 
     /// Respaldo si Claude Code aún no registró su manejador: un `.command`, que Terminal.app
-    /// abre y ejecuta sin pedir ningún permiso. Entra a la carpeta y arranca `claude`.
-    static func terminalScript(folder: URL, claudePath: String) -> String {
-        "#!/bin/zsh\ncd -- \(quoted(folder.path)) || exit 1\nexec \(quoted(claudePath))\n"
+    /// abre y ejecuta sin pedir ningún permiso. Entra a la carpeta y arranca `claude` con la primera
+    /// pregunta (citada). Aquí no hay forma de dejarla solo escrita: `claude "texto"` la envía.
+    static func terminalScript(folder: URL, claudePath: String, prompt: String? = nil) -> String {
+        let question = (prompt?.isEmpty == false) ? " " + quoted(prompt!) : ""
+        return "#!/bin/zsh\ncd -- \(quoted(folder.path)) || exit 1\nexec \(quoted(claudePath))\(question)\n"
     }
 
     /// Cita para el shell: entre comillas simples, con las simples escapadas.
@@ -49,30 +51,52 @@ nonisolated enum AgentLink {
 
 // MARK: - El primer comando
 
-/// "Pídele: resume lo que pasó esta semana en Slack" (`docs/03` §3, pantalla 10): una frase que
-/// el usuario puede probar ya, de las herramientas que conectó.
+/// La primera pregunta de la pantalla 10 (`docs/03` §3): algo que el usuario puede probar ya con lo que
+/// conectó. **Corta y acotada a propósito** («mis 3 chats más recientes», no «resume la semana»): es el
+/// primer momento con el agente y tiene que responder en segundos. En la prueba real, «resume la semana
+/// en mis grupos» tardó casi tres minutos.
 nonisolated enum FirstCommand {
     static func suggestion(for tools: [Tool], language: Language) -> String {
         func pick(_ es: String, _ en: String) -> String { language == .spanish ? es : en }
-        if tools.contains(.slack) {
-            return pick("Resume lo que pasó esta semana en Slack", "Summarize what happened this week in Slack")
-        }
+        // WhatsApp primero: es lo que ninguna otra herramienta le da al usuario, y el momento que más sorprende.
         if tools.contains(.whatsapp) {
             return pick(
-                "Resume lo que pasó esta semana en mis grupos de WhatsApp",
-                "Summarize what happened this week in my WhatsApp groups")
+                "¿Qué hay de nuevo en mis 3 chats más recientes de WhatsApp?",
+                "What’s new in my 3 most recent WhatsApp chats?")
         }
-        if tools.contains(.jira) {
-            return pick("Resume lo que pasó esta semana en Jira", "Summarize what happened this week in Jira")
+        if tools.contains(.slack) {
+            return pick(
+                "¿Cuáles son los 3 mensajes más recientes de Slack donde me mencionan?",
+                "What are the 3 most recent Slack messages that mention me?")
         }
         if tools.contains(.notion) {
-            return pick("Resume lo que pasó esta semana en Notion", "Summarize what happened this week in Notion")
+            return pick(
+                "¿Cuáles son las 3 páginas de Notion que cambiaron más recientemente?",
+                "Which 3 Notion pages changed most recently?")
+        }
+        if tools.contains(.jira) {
+            return pick(
+                "¿Cuáles son mis 3 tickets de Jira actualizados más recientemente?",
+                "Which are my 3 most recently updated Jira tickets?")
         }
         if tools.contains(where: { [.fireflies, .granola, .fathom, .googleMeet].contains($0) }) {
-            return pick("Resume mis últimas reuniones", "Summarize my latest meetings")
+            return pick("Resume mi última reunión", "Summarize my latest meeting")
         }
-        return pick(
-            "Resume lo que pasó esta semana en el proyecto", "Summarize what happened this week in the project")
+        if tools.contains(.gmail) {
+            return pick("¿Cuáles son mis 3 correos más recientes sin leer?", "What are my 3 most recent unread emails?")
+        }
+        if tools.contains(.googleWorkspace) {
+            return pick(
+                "¿Cuáles son los 3 documentos de Drive que cambiaron más recientemente?",
+                "Which 3 Drive documents changed most recently?")
+        }
+        if tools.contains(.claudeDesign) {
+            return pick(
+                "Revisa este diseño y dime qué le falta: [pega aquí el enlace de Claude Design]",
+                "Review this design and tell me what is missing: [paste the Claude Design link here]")
+        }
+        // Sin nada conectado no hay fuentes que leer: que se presente.
+        return pick("Preséntate en tres líneas y dime qué puedes hacer por mí", "Introduce yourself in three lines and tell me what you can do for me")
     }
 }
 
@@ -115,7 +139,7 @@ struct SystemAgentOpener: AgentOpening {
         let script = FileManager.default.temporaryDirectory
             .appendingPathComponent("galeno-open-\(UUID().uuidString).command")
         do {
-            try AgentLink.terminalScript(folder: folder, claudePath: claudePath)
+            try AgentLink.terminalScript(folder: folder, claudePath: claudePath, prompt: prompt)
                 .write(to: script, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
         } catch { return false }

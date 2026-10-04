@@ -24,10 +24,12 @@ final class SendingRulesTests: XCTestCase {
         )
     }
 
-    func testDefaultAllowsEveryInternalWrite() {
-        for write in InternalWrite.allCases {
+    func testDefaultAllowsEveryInternalWriteExceptDesign() {
+        for write in InternalWrite.allCases where write != .claudeDesign {
             XCTAssertEqual(SendingRules.default.policy(for: write), .allow, "\(write)")
         }
+        // Puede borrar archivos de diseño: de fábrica pregunta.
+        XCTAssertEqual(SendingRules.default.policy(for: .claudeDesign), .ask)
     }
 
     func testAMissingInternalPolicyFallsBackToAsk() {

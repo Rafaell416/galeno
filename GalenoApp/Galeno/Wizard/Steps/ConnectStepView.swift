@@ -12,7 +12,7 @@ struct ConnectStepView: View {
             if let flow = wizard.connectFlow {
                 ConnectFlowView(flow: flow)
             } else {
-                ProgressView().controlSize(.small)
+                InkSpinner(size: 20)
             }
         }
         .onAppear { wizard.beginConnecting() }
@@ -27,7 +27,8 @@ private struct ConnectFlowView: View {
             if showsProgress {
                 ConnectProgressBar(flow: flow)
                     .padding(.horizontal, Space.s48)
-                    .padding(.top, Space.s16)
+                    .padding(.top, 22)
+                    .padding(.bottom, 6)
             }
             screen
                 .id(flow.position)

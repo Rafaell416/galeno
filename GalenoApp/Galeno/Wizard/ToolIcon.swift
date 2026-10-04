@@ -11,8 +11,8 @@ enum ToolIconSource: Equatable {
 
 extension Tool {
     /// Los logos son monocromos y de Simple Icons (CC0); ver `THIRD_PARTY.md`.
-    /// Slack, Fireflies y Granola no están en esa colección: llevan un símbolo
-    /// del mismo color hasta que haya un SVG oficial.
+    /// La excepción es Slack: su marca va en monocromo, de su identidad oficial (ver `THIRD_PARTY.md`).
+    /// Fireflies y Granola no están en esa colección: llevan un símbolo del mismo color hasta que haya un SVG oficial.
     var iconSource: ToolIconSource {
         switch self {
         case .whatsapp: .asset("tool-whatsapp")
@@ -22,9 +22,11 @@ extension Tool {
         case .jira: .asset("tool-jira")
         case .googleMeet: .asset("tool-googlemeet")
         case .fathom: .asset("tool-fathom")
-        case .slack: .symbol("number")
+        case .slack: .asset("tool-slack")
         case .fireflies: .symbol("waveform")
         case .granola: .symbol("note.text")
+        // La marca de Claude Design es de Anthropic: hasta que haya un logo con licencia, un símbolo genérico.
+        case .claudeDesign: .symbol("paintpalette")
         }
     }
 }

@@ -27,6 +27,8 @@ struct ConnectServices {
     var fetchRealData: Bool = true
     var timing = ConnectFlow.Timing()
     var sleep: ConnectFlow.Sleeper = { _ = try? await Task.sleep(for: $0) }
+    /// Trae Galeno al frente tras autorizar en el navegador. Las pruebas y los conectores falsos no lo hacen.
+    var returnToApp: @MainActor () -> Void = {}
 
     static func live() -> ConnectServices {
         #if DEBUG
@@ -38,7 +40,8 @@ struct ConnectServices {
             makeMCP: { ClaudeMCPClient(claudePath: $0) },
             whatsapp: WhatsAppBridge.live(),
             authorizer: SlackAuthorizeWindowPresenter(),
-            installer: .live())
+            installer: .live(),
+            returnToApp: { AppFocus.bringToFront() })
     }
 }
 

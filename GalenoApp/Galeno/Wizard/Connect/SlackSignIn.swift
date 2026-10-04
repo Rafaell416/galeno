@@ -385,73 +385,41 @@ extension SlackSignInModel: WKNavigationDelegate, WKUIDelegate {
 struct SlackSignInView: View {
     @ObservedObject var model: SlackSignInModel
     let onCancel: () -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.galenoReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider()
+            // Cuando le toca a Galeno, la página baja a 0,6 de opacidad y no acepta clics para que nada interfiera;
+            // vuelve a 1 cuando le toca al usuario (200 ms).
             SlackWebViewContainer(webView: model.webView)
+                .opacity(model.stage.isGalenoWorking ? 0.6 : 1)
+                .allowsHitTesting(!model.stage.isGalenoWorking)
+                .animation(.easeOut(duration: 0.2), value: model.stage.isGalenoWorking)
         }
         .background(Color.parchment50)
+        .onExitCommand(perform: onCancel)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Space.s8) {
-            HStack(spacing: Space.s12) {
-                // La dirección a la vista: el usuario tiene que poder comprobar dónde escribe.
-                Label {
-                    Text(verbatim: model.host.isEmpty ? "…" : model.host)
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(Color.ink900)
-                        .textSelection(.enabled)
-                } icon: {
-                    Image(systemName: "lock.fill").foregroundStyle(Color.ink700)
-                }
-                Spacer()
-                Button("connect.slack.window.tokensPage") { model.goToTokensPage() }
-                    .buttonStyle(.bordered)
-                Button("connect.slack.window.cancel", action: onCancel)
-                    .buttonStyle(.bordered)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: Space.s8) {
-                activityMark
-                statusText
-                    .font(.galenoBody)
-                    .foregroundStyle(isWarning ? Color.seal700 : Color.ink900)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .contentTransition(.opacity)
-                Spacer(minLength: Space.s8)
-                Text("connect.slack.window.step \(min(model.progress, SlackSignInModel.totalSteps)) \(SlackSignInModel.totalSteps)")
-                    .font(.galenoCaption.smallCaps())
-                    .kerning(1)
-                    .foregroundStyle(Color.ink500)
-                    .fixedSize()
-            }
-            .animation(.easeOut(duration: 0.2), value: model.stage)
-            SignInProgressTrack(
-                step: model.progress, total: SlackSignInModel.totalSteps,
-                isGalenoWorking: model.stage.isGalenoWorking, isUserTurn: model.stage.isUserTurn)
+        SlackWindowBar(
+            host: model.host, step: min(model.progress, SlackSignInModel.totalSteps),
+            total: SlackSignInModel.totalSteps, turn: turn, text: statusText, textKey: "\(model.stage)"
+        ) {
+            Button("connect.slack.window.tokensPage") { model.goToTokensPage() }
+                .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 14, quiet: true))
+            Button("connect.slack.window.cancel", action: onCancel)
+                .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 16))
         }
-        .padding(.horizontal, Space.s16)
-        .padding(.vertical, Space.s12)
+        .animation(.easeOut(duration: 0.2), value: model.stage)
     }
 
-    /// A la izquierda del texto: un indicador de quién tiene el turno. Mientras Galeno trabaja, una
-    /// rueda; cuando es el turno del usuario, una mano que late; al terminar, una marca.
-    @ViewBuilder
-    private var activityMark: some View {
-        if model.stage.isGalenoWorking {
-            ProgressView().controlSize(.small)
-        } else if model.stage == .captured {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.moss700)
-        } else if model.stage.isUserTurn {
-            Image(systemName: "hand.point.up.left.fill")
-                .foregroundStyle(isWarning ? Color.seal700 : Color.ink900)
-                .symbolEffect(.pulse, options: .repeating, isActive: !reduceMotion)
-        } else {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.seal700)
-        }
+    /// De quién es el turno: de Galeno mientras trabaja, del usuario cuando hace falta su clic.
+    private var turn: SlackTurn {
+        if model.stage == .googleSignIn { return .notice }
+        if isWarning { return .warning }
+        if model.stage == .captured { return .done }
+        return model.stage.isGalenoWorking ? .galeno : .user
     }
 
     private var isWarning: Bool {
@@ -474,62 +442,6 @@ struct SlackSignInView: View {
         case .needsClick: Text("connect.slack.window.needsClick")
         case .captured: Text("connect.slack.window.captured")
         case .loadFailed(let detail): Text("connect.slack.window.loadFailed \(detail)")
-        }
-    }
-}
-
-/// Los 4 pasos de la ventana como una barra: los hechos en tinta, el actual con movimiento si lo
-/// hace Galeno (un destello que corre) o latiendo si espera al usuario, y los que faltan en gris.
-/// Con «reducir movimiento» no se anima nada: el actual queda fijo.
-struct SignInProgressTrack: View {
-    let step: Int
-    let total: Int
-    let isGalenoWorking: Bool
-    let isUserTurn: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        HStack(spacing: Space.s4) {
-            ForEach(1...total, id: \.self) { index in
-                segment(index)
-            }
-        }
-        .frame(height: 3)
-        .accessibilityHidden(true)
-    }
-
-    private func segment(_ index: Int) -> some View {
-        let isCurrent = index == step
-        return Capsule()
-            .fill(index < step ? Color.ink900 : (isCurrent ? Color.ink700.opacity(0.35) : Color.parchment300))
-            .overlay {
-                if isCurrent && !reduceMotion {
-                    if isGalenoWorking { shimmer } else if isUserTurn { pulse }
-                } else if isCurrent {
-                    Capsule().fill(Color.ink700)
-                }
-            }
-            .clipShape(Capsule())
-    }
-
-    /// Un destello de tinta que cruza el tramo de izquierda a derecha.
-    private var shimmer: some View {
-        TimelineView(.animation) { context in
-            GeometryReader { proxy in
-                let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.3) / 1.3
-                Capsule()
-                    .fill(LinearGradient(colors: [.clear, Color.ink900, .clear], startPoint: .leading, endPoint: .trailing))
-                    .frame(width: proxy.size.width * 0.6)
-                    .offset(x: proxy.size.width * 1.6 * phase - proxy.size.width * 0.6)
-            }
-        }
-    }
-
-    /// Late despacio: es el turno del usuario y la barra espera.
-    private var pulse: some View {
-        TimelineView(.animation) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            Capsule().fill(Color.ink700).opacity(0.35 + 0.65 * (0.5 + 0.5 * sin(t * 3)))
         }
     }
 }
@@ -581,6 +493,7 @@ final class SlackSignInWindow: NSObject, NSWindowDelegate {
         window.delegate = self
         window.contentView = NSHostingView(
             rootView: SlackSignInView(model: model, onCancel: { [weak self] in self?.close() })
+                .motionPreference()
                 .environment(\.locale, Locale(identifier: language.rawValue)))
         window.center()
         window.makeKeyAndOrderFront(nil)

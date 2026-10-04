@@ -76,6 +76,7 @@ extension AgentConfig {
                         Source(id: "1XyZ9", name: "Meet Recordings", kind: .folder)
                     ])
                 ),
+                ToolConnection(tool: .claudeDesign, status: .connected, sources: .everything),
             ],
             skills: [
                 SelectedSkill(id: "prd", source: .galeno),

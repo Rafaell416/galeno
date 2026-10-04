@@ -192,71 +192,40 @@ extension SlackAuthorizeModel: WKNavigationDelegate, WKUIDelegate {
 struct SlackAuthorizeView: View {
     @ObservedObject var model: SlackAuthorizeModel
     let onCancel: () -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.galenoReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider()
             SlackWebViewContainer(webView: model.webView)
+                .opacity(model.stage.isGalenoWorking ? 0.6 : 1)
+                .allowsHitTesting(!model.stage.isGalenoWorking)
+                .animation(.easeOut(duration: 0.2), value: model.stage.isGalenoWorking)
         }
         .background(Color.parchment50)
+        .onExitCommand(perform: onCancel)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Space.s8) {
-            HStack(spacing: Space.s12) {
-                Label {
-                    Text(verbatim: model.host.isEmpty ? "…" : model.host)
-                        .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(Color.ink900)
-                        .textSelection(.enabled)
-                } icon: {
-                    Image(systemName: "lock.fill").foregroundStyle(Color.ink700)
-                }
-                Spacer()
-                if model.stage != .done {
-                    Button("connect.slack.window.cancel", action: onCancel)
-                        .buttonStyle(.bordered)
-                }
+        SlackWindowBar(
+            host: model.host, step: model.stage == .done ? 2 : 1, total: 2, turn: turn, text: statusText,
+            textKey: "\(model.stage)"
+        ) {
+            if model.stage != .done {
+                Button("connect.slack.window.cancel", action: onCancel)
+                    .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 16))
             }
-            HStack(alignment: .firstTextBaseline, spacing: Space.s8) {
-                activityMark
-                statusText
-                    .font(.galenoBody)
-                    .foregroundStyle(model.stage == .googleSignIn || model.stage == .appNotFound || isFailure ? Color.seal700 : Color.ink900)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: Space.s8)
-                Text("connect.slack.window.step \(model.stage == .done ? 2 : 1) \(2)")
-                    .font(.galenoCaption.smallCaps())
-                    .kerning(1)
-                    .foregroundStyle(Color.ink500)
-                    .fixedSize()
-            }
-            .animation(.easeOut(duration: 0.2), value: model.stage)
-            SignInProgressTrack(
-                step: model.stage == .done ? 2 : 1, total: 2,
-                isGalenoWorking: model.stage.isGalenoWorking, isUserTurn: model.stage == .userTurn)
         }
-        .padding(.horizontal, Space.s16)
-        .padding(.vertical, Space.s12)
+        .animation(.easeOut(duration: 0.2), value: model.stage)
     }
 
-    private var isFailure: Bool {
-        if case .loadFailed = model.stage { return true }
-        return false
-    }
-
-    @ViewBuilder
-    private var activityMark: some View {
+    private var turn: SlackTurn {
         switch model.stage {
-        case .loading: ProgressView().controlSize(.small)
-        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.moss700)
-        case .userTurn:
-            Image(systemName: "hand.point.up.left.fill").foregroundStyle(Color.ink900)
-                .symbolEffect(.pulse, options: .repeating, isActive: !reduceMotion)
-        case .googleSignIn, .loadFailed, .appNotFound:
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.seal700)
+        case .loading: .galeno
+        case .userTurn: .user
+        case .done: .done
+        case .googleSignIn: .notice
+        case .loadFailed, .appNotFound: .warning
         }
     }
 
@@ -351,6 +320,7 @@ final class SlackAuthorizeWindow: NSObject, NSWindowDelegate {
         window.delegate = self
         window.contentView = NSHostingView(
             rootView: SlackAuthorizeView(model: model, onCancel: { [weak self] in self?.window.close() })
+                .motionPreference()
                 .environment(\.locale, Locale(identifier: language.rawValue)))
         window.center()
         window.makeKeyAndOrderFront(nil)

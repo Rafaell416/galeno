@@ -24,15 +24,20 @@ final class MCPServerCatalogTests: XCTestCase {
         }
     }
 
-    /// La investigación cerró las cinco dudas que había: ya no queda ningún
-    /// endpoint sin verificar en el catálogo. (Antes eran cinco: Slack,
-    /// Notion, Gmail, Google Workspace y Jira.)
-    func testEveryCatalogEntryIsVerified() {
-        for tool in Tool.allCases {
+    /// La investigación cerró las cinco dudas que había. La única excepción es Claude Design, que se añadió
+    /// a propósito sin que su endpoint esté documentado (lo inyecta Claude Code solo): ver el siguiente test.
+    func testEveryCatalogEntryIsVerifiedExceptClaudeDesign() {
+        for tool in Tool.allCases where tool != .claudeDesign {
             for server in definitions(for: tool) {
                 XCTAssertTrue(server.endpointIsVerified, "\(tool) · \(server.serverName)")
             }
         }
+    }
+
+    func testClaudeDesignIsTheOnlyUnverifiedEndpointAndKeepsItsOwnName() {
+        let servers = definitions(for: .claudeDesign)
+        XCTAssertEqual(servers.map(\.serverName), ["claude-design"], "no choca con el `claude_design` que inyecta Claude Code")
+        XCTAssertEqual(servers.map(\.endpointIsVerified), [false])
     }
 
     func testEveryHTTPEndpointUsesHTTPS() {

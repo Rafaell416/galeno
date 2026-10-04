@@ -37,17 +37,29 @@ public struct MCPServerDefinition: Hashable, Sendable {
     /// proveedor. Los que no, salen como advertencia para que no se nos
     /// olvide verificarlos antes de vender.
     public var endpointIsVerified: Bool
+    /// Las herramientas del servidor que **solo leen**, por su nombre exacto y verificadas contra el
+    /// servidor real. Solo importa en los servidores que también envían a otras personas (Slack):
+    /// estas van sin preguntar, y todo lo demás del servidor —lo conocido y lo que aparezca
+    /// después— pide aprobación. Vacío = no se sabe cuáles leen, así que todo el servidor pregunta.
+    public var readOnlyTools: [String]
+    /// Las herramientas del servidor que escriben o envían, verificadas igual. Llevan su regla
+    /// `ask` explícita; el hook de aprobación cubre además cualquiera que no esté en ninguna lista.
+    public var writeTools: [String]
 
     public init(
         serverName: String,
         transport: MCPTransport,
         authentication: MCPAuthentication = .oauth,
-        endpointIsVerified: Bool
+        endpointIsVerified: Bool,
+        readOnlyTools: [String] = [],
+        writeTools: [String] = []
     ) {
         self.serverName = serverName
         self.transport = transport
         self.authentication = authentication
         self.endpointIsVerified = endpointIsVerified
+        self.readOnlyTools = readOnlyTools
+        self.writeTools = writeTools
     }
 }
 
@@ -65,6 +77,43 @@ public enum MCPServerCatalog {
 
     /// Las definiciones de una conexión concreta: las de su herramienta, con el
     /// nombre con el que de verdad quedó registrada (`serverNamePrefix`).
+    /// Las 27 herramientas del MCP de Slack, vistas en el servidor real el 4 de octubre de 2026 (la
+    /// lista que Claude Code recibe al conectarse). Estas 14 solo leen. Si Slack añade una, no estará
+    /// aquí y pedirá aprobación hasta que se revise: el fallo es hacia preguntar de más, nunca de menos.
+    static let slackReadOnlyTools = [
+        "slack_get_reactions",
+        "slack_list_channel_members",
+        "slack_list_user_channels",
+        "slack_read_canvas",
+        "slack_read_channel",
+        "slack_read_file",
+        "slack_read_list",
+        "slack_read_thread",
+        "slack_read_user_profile",
+        "slack_search_channels",
+        "slack_search_emojis",
+        "slack_search_public",
+        "slack_search_public_and_private",
+        "slack_search_users",
+    ]
+
+    /// Las otras 13: envían un mensaje o cambian algo en Slack. Siempre piden aprobación.
+    static let slackWriteTools = [
+        "slack_add_list_record",
+        "slack_add_reaction",
+        "slack_complete_file_upload",
+        "slack_create_canvas",
+        "slack_create_conversation",
+        "slack_create_list",
+        "slack_get_file_upload_url",
+        "slack_schedule_message",
+        "slack_send_message",
+        "slack_send_message_draft",
+        "slack_update_canvas",
+        "slack_update_list",
+        "slack_update_list_record",
+    ]
+
     public static func definitions(
         for connection: ToolConnection,
         whatsAppBridgePath: String
@@ -157,7 +206,9 @@ public enum MCPServerCatalog {
                 MCPServerDefinition(
                     serverName: "slack",
                     transport: .http(url: "https://mcp.slack.com/mcp"),
-                    endpointIsVerified: true
+                    endpointIsVerified: true,
+                    readOnlyTools: slackReadOnlyTools,
+                    writeTools: slackWriteTools
                 )
             ]
         case .gmail:
@@ -191,6 +242,18 @@ public enum MCPServerCatalog {
                     transport: .http(url: "https://sheetsmcp.googleapis.com/mcp/v1"),
                     endpointIsVerified: true
                 ),
+            ]
+
+        case .claudeDesign:
+            // **No verificado**: es el servidor que Claude Code ya inyecta solo como `claude_design`, pero no
+            // está documentado como servidor que se registre. Va con otro nombre (`claude-design`) para no
+            // chocar con el inyectado, y la generación avisa con `unverifiedEndpoint`.
+            return [
+                MCPServerDefinition(
+                    serverName: "claude-design",
+                    transport: .http(url: "https://api.anthropic.com/v1/design/mcp"),
+                    endpointIsVerified: false
+                )
             ]
 
         case .googleMeet:

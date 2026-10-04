@@ -89,7 +89,7 @@ nonisolated struct ClaudeSourceLister: SourceListing {
         case .googleWorkspace, .googleMeet: what = "Google Drive folders"
         case .gmail: what = "Gmail labels"
         case .jira: what = "Jira projects"
-        case .whatsapp, .fireflies, .granola, .fathom: what = "items"
+        case .whatsapp, .fireflies, .granola, .fathom, .claudeDesign: what = "items"
         }
         let typeField = tool == .notion ? #","type":"page" or "database""# : ""
         return """

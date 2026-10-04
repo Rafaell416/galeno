@@ -123,19 +123,76 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         }
     }
 
-    /// Slack y Gmail van enteros a `ask`. La precedencia de Claude Code es
-    /// deny → ask → allow y gana la primera, así que no pueden estar también en
-    /// `allow`: sería una regla muerta que confunde a quien lea el archivo.
-    func testExternalSendServersAreAskedNeverAllowed() throws {
+    /// Gmail va entero a `ask`: no hay lista verificada de sus lecturas. Slack no: leer no
+    /// pregunta —sus herramientas de solo lectura van a `allow` por su nombre exacto— y todo lo que
+    /// envía o escribe va a `ask`. La precedencia de Claude Code es deny → ask → allow y gana la
+    /// primera, así que ninguna herramienta puede estar en las dos listas.
+    func testReadingSlackNeverAsksButSendingAlwaysDoes() throws {
         try generate(GeneratorFixtures.englishEightTools)
         let permissions = try decodedPermissions()
 
-        for server in ["slack", "gmail"] {
-            XCTAssertTrue(permissions.ask.contains("mcp__\(server)__*"), "\(server) debería estar en ask")
-            XCTAssertFalse(
-                permissions.allow.contains(where: { $0.hasPrefix("mcp__\(server)__") }),
-                "\(server) no debe aparecer en allow"
-            )
+        XCTAssertTrue(permissions.ask.contains("mcp__gmail__*"), "gmail debería estar entero en ask")
+        XCTAssertFalse(permissions.allow.contains(where: { $0.hasPrefix("mcp__gmail__") }))
+
+        XCTAssertFalse(permissions.ask.contains("mcp__slack__*"), "taparía las lecturas")
+        XCTAssertFalse(permissions.allow.contains("mcp__slack__*"), "dejaría enviar sin preguntar")
+        for tool in ["slack_read_channel", "slack_search_public_and_private", "slack_list_user_channels"] {
+            XCTAssertTrue(permissions.allow.contains("mcp__slack__\(tool)"), tool)
+        }
+        for tool in ["slack_send_message", "slack_schedule_message", "slack_send_message_draft", "slack_create_canvas"] {
+            XCTAssertTrue(permissions.ask.contains("mcp__slack__\(tool)"), tool)
+            XCTAssertFalse(permissions.allow.contains("mcp__slack__\(tool)"), tool)
+        }
+        XCTAssertTrue(Set(permissions.allow).isDisjoint(with: permissions.ask))
+    }
+
+    /// El hook se aplica a todo lo de Slack que no sea una lectura conocida: lo que envía, lo que
+    /// escribe y cualquier herramienta que Slack añada después. El matcher es una regex de
+    /// JavaScript; `NSRegularExpression` entiende igual el `(?!…)`, y contra Claude Code se probó a mano.
+    func testTheApprovalHookCoversEverySlackToolThatIsNotAKnownRead() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
+        let matcher = try XCTUnwrap(hooks.first?["matcher"] as? String)
+        let regex = try NSRegularExpression(pattern: matcher)
+        func fires(_ tool: String) -> Bool {
+            regex.firstMatch(in: tool, range: NSRange(tool.startIndex..., in: tool)) != nil
+        }
+
+        for tool in MCPServerCatalog.slackWriteTools { XCTAssertTrue(fires("mcp__slack__" + tool), tool) }
+        XCTAssertTrue(fires("mcp__slack__slack_something_new"), "una herramienta nueva pregunta hasta que se revise")
+        XCTAssertTrue(fires("mcp__slack__slack_read_channel_and_post"), "solo se excluye el nombre exacto")
+        for tool in MCPServerCatalog.slackReadOnlyTools { XCTAssertFalse(fires("mcp__slack__" + tool), tool) }
+        XCTAssertFalse(fires("mcp__notion__notion-search"), "no toca otros servidores")
+    }
+
+    /// El agente corre con esfuerzo bajo (leer y resumir no necesita más, y responde antes) y **sin**
+    /// modelo fijado: cada usuario usa el de su plan.
+    func testTheAgentRunsWithLowEffortAndNoPinnedModel() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(root["effortLevel"] as? String, "low")
+        XCTAssertNil(root["model"], "el modelo es el del plan del usuario")
+        XCTAssertNil(root["modelSettings"])
+    }
+
+    /// Las dos listas de Slack salen del servidor real: 14 que leen y 13 que no, sin repetir, y
+    /// ninguna de lectura tiene pinta de enviar o cambiar algo.
+    func testTheSlackToolListsAreDisjointAndTheReadOnesOnlyRead() {
+        let reads = MCPServerCatalog.slackReadOnlyTools
+        let writes = MCPServerCatalog.slackWriteTools
+        XCTAssertEqual(reads.count, 14)
+        XCTAssertEqual(writes.count, 13)
+        XCTAssertTrue(Set(reads).isDisjoint(with: writes))
+        for tool in reads {
+            XCTAssertNotNil(
+                tool.range(of: #"^slack_(read|search|list)_|^slack_get_reactions$"#, options: .regularExpression),
+                "\(tool) no parece de solo lectura")
+            for verb in ["send", "schedule", "create", "update", "add", "upload", "delete", "post"] {
+                XCTAssertFalse(tool.contains(verb), "\(tool) contiene «\(verb)»")
+            }
         }
     }
 

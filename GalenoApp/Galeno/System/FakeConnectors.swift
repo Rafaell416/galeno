@@ -30,7 +30,11 @@ nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
 
     func register(server: String, url: String, oauth: OAuthClientRegistration?) async throws {
         try? await Task.sleep(for: .milliseconds(600))
-        lock.withLock { _ = registered.insert(server) }
+        lock.withLock {
+            _ = registered.insert(server)
+            // Claude Design entra con la sesión de Claude Code: queda conectado al registrarlo, sin OAuth.
+            if server.hasSuffix("claude-design") { _ = connected.insert(server) }
+        }
     }
 
     func remove(server: String) async throws {

@@ -11,6 +11,9 @@ public enum Tool: String, Codable, CaseIterable, Sendable, Identifiable {
     case granola
     case fathom
     case googleMeet = "google-meet"
+    /// Los diseños del usuario en Claude Design. El agente los lee (y, si se le deja, los edita) a
+    /// partir de un enlace o del nombre de un proyecto.
+    case claudeDesign = "claude-design"
 
     public var id: String { rawValue }
 }
@@ -46,6 +49,7 @@ extension Tool {
         case .granola: "Granola"
         case .fathom: "Fathom"
         case .googleMeet: "Google Meet"
+        case .claudeDesign: "Claude Design"
         }
     }
 
@@ -53,7 +57,7 @@ extension Tool {
         switch self {
         case .whatsapp: .qrCode
         case .slack, .notion, .googleWorkspace, .gmail, .jira,
-            .fireflies, .granola, .fathom, .googleMeet:
+            .fireflies, .granola, .fathom, .googleMeet, .claudeDesign:
             .oauth
         }
     }
@@ -65,7 +69,7 @@ extension Tool {
     /// transcripción son `false` porque sus MCP oficiales son de solo lectura.
     public var allowsWriting: Bool {
         switch self {
-        case .slack, .notion, .googleWorkspace, .gmail, .jira: true
+        case .slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign: true
         case .whatsapp, .fireflies, .granola, .fathom, .googleMeet: false
         }
     }
@@ -83,7 +87,7 @@ extension Tool {
         case .gmail: [.mailLabel]
         case .jira: [.project]
         case .googleMeet: [.folder]
-        case .fireflies, .granola, .fathom: []
+        case .fireflies, .granola, .fathom, .claudeDesign: []
         }
     }
 
@@ -96,7 +100,7 @@ extension Tool {
         case .slack: .slackMessage
         case .gmail: .email
         case .whatsapp, .notion, .googleWorkspace, .jira,
-            .fireflies, .granola, .fathom, .googleMeet:
+            .fireflies, .granola, .fathom, .googleMeet, .claudeDesign:
             nil
         }
     }
@@ -109,6 +113,7 @@ extension Tool {
         case .notion: [.notion]
         case .jira: [.jira]
         case .googleWorkspace: [.googleDocs, .googleSheets]
+        case .claudeDesign: [.claudeDesign]
         case .whatsapp, .slack, .gmail, .fireflies, .granola, .fathom, .googleMeet: []
         }
     }
@@ -123,7 +128,7 @@ extension Tool {
     public var requiresUserProvidedOAuthClient: Bool {
         switch self {
         case .slack, .gmail, .googleWorkspace: true
-        case .whatsapp, .notion, .jira, .fireflies, .granola, .fathom, .googleMeet: false
+        case .whatsapp, .notion, .jira, .fireflies, .granola, .fathom, .googleMeet, .claudeDesign: false
         }
     }
 
@@ -135,7 +140,7 @@ extension Tool {
         switch self {
         case .googleMeet: [.googleWorkspace]
         case .whatsapp, .slack, .notion, .googleWorkspace, .gmail, .jira,
-            .fireflies, .granola, .fathom:
+            .fireflies, .granola, .fathom, .claudeDesign:
             []
         }
     }

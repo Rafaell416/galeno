@@ -17,7 +17,7 @@ final class ToolTests: XCTestCase {
     func testTheToolsThatWriteAreExactlyTheExpectedOnes() {
         let writers = Tool.allCases.filter(\.allowsWriting)
 
-        XCTAssertEqual(writers, [.slack, .notion, .googleWorkspace, .gmail, .jira])
+        XCTAssertEqual(writers, [.slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign])
     }
 
     func testWhatsAppConnectsByQRAndTheRestByOAuth() {
@@ -48,7 +48,8 @@ final class ToolTests: XCTestCase {
     func testEveryOtherToolHasSelectableSources() {
         let withoutSources = Tool.allCases.filter(\.selectableSourceKinds.isEmpty)
 
-        XCTAssertEqual(withoutSources, [.fireflies, .granola, .fathom])
+        // Claude Design tampoco tiene fuentes que elegir: el agente abre el enlace o el proyecto que le den.
+        XCTAssertEqual(withoutSources, [.fireflies, .granola, .fathom, .claudeDesign])
     }
 
     func testEveryToolHasADisplayNameInBothLanguages() {
@@ -102,7 +103,7 @@ final class ToolTests: XCTestCase {
             Tool.allCases.map(\.rawValue),
             [
                 "whatsapp", "slack", "notion", "google-workspace", "gmail",
-                "jira", "fireflies", "granola", "fathom", "google-meet",
+                "jira", "fireflies", "granola", "fathom", "google-meet", "claude-design",
             ]
         )
     }

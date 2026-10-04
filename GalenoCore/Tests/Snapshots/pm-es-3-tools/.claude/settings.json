@@ -1,4 +1,5 @@
 {
+  "effortLevel" : "low",
   "hooks" : {
     "PreToolUse" : [
       {
@@ -8,7 +9,7 @@
             "type" : "command"
           }
         ],
-        "matcher" : "mcp__slack__.*"
+        "matcher" : "^mcp__slack__(?!(?:slack_get_reactions|slack_list_channel_members|slack_list_user_channels|slack_read_canvas|slack_read_channel|slack_read_file|slack_read_list|slack_read_thread|slack_read_user_profile|slack_search_channels|slack_search_emojis|slack_search_public|slack_search_public_and_private|slack_search_users)$).*"
       }
     ]
   },
@@ -19,10 +20,36 @@
       "Grep",
       "Read",
       "mcp__notion__*",
+      "mcp__slack__slack_get_reactions",
+      "mcp__slack__slack_list_channel_members",
+      "mcp__slack__slack_list_user_channels",
+      "mcp__slack__slack_read_canvas",
+      "mcp__slack__slack_read_channel",
+      "mcp__slack__slack_read_file",
+      "mcp__slack__slack_read_list",
+      "mcp__slack__slack_read_thread",
+      "mcp__slack__slack_read_user_profile",
+      "mcp__slack__slack_search_channels",
+      "mcp__slack__slack_search_emojis",
+      "mcp__slack__slack_search_public",
+      "mcp__slack__slack_search_public_and_private",
+      "mcp__slack__slack_search_users",
       "mcp__whatsapp__*"
     ],
     "ask" : [
-      "mcp__slack__*"
+      "mcp__slack__slack_add_list_record",
+      "mcp__slack__slack_add_reaction",
+      "mcp__slack__slack_complete_file_upload",
+      "mcp__slack__slack_create_canvas",
+      "mcp__slack__slack_create_conversation",
+      "mcp__slack__slack_create_list",
+      "mcp__slack__slack_get_file_upload_url",
+      "mcp__slack__slack_schedule_message",
+      "mcp__slack__slack_send_message",
+      "mcp__slack__slack_send_message_draft",
+      "mcp__slack__slack_update_canvas",
+      "mcp__slack__slack_update_list",
+      "mcp__slack__slack_update_list_record"
     ],
     "deny" : [
       "Bash",

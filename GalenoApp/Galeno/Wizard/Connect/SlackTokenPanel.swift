@@ -8,43 +8,14 @@ import SwiftUI
 /// consigue el token por él (`SlackSignInWindow`). El token se usa una vez para crear la app y se
 /// descarta; no se guarda en ninguna parte. No hay camino de «pegar el token a mano»: si la
 /// ventana no avanza sola, ella misma le pide al usuario el clic que falte.
-struct SlackTokenPanel: View {
-    @ObservedObject var flow: ConnectFlow
-    @EnvironmentObject private var wizard: WizardState
-    let name: String
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Space.s12) {
-                HStack(spacing: Space.s12) {
-                    ToolIcon(tool: .slack, size: 32, color: Color.ink900)
-                    Text(verbatim: name)
-                        .font(.galenoTitle)
-                        .foregroundStyle(Color.ink900)
-                }
-
-                Text("connect.slack.signin.body")
-                    .font(.galenoBody)
-                    .foregroundStyle(Color.ink900)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                PrimaryButton("connect.slack.signin.button", action: openSignIn)
-                    .controlSize(.large)
-
-                Text("connect.slack.signin.privacy")
-                    .font(.galenoCaption)
-                    .foregroundStyle(Color.ink700)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, Space.s4)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-    }
-
-    private func openSignIn() {
+///
+/// La pantalla es la misma de las demás conexiones (`ConnectionScreen`); aquí solo vive abrir la ventana.
+enum SlackTokenPanel {
+    @MainActor
+    static func openSignIn(flow: ConnectFlow, language: Language) {
         // La misma sesión efímera servirá luego para autorizar la app: el usuario entra una vez.
         SlackSignInWindow.present(
-            freshOnly: flow.slackNeedsFreshToken, language: wizard.language,
+            freshOnly: flow.slackNeedsFreshToken, language: language,
             dataStore: flow.webSession.dataStore
         ) { secret in
             flow.submitSlackSecret(secret)

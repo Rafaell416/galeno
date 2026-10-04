@@ -42,7 +42,8 @@ public struct SendingRules: Codable, Hashable, Sendable {
     public static let `default`: SendingRules = {
         var rules = SendingRules()
         for write in InternalWrite.allCases {
-            rules.setPolicy(.allow, for: write)
+            // Claude Design puede borrar archivos (`delete_files`): de fábrica pregunta.
+            rules.setPolicy(write == .claudeDesign ? .ask : .allow, for: write)
         }
         return rules
     }()
@@ -55,6 +56,8 @@ public enum InternalWrite: String, Codable, CaseIterable, Sendable {
     case jira
     case googleDocs = "google-docs"
     case googleSheets = "google-sheets"
+    /// Crear, editar o borrar archivos en los proyectos de Claude Design del propio usuario.
+    case claudeDesign = "claude-design"
 }
 
 /// Lo que sale hacia afuera, hacia otras personas.

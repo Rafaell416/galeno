@@ -20,7 +20,11 @@ nonisolated struct AgentInstaller: Sendable {
 
     /// - Parameter existingAgentID: el agente que ya se generó en esta sesión, si se vuelve a
     ///   generar (el usuario regresó a cambiar algo).
-    func install(_ config: AgentConfig, existingAgentID: UUID? = nil) throws -> Outcome {
+    /// - Parameter importedContext: material que el usuario trajo; el motor lo deja en `memoria/contexto/`
+    ///   sin pisar nada de lo que ya haya.
+    func install(
+        _ config: AgentConfig, existingAgentID: UUID? = nil, importedContext: [ContextFile] = []
+    ) throws -> Outcome {
         var installation = try store.load() ?? GalenoInstallation(language: config.language)
         installation.language = config.language
 
@@ -53,7 +57,8 @@ nonisolated struct AgentInstaller: Sendable {
         guard let resolved = installation.resolvedConfig(for: record.id) else {
             throw InstallationError.unknownAgent(record.id)
         }
-        let result = try ConfigGenerator().generate(resolved, into: record.folder, options: options)
+        let result = try ConfigGenerator().generate(
+            resolved, into: record.folder, options: options, importedContext: importedContext)
 
         try store.save(installation)
         return Outcome(record: record, result: result)

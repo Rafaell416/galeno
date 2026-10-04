@@ -13,7 +13,7 @@ extension Tool {
         // Traen su propia app OAuth: la creamos con el cliente y luego conecta.
         case .slack, .gmail, .googleWorkspace: 2
         // OAuth hospedado, sin nada previo.
-        case .notion, .jira, .fireflies, .granola, .fathom: 1
+        case .notion, .jira, .fireflies, .granola, .fathom, .claudeDesign: 1
         // Se lee con Drive: no hay nada que conectar aparte.
         case .googleMeet: 0
         }

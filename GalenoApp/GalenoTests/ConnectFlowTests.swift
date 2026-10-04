@@ -8,6 +8,8 @@ import XCTest
 final class ConnectFlowTests: XCTestCase {
     private var recordedStatuses: [(Tool, ConnectionStatus)] = []
     private var recordedClientIDs: [(Tool, String)] = []
+    /// Cuántas veces el flujo trajo Galeno al frente (tras autorizar en el navegador).
+    private var returnsToApp = 0
 
     private func makeFlow(
         _ tools: [Tool],
@@ -21,12 +23,14 @@ final class ConnectFlowTests: XCTestCase {
     ) -> ConnectFlow {
         recordedStatuses = []
         recordedClientIDs = []
+        returnsToApp = 0
         return ConnectFlow(
             tools: tools, statuses: statuses, mcp: mcp, whatsapp: whatsapp, slack: slack,
             agentName: { "Aurora" },
             fetchRealData: fetchRealData, timing: timing, sleep: sleep.sleeper,
             onStatus: { [unowned self] tool, status in recordedStatuses.append((tool, status)) },
-            onClientID: { [unowned self] tool, id in recordedClientIDs.append((tool, id)) })
+            onClientID: { [unowned self] tool, id in recordedClientIDs.append((tool, id)) },
+            returnToApp: { [unowned self] in returnsToApp += 1 })
     }
 
     private func isOn(_ flow: ConnectFlow, _ tool: Tool) -> Bool { flow.screen == .connection(tool) }
@@ -261,6 +265,55 @@ final class ConnectFlowTests: XCTestCase {
     }
 
     /// Contar páginas de Notion tardaba ~17 s y costaba ~$0,06: no se pide ningún dato.
+    /// Tras autorizar en el navegador, Galeno vuelve al frente; si no se abrió ningún navegador, no.
+    func testGalenoComesBackToTheFrontOnlyAfterABrowserAuthorization() async {
+        let flow = makeFlow([.notion, .jira], fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let connected = await waitUntil { flow.phase == .succeeded(alreadyConnected: false) }
+        XCTAssertTrue(connected, "\(flow.phase)")
+        XCTAssertEqual(returnsToApp, 1)
+
+        let already = makeFlow([.notion, .jira], mcp: FakeMCP(statuses: ["notion": .connected]), fetchRealData: false, sleep: .holdingSuccess)
+        defer { already.cancelAll() }
+        already.connect()
+        let found = await waitUntil { already.phase == .succeeded(alreadyConnected: true) }
+        XCTAssertTrue(found, "\(already.phase)")
+        XCTAssertEqual(returnsToApp, 0, "ya estaba conectado: no hubo navegador del que volver")
+    }
+
+    func testAFailedAuthorizationDoesNotStealTheFocus() async {
+        let mcp = FakeMCP(loginFailures: ["notion": [.loginTimedOut]])
+        let flow = makeFlow([.notion, .jira], mcp: mcp, fetchRealData: false)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let failed = await waitUntil { flow.phase == .failed(.notAuthorizedInTime) }
+        XCTAssertTrue(failed, "\(flow.phase)")
+        XCTAssertEqual(returnsToApp, 0)
+    }
+
+    func testClaudeDesignConnectsWithTheClaudeCodeSessionAndNeverOpensALogin() async {
+        let mcp = FakeMCP()
+        mcp.connectsOnRegister = ["claude-design"]
+        let flow = makeFlow([.claudeDesign, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let connected = await waitUntil { flow.phase == .succeeded(alreadyConnected: false) }
+        XCTAssertTrue(connected, "\(flow.phase)")
+        XCTAssertTrue(mcp.calls.contains("register claude-design"))
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("login") }, "no hay OAuth que abrir: \(mcp.calls)")
+    }
+
+    func testClaudeDesignSaysSoWhenClaudeCodeHasNoSession() async {
+        let mcp = FakeMCP(issues: ["claude-design": "Run `claude login`"])
+        let flow = makeFlow([.claudeDesign, .jira], mcp: mcp, fetchRealData: false)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let failed = await waitUntil { flow.phase == .failed(.stillNotConnected) }
+        XCTAssertTrue(failed, "\(flow.phase)")
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("login") })
+    }
+
     func testNotionIsConnectedWithoutAskingForAnyFigure() async {
         let mcp = FakeMCP(counts: ["notion": ItemCount(value: 10, isPartial: true)])
         let flow = makeFlow([.notion, .jira], mcp: mcp, sleep: .holdingSuccess)

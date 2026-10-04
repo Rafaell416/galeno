@@ -215,6 +215,56 @@ final class WizardScreens6to10Tests: XCTestCase {
         return await waitUntil(timeout: 10) { state.generation?.phase != .running }
     }
 
+    func testContextTheUserBroughtLandsInTheAgentsMemoryFolder() async throws {
+        let state = makeState()
+        state.loadSkillCatalog()
+        state.setOAuthClientID(.slack, "1234567890123.1234567890123")
+        XCTAssertNil(state.addContext(ContextFile(title: "Resumen.md", text: "Ana lleva diseño.")))
+        walkToGenerating(state)
+        let done = await generate(state)
+        XCTAssertTrue(done)
+        let agent = try XCTUnwrap(state.generatedAgent)
+        let imported = try String(
+            contentsOf: agent.folder.appending(path: "memoria/contexto/01-resumen.md"), encoding: .utf8)
+        XCTAssertTrue(imported.contains("Ana lleva diseño."))
+    }
+
+    func testClaudeDesignAsksBeforeWritingUntilTheUserSaysOtherwise() {
+        let state = makeState(tools: [.claudeDesign])
+        XCTAssertEqual(state.configurableWrites, [.claudeDesign])
+        XCTAssertEqual(state.policy(for: .claudeDesign), .ask, "puede borrar archivos: de fábrica pregunta")
+        state.setPolicy(.allow, for: .claudeDesign)
+        XCTAssertEqual(state.makeConfig().sendingRules.policy(for: .claudeDesign), .allow)
+    }
+
+    func testTheFirstCommandInvitesToPasteADesignLinkWhenThatIsAllThereIs() {
+        let suggestion = FirstCommand.suggestion(for: [.claudeDesign], language: .spanish)
+        XCTAssertTrue(suggestion.contains("enlace de Claude Design"))
+        XCTAssertEqual(
+            FirstCommand.suggestion(for: [.claudeDesign, .slack], language: .spanish),
+            "¿Cuáles son los 3 mensajes más recientes de Slack donde me mencionan?", "con otras herramientas manda la de siempre")
+    }
+
+    func testContextLimitsAndEmptyTextAreRefused() {
+        let state = makeState()
+        XCTAssertEqual(state.addContext(ContextFile(title: "x", text: "  \n")), .empty)
+        for index in 0..<ContextFile.maxFiles {
+            XCTAssertNil(state.addContext(ContextFile(title: "n\(index)", text: "texto")))
+        }
+        XCTAssertEqual(state.addContext(ContextFile(title: "otro", text: "texto")), .tooMany)
+        state.removeContext(state.contextItems[0])
+        XCTAssertEqual(state.contextItems.count, ContextFile.maxFiles - 1)
+    }
+
+    func testContextIsNotPartOfTheConfigNorTheDraft() throws {
+        let state = makeState()
+        state.addContext(ContextFile(title: "Secreto?", text: "contenido largo del usuario"))
+        let config = try String(data: AgentConfig.jsonEncoder.encode(state.makeConfig()), encoding: .utf8)
+        XCTAssertFalse(try XCTUnwrap(config).contains("contenido largo del usuario"))
+        let draft = try String(data: JSONEncoder().encode(state.makeDraft()), encoding: .utf8)
+        XCTAssertFalse(try XCTUnwrap(draft).contains("contenido largo del usuario"))
+    }
+
     func testGeneratingWritesTheAgentAndLeavesItReadyForTheLastScreen() async throws {
         let state = makeState()
         state.loadSkillCatalog()
@@ -249,7 +299,7 @@ final class WizardScreens6to10Tests: XCTestCase {
         state.finishGeneration()
 
         state.back()
-        XCTAssertEqual(state.step, .rules)
+        XCTAssertEqual(state.step, .review)
         state.setPolicy(.ask, for: .notion)
         state.next()
         XCTAssertEqual(state.step, .generating)

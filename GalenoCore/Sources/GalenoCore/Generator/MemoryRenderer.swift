@@ -13,6 +13,8 @@
 enum MemoryRenderer {
     static let directory = "memoria"
     static let mainFile = "memoria/proyecto.md"
+    /// Donde Galeno deja el material que el usuario trajo al crear el agente.
+    static let contextDirectory = "memoria/contexto"
 
     /// Lo que dice la sección de resumen mientras nadie la confirmó. El
     /// `AGENTS.md` cita este mismo texto: así el agente sabe que es su primera
