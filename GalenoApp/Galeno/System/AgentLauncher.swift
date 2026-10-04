@@ -71,6 +71,11 @@ nonisolated enum FirstCommand {
         if tools.contains(where: { [.fireflies, .granola, .fathom, .googleMeet].contains($0) }) {
             return pick("Resume mis últimas reuniones", "Summarize my latest meetings")
         }
+        if tools.contains(.claudeDesign) {
+            return pick(
+                "Revisa este diseño y dime qué le falta: [pega aquí el enlace de Claude Design]",
+                "Review this design and tell me what is missing: [paste the Claude Design link here]")
+        }
         return pick(
             "Resume lo que pasó esta semana en el proyecto", "Summarize what happened this week in the project")
     }

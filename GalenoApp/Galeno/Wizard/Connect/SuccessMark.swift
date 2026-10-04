@@ -1,42 +1,40 @@
 import SwiftUI
 
-/// El check de éxito: un círculo y una palomita que se dibujan con trazo, sin
+/// «Trazar»: el check de éxito, un círculo (700 ms) y una palomita (500 ms) que se dibujan con trazo, sin
 /// rebotes ni confeti (`docs/04` §8). Con "Reducir movimiento" aparece ya dibujado.
 struct SuccessMark: View {
     var size: CGFloat = 56
+    /// `false` cuando no hay nada que celebrar («ya estaba conectado»): aparece completo, con un fundido.
+    var traced = true
+    /// Cuánto tarda el círculo y cuándo empieza la palomita (el paso 2 los acorta: 300 + 500 ms).
+    var circleDuration: Double = Motion.trace
+    var checkDelay: Double = 0.5
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.galenoReduceMotion) private var reduceMotion
     @State private var drawn = false
 
     var body: some View {
         ZStack {
+            // Trazo fino, como en el diseño: 1,5 pt el círculo y algo más la palomita.
             Circle()
-                .trim(from: 0, to: drawn ? 1 : 0)
-                .stroke(Color.moss700, style: StrokeStyle(lineWidth: size / 18, lineCap: .round))
+                .inset(by: 0.75)
+                .trim(from: 0, to: drawn || !traced ? 1 : 0)
+                .stroke(Color.moss700, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: drawn)
-            CheckShape()
-                .trim(from: 0, to: drawn ? 1 : 0)
+                .animation(reduceMotion || !traced ? nil : .easeOut(duration: circleDuration), value: drawn)
+            CheckMark()
+                .trim(from: 0, to: drawn || !traced ? 1 : 0)
                 .stroke(
                     Color.moss700,
-                    style: StrokeStyle(lineWidth: size / 14, lineCap: .round, lineJoin: .round)
+                    style: StrokeStyle(lineWidth: size >= 48 ? 2.2 : 1.8, lineCap: .round, lineJoin: .round)
                 )
-                .padding(size * 0.28)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.3).delay(0.3), value: drawn)
+                .animation(reduceMotion || !traced ? nil : .easeOut(duration: 0.5).delay(checkDelay), value: drawn)
         }
         .frame(width: size, height: size)
+        .opacity(traced || drawn ? 1 : 0)
+        .animation(.easeOut(duration: Motion.enter), value: drawn)
         .onAppear { drawn = true }
         .accessibilityHidden(true)
-    }
-}
-
-private struct CheckShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.55))
-        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.38, y: rect.maxY - rect.height * 0.08))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.08))
-        return path
     }
 }
 

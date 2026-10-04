@@ -27,6 +27,8 @@ final class GenerationFlow: ObservableObject {
     @Published private(set) var current: Step?
     @Published private(set) var completed: Set<Step> = []
     @Published private(set) var outcome: AgentInstaller.Outcome?
+    /// Cuántas veces se ha intentado: la pantalla reinicia sus trazos con cada intento.
+    @Published private(set) var attempt = 0
 
     /// Lo que se ve cada paso como mínimo.
     var stepDuration: Duration = .milliseconds(700)
@@ -97,6 +99,7 @@ final class GenerationFlow: ObservableObject {
         task = nil
         current = nil
         completed = []
+        attempt += 1
         start()
     }
 

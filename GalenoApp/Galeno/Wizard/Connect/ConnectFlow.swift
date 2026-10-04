@@ -373,6 +373,12 @@ final class ConnectFlow: ObservableObject {
         advance()
     }
 
+    /// «Continuar» tras un éxito: no hace falta esperar a que la pantalla avance sola.
+    func continueFromSuccess() {
+        guard case .succeeded = phase else { return }
+        advance()
+    }
+
     func continueFromDopamine() {
         guard case .dopamine = screen else { return }
         advance()
@@ -892,7 +898,7 @@ final class ConnectFlow: ObservableObject {
         case .gmail: .labels
         case .fireflies, .granola, .fathom: .meetings
         case .whatsapp: .groups
-        case .notion, .googleWorkspace, .googleMeet: nil
+        case .notion, .googleWorkspace, .googleMeet, .claudeDesign: nil
         }
     }
 }

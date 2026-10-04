@@ -50,7 +50,7 @@ final class WizardStateTests: XCTestCase {
             WizardStep.allCases,
             [
                 .welcome, .detection, .agent, .tools, .connect,
-                .sources, .skills, .rules, .generating, .done,
+                .skills, .rules, .review, .generating, .done,
             ])
         XCTAssertEqual(WizardStep.allCases.map(\.number), Array(1...10))
     }
@@ -127,18 +127,25 @@ final class WizardStateTests: XCTestCase {
         }
     }
 
-    /// Los textos de dopamina los escribe Rafa; mientras tanto deben seguir
-    /// marcados para que no se cuelen a una versión.
-    func testTheDopamineSlotsAreStillMarkedTODO() throws {
+    /// Las frases de dopamina ya están escritas (copy v2), en los dos idiomas, y las que nombran al
+    /// agente llevan su argumento.
+    func testTheDopamineTextsAreWrittenInBothLanguages() throws {
         let app = Bundle(for: WizardState.self)
-        let bundle = try XCTUnwrap(
-            Bundle(path: try XCTUnwrap(app.path(forResource: "es", ofType: "lproj"))))
-        for key in [
-            "dopamine.welcome", "dopamine.detection", "dopamine.agent", "dopamine.tools",
-            "dopamine.connect.first", "dopamine.connect.half", "dopamine.connect.last",
-        ] {
-            let text = bundle.localizedString(forKey: key, value: "⟂", table: nil)
-            XCTAssertTrue(text.hasPrefix("TODO(dopamina)"), "\(key): \(text)")
+        let keys = [
+            "dopamine.welcome", "dopamine.detection", "dopamine.agent", "dopamine.tools %@",
+            "dopamine.connect.first %@", "dopamine.connect.half", "dopamine.connect.last %@",
+            "dopamine.generating", "dopamine.done",
+        ]
+        for language in ["es", "en"] {
+            let bundle = try XCTUnwrap(
+                Bundle(path: try XCTUnwrap(app.path(forResource: language, ofType: "lproj"))))
+            for key in keys {
+                let text = bundle.localizedString(forKey: key, value: "⟂", table: nil)
+                XCTAssertNotEqual(text, "⟂", "\(key) no está en \(language)")
+                XCTAssertFalse(text.contains("TODO"), "\(key) sigue marcada: \(text)")
+                XCTAssertFalse(text.contains("!"), "\(key): sin exclamaciones (copy v2)")
+                XCTAssertEqual(text.contains("%@"), key.contains("%@"), "\(key): \(text)")
+            }
         }
     }
 
@@ -160,10 +167,10 @@ final class WizardStateTests: XCTestCase {
         }
         XCTAssertTrue(state.isLastStep)
 
-        // Desde «Listo» se vuelve a las reglas, no a «Generando» (que no se puede deshacer):
+        // Desde «Listo» se vuelve a la revisión, no a «Escribiendo» (que no se puede deshacer):
         // al avanzar otra vez se regenera el mismo agente.
         state.back()
-        XCTAssertEqual(state.step, .rules)
+        XCTAssertEqual(state.step, .review)
     }
 
     func testNextStopsAtTheLastStep() {

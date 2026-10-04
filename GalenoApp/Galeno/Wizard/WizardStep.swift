@@ -1,15 +1,16 @@
 import SwiftUI
 
-/// Los 10 pasos del wizard, en el orden de `docs/03-especificacion-v0.0.1.md` §3.
+/// Los 10 pasos del wizard, en el orden de `docs/03-especificacion-v0.0.1.md` §3 (rediseño B1:
+/// sin la pantalla «El foco»; antes de escribir hay una de revisión).
 enum WizardStep: Int, CaseIterable, Identifiable {
     case welcome
     case detection
     case agent
     case tools
     case connect
-    case sources
     case skills
     case rules
+    case review
     case generating
     case done
 
@@ -20,7 +21,13 @@ enum WizardStep: Int, CaseIterable, Identifiable {
 
     /// Las claves de `Localizable.xcstrings`.
     var titleKey: String { "step.\(slug).title" }
-    var summaryKey: String { "step.\(slug).summary" }
+    /// Desde el paso 6 el resumen habla del agente por su nombre: la clave lleva un argumento.
+    var summaryKey: String {
+        switch self {
+        case .skills, .rules: "step.\(slug).summary %@"
+        default: "step.\(slug).summary"
+        }
+    }
 
     var title: LocalizedStringKey { LocalizedStringKey(titleKey) }
     var summary: LocalizedStringKey { LocalizedStringKey(summaryKey) }
@@ -31,16 +38,16 @@ enum WizardStep: Int, CaseIterable, Identifiable {
         self != .welcome && self != .generating
     }
 
-    private var slug: String {
+    var slug: String {
         switch self {
         case .welcome: "welcome"
         case .detection: "detection"
         case .agent: "agent"
         case .tools: "tools"
         case .connect: "connect"
-        case .sources: "sources"
         case .skills: "skills"
         case .rules: "rules"
+        case .review: "review"
         case .generating: "generating"
         case .done: "done"
         }

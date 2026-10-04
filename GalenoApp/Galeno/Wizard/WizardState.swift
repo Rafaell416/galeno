@@ -9,7 +9,11 @@ import GalenoCore
 /// navegación también. No contiene credenciales (igual que `AgentConfig`).
 @MainActor
 final class WizardState: ObservableObject {
-    @Published private(set) var step: WizardStep = .welcome
+    @Published private(set) var step: WizardStep = .welcome {
+        didSet { if step.rawValue > furthestStep.rawValue { furthestStep = step } }
+    }
+    /// El paso más lejano al que se ha llegado: ⌘1…⌘0 solo salta a pasos ya visitados.
+    private(set) var furthestStep: WizardStep = .welcome
 
     // MARK: Lo que captura el wizard
 
@@ -54,6 +58,37 @@ final class WizardState: ObservableObject {
     private var connectFlowTools: [Tool] = []
     private var connectFlowObserver: AnyCancellable?
 
+    /// Mientras el texto está fundido a cero durante el cambio de idioma (G8).
+    @Published private(set) var languageFading = false
+
+    /// Cambia el idioma: el texto baja a opacidad 0 (120 ms), cambia el `locale` y sube a 1 (120 ms).
+    /// Sin animar (Reducir movimiento), el cambio es directo.
+    func changeLanguage(_ new: Language, animated: Bool) {
+        guard new != language else { return }
+        guard animated else {
+            language = new
+            return
+        }
+        languageFading = true
+        Task {
+            try? await Task.sleep(for: .milliseconds(120))
+            language = new
+            languageFading = false
+        }
+    }
+
+    /// Las líneas del `AGENTS.md` que ya vio la última vez que abrió la vista previa: lo nuevo se marca.
+    var previewSeen: Set<String> = []
+    /// El anillo del retrato de la portada se traza solo la primera vez que se ve en la sesión.
+    var hasShownPortraitTrace = false
+
+    // MARK: Reanudar
+
+    /// El borrador que dejó una sesión anterior, mientras el usuario decide si seguir o empezar de nuevo.
+    @Published private(set) var pendingDraft: WizardDraft?
+    private let draftStore: (any DraftStoring)?
+    private var draftObserver: AnyCancellable?
+
     /// - Parameters:
     ///   - preferredLanguages: los idiomas del Mac, en orden de preferencia.
     ///   - claudeStatus: el estado inicial de la detección.
@@ -63,12 +98,64 @@ final class WizardState: ObservableObject {
         preferredLanguages: [String] = Locale.preferredLanguages,
         claudeStatus: ClaudeCodeStatus = .checking,
         claudeDetector: ClaudeCodeDetector = .live,
-        connectServices: ConnectServices = .live()
+        connectServices: ConnectServices = .live(),
+        draftStore: (any DraftStoring)? = nil
     ) {
         language = Self.defaultLanguage(from: preferredLanguages)
         self.claudeStatus = claudeStatus
         self.claudeDetector = claudeDetector
         self.connectServices = connectServices
+        self.draftStore = draftStore
+        if let draft = draftStore?.load(), draft.step > WizardStep.welcome.rawValue {
+            pendingDraft = draft
+            language = draft.language  // la pantalla de «¿Seguimos?» habla en su idioma
+        }
+        guard draftStore != nil else { return }
+        // Cada cambio se guarda poco después; mientras se decide si reanudar, no se pisa el borrador.
+        draftObserver = objectWillChange
+            .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.saveDraft() }
+    }
+
+    /// El estado de ahora como borrador. Nada si no hay nada que guardar (primer paso sin tocar,
+    /// o ya terminó).
+    func makeDraft() -> WizardDraft? {
+        guard step != .done, step.rawValue > WizardStep.welcome.rawValue || !agentName.isEmpty else { return nil }
+        let resumeStep: WizardStep = (step == .generating) ? .review : step
+        return WizardDraft(
+            step: resumeStep.rawValue, furthestStep: min(furthestStep.rawValue, WizardStep.review.rawValue),
+            language: language, agentName: agentName, projectDescription: projectDescription,
+            connections: connections, skills: skills, skillsInitialized: skillsInitialized,
+            sendingRules: sendingRules)
+    }
+
+    func saveDraft() {
+        guard let draftStore, pendingDraft == nil else { return }
+        if let draft = makeDraft() { draftStore.save(draft) } else { draftStore.clear() }
+    }
+
+    /// «Continuar»: vuelve a donde se quedó. Las conexiones hechas en Claude Code se reconocen solas
+    /// al entrar al paso 5 («ya estaba conectado»).
+    func resumeDraft() {
+        guard let draft = pendingDraft else { return }
+        language = draft.language
+        agentName = draft.agentName
+        projectDescription = draft.projectDescription
+        connections = draft.connections
+        skills = draft.skills
+        skillsInitialized = draft.skillsInitialized
+        sendingRules = draft.sendingRules
+        furthestStep = WizardStep(rawValue: draft.furthestStep) ?? .welcome
+        step = WizardStep(rawValue: draft.step) ?? .welcome
+        pendingDraft = nil
+        // Pasar de largo el paso 2 no debe dejar el estado de Claude Code en «buscando».
+        if !claudeStatus.isFound { Task { await detectClaudeCode() } }
+    }
+
+    /// «Empezar de nuevo»: se borra el borrador y se arranca limpio.
+    func discardDraft() {
+        pendingDraft = nil
+        draftStore?.clear()
     }
 
     /// El idioma del paso 1 viene preseleccionado según el Mac: español si el
@@ -93,9 +180,9 @@ final class WizardState: ObservableObject {
     var canGoForward: Bool { !isLastStep && isCurrentStepComplete }
 
     /// El sub-wizard del paso 5 lleva sus propios botones (Conectar, Conectar después,
-    /// Reintentar…): la barra Atrás/Siguiente se oculta hasta que llega a la celebración.
+    /// Reintentar, Continuar…) hasta el final: la barra Atrás/Siguiente no aparece en ese paso.
     var hidesNavigation: Bool {
-        (step == .connect && connectFlow?.isFinished != true) || step == .generating
+        step == .connect || step == .generating
     }
 
     /// Si el paso actual tiene lo que necesita para seguir. Los pasos que
@@ -108,7 +195,7 @@ final class WizardState: ObservableObject {
         // Se sale del sub-wizard cuando llega a la celebración: todas conectadas o saltadas.
         case .connect: connectFlow?.isFinished == true
         case .generating: generation?.phase == .succeeded
-        case .welcome, .sources, .skills, .rules, .done: true
+        case .welcome, .skills, .rules, .review, .done: true
         }
     }
 
@@ -124,9 +211,42 @@ final class WizardState: ObservableObject {
 
     func back() {
         guard canGoBack, let previous = WizardStep(rawValue: step.rawValue - 1) else { return }
-        // Desde «Listo» se vuelve a las reglas, no a la pantalla de generar: al avanzar se
-        // regenera el mismo agente, en la misma carpeta.
-        step = step == .done ? .rules : previous
+        // Desde «Listo» se vuelve a la revisión, no a la pantalla de escribir (que no se puede
+        // deshacer): al avanzar se regenera el mismo agente, en la misma carpeta.
+        step = step == .done ? .review : previous
+    }
+
+    /// Salta a un paso ya visitado (⌘1…⌘0). Hacia atrás siempre; hacia adelante solo hasta donde ya
+    /// se llegó y con cada paso intermedio completo, para no saltarse nada.
+    func goTo(_ target: WizardStep) {
+        guard target != step, target.rawValue <= furthestStep.rawValue, step != .generating else { return }
+        if target.rawValue < step.rawValue { jump(to: target); return }
+        while step.rawValue < target.rawValue, canGoForward { next() }
+    }
+
+    /// Desde «Revisión», «Cambiar» lleva a un paso anterior. Solo hacia atrás: adelante se va
+    /// con «Siguiente», que comprueba que cada paso esté completo.
+    func jump(to target: WizardStep) {
+        guard canGoBack, target.rawValue < step.rawValue else { return }
+        step = target
+    }
+
+    /// Los minutos que faltan, para el «~17 min» de la cabecera: lo que queda por conectar más un
+    /// minuto por cada paso restante. Es una estimación, como la del paso 4.
+    var estimatedMinutesLeft: Int {
+        let pending: Int
+        switch step {
+        case .welcome, .detection, .agent, .tools:
+            pending = selectedTools.isEmpty ? 1 : estimatedSetupMinutes
+        case .connect:
+            let remaining = connectFlow.map { flow in
+                flow.tools.filter { (flow.statuses[$0] ?? .selected) == .selected }
+            } ?? selectedTools
+            pending = remaining.reduce(0) { $0 + $1.estimatedSetupMinutes }
+        default:
+            pending = 0
+        }
+        return max(1, pending + max(0, stepCount - step.number))
     }
 
     // MARK: Paso 2: Claude Code
@@ -135,7 +255,43 @@ final class WizardState: ObservableObject {
     /// desde "Comprobar de nuevo".
     func detectClaudeCode() async {
         claudeStatus = .checking
-        claudeStatus = await claudeDetector.detect()
+        let started = ContinuousClock.now
+        let result = await claudeDetector.detect()
+        // La búsqueda se ve al menos 600 ms aunque sea instantánea: se nota que se buscó.
+        let elapsed = ContinuousClock.now - started
+        if elapsed < .milliseconds(600) { await connectServices.sleep(.milliseconds(600) - elapsed) }
+        claudeStatus = result
+    }
+
+    // MARK: Paso 3: contexto que el usuario trae
+
+    /// Un material que el usuario añadió (un chat de claude.ai, un documento).
+    struct ContextItem: Identifiable, Equatable {
+        let id = UUID()
+        var file: ContextFile
+    }
+
+    /// Material que se deja en `memoria/contexto/` al crear el agente. No va al borrador ni a la config:
+    /// es de una sola vez y puede ser largo.
+    @Published var contextItems: [ContextItem] = []
+
+    var contextCharacterCount: Int { contextItems.reduce(0) { $0 + $1.file.text.count } }
+
+    enum ContextIssue: Equatable { case tooMany, tooLong, empty }
+
+    /// Añade un material. Devuelve por qué no cupo, o `nil` si entró.
+    @discardableResult
+    func addContext(_ file: ContextFile) -> ContextIssue? {
+        let text = file.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty { return .empty }
+        if contextItems.count >= ContextFile.maxFiles { return .tooMany }
+        if contextCharacterCount >= ContextFile.maxCharactersTotal { return .tooLong }
+        contextItems.append(ContextItem(file: ContextFile(title: file.title, text: text)))
+        return nil
+    }
+
+    func removeContext(_ item: ContextItem) {
+        contextItems.removeAll { $0.id == item.id }
     }
 
     // MARK: Paso 3: el agente
@@ -395,8 +551,9 @@ final class WizardState: ObservableObject {
         let config = makeConfig()
         let installer = connectServices.installer
         let existing = generatedAgent?.id
+        let context = contextItems.map(\.file)
         let flow = GenerationFlow(sleep: connectServices.sleep) {
-            try installer.install(config, existingAgentID: existing)
+            try installer.install(config, existingAgentID: existing, importedContext: context)
         }
         generation = flow
         generationObserver = flow.$outcome.compactMap { $0 }.sink { [weak self] outcome in
@@ -406,12 +563,13 @@ final class WizardState: ObservableObject {
         flow.start()
     }
 
-    /// Terminó bien: se pasa a «Listo».
+    /// Terminó bien: se pasa a «Listo». El borrador ya no hace falta.
     func finishGeneration() {
         guard step == .generating, generation?.phase == .succeeded,
             let following = WizardStep(rawValue: step.rawValue + 1)
         else { return }
         step = following
+        draftStore?.clear()
     }
 
     /// Falló: se vuelve a las reglas para que el usuario pueda cambiar algo o reintentar.
@@ -446,7 +604,17 @@ final class WizardState: ObservableObject {
             language: language,
             role: .productManager,
             projectDescription: projectDescription.trimmingCharacters(in: .whitespacesAndNewlines),
-            connections: connections,
+            // Ya no hay pantalla para elegir el foco: lo conectado se lee entero. Sin esto el
+            // `AGENTS.md` diría que no se eligió ninguna fuente.
+            connections: connections.map { connection in
+                var connection = connection
+                if connection.status == .connected, !connection.sources.readsEverything,
+                    connection.sources.selected.isEmpty
+                {
+                    connection.sources = .everything
+                }
+                return connection
+            },
             skills: skills,
             sendingRules: sendingRules
         )

@@ -28,7 +28,7 @@ final class ConnectIntegrationTests: XCTestCase {
 
     // MARK: - Navegación
 
-    func testTheNavigationBarIsHiddenWhileConnectingAndBackAtTheEnd() {
+    func testTheNavigationBarStaysHiddenInTheConnectStepWhichEndsWithItsOwnButton() {
         let state = makeState([.notion])
         advance(state, to: .connect)
         state.beginConnecting()
@@ -38,8 +38,11 @@ final class ConnectIntegrationTests: XCTestCase {
 
         state.connectFlow?.skip()
 
-        XCTAssertFalse(state.hidesNavigation, "en la celebración vuelve Siguiente")
-        XCTAssertTrue(state.canGoForward)
+        XCTAssertTrue(state.hidesNavigation, "la celebración lleva su propio «Continuar»")
+        XCTAssertTrue(state.canGoForward, "y ese botón ya puede avanzar")
+        state.next()
+        XCTAssertEqual(state.step, .skills)
+        XCTAssertFalse(state.hidesNavigation)
     }
 
     func testOtherStepsNeverHideTheNavigation() {
