@@ -131,7 +131,7 @@ stderr). No abre ninguna conexión a WhatsApp y lee todo lo que `sync` guardó:
 
 ## `version`
 
-Imprime solo el número (`0.2.0`), para que la app lo lea sin separar nada. Es independiente de la
+Imprime solo el número (`0.2.1`), para que la app lo lea sin separar nada. Es independiente de la
 versión de la app: el bridge es la capa que más se rompe por causas externas y tiene que poder
 parchearse por su cuenta (`docs/03` §4f). Vive en `version.go` como variable, así que se puede
 fijar al compilar con `-ldflags "-X main.bridgeVersion=…"`. Sube el MINOR cuando cambia lo que

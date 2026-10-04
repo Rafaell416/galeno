@@ -193,11 +193,13 @@ type ListChatsOptions struct {
 }
 
 func (store *MessageStore) ListChats(opts ListChatsOptions) ([]Chat, error) {
-	query := `SELECT chats.jid, chats.name, chats.last_message_time,
-			messages.content, messages.sender, messages.is_from_me
-		FROM chats`
+	// Sin el último mensaje no hay JOIN, así que sus tres columnas van como NULL: nombrarlas
+	// (como hace upstream) revienta con "no such column: messages.content".
+	query := `SELECT chats.jid, chats.name, chats.last_message_time, NULL, NULL, NULL FROM chats`
 	if opts.IncludeLastMessage {
-		query += ` LEFT JOIN messages ON chats.jid = messages.chat_jid
+		query = `SELECT chats.jid, chats.name, chats.last_message_time,
+			messages.content, messages.sender, messages.is_from_me
+		FROM chats LEFT JOIN messages ON chats.jid = messages.chat_jid
 			AND chats.last_message_time = messages.timestamp`
 	}
 
@@ -240,9 +242,11 @@ func (store *MessageStore) ListChats(opts ListChatsOptions) ([]Chat, error) {
 }
 
 func (store *MessageStore) GetChatByJID(chatJID string, includeLastMessage bool) (*Chat, error) {
-	query := `SELECT c.jid, c.name, c.last_message_time, m.content, m.sender, m.is_from_me FROM chats c`
+	// Igual que en ListChats: sin JOIN, las columnas del último mensaje van como NULL.
+	query := `SELECT c.jid, c.name, c.last_message_time, NULL, NULL, NULL FROM chats c`
 	if includeLastMessage {
-		query += ` LEFT JOIN messages m ON c.jid = m.chat_jid AND c.last_message_time = m.timestamp`
+		query = `SELECT c.jid, c.name, c.last_message_time, m.content, m.sender, m.is_from_me FROM chats c
+			LEFT JOIN messages m ON c.jid = m.chat_jid AND c.last_message_time = m.timestamp`
 	}
 	query += " WHERE c.jid = ?"
 
