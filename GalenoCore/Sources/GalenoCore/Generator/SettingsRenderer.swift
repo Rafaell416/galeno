@@ -5,8 +5,15 @@ import Foundation
 ///
 /// Claude Code evalúa las reglas en orden `deny` → `ask` → `allow` y gana la
 /// primera que coincide; la especificidad no cambia nada. Por eso un `allow`
-/// concreto no puede abrir una excepción dentro de un `ask` amplio, y por eso
-/// Slack y Gmail van enteros a `ask`.
+/// concreto no puede abrir una excepción dentro de un `ask` amplio.
+///
+/// **Servidores que envían a otras personas (Slack, Gmail).** Leer no pide
+/// permiso; enviar o escribir, siempre. Si el catálogo trae la lista verificada de
+/// herramientas de solo lectura del servidor (Slack), esas van a `allow` por su
+/// nombre exacto, las de escritura conocidas a `ask`, y el hook de aprobación
+/// se aplica a **todo lo que no sea una lectura conocida** —también a una
+/// herramienta que el proveedor añada mañana—. Sin lista (Gmail), el servidor
+/// entero va a `ask`, como antes.
 ///
 /// **Escritura de archivos.** El agente solo escribe en `memoria/`. Un `Write`
 /// o `Edit` pelado en `deny` le quitaría las herramientas, y un patrón que
@@ -37,6 +44,15 @@ enum SettingsRenderer {
 
     static let hookPath = ".claude/hooks/require-external-approval.sh"
 
+    /// El esfuerzo de razonamiento con el que corre el agente (`effortLevel` de Claude Code). El trabajo
+    /// del agente es sobre todo leer y resumir, y ahí `low` responde de 2 a 3 veces más rápido que el
+    /// `high` que muchos usuarios traen de fábrica (medido el 4 de octubre de 2026: 12–25 s frente a
+    /// 28–43 s en leer tres fuentes y resumirlas). El `settings.json` del proyecto manda sobre el ajuste
+    /// personal del usuario; dentro de una sesión, `/effort` lo sube cuando haga falta (un PRD largo).
+    ///
+    /// **El modelo no se fija**: cada usuario usa el de su plan.
+    static let effortLevel = "low"
+
     private struct Permissions: Encodable {
         var allow: [String]
         var ask: [String]
@@ -62,6 +78,7 @@ enum SettingsRenderer {
     }
 
     private struct File: Encodable {
+        var effortLevel: String
         var permissions: Permissions
         var hooks: Hooks?
     }
@@ -71,10 +88,21 @@ enum SettingsRenderer {
     /// tener más de un servidor físico (Google Workspace tiene tres), aunque
     /// hoy ninguna de las que envían externamente lo tiene.
     static func serversRequiringApproval(in config: AgentConfig) -> [String] {
+        definitionsRequiringApproval(in: config).map(\.serverName)
+    }
+
+    private static func definitionsRequiringApproval(in config: AgentConfig) -> [MCPServerDefinition] {
         config.connectedConnections
             .filter { $0.tool.externalSend != nil }
             .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
-            .map(\.serverName)
+    }
+
+    /// El `matcher` del hook de aprobación para un servidor. Con lista de lecturas, coincide con
+    /// cualquier herramienta del servidor **menos** esas (probado contra Claude Code: el matcher
+    /// admite `(?!…)`); sin lista, con todas. Contiene `.` y `*`, así que Claude Code lo trata como regex.
+    static func approvalMatcher(for server: MCPServerDefinition) -> String {
+        guard !server.readOnlyTools.isEmpty else { return "mcp__\(server.serverName)__.*" }
+        return "^mcp__\(server.serverName)__(?!(?:\(server.readOnlyTools.joined(separator: "|")))$).*"
     }
 
     static func render(_ config: AgentConfig) throws -> String {
@@ -92,10 +120,19 @@ enum SettingsRenderer {
             let patterns = servers.map { "mcp__\($0.serverName)__*" }
 
             if tool.externalSend != nil {
-                // Slack y Gmail enteros: no sabemos los nombres reales de
-                // todas sus herramientas de envío, y dejar fuera una sola
-                // abriría un hueco por el que saldría un mensaje sin preguntar.
-                ask.append(contentsOf: patterns)
+                for server in servers {
+                    let prefix = "mcp__\(server.serverName)__"
+                    if server.readOnlyTools.isEmpty {
+                        // No sabemos cuáles leen (Gmail): el servidor entero pregunta. Dejar fuera
+                        // una sola de envío abriría un hueco por el que saldría un mensaje sin preguntar.
+                        ask.append(prefix + "*")
+                    } else {
+                        // Leer no pregunta. Las de escritura conocidas llevan su `ask`; lo que no
+                        // esté en ninguna lista lo detiene el hook (ver `approvalMatcher`).
+                        allow.append(contentsOf: server.readOnlyTools.map { prefix + $0 })
+                        ask.append(contentsOf: server.writeTools.map { prefix + $0 })
+                    }
+                }
                 continue
             }
 
@@ -113,19 +150,19 @@ enum SettingsRenderer {
             }
         }
 
-        let approvalServers = serversRequiringApproval(in: config)
+        let approvalServers = definitionsRequiringApproval(in: config)
         let hooks: Hooks? =
             approvalServers.isEmpty
             ? nil
             : Hooks(preToolUse: [
                 HookMatcher(
-                    // Contiene `.` y `*`, así que Claude Code lo trata como regex.
-                    matcher: approvalServers.map { "mcp__\($0)__.*" }.joined(separator: "|"),
+                    matcher: approvalServers.map(approvalMatcher(for:)).joined(separator: "|"),
                     hooks: [HookCommand(command: "${CLAUDE_PROJECT_DIR}/\(hookPath)")]
                 )
             ])
 
         let file = File(
+            effortLevel: effortLevel,
             permissions: Permissions(
                 allow: allow.sorted(), ask: ask.sorted(),
                 deny: deniedTools + protectedPaths.map { "Edit(\($0))" }),

@@ -58,6 +58,19 @@ final class ImportedContextTests: GeneratorTestCase {
         XCTAssertEqual(ContextFile(title: "???", text: "x").fileName(index: 2), "03-contexto.md")
     }
 
+    /// La primera sesión no retrasa la respuesta: primero se contesta, y el resumen del proyecto (con el
+    /// material traído) se ofrece después. En la prueba real, leer el contexto antes de contestar costó medio
+    /// minuto de los casi tres que tardó una pregunta sobre WhatsApp que no lo necesitaba.
+    func testTheFirstSessionAnswersBeforeGettingToKnowTheProject() throws {
+        try generate(with: [])
+        let agents = try contents(of: "AGENTS.md")
+        XCTAssertTrue(agents.contains("primero responde lo que te pidieron"))
+        XCTAssertTrue(agents.contains("ofrece en una línea preparar el resumen del proyecto"))
+        XCTAssertTrue(agents.contains("nunca antes de responder algo que no depende de ellos"))
+        XCTAssertTrue(agents.contains("**Primero la respuesta.**"))
+        XCTAssertFalse(agents.contains("Antes de seguir con lo que te pidan"), "la instrucción vieja hacía esperar")
+    }
+
     func testAgentsFileTellsTheAgentToReadItAsDataNotOrders() throws {
         try generate(with: [])
         let agents = try contents(of: "AGENTS.md")

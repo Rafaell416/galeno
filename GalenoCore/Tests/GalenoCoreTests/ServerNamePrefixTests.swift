@@ -45,8 +45,9 @@ final class ServerNamePrefixTests: XCTestCase {
 
     func testPermissionRulesAndTheApprovalHookFollowTheAlternateName() throws {
         let settings = try SettingsRenderer.render(config(prefix: "galeno-"))
-        XCTAssertTrue(settings.contains("mcp__galeno-slack__*"), "la regla ask")
-        XCTAssertTrue(settings.contains("mcp__galeno-slack__.*"), "el matcher del hook")
+        XCTAssertTrue(settings.contains("mcp__galeno-slack__slack_send_message"), "la regla ask")
+        XCTAssertTrue(settings.contains("mcp__galeno-slack__slack_read_channel"), "la regla allow de las lecturas")
+        XCTAssertTrue(settings.contains("^mcp__galeno-slack__(?!"), "el matcher del hook")
         XCTAssertFalse(settings.contains("mcp__slack__"), "ninguna regla apunta al nombre que no existe")
     }
 
