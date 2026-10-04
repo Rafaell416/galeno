@@ -193,6 +193,18 @@ public enum MCPServerCatalog {
                 ),
             ]
 
+        case .claudeDesign:
+            // **No verificado**: es el servidor que Claude Code ya inyecta solo como `claude_design`, pero no
+            // está documentado como servidor que se registre. Va con otro nombre (`claude-design`) para no
+            // chocar con el inyectado, y la generación avisa con `unverifiedEndpoint`.
+            return [
+                MCPServerDefinition(
+                    serverName: "claude-design",
+                    transport: .http(url: "https://api.anthropic.com/v1/design/mcp"),
+                    endpointIsVerified: false
+                )
+            ]
+
         case .googleMeet:
             return []
         }

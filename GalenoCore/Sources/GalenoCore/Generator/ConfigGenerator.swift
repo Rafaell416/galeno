@@ -31,11 +31,16 @@ public struct ConfigGenerator: Sendable {
     /// config ya no pide. Un error deja la carpeta como estaba, no a medias.
     ///
     /// `memoria/` es del agente: se crea una vez y no se vuelve a tocar.
+    ///
+    /// - Parameter importedContext: material que el usuario trajo (de claude.ai, de un documento).
+    ///   Se deja en `memoria/contexto/` **solo si ese archivo no existe**: nunca se pisa nada, ni
+    ///   se toca lo que el agente o el usuario ya pusieron ahí.
     @discardableResult
     public func generate(
         _ config: AgentConfig,
         into destination: URL,
-        options: Options
+        options: Options,
+        importedContext: [ContextFile] = []
     ) throws -> GenerationResult {
         guard !config.agentName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GenerationError.emptyAgentName
@@ -95,6 +100,13 @@ public struct ConfigGenerator: Sendable {
                 Planned(
                     path: MemoryRenderer.mainFile,
                     contents: MemoryRenderer.renderInitialFile(language: config.language)))
+        }
+
+        for (index, file) in ContextFile.normalized(importedContext).enumerated() {
+            let path = "\(MemoryRenderer.contextDirectory)/\(file.fileName(index: index))"
+            if !fileManager.fileExists(atPath: destination.appending(path: path).path) {
+                planned.append(Planned(path: path, contents: file.rendered(language: config.language)))
+            }
         }
 
         for subagent in SubagentsRenderer.render(config) {
