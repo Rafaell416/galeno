@@ -55,6 +55,15 @@ private struct Progress: View {
     var body: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
+            // La pluma, como en el diseño. Nunca junto a un error: si algo falla, la lámina se va.
+            if !hasFailed {
+                Plate(
+                    asset: "plate-pluma", caption: "pluma sobre un folio, grabado de línea",
+                    size: CGSize(width: 170, height: 108), printOnPaper: true
+                )
+                .padding(.bottom, 10)
+                .transition(.opacity)
+            }
             Text("generating.headline \(agentName)")
                 .font(Typo.stepTitle)
                 .foregroundStyle(Color.ink900)
