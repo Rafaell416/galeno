@@ -346,6 +346,23 @@
         }
       }
     },
+    "connect.connector.progress %@ %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$lld of %3$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$lld de %3$lld"
+          }
+        }
+      }
+    },
     "connect.continue" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1980,6 +1997,40 @@
         }
       }
     },
+    "connect.step.addingConnector" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect it in Claude"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conéctalo en Claude"
+          }
+        }
+      }
+    },
+    "connect.step.addingConnector.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Its page opened in Claude. Press “Connect” and then “Allow”. This screen waits and moves on by itself."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se abrió su página en Claude. Pulsa «Conectar» y luego «Permitir». Aquí se espera y se sigue solo."
+          }
+        }
+      }
+    },
     "connect.step.checking" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2269,6 +2320,23 @@
         }
       }
     },
+    "connect.value.google-calendar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It will read your calendar to know what’s coming and when there is room."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leerá tu calendario para saber qué viene y cuándo hay hueco."
+          }
+        }
+      }
+    },
     "connect.value.google-workspace" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2367,6 +2435,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Leerá tus grupos y chats para hacerte seguimiento."
+          }
+        }
+      }
+    },
+    "connect.what.connector" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It uses the connector in your Claude account. If it’s already connected there is nothing to do; if not, Claude opens in your browser and you just press “Connect” and “Allow”. ~1 min."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se usa el conector de tu cuenta de Claude. Si ya lo tienes conectado, no hay nada que hacer; si no, se abre Claude en tu navegador y solo pulsas «Conectar» y «Permitir». ~1 min."
+          }
+        }
+      }
+    },
+    "connect.what.connectors" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These are three connectors in your Claude account: Drive, Docs and Sheets. The ones already connected are skipped; for the rest, Claude opens in your browser and you just press “Connect” and “Allow”. ~2 min."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Son tres conectores de tu cuenta de Claude: Drive, Docs y Sheets. Los que ya tengas conectados se saltan; para los demás se abre Claude en tu navegador y solo pulsas «Conectar» y «Permitir». ~2 min."
           }
         }
       }
@@ -3524,6 +3626,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se abre con esa pregunta ya escrita: solo tienes que enviarla."
+          }
+        }
+      }
+    },
+    "done.open.restart" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude se cerrará y volverá a abrirse para ver tus herramientas de Google. Si tiene algo en curso, se interrumpe."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude will quit and reopen to see your Google tools. Anything it has in progress will be interrupted."
           }
         }
       }
@@ -5483,23 +5602,6 @@
         }
       }
     },
-    "rules.external.reads" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reading never asks: only sending or changing something."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leer no pide permiso: solo enviar o cambiar algo."
-          }
-        }
-      }
-    },
     "rules.external.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5686,6 +5788,57 @@
           }
         }
       }
+    },
+    "rules.reads.body %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ lee tus herramientas sin pedirte permiso cada vez. Solo pregunta para enviar o cambiar algo."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ reads your tools without asking each time. It only asks to send or change something."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "rules.reads.label" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin preguntar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without asking"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "rules.reads.title" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leer lo que conectaste"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading what you connected"
+          }
+        }
+      },
+      "extractionState" : "manual"
     },
     "rules.write.claude-design" : {
       "extractionState" : "manual",

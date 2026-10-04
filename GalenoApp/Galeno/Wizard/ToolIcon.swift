@@ -27,6 +27,8 @@ extension Tool {
         case .granola: .symbol("note.text")
         // La marca de Claude Design es de Anthropic: hasta que haya un logo con licencia, un símbolo genérico.
         case .claudeDesign: .symbol("paintpalette")
+        // Sin logo con licencia todavía: un símbolo genérico, como Fireflies y Granola.
+        case .googleCalendar: .symbol("calendar")
         }
     }
 }

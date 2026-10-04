@@ -108,7 +108,7 @@ struct ConnectionScreen: View {
             }
             .frame(maxWidth: 540)
         case .working(let step):
-            WorkingPanel(step: step)
+            WorkingPanel(step: step, connector: flow.connectorProgress)
         case .ready:
             if tool == .whatsapp, showsWhatsAppWarning {
                 WhatsAppWarningLayout(name: name)
@@ -252,6 +252,9 @@ private struct BrowserHint: View {
 
 private struct WorkingPanel: View {
     let step: ConnectFlow.Step
+    /// El conector de la cuenta de Claude que se está conectando: «Google Docs · 2 de 3».
+    var connector: ConnectFlow.ConnectorProgress?
+    @Environment(\.locale) private var locale
     /// "Revisando…" dura 1–4 s y casi siempre menos: se muestra solo si tarda, para que una
     /// comprobación rápida no parpadee como si fuera una espera.
     @State private var visible = false
@@ -261,6 +264,19 @@ private struct WorkingPanel: View {
             InkSpinner(size: 28)
                 .padding(.bottom, 10)
                 .opacity(visible ? 1 : 0)
+            if let connector {
+                SmallCapsText(
+                    string: connector.total > 1
+                        ? Localized.string(
+                            "connect.connector.progress %@ %lld %lld", connector.name, connector.index, connector.total,
+                            locale: locale)
+                        : connector.name,
+                    size: 13, tracking: 0.12
+                )
+                .foregroundStyle(Color.ink700)
+                .id(connector.name)
+                .transition(.opacity)
+            }
             // El texto del paso cambia con un fundido (150 ms) cuando cambia la fase.
             Text(label)
                 .id(step)
@@ -271,6 +287,15 @@ private struct WorkingPanel: View {
                 .opacity(visible ? 1 : 0)
             if step == .waitingForBrowser {
                 BrowserHint()
+            }
+            if step == .addingConnector {
+                Text("connect.step.addingConnector.hint")
+                    .font(Typo.list)
+                    .foregroundStyle(Color.ink700)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 440)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .appearing(after: 0.3)
             }
         }
         .animation(.easeOut(duration: Motion.micro), value: step)
@@ -286,6 +311,7 @@ private struct WorkingPanel: View {
         case .checking: "connect.step.checking"
         case .registering: "connect.step.registering"
         case .waitingForBrowser: "connect.step.waitingForBrowser"
+        case .addingConnector: "connect.step.addingConnector"
         case .preparingBridge: "connect.step.preparingBridge"
         case .checkingLink: "connect.step.checkingLink"
         case .installingSync: "connect.step.installingSync"
@@ -353,7 +379,7 @@ private struct FailurePanel: View {
 
     /// Un mensaje listo para pegar al administrador del workspace.
     private func copyAdminMessage() {
-        let appName = agentName.isEmpty ? "Galeno" : "\(agentName) (Galeno)"
+        let appName = SlackManifestRenderer.appName(forAgent: agentName)
         // El idioma que eligió el usuario en el paso 1, no el del sistema: `String(localized:)`
         // no sigue el cambio en caliente.
         let bundle = Bundle.main.path(forResource: language.rawValue, ofType: "lproj")
@@ -410,6 +436,9 @@ private struct ReadyLayout: View {
         switch tool {
         case .slack: "connect.what.slack"
         case .whatsapp: "connect.what.whatsapp"
+        // Por el conector de la cuenta de Claude: si ya lo tiene, no hay nada que hacer.
+        case .gmail, .googleCalendar: "connect.what.connector"
+        case .googleWorkspace: "connect.what.connectors"
         default: "connect.what.oauth"
         }
     }

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import GalenoCore
 
@@ -29,6 +30,8 @@ struct ConnectServices {
     var sleep: ConnectFlow.Sleeper = { _ = try? await Task.sleep(for: $0) }
     /// Trae Galeno al frente tras autorizar en el navegador. Las pruebas y los conectores falsos no lo hacen.
     var returnToApp: @MainActor () -> Void = {}
+    /// Abre una dirección en el navegador del sistema. Las pruebas y los conectores falsos no abren nada.
+    var openURL: @MainActor (URL) -> Void = { _ in }
 
     static func live() -> ConnectServices {
         #if DEBUG
@@ -41,7 +44,8 @@ struct ConnectServices {
             whatsapp: WhatsAppBridge.live(),
             authorizer: SlackAuthorizeWindowPresenter(),
             installer: .live(),
-            returnToApp: { AppFocus.bringToFront() })
+            returnToApp: { AppFocus.bringToFront() },
+            openURL: { NSWorkspace.shared.open($0) })
     }
 }
 

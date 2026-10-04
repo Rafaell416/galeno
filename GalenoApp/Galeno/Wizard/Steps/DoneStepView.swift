@@ -87,17 +87,11 @@ struct DoneContent: View {
                 HStack(spacing: 10) {
                     // Sin la app de Claude en el Mac, Terminal es la acción principal.
                     if wizard.opener.isClaudeAppAvailable {
-                        Button("done.open.app") { open(inApp: true) }
-                            .buttonStyle(InkButtonStyle(.primary, padding: 18, isLoading: opening == .app))
-                            .disabled(opening != nil)
+                        appButton(.primary)
+                        terminalButton(.secondary)
+                    } else {
+                        terminalButton(.primary)
                     }
-                    Button("done.open.terminal") { open(inApp: false) }
-                        .buttonStyle(
-                            InkButtonStyle(
-                                wizard.opener.isClaudeAppAvailable ? .secondary : .primary, padding: 18,
-                                isLoading: opening == .terminal)
-                        )
-                        .disabled(opening != nil)
                     Spacer(minLength: 0)
                     Button { copy(prompt, .prompt) } label: {
                         CopyLabel(copied: copied == .prompt, idle: "done.first.copy")
@@ -110,8 +104,7 @@ struct DoneContent: View {
                     if openFailed {
                         Text("done.open.failed").foregroundStyle(Color.seal700)
                     } else {
-                        (Text("done.open.hint") + Text(verbatim: " ")
-                            + Text(wizard.opener.isClaudeAppAvailable ? "done.open.confirm" : "done.open.appMissing"))
+                        (Text("done.open.hint") + Text(verbatim: " ") + Text(openNote))
                             .foregroundStyle(Color.ink500)
                     }
                 }
@@ -166,6 +159,42 @@ struct DoneContent: View {
                 .appearing(after: 0.3 + Motion.stagger + 0.4)
         }
         .onAppear { Sounds.play(.seal) }
+    }
+
+    /// El agente usa conectores de la cuenta de Claude (Gmail, Calendar, Drive, Docs y Sheets).
+    private var usesConnectors: Bool {
+        wizard.connectedTools.contains { !MCPServerCatalog.claudeConnectorNames(for: $0).isEmpty }
+    }
+
+    /// Desde cuándo está listo el agente: cuando se escribió su configuración.
+    private var readySince: Date {
+        let settings = agent.folder.appending(path: ".claude/settings.json")
+        let attributes = try? FileManager.default.attributesOfItem(atPath: settings.path)
+        return attributes?[.modificationDate] as? Date ?? Date()
+    }
+
+    /// La app de Claude carga los conectores de la cuenta al arrancar (`docs/03` §4e): si lleva abierta
+    /// desde antes de que el agente existiera, hay que reiniciarla para que vea los suyos.
+    private var needsClaudeRestart: Bool {
+        usesConnectors && wizard.opener.claudeAppNeedsRestart(since: readySince)
+    }
+
+    /// La nota bajo los botones. Si Claude se va a reiniciar, se dice antes de pulsar.
+    private var openNote: LocalizedStringKey {
+        guard wizard.opener.isClaudeAppAvailable else { return "done.open.appMissing" }
+        return needsClaudeRestart ? "done.open.restart" : "done.open.confirm"
+    }
+
+    private func appButton(_ kind: InkButtonStyle.Kind) -> some View {
+        Button("done.open.app") { open(inApp: true) }
+            .buttonStyle(InkButtonStyle(kind, padding: 18, isLoading: opening == .app))
+            .disabled(opening != nil)
+    }
+
+    private func terminalButton(_ kind: InkButtonStyle.Kind) -> some View {
+        Button("done.open.terminal") { open(inApp: false) }
+            .buttonStyle(InkButtonStyle(kind, padding: 18, isLoading: opening == .terminal))
+            .disabled(opening != nil)
     }
 
     /// El pacto de reglas, en una línea y siempre a la vista: lo que nunca hace, lo que siempre
@@ -243,6 +272,17 @@ struct DoneContent: View {
     private func open(inApp: Bool) {
         let opener = wizard.opener
         openFailed = false
+        // Claude lleva abierto desde antes de conectar: se cierra y se vuelve a abrir en el agente
+        // (decisión de Rafa, 4 oct 2026). La nota bajo los botones ya lo avisó.
+        if inApp, needsClaudeRestart {
+            opening = .app
+            Task {
+                let opened = await opener.restartClaudeAppAndOpen(folder: agent.folder, prompt: prompt)
+                opening = nil
+                openFailed = !opened
+            }
+            return
+        }
         let opened = inApp
             ? opener.openInClaudeApp(folder: agent.folder, prompt: prompt)
             : opener.openInTerminal(folder: agent.folder, prompt: prompt, claudePath: wizard.claudePath)

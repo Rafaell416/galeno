@@ -17,6 +17,7 @@ nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
     private var connected: Set<String> = []
     private var failedOnce: Set<String> = []
     private var occupied: Set<String>
+    private var connectorChecks: [String: Int] = [:]
 
     init(occupiedByOthers: Set<String> = []) { occupied = occupiedByOthers }
 
@@ -24,6 +25,7 @@ nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
         try? await Task.sleep(for: .milliseconds(400))
         return lock.withLock {
             if occupied.contains(server) { return .differentServer }
+
             return connected.contains(server) ? .connected : (registered.contains(server) ? .needsAuthentication : .notRegistered)
         }
     }
@@ -35,6 +37,23 @@ nonisolated final class ScriptedMCP: MCPConnecting, @unchecked Sendable {
             // Claude Design entra con la sesión de Claude Code: queda conectado al registrarlo, sin OAuth.
             if server.hasSuffix("claude-design") { _ = connected.insert(server) }
         }
+    }
+
+    /// Guion de los conectores de Claude: los de Google Drive, Docs y Sheets no están en la cuenta (hay que
+    /// añadirlos) y los demás están pero sin autorizar; cada uno queda conectado a la tercera mirada.
+    func connectorStatus(_ server: String) async -> MCPStatus {
+        try? await Task.sleep(for: .milliseconds(900))
+        return lock.withLock {
+            let checks = (connectorChecks[server] ?? 0) + 1
+            connectorChecks[server] = checks
+            if checks >= 3 { return .connected }
+            return server.contains("Gmail") || server.contains("Calendar") ? .needsAuthentication : .notRegistered
+        }
+    }
+
+    /// El conector de la cuenta de Claude: «el usuario» tarda unos segundos en pulsar Permitir.
+    func authorizeConnector(_ server: String) async throws {
+        try? await Task.sleep(for: .milliseconds(400))
     }
 
     func remove(server: String) async throws {
@@ -172,6 +191,8 @@ nonisolated final class ScriptedSourceLister: SourceListing, @unchecked Sendable
 struct ScriptedOpener: AgentOpening {
     var isClaudeAppAvailable: Bool { true }
     func openInClaudeApp(folder: URL, prompt: String?) -> Bool { true }
+    func claudeAppNeedsRestart(since date: Date) -> Bool { false }
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> Bool { true }
     func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool { true }
     func reveal(_ folder: URL) {}
 }

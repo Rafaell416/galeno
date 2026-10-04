@@ -32,7 +32,7 @@ blanco puro. Es un uso nominativo (identifica la herramienta, no sugiere respald
 las guías hablan de apps del Slack Marketplace, y Galeno no está en él; si Slack lo objeta, volver al SF Symbol
 `number` en `ToolIcon.swift`.
 
-**Sin logo en esa colección:** Fireflies y Granola usan un SF Symbol (`waveform`, `note.text`) en el mismo color. Si se sustituyen por los SVG oficiales, anotarlos aquí con su origen
+**Sin logo en esa colección:** Fireflies y Granola usan un SF Symbol (`waveform`, `note.text`) en el mismo color. **Sin logo todavía:** Google Calendar (`calendar`) y Claude Design (`paintpalette`) usan también un SF Symbol hasta tener uno monocromo con licencia verificada. Si se sustituyen por los SVG oficiales, anotarlos aquí con su origen
 y sus reglas de uso.
 
 ## Fuentes del rediseño (`Galeno/Fonts/`)

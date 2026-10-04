@@ -82,6 +82,9 @@ nonisolated enum FirstCommand {
         if tools.contains(where: { [.fireflies, .granola, .fathom, .googleMeet].contains($0) }) {
             return pick("Resume mi última reunión", "Summarize my latest meeting")
         }
+        if tools.contains(.googleCalendar) {
+            return pick("¿Cuáles son mis 3 próximos eventos del calendario?", "What are my next 3 calendar events?")
+        }
         if tools.contains(.gmail) {
             return pick("¿Cuáles son mis 3 correos más recientes sin leer?", "What are my 3 most recent unread emails?")
         }
@@ -108,6 +111,12 @@ protocol AgentOpening {
     /// ¿Está instalada la app de Claude (el manejador de `claude://`)?
     var isClaudeAppAvailable: Bool { get }
     @discardableResult func openInClaudeApp(folder: URL, prompt: String?) -> Bool
+    /// ¿Hay que reiniciar la app de Claude para que vea los conectores de un agente listo desde `date`?
+    /// La app carga los conectores de la cuenta al arrancar y no los actualiza (`docs/03` §4e): si
+    /// lleva abierta desde antes, no ve los que se conectaron después.
+    func claudeAppNeedsRestart(since date: Date) -> Bool
+    /// Cierra la app de Claude, espera a que termine y la vuelve a abrir en el agente.
+    @discardableResult func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> Bool
     @discardableResult func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool
     func reveal(_ folder: URL)
 }
@@ -126,6 +135,32 @@ struct SystemAgentOpener: AgentOpening {
 
     func openInClaudeApp(folder: URL, prompt: String?) -> Bool {
         NSWorkspace.shared.open(AgentLink.claudeApp(folder: folder, prompt: prompt))
+    }
+
+    /// El identificador de la app de Claude para Mac.
+    static let claudeBundleID = "com.anthropic.claudefordesktop"
+
+    private var runningClaudeApps: [NSRunningApplication] {
+        NSRunningApplication.runningApplications(withBundleIdentifier: Self.claudeBundleID)
+    }
+
+    func claudeAppNeedsRestart(since date: Date) -> Bool {
+        // Cerrada no hace falta: el enlace la arranca y carga los conectores de ahora.
+        runningClaudeApps.contains { ($0.launchDate ?? .distantPast) < date }
+    }
+
+    /// Se le pide salir como lo haría Cmd+Q (nunca se la mata) y se espera hasta 15 s. Si no salió
+    /// —un diálogo suyo de «¿salir?»—, el agente se abre igual en la app que quedó.
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> Bool {
+        let apps = runningClaudeApps
+        for app in apps { app.terminate() }
+        for _ in 0..<150 {
+            if apps.allSatisfy(\.isTerminated) { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        // Un respiro para que el sistema dé por cerrada la app antes de volver a lanzarla.
+        try? await Task.sleep(for: .milliseconds(600))
+        return openInClaudeApp(folder: folder, prompt: prompt)
     }
 
     func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool {

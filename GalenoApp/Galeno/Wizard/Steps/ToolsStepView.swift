@@ -16,7 +16,7 @@ struct ToolsStepView: View {
     private static let groups: [(label: String, tools: [Tool])] = [
         ("tools.group.messaging", [.whatsapp, .slack]),
         ("tools.group.docs", [.notion, .googleWorkspace, .gmail]),
-        ("tools.group.work", [.jira, .claudeDesign]),
+        ("tools.group.work", [.jira, .googleCalendar, .claudeDesign]),
         ("tools.group.meetings", [.fireflies, .granola, .fathom, .googleMeet]),
     ]
 

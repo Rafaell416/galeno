@@ -380,7 +380,8 @@ final class WizardState: ObservableObject {
             onNamePrefix: { [weak self] tool, prefix in self?.setServerNamePrefix(tool, prefix) },
             authorizer: connectServices.authorizer,
             language: { [weak self] in self?.language ?? .spanish },
-            returnToApp: connectServices.returnToApp)
+            returnToApp: connectServices.returnToApp,
+            openURL: connectServices.openURL)
         connectFlow = flow
         // Que `canGoForward` y la barra de navegación se enteren de lo que hace el sub-wizard.
         connectFlowObserver = flow.objectWillChange.sink { [weak self] _ in

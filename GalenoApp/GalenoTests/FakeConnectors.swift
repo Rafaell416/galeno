@@ -80,6 +80,34 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
         }
     }
 
+    /// Lo que pasa con un conector de la cuenta de Claude después de abrirle el navegador: a las
+    /// `connectsAfterChecks` miradas de estado, queda conectado (el usuario autorizó). `nil` = nunca.
+    var connectorConnectsAfterChecks: Int?
+    private var connectorChecks = 0
+
+    /// El estado real del conector (lo que diría una sesión): el mismo guion que `status`.
+    func connectorStatus(_ server: String) async -> MCPStatus {
+        lock.withLock {
+            recorded.append("connector-status \(server)")
+            if statuses[server] != .connected, let after = connectorConnectsAfterChecks {
+                connectorChecks += 1
+                if connectorChecks > after { statuses[server] = .connected; connectorChecks = 0 }
+            }
+            return statuses[server] ?? .notRegistered
+        }
+    }
+
+    func authorizeConnector(_ server: String) async throws {
+        let failure: MCPConnectError? = lock.withLock {
+            recorded.append("authorize \(server)")
+            guard var pending = loginFailures[server], !pending.isEmpty else { return nil }
+            let first = pending.removeFirst()
+            loginFailures[server] = pending
+            return first
+        }
+        if let failure { throw failure }
+    }
+
     func remove(server: String) async throws {
         let error: MCPConnectError? = lock.withLock {
             recorded.append("remove \(server)")

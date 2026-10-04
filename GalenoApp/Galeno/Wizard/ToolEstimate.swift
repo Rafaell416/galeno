@@ -10,10 +10,10 @@ extension Tool {
         switch self {
         // QR más la sincronización inicial del bridge.
         case .whatsapp: 3
-        // Traen su propia app OAuth: la creamos con el cliente y luego conecta.
-        case .slack, .gmail, .googleWorkspace: 2
-        // OAuth hospedado, sin nada previo.
-        case .notion, .jira, .fireflies, .granola, .fathom, .claudeDesign: 1
+        // Slack; y «Google Drive, Docs y Sheets», que son tres conectores de la cuenta de Claude.
+        case .slack, .googleWorkspace: 2
+        // OAuth hospedado, sin nada previo; Gmail y Google Drive, por el conector de la cuenta de Claude.
+        case .notion, .jira, .fireflies, .granola, .fathom, .claudeDesign, .gmail, .googleCalendar: 1
         // Se lee con Drive: no hay nada que conectar aparte.
         case .googleMeet: 0
         }
