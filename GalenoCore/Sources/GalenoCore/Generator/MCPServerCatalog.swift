@@ -59,6 +59,24 @@ public struct MCPServerDefinition: Hashable, Sendable {
 /// lo que hay aquí al momento de generar — así el catálogo se queda simple y
 /// se puede seguir probando sin nada de estado.
 public enum MCPServerCatalog {
+    /// Prefijo del nombre alternativo (`galeno-slack`) para cuando el normal ya
+    /// lo usa otro servidor del usuario en Claude Code.
+    public static let alternateNamePrefix = "galeno-"
+
+    /// Las definiciones de una conexión concreta: las de su herramienta, con el
+    /// nombre con el que de verdad quedó registrada (`serverNamePrefix`).
+    public static func definitions(
+        for connection: ToolConnection,
+        whatsAppBridgePath: String
+    ) -> [MCPServerDefinition] {
+        definitions(for: connection.tool, whatsAppBridgePath: whatsAppBridgePath).map { definition in
+            guard let prefix = connection.serverNamePrefix, !prefix.isEmpty else { return definition }
+            var renamed = definition
+            renamed.serverName = prefix + definition.serverName
+            return renamed
+        }
+    }
+
     /// Las definiciones de una herramienta. Vacío si no tiene servidor propio:
     /// es el caso de Google Meet, que no tiene MCP y se lee por el de Google
     /// Workspace. Google Workspace es la única con más de una (Drive, Docs y

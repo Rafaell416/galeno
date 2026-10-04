@@ -180,10 +180,20 @@ final class WizardState: ObservableObject {
             statuses: Dictionary(uniqueKeysWithValues: connections.map { ($0.tool, $0.status) }),
             mcp: connectServices.makeMCP(claudePath),
             whatsapp: connectServices.whatsapp,
+            slack: connectServices.slack,
+            agentName: { [weak self] in self?.agentName.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" },
             fetchRealData: connectServices.fetchRealData,
             timing: connectServices.timing,
             sleep: connectServices.sleep,
-            onStatus: { [weak self] tool, status in self?.setConnectionStatus(tool, status) })
+            onStatus: { [weak self] tool, status in self?.setConnectionStatus(tool, status) },
+            onClientID: { [weak self] tool, clientID in self?.setOAuthClientID(tool, clientID) },
+            namePrefixes: Dictionary(
+                uniqueKeysWithValues: connections.compactMap { connection in
+                    connection.serverNamePrefix.map { (connection.tool, $0) }
+                }),
+            onNamePrefix: { [weak self] tool, prefix in self?.setServerNamePrefix(tool, prefix) },
+            authorizer: connectServices.authorizer,
+            language: { [weak self] in self?.language ?? .spanish })
         connectFlow = flow
         // Que `canGoForward` y la barra de navegación se enteren de lo que hace el sub-wizard.
         connectFlowObserver = flow.objectWillChange.sink { [weak self] _ in
@@ -201,6 +211,22 @@ final class WizardState: ObservableObject {
             for index in connections.indices where connections[index].tool == .googleMeet {
                 connections[index].status = status
             }
+        }
+    }
+
+    /// El `client_id` de la app OAuth propia (Slack, Google): público, va al `.mcp.json`.
+    /// El `client_secret` **nunca** llega aquí.
+    func setOAuthClientID(_ tool: Tool, _ clientID: String) {
+        for index in connections.indices where connections[index].tool == tool {
+            connections[index].oauthClientID = clientID
+        }
+    }
+
+    /// El prefijo con el que quedó registrada una herramienta cuando el nombre normal estaba
+    /// ocupado (`nil` = el normal). El motor lo usa para `.mcp.json`, permisos y subagentes.
+    func setServerNamePrefix(_ tool: Tool, _ prefix: String?) {
+        for index in connections.indices where connections[index].tool == tool {
+            connections[index].serverNamePrefix = prefix
         }
     }
 

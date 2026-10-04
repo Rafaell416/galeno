@@ -15,18 +15,27 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
     /// `client_secret` nunca entra a este modelo.
     public var oauthClientID: String?
 
+    /// Prefijo con el que esta herramienta quedó registrada en Claude Code,
+    /// cuando el nombre normal ya lo ocupaba otro servidor del usuario (p. ej.
+    /// `galeno-` → `galeno-slack`). `nil` es lo normal: el nombre del catálogo.
+    /// Se guarda para que `.mcp.json`, los permisos y los subagentes usen el
+    /// mismo nombre con el que de verdad se registró.
+    public var serverNamePrefix: String?
+
     public var id: Tool { tool }
 
     public init(
         tool: Tool,
         status: ConnectionStatus = .selected,
         sources: SourceSelection = .nothing,
-        oauthClientID: String? = nil
+        oauthClientID: String? = nil,
+        serverNamePrefix: String? = nil
     ) {
         self.tool = tool
         self.status = status
         self.sources = sources
         self.oauthClientID = oauthClientID
+        self.serverNamePrefix = serverNamePrefix
     }
 }
 

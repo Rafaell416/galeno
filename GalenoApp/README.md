@@ -6,7 +6,7 @@ La app de Mac, en Swift y SwiftUI. Es lo único que ve el usuario: el wizard de 
 (navegación, barra de progreso siempre visible, ventana fija de 720×560 centrada) y las pantallas
 **1 a 5**: idioma y bienvenida (el idioma cambia toda la app en caliente), detección de Claude
 Code, tu agente, la grilla de herramientas y el sub-wizard de conexión (MCP hospedados con
-`claude mcp`, y WhatsApp con QR). Los pasos 6 a 10 siguen como marcadores y se llenan uno a
+`claude mcp`, y WhatsApp con QR). Slack crea **su propia app OAuth** (guía + token pegado en un campo seguro; Gmail y Google siguen para después). Los pasos 6 a 10 siguen como marcadores y se llenan uno a
 uno. Las decisiones de las pantallas están en `docs/03` §3.
 
 ```bash
@@ -34,6 +34,8 @@ O abrir `Galeno.xcodeproj` en Xcode y ⌘R con destino **My Mac**.
 | `Galeno/System/ClaudeCodeDetector.swift` | Busca `claude`, su versión y si hay sesión; `ProcessRunner` corre comandos cortos con tiempo máximo |
 | `Galeno/System/LongRunningProcess.swift` | `ManagedProcess` (hijo cancelable, con terminal opcional) y `ProcessRegistry` (mata todo al cerrar la app) |
 | `Galeno/System/ClaudeMCP.swift` | `claude mcp get/add/login` y el dato real con `claude -p` |
+| `Galeno/System/OAuthSecret.swift`, `SlackAppSetup.swift` | El `client_secret` en memoria (no se imprime ni se guarda) y la creación de la app de Slack |
+| `Galeno/System/SlackTokenCapture.swift`, `Wizard/Connect/SlackSignIn.swift` | La ventana de inicio de sesión de Slack: el script de captura, sus reglas (solo `api.slack.com`, solo `https`, Google bloqueado) y el modelo |
 | `Galeno/System/WhatsAppBridge.swift` | El contrato con el bridge, `BridgeInstaller` (copia a ruta estable) y vincular/sincronizar |
 | `Galeno/Wizard/Connect/` | El sub-wizard del paso 5: `ConnectFlow` (máquina de estados) y sus pantallas |
 | `THIRD_PARTY.md` | Origen y licencia de los logos |
@@ -60,8 +62,9 @@ O abrir `Galeno.xcodeproj` en Xcode y ⌘R con destino **My Mac**.
 - El idioma cambia en caliente con `\.locale`: no usar `String(localized:)`.
 - En Debug, argumentos de arranque: `-galeno-claude-missing` finge que `claude` no está
   instalado; `-galeno-fake-connect` pone conectores con guion en el paso 5 (éxito, dato tardío,
-  un fallo en Fathom, QR que rota, sincronización) sin tocar cuentas; `-galeno-bridge-path <ruta>`
-  usa otro binario del bridge.
+  un fallo en Fathom, QR que rota, sincronización) sin tocar cuentas; con él,
+  `-galeno-fake-name-clash` deja `notion` y `slack` ocupados por otro servidor del usuario para ver
+  la pregunta de qué hacer; `-galeno-bridge-path <ruta>` usa otro binario del bridge.
 - El bridge se compila aparte y una fase de Run Script lo copia a `Contents/Resources`; sin él
   la compilación avisa (Debug) o falla (Release).
 - Diseño: nativo primero. Ver `docs/04-design-system.md`.

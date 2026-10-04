@@ -144,7 +144,7 @@ final class ConnectIntegrationTests: XCTestCase {
         let spec = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "docs/03-especificacion-v0.0.1.md")
-        let text = try String(contentsOf: spec, encoding: .utf8)
+        let text = String(decoding: try readRepoFile(spec), as: UTF8.self)
         let line = try XCTUnwrap(text.split(separator: "\n").first { $0.contains("Transparencia total") })
         let quoted = try XCTUnwrap(line.split(separator: "\"").dropFirst().first, "la spec ya no cita el texto entre comillas")
 

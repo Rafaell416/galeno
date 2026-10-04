@@ -12,13 +12,37 @@ private final class FakeTerminal: TerminalRunning, @unchecked Sendable {
 
     var calls: [String] { lock.withLock { recorded } }
 
-    func runInTerminal(_ executable: String, arguments: [String], timeout: TimeInterval) async -> ManagedProcess.Result? {
-        lock.withLock { recorded.append(([executable] + arguments).joined(separator: " ")) }
+    private var recordedEnvironments: [[String: String]] = []
+    var environments: [[String: String]] { lock.withLock { recordedEnvironments } }
+    /// Qué hace el terminal falso mientras «corre» `claude` (por ejemplo, llamar a `$BROWSER`).
+    var whileRunning: (@Sendable ([String: String]) async -> Void)?
+
+    func runInTerminal(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> ManagedProcess.Result? {
+        lock.withLock {
+            recorded.append(([executable] + arguments).joined(separator: " "))
+            recordedEnvironments.append(environment)
+        }
+        await whileRunning?(environment)
         return result
     }
 }
 
 final class ClaudeMCPTests: XCTestCase {
+    func testReadsTheIssueLineOfAServerThatDoesNotConnect() {
+        let output = """
+            slack:
+              Scope: User config (available in all your projects)
+              Status: ✘ Failed to connect
+              Issue: HTTP 400: App is not enabled for Slack MCP server access.
+              Type: http
+            """
+        XCTAssertEqual(
+            ClaudeMCPClient.parseIssue(output), "HTTP 400: App is not enabled for Slack MCP server access.")
+        XCTAssertNil(ClaudeMCPClient.parseIssue("Status: ✔ Connected"))
+    }
+
     private let claude = "/opt/homebrew/bin/claude"
 
     // MARK: - El estado (`claude mcp get`)
@@ -133,14 +157,26 @@ final class ClaudeMCPTests: XCTestCase {
     // MARK: - Autorizar
 
     func testLoginRunsInATerminalAndConfirmsTheServerIsConnected() async throws {
-        let terminal = FakeTerminal(ManagedProcess.Result(status: 0, output: "Authenticated with \"notion\".", wasStopped: false))
+        let terminal = FakeTerminal(ManagedProcess.Result(status: 0, output: "listo", wasStopped: false))
         let runner = FakeRunner(["\(claude) mcp get notion": ok("notion:\n  Status: ✔ Connected\n")])
         let client = ClaudeMCPClient(claudePath: claude, runner: runner, terminal: terminal)
 
         try await client.login(server: "notion")
 
         XCTAssertEqual(terminal.calls, ["\(claude) mcp login notion"])
-        XCTAssertEqual(runner.calls, ["\(claude) mcp get notion"], "se confirma con `get`, no se confía solo en la salida")
+        XCTAssertEqual(runner.calls, ["\(claude) mcp get notion"], "sin el aviso de éxito, se confirma con `get`")
+    }
+
+    /// "Authenticated with …" ya dice que quedó bien: no se gastan 4 s en otro `get`.
+    func testLoginThatSaysItAuthenticatedDoesNotAskAgain() async throws {
+        let terminal = FakeTerminal(ManagedProcess.Result(
+            status: 0, output: "Waiting…\r\nAuthenticated with \"notion\". Its tools are now available.\r\n", wasStopped: false))
+        let runner = FakeRunner([:])
+        let client = ClaudeMCPClient(claudePath: claude, runner: runner, terminal: terminal)
+
+        try await client.login(server: "notion")
+
+        XCTAssertTrue(runner.calls.isEmpty)
     }
 
     func testLoginThatTimesOutIsReportedAsSuch() async {
@@ -165,7 +201,7 @@ final class ClaudeMCPTests: XCTestCase {
     }
 
     func testLoginThatSucceedsButLeavesTheServerUnreachableIsNotConnected() async {
-        let terminal = FakeTerminal(ManagedProcess.Result(status: 0, output: "Authenticated", wasStopped: false))
+        let terminal = FakeTerminal(ManagedProcess.Result(status: 0, output: "listo", wasStopped: false))
         let runner = FakeRunner(["\(claude) mcp get notion": ok("notion:\n  Status: ✘ Failed to connect\n")])
         let client = ClaudeMCPClient(claudePath: claude, runner: runner, terminal: terminal)
 
@@ -253,7 +289,9 @@ private final class RecordingRunner: CommandRunning, @unchecked Sendable {
 
     var lastArguments: [String]? { lock.withLock { arguments } }
 
-    func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult? {
+    func run(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> CommandResult? {
         lock.withLock { self.arguments = arguments }
         return result
     }

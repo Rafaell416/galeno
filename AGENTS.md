@@ -131,6 +131,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 ### Código
 
 - La app consume el motor y no duplica su lógica.
+- **Galeno nunca borra ni pisa un servidor MCP del usuario sin preguntar.** Si el nombre ya lo usa
+  otro, ofrece registrar el suyo con otro nombre (`galeno-<nombre>`, lo predeterminado) o, solo si el
+  usuario lo elige y lo confirma, borrar el existente (`docs/03` §3, pantalla 5). El nombre
+  alternativo vive en `ToolConnection.serverNamePrefix` y todo lo generado lo usa.
 - Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
   Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
   completos. Lo único que el motor nunca toca al regenerar es `memoria/`.
@@ -151,6 +155,25 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (no lo siguen); los nombres de herramienta salen de `Tool.displayName(in:)`.
 - Logos de terceros solo monocromos y con licencia verificada, listados en
   `GalenoApp/THIRD_PARTY.md`.
+- El `client_secret` y los tokens de configuración viven en un `OAuthSecret` (no es `Codable`,
+  se oculta en `print`/`dump`, se borra al terminar). Nunca en un `String` que se guarde, y las
+  credenciales de `GalenoCore` ya ocultan sus secretos en `description` y en el espejo.
+- **Las únicas vistas web de la app** son las dos ventanas de Slack, decididas por Rafa
+  (`docs/03` §4e): la de inicio de sesión (`SlackSignInWindow`) y la de autorización de la app
+  (`SlackAuthorizeWindow`), que comparten una sesión efímera en memoria (`SlackWebSession`) que se
+  descarta al terminar la conexión. La de autorización solo abre páginas `https` de `slack.com` y
+  la vuelta exacta `http://localhost:51820/callback` (`SlackAuthorization`); la dirección le llega
+  por la variable `BROWSER` del proceso `claude mcp login` (`BrowserInterceptor`: script en una
+  carpeta 0700 de `$TMPDIR`, solo `https`), y cualquier dirección que no sea de Slack se abre en el
+  navegador del sistema como siempre. Las demás herramientas no se tocan. La interfaz sigue siendo nativa: "ni
+  contenedor web" se refiere a no hacer la app con tecnología web. Esa ventana cumple siempre:
+  sesión efímera (`WKWebsiteDataStore.nonPersistent()`); el script de captura solo actúa en
+  `api.slack.com` y nunca lee campos de contraseña; el token va a un `OAuthSecret`, no al
+  portapapeles; el dominio está a la vista; el inicio de sesión de Google se bloquea (no se
+  esquiva su política); y no se aceptan cookies ni términos por el usuario. Añadir otra vista
+  web, o relajar cualquiera de estas condiciones, exige preguntar antes.
+- Un agente de navegador con un modelo (Claude con `--chrome`) **nunca ve un secreto**; para
+  Slack se probó y se descartó (`docs/03` §4e).
 - Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
   (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
   lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no

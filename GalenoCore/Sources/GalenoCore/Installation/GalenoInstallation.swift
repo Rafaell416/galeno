@@ -111,7 +111,8 @@ extension GalenoInstallation {
                     tool: shared.tool,
                     status: .connected,
                     sources: shared.tool.selectableSourceKinds.isEmpty ? .everything : .nothing,
-                    oauthClientID: shared.oauthClientID
+                    oauthClientID: shared.oauthClientID,
+                    serverNamePrefix: shared.serverNamePrefix
                 )
             }
 
@@ -168,6 +169,7 @@ extension GalenoInstallation {
             var resolved = connection
             resolved.status = shared.status
             resolved.oauthClientID = shared.oauthClientID
+            resolved.serverNamePrefix = shared.serverNamePrefix
             return resolved
         }
         return config

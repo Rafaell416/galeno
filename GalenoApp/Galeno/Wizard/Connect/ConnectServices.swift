@@ -8,6 +8,10 @@ struct ConnectServices {
     /// Recibe la ruta a `claude` que encontró el paso 2.
     var makeMCP: @MainActor (_ claudePath: String) -> any MCPConnecting
     var whatsapp: any WhatsAppLinking
+    var slack: any SlackAppSetting = SlackAppSetupService()
+    /// Muestra la autorización de Slack en una ventana de Galeno. `nil` (pruebas y conectores
+    /// falsos) = se usa el navegador del sistema.
+    var authorizer: (any SlackAuthorizationPresenting)?
     var fetchRealData: Bool = true
     var timing = ConnectFlow.Timing()
     var sleep: ConnectFlow.Sleeper = { _ = try? await Task.sleep(for: $0) }
@@ -20,6 +24,7 @@ struct ConnectServices {
         #endif
         return ConnectServices(
             makeMCP: { ClaudeMCPClient(claudePath: $0) },
-            whatsapp: WhatsAppBridge.live())
+            whatsapp: WhatsAppBridge.live(),
+            authorizer: SlackAuthorizeWindowPresenter())
     }
 }

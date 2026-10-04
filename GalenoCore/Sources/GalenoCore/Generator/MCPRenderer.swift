@@ -45,7 +45,7 @@ enum MCPRenderer {
         for connection in config.connections where connection.status == .connected {
             let tool = connection.tool
             let definitions = MCPServerCatalog.definitions(
-                for: tool, whatsAppBridgePath: whatsAppBridgePath)
+                for: connection, whatsAppBridgePath: whatsAppBridgePath)
             guard !definitions.isEmpty else {
                 // Google Meet no tiene servidor propio: se lee por Drive.
                 continue

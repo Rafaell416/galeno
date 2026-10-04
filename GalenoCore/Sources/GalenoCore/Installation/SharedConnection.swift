@@ -14,12 +14,20 @@ public struct SharedConnection: Codable, Hashable, Sendable, Identifiable {
     /// El `client_id` de la app OAuth que el propio cliente trajo, para las
     /// herramientas que lo exigen (`tool.requiresUserProvidedOAuthClient`).
     public var oauthClientID: String?
+    /// Ver `ToolConnection.serverNamePrefix`.
+    public var serverNamePrefix: String?
 
     public var id: Tool { tool }
 
-    public init(tool: Tool, status: ConnectionStatus, oauthClientID: String? = nil) {
+    public init(
+        tool: Tool,
+        status: ConnectionStatus,
+        oauthClientID: String? = nil,
+        serverNamePrefix: String? = nil
+    ) {
         self.tool = tool
         self.status = status
         self.oauthClientID = oauthClientID
+        self.serverNamePrefix = serverNamePrefix
     }
 }

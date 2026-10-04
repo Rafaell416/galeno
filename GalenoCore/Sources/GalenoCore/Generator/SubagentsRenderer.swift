@@ -20,8 +20,8 @@ enum SubagentsRenderer {
     /// Los servidores MCP que reciben los subagentes, en el orden de las
     /// conexiones del usuario.
     static func grantedServers(in config: AgentConfig) -> [String] {
-        config.connectedTools
-            .filter { $0.externalSend == nil }
+        config.connectedConnections
+            .filter { $0.tool.externalSend == nil }
             .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
             .map(\.serverName)
     }

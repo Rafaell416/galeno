@@ -362,6 +362,23 @@
         }
       }
     },
+    "connect.failure.nameInUse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I can't use the alternate name either: another server with that name already exists in Claude Code. Rename or delete it from Claude Code and try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tampoco puedo usar el nombre alternativo: ya hay otro servidor con ese nombre en Claude Code. Renómbralo o bórralo desde Claude Code y reintenta."
+          }
+        }
+      }
+    },
     "connect.failure.notAuthorizedInTime" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -396,6 +413,57 @@
         }
       }
     },
+    "connect.failure.slackManifest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack rejected the app's configuration."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack rechazó la configuración de la app."
+          }
+        }
+      }
+    },
+    "connect.failure.slackNotAllowed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack didn't let you create the app. You most likely need a workspace admin's approval."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack no te dejó crear la app. Casi seguro hace falta la aprobación de un administrador de tu workspace."
+          }
+        }
+      }
+    },
+    "connect.failure.slackUnreachable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I couldn't reach Slack. Check your internet connection."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pude hablar con Slack. Revisa tu conexión a internet."
+          }
+        }
+      }
+    },
     "connect.failure.stillNotConnected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -409,6 +477,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se autorizó, pero el servicio todavía no responde."
+          }
+        }
+      }
+    },
+    "connect.failure.tokenRejected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack didn't accept that token. It may have expired (they last 12 hours) or be the wrong one."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack no aceptó ese token. Puede haber vencido (duran 12 horas) o no ser el correcto."
           }
         }
       }
@@ -925,6 +1010,261 @@
         }
       }
     },
+    "connect.slack.adminMessage %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hi, I use Galeno to connect my Slack to my AI assistant. I need you to approve the app “%@” in our workspace (Manage → Apps) and to allow Slack's MCP client. The assistant only sends messages with my explicit approval."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hola, uso Galeno para conectar mi Slack con mi asistente de IA. Necesito que apruebes la app «%@» en nuestro workspace (Administrar → Aplicaciones) y que permitas el cliente MCP de Slack. El asistente solo envía mensajes con mi aprobación explícita."
+          }
+        }
+      }
+    },
+    "connect.slack.copyAdminMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy a message for my admin"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar mensaje para mi administrador"
+          }
+        }
+      }
+    },
+    "connect.slack.signin.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack requires the connection to go through an app created in your own account. Sign in to Slack and Galeno creates it for you."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack pide que la conexión pase por una app creada en tu propia cuenta. Inicia sesión en Slack y Galeno la crea por ti."
+          }
+        }
+      }
+    },
+    "connect.slack.signin.button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to Slack"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión en Slack"
+          }
+        }
+      }
+    },
+    "connect.slack.signin.privacy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Galeno window opens with Slack's page. Galeno doesn't read or store your password, and the session is erased when the window closes. If you sign in with Google, choose “Sign in with email”: Google doesn't allow signing in inside other apps' windows."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se abre una ventana de Galeno con la página de Slack. Galeno no lee ni guarda tu contraseña, y la sesión se borra al cerrar la ventana. Si entras con Google, elige «Sign in with email»: Google no permite iniciar sesión en ventanas de otras apps."
+          }
+        }
+      }
+    },
+    "connect.slack.window.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
+          }
+        }
+      }
+    },
+    "connect.slack.window.captured" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done. Creating your Slack app…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listo. Creando tu app de Slack…"
+          }
+        }
+      }
+    },
+    "connect.slack.window.chooseWorkspace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick your workspace on the page and press “Generate”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige tu workspace en la página y pulsa «Generate»."
+          }
+        }
+      }
+    },
+    "connect.slack.window.google" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google doesn't allow signing in inside other apps' windows, so it doesn't open here. Choose “Sign in with email”: Slack emails you a code."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google no permite iniciar sesión en ventanas de otras apps, así que no se abre aquí. Elige «Sign in with email»: Slack te envía un código por correo."
+          }
+        }
+      }
+    },
+    "connect.slack.window.loadFailed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't open Slack: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo abrir Slack: %@"
+          }
+        }
+      }
+    },
+    "connect.slack.window.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening Slack…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abriendo Slack…"
+          }
+        }
+      }
+    },
+    "connect.slack.window.needsClick" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If it doesn't move on by itself, press “Generate Token” on the page and pick your workspace. Galeno picks up the result."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si no avanza solo, pulsa «Generate Token» en la página y elige tu workspace. Galeno recoge el resultado."
+          }
+        }
+      }
+    },
+    "connect.slack.window.signIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to Slack. Galeno continues on its own once you're in."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia sesión en Slack. Galeno sigue solo en cuanto entres."
+          }
+        }
+      }
+    },
+    "connect.slack.window.tokensPage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to the tokens page"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a la página de tokens"
+          }
+        }
+      }
+    },
+    "connect.slack.window.working" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing the tokens page…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparando la página de tokens…"
+          }
+        }
+      }
+    },
     "connect.step.checking" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -955,6 +1295,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Comprobando si ya está vinculado…"
+          }
+        }
+      }
+    },
+    "connect.step.creatingSlackApp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creating your Slack app…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creando tu app de Slack…"
           }
         }
       }
@@ -1006,6 +1363,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Registrando la conexión en Claude Code…"
+          }
+        }
+      }
+    },
+    "connect.step.validatingToken" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking the token…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobando el token…"
           }
         }
       }
@@ -2360,7 +2734,483 @@
           }
         }
       }
+    },
+    "connect.nameConflict.title %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You already have a different server called “%@” in Claude Code."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya tienes en Claude Code otro servidor llamado «%@»."
+          }
+        }
+      }
+    },
+    "connect.nameConflict.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I won't touch it. The usual choice is for Galeno to use its own name (starting with “galeno-”) and leave yours as it is. Or, if you prefer, I can delete yours."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No lo toco. Lo normal es que Galeno use su propio nombre (con «galeno-» delante) y el tuyo siga como está. O, si prefieres, puedo borrar el tuyo."
+          }
+        }
+      }
+    },
+    "connect.nameConflict.useOther" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use another name"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar otro nombre"
+          }
+        }
+      }
+    },
+    "connect.nameConflict.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete the existing one…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar el existente…"
+          }
+        }
+      }
+    },
+    "connect.removal.title %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete the “%@” server from Claude Code?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Borrar el servidor «%@» de Claude Code?"
+          }
+        }
+      }
+    },
+    "connect.removal.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Its configuration is removed from Claude Code, and it stops being available in all your projects. If you need it later, you'll have to add it again. Nothing in the tool itself is deleted."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se borra su configuración en Claude Code, y deja de estar disponible en todos tus proyectos. Si lo necesitas más adelante, tendrás que volver a añadirlo. No se borra nada de la herramienta en sí."
+          }
+        }
+      }
+    },
+    "connect.removal.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Never mind"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejor no"
+          }
+        }
+      }
+    },
+    "connect.removal.confirm %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes, delete “%@”"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sí, borrar «%@»"
+          }
+        }
+      }
+    },
+    "connect.step.removingServer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleting the server…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrando el servidor…"
+          }
+        }
+      }
+    },
+    "connect.failure.couldNotRemove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I couldn't delete the server. You can delete it yourself from Claude Code, or go back and pick another name."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pude borrar el servidor. Puedes borrarlo tú desde Claude Code, o volver y elegir otro nombre."
+          }
+        }
+      }
+    },
+    "connect.celebration.connected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connections ready"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conexiones listas"
+          }
+        }
+      }
+    },
+    "connect.failure.slackMCPNotEnabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack accepted the authorization, but the app doesn't have the MCP server turned on. Turn it on in the app's page (“Agents & AI Apps” → Slack Model Context Protocol (MCP) Server) and try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack aceptó la autorización, pero la app no tiene activado el servidor MCP. Actívalo en la página de la app («Agents & AI Apps» → Slack Model Context Protocol (MCP) Server) y reintenta."
+          }
+        }
+      }
+    },
+    "connect.slack.openAppPage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the app's page"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir la página de la app"
+          }
+        }
+      }
+    },
+    "connect.slack.window.openingDialog" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening the token dialog…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abriendo el diálogo del token…"
+          }
+        }
+      }
+    },
+    "connect.slack.window.pickingWorkspace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choosing your workspace for you…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eligiendo tu workspace por ti…"
+          }
+        }
+      }
+    },
+    "connect.slack.window.generating" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generating the token…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generando el token…"
+          }
+        }
+      }
+    },
+    "connect.slack.window.step %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step %lld of %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paso %lld de %lld"
+          }
+        }
+      }
+    },
+    "connect.slack.authorize.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening Slack's authorization…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abriendo la autorización de Slack…"
+          }
+        }
+      }
+    },
+    "connect.slack.authorize.userTurn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in if asked, then press “Allow” so Galeno can read your Slack. This window closes by itself when done."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si te lo pide, inicia sesión; luego pulsa «Permitir» para que Galeno pueda leer tu Slack. Esta ventana se cierra sola al terminar."
+          }
+        }
+      }
+    },
+    "connect.slack.authorize.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done, authorized."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listo, autorizado."
+          }
+        }
+      }
+    },
+    "connect.slackDetails.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One last thing: give your Slack app a face"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un último detalle: ponle cara a tu app de Slack"
+          }
+        }
+      }
+    },
+    "connect.slackDetails.icon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload an icon: an image between 512 × 512 and 2000 × 2000 pixels, ideally square. Slack rejects it if it's smaller."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sube un icono: una imagen de entre 512 × 512 y 2000 × 2000 píxeles, mejor cuadrada. Slack no la acepta si es más pequeña."
+          }
+        }
+      }
+    },
+    "connect.slackDetails.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the description: the short one takes up to 140 characters, the long one 174 to 4000. It's what your admin sees when approving the app."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revisa la descripción: la corta admite hasta 140 caracteres y la larga, entre 174 y 4000. Es lo que ve tu administrador al aprobar la app."
+          }
+        }
+      }
+    },
+    "connect.slackDetails.where" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It's under “Basic Information” → “Display Information” in the app."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Está en «Basic Information» → «Display Information» de la app."
+          }
+        }
+      }
+    },
+    "connect.slackDetails.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the app's settings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir la configuración de la app"
+          }
+        }
+      }
+    },
+    "connect.slack.authorize.appNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack doesn't recognize Galeno's app: it looks like it was deleted."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack no reconoce la app de Galeno: parece que se borró."
+          }
+        }
+      }
+    },
+    "connect.failure.slackAppMissing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack no longer recognizes the app Galeno created for your workspace (was it deleted?). Galeno can create it again: it will remove the “slack” connection in Claude Code that pointed to the deleted app and ask you to sign in again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack ya no reconoce la app que Galeno creó para tu workspace (¿la borraste?). Galeno puede crearla de nuevo: quitará de Claude Code la conexión «slack» que apuntaba a la app borrada y te pedirá iniciar sesión otra vez."
+          }
+        }
+      }
+    },
+    "connect.slack.recreate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create the app again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear la app de nuevo"
+          }
+        }
+      }
     }
   },
-  "version" : "1.1"
+  "version" : "1.0"
 }

@@ -7,24 +7,38 @@ import Foundation
 final class FakeMCP: MCPConnecting, @unchecked Sendable {
     private let lock = NSLock()
     private var statuses: [String: MCPStatus]
+    private var otherServers: Set<String>
     private var registerError: MCPConnectError?
+    private var removeError: MCPConnectError?
     private var loginFailures: [String: [MCPConnectError]]
     private var counts: [String: ItemCount]
     private var holdCounts: Bool
     private var holdLogin: Bool
+    /// Servidores que, aun tras autorizar, no conectan: por qué (la línea `Issue:`).
+    private var issues: [String: String]
+    /// La dirección que «abre» `claude` al autorizar (si se le dio dónde mostrarla).
+    private var authorizationURL: URL?
     private var held: [CheckedContinuation<Void, Never>] = []
     private var recorded: [String] = []
 
     init(
         statuses: [String: MCPStatus] = [:],
+        otherServers: Set<String> = [],
         registerError: MCPConnectError? = nil,
+        removeError: MCPConnectError? = nil,
         loginFailures: [String: [MCPConnectError]] = [:],
         counts: [String: ItemCount] = [:],
         holdCounts: Bool = false,
-        holdLogin: Bool = false
+        holdLogin: Bool = false,
+        issues: [String: String] = [:],
+        authorizationURL: URL? = nil
     ) {
+        self.issues = issues
+        self.authorizationURL = authorizationURL
         self.statuses = statuses
+        self.otherServers = otherServers
         self.registerError = registerError
+        self.removeError = removeError
         self.loginFailures = loginFailures
         self.counts = counts
         self.holdCounts = holdCounts
@@ -33,37 +47,77 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
 
     var calls: [String] { lock.withLock { recorded } }
 
-    func status(of server: String) async -> MCPStatus {
+    /// Cómo se registró cada servidor con su app OAuth propia (sin el secreto: solo si lo hubo).
+    private var registrations: [String: (clientID: String, port: Int?, hadSecret: Bool, secretValue: String?)] = [:]
+    func registration(of server: String) -> (clientID: String, port: Int?, hadSecret: Bool, secretValue: String?)? {
+        lock.withLock { registrations[server] }
+    }
+
+    func status(of server: String, expectingURL: String?) async -> MCPStatus {
         lock.withLock {
             recorded.append("status \(server)")
+            if otherServers.contains(server) { return .differentServer }
             return statuses[server] ?? .notRegistered
         }
     }
 
-    func register(server: String, url: String) async throws {
+    func register(server: String, url: String, oauth: OAuthClientRegistration?) async throws {
         let error: MCPConnectError? = lock.withLock {
-            recorded.append("register \(server)")
+            recorded.append(oauth == nil ? "register \(server)" : "register \(server) con app propia")
             return registerError
         }
         if let error { throw error }
-        lock.withLock { statuses[server] = .needsAuthentication }
+        // El valor del secreto se copia **solo para que la prueba pueda comprobar que llegó**; lo
+        // que se anota en `calls` nunca lo lleva.
+        let secretValue = oauth?.secret?.withValue { $0 }
+        lock.withLock {
+            statuses[server] = .needsAuthentication
+            if let oauth {
+                registrations[server] = (oauth.clientID, oauth.callbackPort, secretValue != nil, secretValue)
+            }
+        }
     }
 
-    func login(server: String) async throws {
+    func remove(server: String) async throws {
+        let error: MCPConnectError? = lock.withLock {
+            recorded.append("remove \(server)")
+            return removeError
+        }
+        if let error { throw error }
+        lock.withLock {
+            otherServers.remove(server)
+            statuses[server] = nil
+        }
+    }
+
+    func login(server: String, openAuthorization: AuthorizationOpener?) async throws {
         let failure: MCPConnectError? = lock.withLock {
             recorded.append("login \(server)")
+            if openAuthorization != nil { recorded.append("login \(server) con autorización propia") }
             guard var pending = loginFailures[server], !pending.isEmpty else { return nil }
             let first = pending.removeFirst()
             loginFailures[server] = pending
             return first
         }
         if let failure { throw failure }
+        // Como `claude`: pide mostrar la dirección de autorización, si se le dio dónde.
+        if let openAuthorization, let url = authorizationURL {
+            let handled = await openAuthorization(url)
+            lock.withLock { recorded.append("autorización \(handled ? "mostrada" : "no mostrada") \(url.host ?? "")") }
+        }
         // Como el usuario que todavía no autorizó: espera hasta que lo cancelen.
         while lock.withLock({ holdLogin }) {
             if Task.isCancelled { throw MCPConnectError.cancelled }
             try? await Task.sleep(for: .milliseconds(5))
         }
-        lock.withLock { statuses[server] = .connected }
+        lock.withLock { statuses[server] = issues[server] == nil ? .connected : .failed }
+    }
+
+    func issue(of server: String) async -> String? {
+        lock.withLock {
+            recorded.append("issue \(server)")
+            return issues[server]
+        }
     }
 
     func countItems(server: String, noun: String) async -> ItemCount? {
@@ -148,5 +202,53 @@ final class FakeWhatsApp: WhatsAppLinking, @unchecked Sendable {
             countIndex += 1
             return value
         }
+    }
+}
+
+/// `SlackAppSetting` con guion. Guarda **solo en la prueba** copias de los valores que vio, para
+/// poder afirmar que llegaron; nada de eso vive en el código de la app.
+final class FakeSlackSetup: SlackAppSetting, @unchecked Sendable {
+    private let lock = NSLock()
+    private let validateError: SlackSetupError?
+    private let createError: SlackSetupError?
+    private let clientID: String
+    private let secretValue: String
+    private var recorded: [String] = []
+    private var seenTokens: [String] = []
+    private var seenNames: [String] = []
+    private var issued: [OAuthSecret] = []
+
+    init(
+        validateError: SlackSetupError? = nil, createError: SlackSetupError? = nil,
+        clientID: String = "1234567890123.1234567890123", secretValue: String = "SECRETO-DE-PRUEBA"
+    ) {
+        self.validateError = validateError
+        self.createError = createError
+        self.clientID = clientID
+        self.secretValue = secretValue
+    }
+
+    var calls: [String] { lock.withLock { recorded } }
+    var tokens: [String] { lock.withLock { seenTokens } }
+    var agentNames: [String] { lock.withLock { seenNames } }
+    var createCount: Int { lock.withLock { recorded.filter { $0 == "createApp" }.count } }
+    /// Los secretos que se entregaron, para comprobar después que se borraron.
+    var issuedSecrets: [OAuthSecret] { lock.withLock { issued } }
+
+    func validate(token: OAuthSecret, agentName: String) async throws {
+        lock.withLock {
+            recorded.append("validate")
+            seenTokens.append(token.withValue { $0 })
+            seenNames.append(agentName)
+        }
+        if let validateError { throw validateError }
+    }
+
+    func createApp(token: OAuthSecret, agentName: String) async throws -> OAuthClientRegistration {
+        lock.withLock { recorded.append("createApp") }
+        if let createError { throw createError }
+        let secret = OAuthSecret(secretValue)
+        lock.withLock { issued.append(secret) }
+        return OAuthClientRegistration(clientID: clientID, callbackPort: 51820, secret: secret, appID: "A0TESTAPP01")
     }
 }

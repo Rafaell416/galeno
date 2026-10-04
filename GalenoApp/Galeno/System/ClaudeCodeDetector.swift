@@ -25,7 +25,19 @@ nonisolated struct CommandResult: Sendable, Equatable {
 /// pruebas lo reemplazan por uno falso.
 nonisolated protocol CommandRunning: Sendable {
     /// `nil` si no se pudo lanzar o no terminó dentro de `timeout` segundos.
-    func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult?
+    ///
+    /// `environment` se **añade** al entorno de la app. Es por donde viaja un secreto
+    /// (`MCP_CLIENT_SECRET`): nunca por los argumentos, que cualquier proceso del usuario
+    /// puede leer con `ps`.
+    func run(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> CommandResult?
+}
+
+extension CommandRunning {
+    func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult? {
+        await run(executable, arguments: arguments, environment: [:], timeout: timeout)
+    }
 }
 
 /// Busca `claude` y pregunta su versión y si hay sesión iniciada.
@@ -131,7 +143,9 @@ extension ClaudeCodeDetector {
 
 #if DEBUG
     private nonisolated struct NothingRunner: CommandRunning {
-        func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult? { nil }
+        func run(
+            _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+        ) async -> CommandResult? { nil }
     }
 #endif
 
@@ -143,16 +157,18 @@ extension ClaudeCodeDetector {
 /// un proceso vivo que mantenga el pipe abierto, y leer hasta el final no
 /// terminaría nunca. Con un archivo, basta con esperar a que muera el proceso.
 nonisolated struct ProcessRunner: CommandRunning {
-    func run(_ executable: String, arguments: [String], timeout: TimeInterval) async -> CommandResult? {
+    func run(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> CommandResult? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(returning: Self.runBlocking(executable, arguments, timeout))
+                continuation.resume(returning: Self.runBlocking(executable, arguments, environment, timeout))
             }
         }
     }
 
     private static func runBlocking(
-        _ executable: String, _ arguments: [String], _ timeout: TimeInterval
+        _ executable: String, _ arguments: [String], _ environment: [String: String], _ timeout: TimeInterval
     ) -> CommandResult? {
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("galeno-\(UUID().uuidString).out")
@@ -170,6 +186,9 @@ nonisolated struct ProcessRunner: CommandRunning {
         // Un directorio neutro: así `claude` no carga el `CLAUDE.md` ni los ajustes
         // de la carpeta desde la que se haya abierto la app.
         job.process.currentDirectoryURL = FileManager.default.temporaryDirectory
+        if !environment.isEmpty {
+            job.process.environment = ProcessInfo.processInfo.environment.merging(environment) { _, new in new }
+        }
         job.process.standardInput = FileHandle.nullDevice
         job.process.standardOutput = sink
         job.process.standardError = FileHandle.nullDevice
