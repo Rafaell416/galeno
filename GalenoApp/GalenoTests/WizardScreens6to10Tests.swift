@@ -12,6 +12,12 @@ private actor InstantLister: SourceListing {
 /// La lógica de las pantallas 6 a 10, con todo en carpetas temporales.
 @MainActor
 final class WizardScreens6to10Tests: XCTestCase {
+    /// Ninguna app arrancó antes del principio de los tiempos: con un agente más viejo que la app de
+    /// Claude que está abierta, «Abrir en la app de Claude» no la reinicia.
+    func testClaudeIsNeverRestartedForAnAgentOlderThanTheRunningApp() {
+        XCTAssertFalse(SystemAgentOpener().claudeAppNeedsRestart(since: .distantPast))
+    }
+
     private var sandbox: URL!
 
     override func setUp() async throws {

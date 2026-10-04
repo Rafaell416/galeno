@@ -10,8 +10,23 @@ struct ConnectTarget: Equatable {
         var url: String
     }
 
+    /// Un conector de la cuenta de Claude del usuario (Gmail, Google Drive): no se registra con
+    /// `claude mcp add`; Claude Code lo trae solo cuando el usuario lo tiene conectado en claude.ai.
+    struct Connector: Equatable {
+        /// Como aparece en Claude: «Google Drive».
+        var name: String
+        /// Su página en el directorio de conectores de Claude (`google-drive-drivemcp`).
+        var directorySlug: String
+        /// Como lo nombra Claude Code en una sesión y en `claude mcp login`.
+        var serverName: String { "claude.ai " + name }
+        /// La página del conector en Claude: ahí está su botón «Conectar».
+        var directoryURL: URL { URL(string: "https://claude.ai/directory/" + directorySlug)! }
+    }
+
     var tool: Tool
     var servers: [Server]
+    /// «Google Drive, Docs y Sheets» son tres; Gmail y Google Calendar, uno.
+    var connectors: [Connector]
 
     /// Slack, Gmail y Google Workspace exigen una app OAuth del propio cliente
     /// (`docs/03` §4e). Crearla es el paso siguiente de la fase; hasta entonces
@@ -36,14 +51,19 @@ struct ConnectTarget: Equatable {
     /// del usuario. Es el mismo que usa el motor para `.mcp.json` y los permisos.
     init?(tool: Tool, namePrefix: String? = nil) {
         let connection = ToolConnection(tool: tool, serverNamePrefix: namePrefix)
-        let servers = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
-            .compactMap { definition -> Server? in
-                guard case .http(let url) = definition.transport else { return nil }
-                return Server(name: definition.serverName, url: url)
-            }
-        guard !servers.isEmpty else { return nil }
+        let definitions = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
+        let servers = definitions.compactMap { definition -> Server? in
+            guard case .http(let url) = definition.transport else { return nil }
+            return Server(name: definition.serverName, url: url)
+        }
+        let connectors = definitions.compactMap { definition -> Connector? in
+            guard case .claudeConnector(let name, let slug) = definition.transport else { return nil }
+            return Connector(name: name, directorySlug: slug)
+        }
+        guard !servers.isEmpty || !connectors.isEmpty else { return nil }
         self.tool = tool
         self.servers = servers
+        self.connectors = connectors
     }
 
     /// Las herramientas que tienen una pantalla de conexión, en el orden dado.
@@ -77,6 +97,8 @@ final class ConnectFlow: ObservableObject {
         case checking
         case registering
         case waitingForBrowser
+        /// El conector no está en la cuenta de Claude del usuario: se abrió el directorio para que lo conecte.
+        case addingConnector
         case preparingBridge
         case checkingLink
         case installingSync
@@ -199,6 +221,11 @@ final class ConnectFlow: ObservableObject {
         /// Lecturas seguidas sin cambio para dar la sincronización por estable.
         var syncStableReads = 3
         var syncMax: Double = 180
+        /// Cada cuánto se mira si el conector de Claude ya quedó conectado, y hasta cuándo.
+        var connectorPoll: Double = 3
+        var connectorMax: Double = 300
+        /// Lo que Galeno se queda al frente tras un conector, antes de abrir el navegador para el siguiente.
+        var connectorPause: Double = 1.2
     }
 
     private let mcp: any MCPConnecting
@@ -216,12 +243,16 @@ final class ConnectFlow: ObservableObject {
     /// Trae Galeno al frente cuando el usuario termina de autorizar en su navegador: la pestaña se
     /// queda allá, pero él vuelve solo al asistente.
     private let returnToApp: @MainActor () -> Void
+    /// Abre una dirección en el navegador del sistema (el directorio de conectores de Claude).
+    private let openURL: @MainActor (URL) -> Void
     /// La sesión efímera de Slack, compartida entre la ventana de inicio de sesión y la de
     /// autorización. Se descarta cuando termina la conexión.
     let webSession = SlackWebSession()
     /// El identificador (público) de la app de Slack que se acaba de crear, para llevar al usuario
     /// a su configuración al final. `nil` si no se creó en esta sesión.
     @Published private(set) var slackAppID: String?
+    /// El conector de la cuenta de Claude que se está conectando ahora (`nil` fuera de ese proceso).
+    @Published private(set) var connectorProgress: ConnectorProgress?
     /// Las herramientas que se registran con el nombre alternativo (`galeno-slack`).
     private var namePrefixes: [Tool: String]
 
@@ -254,8 +285,10 @@ final class ConnectFlow: ObservableObject {
         onNamePrefix: @escaping @MainActor (Tool, String?) -> Void = { _, _ in },
         authorizer: (any SlackAuthorizationPresenting)? = nil,
         language: @escaping @MainActor () -> Language = { .spanish },
-        returnToApp: @escaping @MainActor () -> Void = {}
+        returnToApp: @escaping @MainActor () -> Void = {},
+        openURL: @escaping @MainActor (URL) -> Void = { _ in }
     ) {
+        self.openURL = openURL
         self.authorizer = authorizer
         self.language = language
         self.returnToApp = returnToApp
@@ -354,7 +387,11 @@ final class ConnectFlow: ObservableObject {
             if tool == .whatsapp {
                 await self?.linkWhatsApp()
             } else if let target = self?.target(for: tool) {
-                await self?.connectHosted(target)
+                if !target.connectors.isEmpty {
+                    await self?.connectClaudeConnectors(target)
+                } else {
+                    await self?.connectHosted(target)
+                }
             }
         }
     }
@@ -391,6 +428,92 @@ final class ConnectFlow: ObservableObject {
     func continueFromDopamine() {
         guard case .dopamine = screen else { return }
         advance()
+    }
+
+    // MARK: - Conectores de la cuenta de Claude (Gmail, Google Drive, Docs, Sheets, Calendar)
+
+    /// Qué conector se está conectando ahora, para decírselo al usuario («Google Docs · 2 de 3»).
+    struct ConnectorProgress: Equatable {
+        var name: String
+        var index: Int
+        var total: Int
+    }
+
+    /// Google no se conecta con una app propia: sus servidores siguen en Developer Preview (inscripción con
+    /// aprobación de días, solo cuentas de Workspace). Se usan los conectores de la cuenta de Claude del
+    /// usuario, que Claude Code trae solos. Para cada uno, tres casos:
+    ///
+    /// 1. Ya está conectado: no hay nada que hacer.
+    /// 2. Está en su cuenta pero sin autorizar: `claude mcp login` abre la página de permiso.
+    /// 3. No está en su cuenta: se abre la página del conector en Claude, y el usuario pulsa «Conectar» y
+    ///    «Permitir».
+    ///
+    /// El estado se lee de una sesión real (`connectorStatus`): `claude mcp get` da por conectado un
+    /// conector al que le falta la autorización. En 2 y 3 Claude Code no avisa cuando el usuario termina:
+    /// se vuelve a mirar cada pocos segundos. Galeno vuelve al frente al terminar **cada** conector.
+    private func connectClaudeConnectors(_ target: ConnectTarget) async {
+        defer { connectorProgress = nil }
+        var usedBrowser = false
+
+        for (index, connector) in target.connectors.enumerated() {
+            connectorProgress = ConnectorProgress(name: connector.name, index: index + 1, total: target.connectors.count)
+            update(.working(.checking))
+            var current = await mcp.connectorStatus(connector.serverName)
+            if Task.isCancelled { return }
+            if current == .failed {
+                // Al arrancar la sesión seguía «pendiente»: se mira una vez más antes de decidir.
+                await sleep(.seconds(timing.connectorPoll))
+                current = await mcp.connectorStatus(connector.serverName)
+                if Task.isCancelled { return }
+            }
+            if current == .connected { continue }
+
+            usedBrowser = true
+            if current == .notRegistered {
+                update(.working(.addingConnector))
+                openURL(connector.directoryURL)
+            } else {
+                update(.working(.waitingForBrowser))
+                do {
+                    try await mcp.authorizeConnector(connector.serverName)
+                } catch {
+                    if Task.isCancelled { return }
+                    if let error = error as? MCPConnectError, case .loginFailed(let detail) = error {
+                        failureDetail = detail
+                    }
+                    fail(.loginFailed)
+                    return
+                }
+            }
+
+            var connected = false
+            var waited = 0.0
+            while waited < timing.connectorMax {
+                await sleep(.seconds(timing.connectorPoll))
+                waited += timing.connectorPoll
+                if Task.isCancelled { return }
+                if await mcp.connectorStatus(connector.serverName) == .connected {
+                    connected = true
+                    break
+                }
+            }
+            if Task.isCancelled { return }
+            guard connected else {
+                fail(.notAuthorizedInTime)
+                return
+            }
+            // Cada conector que termina en el navegador trae a Galeno al frente (decisión de Rafa, 4 oct
+            // 2026): con tres seguidos (Drive, Docs, Sheets) el usuario ve que uno quedó antes de que se
+            // abra el siguiente, en vez de quedarse en el navegador sin saber si ya puede volver.
+            returnToApp()
+            if index < target.connectors.count - 1 {
+                update(.working(.checking))
+                await sleep(.seconds(timing.connectorPause))
+                if Task.isCancelled { return }
+            }
+        }
+
+        finishHosted(target, alreadyConnected: !usedBrowser)
     }
 
     // MARK: - Servidores MCP hospedados
@@ -921,10 +1044,12 @@ final class ConnectFlow: ObservableObject {
         switch tool {
         case .slack: .channels
         case .jira: .projects
-        case .gmail: .labels
+        // Gmail va por el conector de la cuenta de Claude, y los nombres de sus herramientas no están
+        // verificados: no se pide ningún dato.
+        case .gmail: nil
         case .fireflies, .granola, .fathom: .meetings
         case .whatsapp: .groups
-        case .notion, .googleWorkspace, .googleMeet, .claudeDesign: nil
+        case .notion, .googleWorkspace, .googleMeet, .claudeDesign, .googleCalendar: nil
         }
     }
 }

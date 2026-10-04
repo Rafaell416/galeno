@@ -175,8 +175,9 @@ final class SourceListerTests: XCTestCase {
     }
 
     func testGoogleMeetIsListedThroughDrive() {
-        XCTAssertEqual(ClaudeSourceLister.serverName(for: connection(.googleMeet)), "google-drive")
-        XCTAssertEqual(ClaudeSourceLister.serverName(for: connection(.googleWorkspace, prefix: "galeno-")), "galeno-google-drive")
+        // Meet se lee por el conector de Google Drive de la cuenta de Claude, que no admite prefijo.
+        XCTAssertEqual(ClaudeSourceLister.serverName(for: connection(.googleMeet)), "claude_ai_Google_Drive")
+        XCTAssertEqual(ClaudeSourceLister.serverName(for: connection(.googleWorkspace, prefix: "galeno-")), "claude_ai_Google_Drive")
         XCTAssertEqual(ClaudeSourceLister.serverName(for: connection(.fireflies)), "fireflies")
     }
 

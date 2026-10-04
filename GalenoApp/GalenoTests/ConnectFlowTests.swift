@@ -10,6 +10,8 @@ final class ConnectFlowTests: XCTestCase {
     private var recordedClientIDs: [(Tool, String)] = []
     /// Cuántas veces el flujo trajo Galeno al frente (tras autorizar en el navegador).
     private var returnsToApp = 0
+    /// Las direcciones que el flujo abrió en el navegador (el directorio de conectores de Claude).
+    private var openedURLs: [URL] = []
 
     private func makeFlow(
         _ tools: [Tool],
@@ -24,13 +26,15 @@ final class ConnectFlowTests: XCTestCase {
         recordedStatuses = []
         recordedClientIDs = []
         returnsToApp = 0
+        openedURLs = []
         return ConnectFlow(
             tools: tools, statuses: statuses, mcp: mcp, whatsapp: whatsapp, slack: slack,
             agentName: { "Aurora" },
             fetchRealData: fetchRealData, timing: timing, sleep: sleep.sleeper,
             onStatus: { [unowned self] tool, status in recordedStatuses.append((tool, status)) },
             onClientID: { [unowned self] tool, id in recordedClientIDs.append((tool, id)) },
-            returnToApp: { [unowned self] in returnsToApp += 1 })
+            returnToApp: { [unowned self] in returnsToApp += 1 },
+            openURL: { [unowned self] in openedURLs.append($0) })
     }
 
     private func isOn(_ flow: ConnectFlow, _ tool: Tool) -> Bool { flow.screen == .connection(tool) }
@@ -212,16 +216,115 @@ final class ConnectFlowTests: XCTestCase {
         XCTAssertNotEqual(flow.statuses[.notion], .connected)
     }
 
-    // MARK: - Slack, Gmail y Google (el punto de entrada)
+    // MARK: - Google: los conectores de la cuenta de Claude
 
-    func testToolsWhoseOwnAppIsNotBuiltYetAreOfferedForLater() {
-        for tool in [Tool.gmail, .googleWorkspace] {
-            let flow = makeFlow([tool, .notion])
+    func testGoogleToolsAreClaudeAccountConnectorsNotServersToRegister() throws {
+        let workspace = try XCTUnwrap(ConnectTarget(tool: .googleWorkspace))
+        XCTAssertEqual(
+            workspace.connectors.map(\.serverName),
+            ["claude.ai Google Drive", "claude.ai Google Docs", "claude.ai Google Sheets"])
+        XCTAssertEqual(
+            workspace.connectors.map(\.directoryURL.absoluteString),
+            [
+                "https://claude.ai/directory/google-drive-drivemcp",
+                "https://claude.ai/directory/google-docs-docsmcp",
+                "https://claude.ai/directory/google-sheets-sheetsmcp",
+            ])
+        XCTAssertTrue(workspace.servers.isEmpty)
+        XCTAssertFalse(workspace.requiresOwnOAuthApp)
 
-            XCTAssertEqual(flow.phase, .needsOwnApp, "\(tool)")
-            XCTAssertTrue(ConnectTarget(tool: tool)?.requiresOwnOAuthApp == true)
-            XCTAssertFalse(ConnectTarget(tool: tool)?.supportsOwnApp == true)
-        }
+        XCTAssertEqual(
+            ConnectTarget(tool: .gmail)?.connectors.map(\.directoryURL.absoluteString),
+            ["https://claude.ai/directory/gmail-gmailmcp"])
+        XCTAssertEqual(
+            ConnectTarget(tool: .googleCalendar)?.connectors.map(\.directoryURL.absoluteString),
+            ["https://claude.ai/directory/google-calendar-calendarmcp"])
+        XCTAssertEqual(makeFlow([.gmail, .notion]).phase, .ready, "ya no es «necesita su propia app»")
+    }
+
+    /// Caso 1: el conector ya está conectado en la cuenta de Claude. No se abre nada.
+    func testAGoogleConnectorThatIsAlreadyConnectedNeedsNothing() async {
+        let mcp = FakeMCP(statuses: ["claude.ai Gmail": .connected])
+        let flow = makeFlow([.gmail, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: true) }
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertTrue(openedURLs.isEmpty)
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("authorize") || $0.hasPrefix("register") || $0.hasPrefix("login") })
+        XCTAssertEqual(returnsToApp, 0)
+    }
+
+    /// El estado sale de una sesión real, nunca de `claude mcp get`: ese comando da por conectado un
+    /// conector al que le falta la autorización de Google (así se coló un «ya estaba conectado» falso).
+    func testTheConnectorStateIsNeverReadFromMCPGet() async {
+        let mcp = FakeMCP(statuses: ["claude.ai Gmail": .connected])
+        let flow = makeFlow([.gmail, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        _ = await waitUntil { flow.phase == .succeeded(alreadyConnected: true) }
+        XCTAssertTrue(mcp.calls.contains("connector-status claude.ai Gmail"))
+        XCTAssertFalse(mcp.calls.contains("status claude.ai Gmail"))
+    }
+
+    /// Caso 2: está en la cuenta pero sin autorizar. Se abre la página de permiso y se espera.
+    func testAGoogleConnectorThatNeedsAuthorizationOnlyAsksToAllow() async {
+        let mcp = FakeMCP(statuses: ["claude.ai Google Calendar": .needsAuthentication])
+        mcp.connectorConnectsAfterChecks = 2
+        let flow = makeFlow([.googleCalendar, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: false) }
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertTrue(mcp.calls.contains("authorize claude.ai Google Calendar"))
+        XCTAssertTrue(openedURLs.isEmpty, "el permiso lo abre `claude mcp login`, no el directorio")
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("register") }, "un conector no se registra")
+        XCTAssertEqual(returnsToApp, 1, "al terminar en el navegador, Galeno vuelve al frente")
+        XCTAssertEqual(recordedStatuses.last?.1, .connected)
+    }
+
+    /// Caso 3: no está en la cuenta. Se abre la página del conector en Claude y se espera.
+    func testAGoogleConnectorThatIsNotInTheAccountOpensItsPage() async {
+        let mcp = FakeMCP()
+        mcp.connectorConnectsAfterChecks = 3
+        let flow = makeFlow([.gmail, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: false) }
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertEqual(openedURLs.map(\.absoluteString), ["https://claude.ai/directory/gmail-gmailmcp"])
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("authorize") }, "no hay nada que autorizar hasta que lo añada")
+        XCTAssertEqual(returnsToApp, 1)
+    }
+
+    /// «Google Drive, Docs y Sheets» son tres conectores: el que ya está se salta, y los otros se conectan
+    /// uno tras otro. Galeno vuelve al frente al terminar cada uno de los que pasaron por el navegador.
+    func testDriveDocsAndSheetsAreConnectedOneAfterAnother() async {
+        let mcp = FakeMCP(statuses: [
+            "claude.ai Google Drive": .connected, "claude.ai Google Docs": .needsAuthentication,
+        ])
+        mcp.connectorConnectsAfterChecks = 1
+        let flow = makeFlow([.googleWorkspace, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: false) }
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertTrue(mcp.calls.contains("authorize claude.ai Google Docs"))
+        XCTAssertFalse(mcp.calls.contains("authorize claude.ai Google Drive"), "Drive ya estaba")
+        XCTAssertEqual(openedURLs.map(\.absoluteString), ["https://claude.ai/directory/google-sheets-sheetsmcp"])
+        XCTAssertEqual(returnsToApp, 2, "Galeno vuelve al frente tras cada conector que pasó por el navegador (Docs y Sheets)")
+        XCTAssertNil(flow.connectorProgress, "al terminar ya no hay conector en curso")
+    }
+
+    /// Si el usuario no termina a tiempo, se dice y se puede reintentar o saltar. Nunca se da por conectado.
+    func testAGoogleConnectorThatNeverGetsConnectedTimesOut() async {
+        let flow = makeFlow([.googleWorkspace, .jira], mcp: FakeMCP(), fetchRealData: false)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let failed = await waitUntil { flow.phase == .failed(.notAuthorizedInTime) }
+        XCTAssertTrue(failed, "\(flow.phase)")
+        XCTAssertNotEqual(flow.statuses[.googleWorkspace], .connected)
+        XCTAssertEqual(returnsToApp, 0)
     }
 
     func testSkippingAToolThatNeedsItsOwnAppLeavesItSkipped() {

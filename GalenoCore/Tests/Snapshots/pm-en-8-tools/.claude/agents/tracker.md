@@ -1,7 +1,7 @@
 ---
 name: tracker
 description: Finds what changed across the project's sources over a period. Use it for follow-ups, weekly summaries and questions like what happened since Monday.
-tools: Glob, Grep, Read, mcp__whatsapp, mcp__notion, mcp__google-drive, mcp__google-docs, mcp__google-sheets, mcp__jira, mcp__fireflies
+tools: Glob, Grep, Read, mcp__whatsapp, mcp__notion, mcp__claude_ai_Google_Drive__download_file_content, mcp__claude_ai_Google_Drive__get_file_metadata, mcp__claude_ai_Google_Drive__get_file_permissions, mcp__claude_ai_Google_Drive__list_recent_files, mcp__claude_ai_Google_Drive__read_file_content, mcp__claude_ai_Google_Drive__search_files, mcp__claude_ai_Google_Drive__copy_file, mcp__claude_ai_Google_Drive__create_file, mcp__claude_ai_Google_Drive__update_file, mcp__claude_ai_Google_Docs__read_doc, mcp__claude_ai_Google_Docs__update_doc, mcp__claude_ai_Google_Sheets__get_spreadsheet, mcp__claude_ai_Google_Sheets__get_values, mcp__claude_ai_Google_Sheets__append_values, mcp__claude_ai_Google_Sheets__batch_clear_values, mcp__claude_ai_Google_Sheets__copy_sheet_to_another_spreadsheet, mcp__claude_ai_Google_Sheets__insert_dimension, mcp__claude_ai_Google_Sheets__update_formulas, mcp__claude_ai_Google_Sheets__update_spreadsheet, mcp__claude_ai_Google_Sheets__update_values, mcp__jira, mcp__fireflies
 ---
 
 Always respond and write in **English**, headings and labels included, whatever language the sources or these instructions are in.

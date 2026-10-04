@@ -14,6 +14,9 @@ public enum Tool: String, Codable, CaseIterable, Sendable, Identifiable {
     /// Los diseños del usuario en Claude Design. El agente los lee (y, si se le deja, los edita) a
     /// partir de un enlace o del nombre de un proyecto.
     case claudeDesign = "claude-design"
+    /// El calendario del usuario: qué viene y cuándo hay hueco. Crear o cambiar un evento les llega a
+    /// los invitados, así que siempre pide aprobación.
+    case googleCalendar = "google-calendar"
 
     public var id: String { rawValue }
 }
@@ -50,6 +53,7 @@ extension Tool {
         case .fathom: "Fathom"
         case .googleMeet: "Google Meet"
         case .claudeDesign: "Claude Design"
+        case .googleCalendar: "Google Calendar"
         }
     }
 
@@ -57,7 +61,7 @@ extension Tool {
         switch self {
         case .whatsapp: .qrCode
         case .slack, .notion, .googleWorkspace, .gmail, .jira,
-            .fireflies, .granola, .fathom, .googleMeet, .claudeDesign:
+            .fireflies, .granola, .fathom, .googleMeet, .claudeDesign, .googleCalendar:
             .oauth
         }
     }
@@ -69,7 +73,7 @@ extension Tool {
     /// transcripción son `false` porque sus MCP oficiales son de solo lectura.
     public var allowsWriting: Bool {
         switch self {
-        case .slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign: true
+        case .slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign, .googleCalendar: true
         case .whatsapp, .fireflies, .granola, .fathom, .googleMeet: false
         }
     }
@@ -87,7 +91,7 @@ extension Tool {
         case .gmail: [.mailLabel]
         case .jira: [.project]
         case .googleMeet: [.folder]
-        case .fireflies, .granola, .fathom, .claudeDesign: []
+        case .fireflies, .granola, .fathom, .claudeDesign, .googleCalendar: []
         }
     }
 
@@ -99,6 +103,7 @@ extension Tool {
         switch self {
         case .slack: .slackMessage
         case .gmail: .email
+        case .googleCalendar: .calendarEvent
         case .whatsapp, .notion, .googleWorkspace, .jira,
             .fireflies, .granola, .fathom, .googleMeet, .claudeDesign:
             nil
@@ -114,21 +119,25 @@ extension Tool {
         case .jira: [.jira]
         case .googleWorkspace: [.googleDocs, .googleSheets]
         case .claudeDesign: [.claudeDesign]
-        case .whatsapp, .slack, .gmail, .fireflies, .granola, .fathom, .googleMeet: []
+        case .whatsapp, .slack, .gmail, .fireflies, .granola, .fathom, .googleMeet, .googleCalendar: []
         }
     }
 
     /// Si el usuario tiene que traer su propia app OAuth (su propio
     /// `client_id`) antes de conectar esta herramienta.
     ///
-    /// Slack y Google exigen una app registrada con el proveedor; esa app la
-    /// trae el cliente, nunca Galeno — ni siquiera el `client_id` es nuestro.
+    /// Slack exige una app registrada con el proveedor; esa app la trae el
+    /// cliente, nunca Galeno — ni siquiera el `client_id` es nuestro.
     /// Notion y Jira no lo necesitan: su MCP registra el cliente al vuelo
     /// (dynamic client registration), sin que nadie cree nada de antemano.
+    /// Gmail y Google Drive tampoco: se usan por el conector de la cuenta de
+    /// Claude del usuario, cuya app OAuth es de Anthropic (`MCPServerCatalog`).
     public var requiresUserProvidedOAuthClient: Bool {
         switch self {
-        case .slack, .gmail, .googleWorkspace: true
-        case .whatsapp, .notion, .jira, .fireflies, .granola, .fathom, .googleMeet, .claudeDesign: false
+        case .slack: true
+        case .whatsapp, .notion, .jira, .fireflies, .granola, .fathom, .googleMeet, .claudeDesign,
+            .gmail, .googleWorkspace, .googleCalendar:
+            false
         }
     }
 
@@ -140,7 +149,7 @@ extension Tool {
         switch self {
         case .googleMeet: [.googleWorkspace]
         case .whatsapp, .slack, .notion, .googleWorkspace, .gmail, .jira,
-            .fireflies, .granola, .fathom, .claudeDesign:
+            .fireflies, .granola, .fathom, .claudeDesign, .googleCalendar:
             []
         }
     }

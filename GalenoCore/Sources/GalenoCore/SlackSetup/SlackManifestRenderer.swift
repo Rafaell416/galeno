@@ -81,12 +81,18 @@ public enum SlackManifestRenderer {
         var settings: Settings
     }
 
-    /// `agentName` es el nombre del agente del usuario ("Hipócrates"); se usa
-    /// tal cual como nombre de la app de Slack, salvo que ya incluya "Galeno".
+    /// El nombre de la app de Slack: el del agente ("Hipócrates") seguido de «· Galeno», sin paréntesis,
+    /// salvo que el agente ya lo incluya. Es el mismo que se le enseña al usuario si hay que pedirle a un
+    /// administrador que apruebe la app.
+    public static func appName(forAgent agentName: String) -> String {
+        let name = agentName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty { return "Galeno" }
+        return name.localizedCaseInsensitiveContains("galeno") ? name : "\(name) · Galeno"
+    }
+
+    /// `agentName` es el nombre del agente del usuario ("Hipócrates").
     public static func render(agentName: String) throws -> Result {
-        let appName = agentName.localizedCaseInsensitiveContains("galeno")
-            ? agentName
-            : "\(agentName) (Galeno)"
+        let appName = appName(forAgent: agentName)
 
         let manifest = Manifest(
             display_information: DisplayInformation(

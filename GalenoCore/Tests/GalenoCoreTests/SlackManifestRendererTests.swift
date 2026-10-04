@@ -4,13 +4,20 @@ import XCTest
 @testable import GalenoCore
 
 final class SlackManifestRendererTests: XCTestCase {
+    func testTheAppNameNeverUsesParentheses() {
+        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "Hera"), "Hera · Galeno")
+        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "  Hera  "), "Hera · Galeno")
+        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "Galeno Pro"), "Galeno Pro", "ya lo incluye")
+        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: ""), "Galeno")
+    }
+
     func testManifestHasTheExpectedShape() throws {
         let result = try SlackManifestRenderer.render(agentName: "Hipócrates")
         let data = Data(result.manifestJSON.utf8)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         let display = try XCTUnwrap(object["display_information"] as? [String: Any])
-        XCTAssertEqual(display["name"] as? String, "Hipócrates (Galeno)")
+        XCTAssertEqual(display["name"] as? String, "Hipócrates · Galeno", "sin paréntesis")
         XCTAssertFalse((display["description"] as? String ?? "").isEmpty)
 
         let oauth = try XCTUnwrap(object["oauth_config"] as? [String: Any])

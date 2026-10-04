@@ -167,8 +167,8 @@ final class WizardStepsTests: XCTestCase {
         XCTAssertEqual(state.estimatedSetupMinutes, 1, "mínimo 1 minuto")
 
         for tool in [Tool.whatsapp, .slack, .notion, .gmail, .jira] { state.toggle(tool) }
-        // 3 + 2 + 1 + 2 + 1
-        XCTAssertEqual(state.estimatedSetupMinutes, 9)
+        // 3 + 2 + 1 + 1 + 1 (Gmail va por el conector de la cuenta de Claude: un minuto)
+        XCTAssertEqual(state.estimatedSetupMinutes, 8)
     }
 
     func testMeetCostsNothingOnTopOfWorkspace() {

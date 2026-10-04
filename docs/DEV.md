@@ -102,4 +102,4 @@ Quita los agentes de `~/Galeno` (a la Papelera, recuperables), el registro y el 
 la sesión de WhatsApp con su historial y su servicio de fondo, los servidores MCP que Galeno registra
 en Claude Code (solo si apuntan a los servidores oficiales: no toca un `slack` tuyo de otra
 procedencia) y las preferencias de la app. Al final recuerda lo que no puede hacer: cerrar la sesión
-de Galeno en el teléfono y borrar la app «<agente> (Galeno)» en api.slack.com/apps.
+de Galeno en el teléfono y borrar la app «<agente> · Galeno» en api.slack.com/apps.

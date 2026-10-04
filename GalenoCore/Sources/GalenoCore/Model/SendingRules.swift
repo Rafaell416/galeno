@@ -67,6 +67,8 @@ public enum InternalWrite: String, Codable, CaseIterable, Sendable {
 public enum ExternalSend: String, Codable, CaseIterable, Sendable {
     case slackMessage = "slack-message"
     case email
+    /// Crear, cambiar o borrar un evento, o responder a una invitación: les llega a los invitados.
+    case calendarEvent = "calendar-event"
 }
 
 public enum ApprovalPolicy: String, Codable, CaseIterable, Sendable {

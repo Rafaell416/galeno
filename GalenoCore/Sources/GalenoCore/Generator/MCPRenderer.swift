@@ -1,12 +1,13 @@
 import Foundation
 
-/// Escribe `.mcp.json`: una o más entradas por herramienta conectada que
-/// tenga servidor propio (Google Workspace son tres: Drive, Docs y Sheets).
+/// Escribe `.mcp.json`: una entrada por herramienta conectada que tenga
+/// servidor propio. Los conectores de la cuenta de Claude (Gmail, Google
+/// Drive) no se escriben: Claude Code los trae solos.
 ///
 /// Ningún secreto aparece como valor. Los servidores con registro dinámico no
 /// llevan nada de autenticación —Claude Code la gestiona—; los que usan
 /// cabecera reciben una referencia `${VARIABLE}`; y los que exigen la app
-/// propia del cliente (Slack, Gmail, Google Workspace) llevan su `client_id`
+/// propia del cliente (Slack) llevan su `client_id`
 /// —que no es secreto— pero nunca un `client_secret`.
 enum MCPRenderer {
     /// Una entrada de `mcpServers`. Las propiedades opcionales en `nil` no se
@@ -73,6 +74,12 @@ enum MCPRenderer {
             for definition in definitions {
                 var server: Server
                 switch definition.transport {
+                case let .claudeConnector(name, _):
+                    // No se registra ni se escribe: Claude Code lo trae de la cuenta del usuario.
+                    if !definition.endpointIsVerified {
+                        warnings.append(.unverifiedEndpoint(tool: tool, url: "claude.ai \(name)"))
+                    }
+                    continue
                 case let .stdio(command, arguments):
                     server = Server(type: "stdio", command: command, args: arguments)
                 case let .http(url):

@@ -20,6 +20,9 @@ struct RulesStepView: View {
                     PactRow(label: "rules.never.label", accent: true, heavy: true) { neverContent }
                 }
                 PactRow(label: "rules.always.label", accent: true, heavy: !hasNever) { alwaysContent }
+                if !readsFreely.isEmpty {
+                    PactRow(label: "rules.reads.label", accent: false, heavy: false) { readsContent }
+                }
                 PactRow(label: "rules.you.label", accent: false, heavy: false) { youContent }
             }
         }
@@ -45,14 +48,25 @@ struct RulesStepView: View {
             lead("rules.external.title", Text("rules.external.body"))
             let names = wizard.externalSendTools.map { $0.displayName(in: wizard.language) }
             if !names.isEmpty {
-                // Con las herramientas cuyas lecturas están verificadas (Slack), se dice que leer no pregunta.
-                let readsFreely = wizard.externalSendTools.allSatisfy(\.readsWithoutAsking)
-                (Text("rules.external.tools \(names.joined(separator: ", "))")
-                    + (readsFreely ? Text(verbatim: ". ") + Text("rules.external.reads") : Text(verbatim: "")))
+                Text("rules.external.tools \(names.joined(separator: ", "))")
                     .font(Typo.text(13))
                     .foregroundStyle(Color.ink500)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+
+    /// Las herramientas que el agente lee sin pedir permiso, según las reglas que el motor va a escribir.
+    private var readsFreely: [Tool] { wizard.makeConfig().toolsReadingWithoutAsking }
+
+    /// Lo que no pregunta: leer lo conectado (petición de Rafa, 4 oct 2026: que las reglas de lectura se vean).
+    private var readsContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            lead("rules.reads.title", Text("rules.reads.body \(agentName)"))
+            Text("rules.external.tools \(readsFreely.map { $0.displayName(in: wizard.language) }.joined(separator: ", "))")
+                .font(Typo.text(13))
+                .foregroundStyle(Color.ink500)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -115,15 +129,6 @@ extension PactRow {
         Rectangle()
             .fill(heavy ? Color.ink900 : Color.parchment300)
             .frame(height: heavy ? 1.5 : 1)
-    }
-}
-
-extension Tool {
-    /// Si leer con esta herramienta va sin pedir permiso aunque sus envíos siempre lo pidan: el catálogo
-    /// del motor trae la lista verificada de sus herramientas de solo lectura (hoy, Slack).
-    var readsWithoutAsking: Bool {
-        let servers = MCPServerCatalog.definitions(for: ToolConnection(tool: self), whatsAppBridgePath: "")
-        return !servers.isEmpty && servers.allSatisfy { !$0.readOnlyTools.isEmpty }
     }
 }
 

@@ -431,11 +431,15 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
   verificados contra la documentación oficial. Google Workspace resultó ser tres servidores
   (Drive, Docs, Sheets), no uno. Ver `docs/03` §4e para el detalle y la decisión de
   bring-your-own-app para Slack y Google.
-- **Automatización de navegador para Google** (Fase 4, GalenoApp): decidido construirla
-  —crea el proyecto y la credencial OAuth en la consola de Google en nombre del cliente—,
-  con el riesgo aceptado de que sea frágil ante cambios de esa consola y de que Google
-  detecte la sesión como automatizada en una pantalla sensible. Sin diseño todavía: es un
-  proyecto de ingeniería propio, no una extensión del motor.
+- ~~Automatización de navegador para Google~~ — **resuelto de otra forma** (4 oct 2026): Gmail y
+  Google Drive van por los conectores de la cuenta de Claude del usuario; no hay app de Google Cloud
+  ni automatización de su consola. El porqué (Developer Preview con aprobación de días, solo
+  Workspace) está en `docs/03` §4e. Los cinco conectores ya se verificaron en una cuenta
+  real (herramientas exactas en el catálogo). En la app de Claude los conectores se encienden por
+  conversación y sus herramientas llevan otro nombre: el agente sabe encender los suyos y dos hooks
+  cubren los permisos (`docs/03` §4e). Los demás conectores de la cuenta se heredan apagados. La app de
+  Claude solo ve los conectores que estaban conectados cuando arrancó: tras conectar Google hay que
+  reiniciarla (confirmado); «Abrir en la app de Claude» lo hace solo cuando hace falta.
 - **Granola:** confirmar si borra transcripciones a las ~72 h; si es así, sincronizar pronto.
 - **Fathom:** la búsqueda lee títulos y resúmenes; la transcripción completa se pide por ID.
 - **Licencias por verificar:** plugin PM de Anthropic y `Digidai/product-manager-skills`.

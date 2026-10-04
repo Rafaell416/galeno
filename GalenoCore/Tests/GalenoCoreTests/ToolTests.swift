@@ -17,7 +17,7 @@ final class ToolTests: XCTestCase {
     func testTheToolsThatWriteAreExactlyTheExpectedOnes() {
         let writers = Tool.allCases.filter(\.allowsWriting)
 
-        XCTAssertEqual(writers, [.slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign])
+        XCTAssertEqual(writers, [.slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign, .googleCalendar])
     }
 
     func testWhatsAppConnectsByQRAndTheRestByOAuth() {
@@ -49,7 +49,7 @@ final class ToolTests: XCTestCase {
         let withoutSources = Tool.allCases.filter(\.selectableSourceKinds.isEmpty)
 
         // Claude Design tampoco tiene fuentes que elegir: el agente abre el enlace o el proyecto que le den.
-        XCTAssertEqual(withoutSources, [.fireflies, .granola, .fathom, .claudeDesign])
+        XCTAssertEqual(withoutSources, [.fireflies, .granola, .fathom, .claudeDesign, .googleCalendar])
     }
 
     func testEveryToolHasADisplayNameInBothLanguages() {
@@ -70,10 +70,12 @@ final class ToolTests: XCTestCase {
         XCTAssertEqual(translated, [.googleWorkspace])
     }
 
-    func testExternalSendIsOnlySlackAndGmail() {
+    /// Lo que le llega a otras personas: un mensaje, un correo, o un evento del calendario (los invitados).
+    func testExternalSendIsOnlySlackGmailAndCalendar() {
         let senders = Tool.allCases.filter { $0.externalSend != nil }
 
-        XCTAssertEqual(senders, [.slack, .gmail])
+        XCTAssertEqual(senders, [.slack, .gmail, .googleCalendar])
+        XCTAssertEqual(Tool.googleCalendar.externalSend, .calendarEvent)
         XCTAssertEqual(Tool.slack.externalSend, .slackMessage)
         XCTAssertEqual(Tool.gmail.externalSend, .email)
     }
@@ -104,6 +106,7 @@ final class ToolTests: XCTestCase {
             [
                 "whatsapp", "slack", "notion", "google-workspace", "gmail",
                 "jira", "fireflies", "granola", "fathom", "google-meet", "claude-design",
+                "google-calendar",
             ]
         )
     }

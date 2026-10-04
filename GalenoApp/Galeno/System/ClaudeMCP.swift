@@ -51,6 +51,14 @@ nonisolated protocol MCPConnecting: Sendable {
     /// `openAuthorization`, la dirección de autorización va a ese cierre en vez de al navegador
     /// del sistema (se intercepta la variable `BROWSER` del proceso `claude`).
     func login(server: String, openAuthorization: AuthorizationOpener?) async throws
+    /// El estado **real** de un conector de la cuenta de Claude, leído del arranque de una sesión
+    /// (`ClaudeSessionProbe`): `claude mcp get` lo da por conectado aunque le falte la autorización.
+    /// `.notRegistered` = no está en la cuenta; `.failed` = no se pudo saber (aún «pendiente»).
+    func connectorStatus(_ server: String) async -> MCPStatus
+    /// `claude mcp login "claude.ai <nombre>"` para un conector de la cuenta de Claude: abre el navegador
+    /// en la página de permiso y **termina enseguida**, sin esperar a que el usuario autorice (Claude Code
+    /// no avisa cuando lo hace). Quien llama mira después el estado con `status(of:)`.
+    func authorizeConnector(_ server: String) async throws
     /// `claude mcp remove <servidor> -s user`. **Solo** tras una confirmación explícita del
     /// usuario: borra la configuración de ese servidor para todos sus proyectos.
     func remove(server: String) async throws
@@ -104,6 +112,7 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
     var claudePath: String
     var runner: any CommandRunning = ProcessRunner()
     var terminal: any TerminalRunning = ProcessTerminalRunner()
+    var probe: any SessionProbing = ClaudeSessionProbe()
 
     /// Cuánto se espera a que el usuario autorice en el navegador.
     var loginTimeout: TimeInterval = 180
@@ -195,6 +204,32 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
         // `get` (4 s). Si no lo imprime, se confirma el estado por si acaso.
         if ManagedProcess.stripTerminalCodes(result.output).contains("Authenticated with") { return }
         guard await status(of: server) == .connected else { throw MCPConnectError.notConnectedAfterLogin }
+    }
+
+    func connectorStatus(_ server: String) async -> MCPStatus {
+        guard let statuses = await probe.serverStatuses(claudePath: claudePath) else { return .failed }
+        return Self.connectorStatus(of: server, in: statuses)
+    }
+
+    /// `connected` → conectado; `needs-auth` → falta autorizar; no aparece → no está en la cuenta; cualquier
+    /// otra cosa (`pending`, `failed`) → no se sabe todavía.
+    static func connectorStatus(of server: String, in statuses: [String: String]) -> MCPStatus {
+        switch statuses[server] {
+        case "connected": .connected
+        case "needs-auth": .needsAuthentication
+        case nil: .notRegistered
+        default: .failed
+        }
+    }
+
+    func authorizeConnector(_ server: String) async throws {
+        guard
+            let result = await terminal.runInTerminal(
+                claudePath, arguments: ["mcp", "login", server], environment: [:], timeout: 60)
+        else { throw MCPConnectError.loginFailed("no se pudo lanzar") }
+        guard result.status == 0, !result.wasStopped else {
+            throw MCPConnectError.loginFailed(Self.tail(result.output))
+        }
     }
 
     func issue(of server: String) async -> String? {

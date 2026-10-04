@@ -24,6 +24,12 @@ public enum MCPTransport: Hashable, Sendable {
     /// Un binario local que Claude Code lanza por stdio. Solo WhatsApp.
     case stdio(command: String, arguments: [String])
     case http(url: String)
+    /// Un conector de la cuenta de claude.ai del usuario (Gmail, Google Drive). Claude Code lo trae
+    /// solo cuando el usuario entra con su cuenta de Claude: **no se registra ni va en `.mcp.json`**.
+    /// `name` es el nombre con el que aparece en Claude («Google Drive» → `claude.ai Google Drive`) y
+    /// `directorySlug` su página en el directorio de conectores (`claude.ai/directory/<slug>`), donde
+    /// está el botón para conectarlo.
+    case claudeConnector(name: String, directorySlug: String)
 }
 
 /// La definición de un servidor MCP para una herramienta.
@@ -45,6 +51,9 @@ public struct MCPServerDefinition: Hashable, Sendable {
     /// Las herramientas del servidor que escriben o envían, verificadas igual. Llevan su regla
     /// `ask` explícita; el hook de aprobación cubre además cualquiera que no esté en ninguna lista.
     public var writeTools: [String]
+    /// Las que piden aprobación **siempre**, aunque la herramienta no envíe mensajes: compartir un
+    /// archivo con otra persona o mandarlo a la papelera (Google Drive).
+    public var alwaysAskTools: [String]
 
     public init(
         serverName: String,
@@ -52,8 +61,10 @@ public struct MCPServerDefinition: Hashable, Sendable {
         authentication: MCPAuthentication = .oauth,
         endpointIsVerified: Bool,
         readOnlyTools: [String] = [],
-        writeTools: [String] = []
+        writeTools: [String] = [],
+        alwaysAskTools: [String] = []
     ) {
+        self.alwaysAskTools = alwaysAskTools
         self.serverName = serverName
         self.transport = transport
         self.authentication = authentication
@@ -66,8 +77,8 @@ public struct MCPServerDefinition: Hashable, Sendable {
 /// Qué servidor (o servidores) MCP le corresponden a cada herramienta.
 ///
 /// No sabe nada de una conexión concreta del usuario: es un catálogo estático,
-/// por `Tool`. El `client_id` que el cliente trae para Slack/Gmail/Google
-/// Workspace vive en `ToolConnection`, y es el renderer quien lo combina con
+/// por `Tool`. El `client_id` que el cliente trae para Slack
+/// vive en `ToolConnection`, y es el renderer quien lo combina con
 /// lo que hay aquí al momento de generar — así el catálogo se queda simple y
 /// se puede seguir probando sin nada de estado.
 public enum MCPServerCatalog {
@@ -119,6 +130,8 @@ public enum MCPServerCatalog {
         whatsAppBridgePath: String
     ) -> [MCPServerDefinition] {
         definitions(for: connection.tool, whatsAppBridgePath: whatsAppBridgePath).map { definition in
+            // Un conector de claude.ai no se registra: su nombre lo pone Claude y no admite prefijo.
+            if case .claudeConnector = definition.transport { return definition }
             guard let prefix = connection.serverNamePrefix, !prefix.isEmpty else { return definition }
             var renamed = definition
             renamed.serverName = prefix + definition.serverName
@@ -127,14 +140,119 @@ public enum MCPServerCatalog {
     }
 
     /// Las definiciones de una herramienta. Vacío si no tiene servidor propio:
-    /// es el caso de Google Meet, que no tiene MCP y se lee por el de Google
-    /// Workspace. Google Workspace es la única con más de una (Drive, Docs y
-    /// Sheets son tres servidores separados del lado de Google, aunque el
-    /// wizard los muestre como una sola tool).
+    /// es el caso de Google Meet, que no tiene MCP y se lee por Google Drive.
+    /// Gmail y «Google Drive, Docs y Sheets» son conectores de la cuenta de
+    /// Claude del usuario (`.claudeConnector`): no se registran.
     ///
-    /// Para Slack, Gmail y Google Workspace, `authentication` queda en
-    /// `.oauth` como relleno: el renderer la sustituye por
-    /// `.oauthWithUserProvidedClient` usando el `client_id` de la conexión.
+    /// Para Slack, `authentication` queda en `.oauth` como relleno: el
+    /// renderer la sustituye por `.oauthWithUserProvidedClient` usando el
+    /// `client_id` de la conexión.
+    /// Cómo nombra Claude Code las herramientas de un conector de claude.ai: `mcp__claude_ai_<Nombre>__…`,
+    /// con los espacios del nombre como guiones bajos (visto con «Google Drive» y «Claude Docs»).
+    public static func claudeConnectorServerName(_ name: String) -> String {
+        "claude_ai_" + name.replacingOccurrences(of: " ", with: "_")
+    }
+
+    /// Los nombres de los conectores de claude.ai por los que llega una herramienta («Google Drive»,
+    /// «Google Docs»…), tal como los muestra Claude. Vacío si la herramienta no usa conectores.
+    public static func claudeConnectorNames(for tool: Tool) -> [String] {
+        definitions(for: tool, whatsAppBridgePath: "").compactMap { definition in
+            if case let .claudeConnector(name, _) = definition.transport { return name }
+            return nil
+        }
+    }
+
+    /// Un conector de Google de la cuenta de Claude del usuario. Los cinco (Gmail, Calendar, Drive, Docs y
+    /// Sheets) se vieron en una cuenta real el 4 de octubre de 2026: el nombre con el que Claude los
+    /// expone es el del directorio, y las listas de abajo son las herramientas que recibe la sesión. Si
+    /// Google añade una, no estará en ninguna lista y el hook la detiene: el fallo es hacia preguntar de más.
+    private static func googleConnector(
+        _ name: String, slug: String, reads: [String], writes: [String], alwaysAsk: [String] = []
+    ) -> MCPServerDefinition {
+        MCPServerDefinition(
+            serverName: claudeConnectorServerName(name),
+            transport: .claudeConnector(name: name, directorySlug: slug),
+            endpointIsVerified: true,
+            readOnlyTools: reads,
+            writeTools: writes,
+            alwaysAskTools: alwaysAsk
+        )
+    }
+
+    /// Las 30 herramientas del conector de Gmail. Estas seis solo leen.
+    static let gmailReadOnlyTools = [
+        "get_draft",
+        "get_message",
+        "get_thread",
+        "list_drafts",
+        "list_labels",
+        "search_threads",
+    ]
+
+    /// Las otras 24: tres envían un correo (`send_message`, `reply`, `forward`) y el resto cambia algo en
+    /// el buzón (borradores, etiquetas, papelera, spam). Gmail le habla a otras personas, así que todas
+    /// piden aprobación.
+    static let gmailWriteTools = [
+        "apply_sensitive_message_label",
+        "apply_sensitive_thread_label",
+        "create_draft",
+        "create_label",
+        "delete_draft",
+        "delete_label",
+        "forward",
+        "label_message",
+        "label_thread",
+        "mark_message_spam",
+        "mark_thread_spam",
+        "reply",
+        "send_message",
+        "trash_message",
+        "trash_thread",
+        "unlabel_message",
+        "unlabel_thread",
+        "unmark_message_spam",
+        "unmark_thread_spam",
+        "untrash_message",
+        "untrash_thread",
+        "update_draft",
+        "update_label",
+        "update_message_labels",
+    ]
+
+    /// Las 9 de Google Sheets: dos leen y siete cambian una hoja del propio usuario.
+    static let googleSheetsReadOnlyTools = ["get_spreadsheet", "get_values"]
+    static let googleSheetsWriteTools = [
+        "append_values",
+        "batch_clear_values",
+        "copy_sheet_to_another_spreadsheet",
+        "insert_dimension",
+        "update_formulas",
+        "update_spreadsheet",
+        "update_values",
+    ]
+
+    /// Las 9 de Google Calendar: cinco leen; las otras cuatro crean, cambian o borran un evento, o
+    /// responden a una invitación.
+    static let googleCalendarReadOnlyTools = ["get_event", "list_calendars", "list_events", "search_events", "suggest_time"]
+    static let googleCalendarWriteTools = ["create_event", "delete_event", "respond_to_event", "update_event"]
+
+    /// Las 11 herramientas del conector de Google Drive, vistas en una cuenta real el 4 de octubre de
+    /// 2026. Estas seis solo leen.
+    static let googleDriveReadOnlyTools = [
+        "download_file_content",
+        "get_file_metadata",
+        "get_file_permissions",
+        "list_recent_files",
+        "read_file_content",
+        "search_files",
+    ]
+
+    /// Crean o cambian un archivo del propio usuario: siguen la regla de Docs y Sheets del paso «Reglas».
+    static let googleDriveWriteTools = ["copy_file", "create_file", "update_file"]
+
+    /// Compartir le llega a otra persona y la papelera quita un archivo: siempre piden aprobación.
+    static let googleDriveAlwaysAskTools = ["share_file", "trash_file"]
+
     public static func definitions(
         for tool: Tool,
         whatsAppBridgePath: String
@@ -212,36 +330,35 @@ public enum MCPServerCatalog {
                 )
             ]
         case .gmail:
-            // Confirmado contra developers.google.com/workspace. Igual que
-            // Slack: requiere la app propia del cliente.
-            return [
-                MCPServerDefinition(
-                    serverName: "gmail",
-                    transport: .http(url: "https://gmailmcp.googleapis.com/mcp/v1"),
-                    endpointIsVerified: true
-                )
-            ]
+            // Por el conector de Gmail de la cuenta de Claude del usuario (ver `.googleWorkspace`).
+            return [googleConnector("Gmail", slug: "gmail-gmailmcp", reads: gmailReadOnlyTools, writes: gmailWriteTools)]
+
         case .googleWorkspace:
-            // No es un servidor, son tres: Drive, Docs y Sheets tienen cada
-            // uno su propio endpoint del lado de Google. El wizard los
-            // muestra como una sola tool; aquí se reparten en tres entradas
-            // de .mcp.json, las tres con el mismo client_id del cliente.
+            // Por los conectores «Google Drive», «Google Docs» y «Google Sheets» de la cuenta de Claude
+            // del usuario, que usan los servidores oficiales de Google con la app OAuth de Anthropic.
+            //
+            // Se descartó que cada cliente trajera su propia app de Google Cloud (octubre de 2026):
+            // los servidores de Google siguen en Developer Preview, que exige inscribir el proyecto
+            // en su programa (aprobación manual de días, solo cuentas de Workspace).
             return [
-                MCPServerDefinition(
-                    serverName: "google-drive",
-                    transport: .http(url: "https://drivemcp.googleapis.com/mcp/v1"),
-                    endpointIsVerified: true
-                ),
-                MCPServerDefinition(
-                    serverName: "google-docs",
-                    transport: .http(url: "https://docsmcp.googleapis.com/mcp/v1"),
-                    endpointIsVerified: true
-                ),
-                MCPServerDefinition(
-                    serverName: "google-sheets",
-                    transport: .http(url: "https://sheetsmcp.googleapis.com/mcp/v1"),
-                    endpointIsVerified: true
-                ),
+                googleConnector(
+                    "Google Drive", slug: "google-drive-drivemcp",
+                    reads: googleDriveReadOnlyTools, writes: googleDriveWriteTools,
+                    alwaysAsk: googleDriveAlwaysAskTools),
+                googleConnector(
+                    "Google Docs", slug: "google-docs-docsmcp", reads: ["read_doc"], writes: ["update_doc"]),
+                googleConnector(
+                    "Google Sheets", slug: "google-sheets-sheetsmcp",
+                    reads: googleSheetsReadOnlyTools, writes: googleSheetsWriteTools),
+            ]
+
+        case .googleCalendar:
+            // Leer el calendario no pregunta. Crear, cambiar o borrar un evento, o responder a una
+            // invitación, les llega a otras personas: siempre pide aprobación (`Tool.externalSend`).
+            return [
+                googleConnector(
+                    "Google Calendar", slug: "google-calendar-calendarmcp",
+                    reads: googleCalendarReadOnlyTools, writes: googleCalendarWriteTools)
             ]
 
         case .claudeDesign:
