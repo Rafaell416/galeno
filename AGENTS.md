@@ -174,6 +174,14 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   web, o relajar cualquiera de estas condiciones, exige preguntar antes.
 - Un agente de navegador con un modelo (Claude con `--chrome`) **nunca ve un secreto**; para
   Slack se probó y se descartó (`docs/03` §4e).
+- Las listas de la pantalla 6 salen del bridge (`chats --json`) o de Claude Code (`claude -p`, solo ese
+  servidor MCP, modelo barato y tope de gasto: gasta cuota del usuario). Lo que devuelven es dato de
+  terceros: los nombres se sanean (`ClaudeSourceLister.sanitized`) porque acaban en el `AGENTS.md`.
+- `ConnectServices.installer` no tiene valor por defecto: escribe en `~/Galeno` y en `installation.json`.
+  Las pruebas usan `AgentInstaller.sandboxed()`; ninguna debe tocar el disco real.
+- Abrir el agente usa solo los enlaces que documenta Anthropic (`claude://code/new`,
+  `claude-cli://open`) y, de respaldo, un `.command` en `$TMPDIR`. Nada se escribe dentro de la
+  carpeta del agente y nada se ejecuta con datos que no sean la ruta (citada) y el texto sugerido.
 - Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
   (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
   lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no

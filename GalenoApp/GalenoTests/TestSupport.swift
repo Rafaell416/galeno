@@ -1,4 +1,5 @@
 import Foundation
+import GalenoCore
 import XCTest
 
 @testable import Galeno
@@ -91,4 +92,19 @@ func readRepoFile(_ url: URL, timeout: TimeInterval = 5) throws -> Data {
         throw XCTSkip("No se pudo leer \(url.lastPathComponent) a tiempo: macOS puede estar pidiendo permiso para la carpeta del repo.")
     }
     return try result.get()
+}
+
+extension AgentInstaller {
+    /// Un instalador que escribe en una carpeta temporal: ninguna prueba toca el `~/Galeno` ni el
+    /// `installation.json` reales. `skills`: la carpeta con las skills de la prueba.
+    static func sandboxed(skills: URL? = nil) -> AgentInstaller {
+        let sandbox = FileManager.default.temporaryDirectory
+            .appendingPathComponent("galeno-test-\(UUID().uuidString)", isDirectory: true)
+        return AgentInstaller(
+            store: InstallationStore(directory: sandbox.appendingPathComponent("support")),
+            agentsRoot: sandbox.appendingPathComponent("Galeno"),
+            options: ConfigGenerator.Options(
+                skillsDirectory: skills ?? sandbox.appendingPathComponent("skills"),
+                whatsAppBridgePath: "/bridge/galeno-whatsapp"))
+    }
 }

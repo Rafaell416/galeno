@@ -129,14 +129,70 @@ nonisolated struct ScriptedSlackSetup: SlackAppSetting {
     }
 }
 
+/// Las listas de la pantalla 6 con guion: unas aparecen enseguida, otras tardan, y las de Notion
+/// fallan la primera vez (para ver el aviso y el reintento).
+nonisolated final class ScriptedSourceLister: SourceListing, @unchecked Sendable {
+    private let lock = NSLock()
+    private var failedOnce: Set<Tool> = []
+
+    func list(_ connection: ToolConnection) async -> SourceListResult {
+        switch connection.tool {
+        case .whatsapp:
+            try? await Task.sleep(for: .milliseconds(300))
+            let groups = (1...12).map {
+                Source(id: "1203630\($0)@g.us", name: "Grupo de prueba \($0)", kind: .group)
+            }
+            return .loaded(groups + [Source(id: "5731000001@s.whatsapp.net", name: "Ana (prueba)", kind: .chat)], isPartial: false)
+        case .slack:
+            try? await Task.sleep(for: .seconds(2))
+            return .loaded(
+                ["producto", "ingenieria", "clientes", "lanzamiento", "soporte"].map {
+                    Source(id: "C0\($0.count)", name: "#\($0)", kind: .channel)
+                }, isPartial: false)
+        case .notion:
+            try? await Task.sleep(for: .seconds(3))
+            let first = lock.withLock { failedOnce.insert(.notion).inserted }
+            if first { return .failed("simulado") }
+            return .loaded(
+                [Source(id: "p1", name: "Roadmap", kind: .page), Source(id: "d1", name: "Tareas", kind: .database)],
+                isPartial: true)
+        default:
+            try? await Task.sleep(for: .seconds(1))
+            return .loaded([Source(id: "x1", name: "Ejemplo", kind: connection.tool.selectableSourceKinds.first ?? .page)], isPartial: false)
+        }
+    }
+}
+
+/// Abrir el agente sin abrir nada de verdad (la prueba visual no debe lanzar tu app de Claude).
+@MainActor
+struct ScriptedOpener: AgentOpening {
+    var isClaudeAppAvailable: Bool { true }
+    func openInClaudeApp(folder: URL, prompt: String?) -> Bool { true }
+    func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool { true }
+    func reveal(_ folder: URL) {}
+}
+
 extension ConnectServices {
     static func scripted() -> ConnectServices {
-        ConnectServices(
+        // Con conectores falsos, el agente se genera en una carpeta temporal: probar la
+        // interfaz nunca toca tu `~/Galeno` ni tu `installation.json`.
+        let sandbox = FileManager.default.temporaryDirectory
+            .appendingPathComponent("galeno-fake-\(UUID().uuidString)", isDirectory: true)
+        let skills = SkillsLocation.bundled()
+        return ConnectServices(
             makeMCP: { _ in
                 ScriptedMCP(
                     occupiedByOthers: ProcessInfo.processInfo.arguments.contains("-galeno-fake-name-clash")
                         ? ["notion", "slack"] : [])
-            }, whatsapp: ScriptedWhatsApp(), slack: ScriptedSlackSetup())
+            }, whatsapp: ScriptedWhatsApp(), slack: ScriptedSlackSetup(),
+            makeLister: { _ in ScriptedSourceLister() },
+            installer: AgentInstaller(
+                store: InstallationStore(directory: sandbox.appendingPathComponent("support")),
+                agentsRoot: sandbox.appendingPathComponent("Galeno"),
+                options: ConfigGenerator.Options(
+                    skillsDirectory: skills ?? URL(fileURLWithPath: "/nonexistent/skills"),
+                    whatsAppBridgePath: "/usr/bin/true")),
+            opener: ScriptedOpener(), skillsDirectory: skills)
     }
 }
 #endif

@@ -16,7 +16,8 @@ final class WizardStateTests: XCTestCase {
             preferredLanguages: ["es-CO"],
             claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
             connectServices: ConnectServices(
-                makeMCP: { _ in FakeMCP() }, whatsapp: FakeWhatsApp(), fetchRealData: false))
+                makeMCP: { _ in FakeMCP() }, whatsapp: FakeWhatsApp(), installer: .sandboxed(),
+                fetchRealData: false, sleep: SleepLog().sleeper))
         state.agentName = "Aurora"
         state.toggle(.notion)
         return state
@@ -28,6 +29,16 @@ final class WizardStateTests: XCTestCase {
         if state.step == .connect {
             state.beginConnecting()
             for _ in 0..<20 where state.connectFlow?.isFinished != true { state.connectFlow?.skip() }
+        }
+        if state.step == .generating {
+            // La pantalla 9 genera sola al aparecer y pasa a «Listo» al terminar: aquí se hace a mano.
+            state.beginGeneration()
+            let deadline = Date().addingTimeInterval(5)
+            while state.generation?.phase == .running, Date() < deadline {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+            }
+            state.finishGeneration()
+            return
         }
         state.next()
     }
@@ -149,9 +160,10 @@ final class WizardStateTests: XCTestCase {
         }
         XCTAssertTrue(state.isLastStep)
 
-        // Hasta "Generando" se puede volver; ahí se corta (ver el siguiente test).
+        // Desde «Listo» se vuelve a las reglas, no a «Generando» (que no se puede deshacer):
+        // al avanzar otra vez se regenera el mismo agente.
         state.back()
-        XCTAssertEqual(state.step, .generating)
+        XCTAssertEqual(state.step, .rules)
     }
 
     func testNextStopsAtTheLastStep() {
