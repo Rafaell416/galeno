@@ -71,7 +71,7 @@ final class WizardStateTests: XCTestCase {
         let catalogURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "Galeno/Localizable.xcstrings")
-        let catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: catalogURL)) as? [String: Any]
+        let catalog = try JSONSerialization.jsonObject(with: readRepoFile(catalogURL)) as? [String: Any]
         let strings = try XCTUnwrap(catalog?["strings"] as? [String: [String: Any]])
         XCTAssertGreaterThan(strings.count, 50)
 
