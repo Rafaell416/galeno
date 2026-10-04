@@ -20,7 +20,7 @@ final class SendingRulesTests: XCTestCase {
     func testWhatsAppIsNotAnExternalSend() {
         XCTAssertEqual(
             ExternalSend.allCases.map(\.rawValue).sorted(),
-            ["email", "slack-message"]
+            ["calendar-event", "email", "slack-message"]
         )
     }
 

@@ -77,6 +77,7 @@ extension AgentConfig {
                     ])
                 ),
                 ToolConnection(tool: .claudeDesign, status: .connected, sources: .everything),
+                ToolConnection(tool: .googleCalendar, status: .connected, sources: .everything),
             ],
             skills: [
                 SelectedSkill(id: "prd", source: .galeno),

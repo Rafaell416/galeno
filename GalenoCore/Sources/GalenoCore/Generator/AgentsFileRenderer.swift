@@ -49,6 +49,20 @@ enum AgentsFileRenderer {
         return connection.sources.selected.map(\.name).joined(separator: ", ")
     }
 
+    // MARK: - Conectores de la cuenta de Claude
+
+    /// Las herramientas de la app de Claude (escritorio) con las que una sesión ve y enciende los
+    /// conectores de la cuenta. En Terminal no existen: ahí los conectores llegan encendidos.
+    static let connectorStatusTool = "mcp__ccd_connectors__session_connectors_status"
+    static let connectorEnableTool = "mcp__ccd_connectors__set_session_connector_enabled"
+
+    /// Los conectores de claude.ai de lo conectado (Gmail, Google Drive…), en orden y sin repetir.
+    private static func connectorNames(_ connections: [ToolConnection]) -> [String] {
+        var seen = Set<String>()
+        return connections.flatMap { MCPServerCatalog.claudeConnectorNames(for: $0.tool) }
+            .filter { seen.insert($0).inserted }
+    }
+
     // MARK: - Español
 
     private static func renderSpanish(_ config: AgentConfig) -> String {
@@ -141,7 +155,11 @@ enum AgentsFileRenderer {
                 } else {
                     detail = "puedes escribir sin preguntar"
                 }
-                lines.append("- **\(tool.displayName(in: .spanish))** — \(detail)")
+                // Google Drive: compartir le llega a otra persona y la papelera quita un archivo.
+                let alwaysAsks = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
+                    .contains { !$0.alwaysAskTools.isEmpty }
+                let extra = alwaysAsks ? "; compartir un archivo o mandarlo a la papelera siempre pide aprobación" : ""
+                lines.append("- **\(tool.displayName(in: .spanish))** — \(detail)\(extra)")
             }
         }
         lines.append("")
@@ -152,7 +170,7 @@ enum AgentsFileRenderer {
             """
             1. **Nunca envías nada por WhatsApp.** Lo lees y nada más. No existe la \
             herramienta para enviar, así que no la busques ni propongas rodeos.
-            2. **Todo envío a otras personas —un mensaje de Slack, un correo— pasa por \
+            2. **Todo envío a otras personas —un mensaje de Slack, un correo, un evento de calendario con invitados— pasa por \
             aprobación.** Antes de pedirla, muestra a quién va y qué dice, para que se pueda \
             revisar de un vistazo.
             3. **No ejecutas código.** No tienes terminal. Solo escribes archivos dentro de \
@@ -167,6 +185,35 @@ enum AgentsFileRenderer {
             """
         )
         lines.append("")
+
+        let connectors = connectorNames(connections)
+        if !connectors.isEmpty {
+            lines.append("## Si una herramienta conectada no aparece")
+            lines.append("")
+            lines.append(
+                """
+                \(connectors.joined(separator: ", ")) llegan por los conectores de la cuenta de Claude \
+                del usuario, y **ya están conectados**. En la app de Claude cada conversación los trae \
+                encendidos o apagados, así que puede que no veas sus herramientas aunque estén \
+                conectados. Si vas a usar uno y no lo tienes:
+
+                1. Mira el estado con `\(connectorStatusTool)` (solo existe en la app de Claude).
+                2. Si el conector aparece apagado (`disabled`), enciéndelo con \
+                `\(connectorEnableTool)`. Solo los de esta lista; ningún otro conector. Dile al \
+                usuario en una línea que lo encendiste y que repita la pregunta: las herramientas \
+                llegan en el mensaje siguiente.
+                3. Si no está en la lista, pídele que lo encienda en el menú **+ → Conectores** de la \
+                conversación; si tampoco aparece ahí, que cierre la app de Claude del todo y la \
+                vuelva a abrir, o que abra este agente en Terminal desde Galeno, donde los \
+                conectores ya vienen encendidos.
+                4. Si dice que falta iniciar sesión (`needs_auth`), pídele que vuelva a conectarlo \
+                desde Galeno.
+
+                No digas que el servicio no está conectado ni propongas otro camino para leerlo.
+                """
+            )
+            lines.append("")
+        }
 
         lines.append("## Tu memoria")
         lines.append("")
@@ -338,7 +385,11 @@ enum AgentsFileRenderer {
                 } else {
                     detail = "you may write without asking"
                 }
-                lines.append("- **\(tool.displayName(in: .english))** — \(detail)")
+                // Google Drive: sharing reaches someone else and the trash removes a file.
+                let alwaysAsks = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
+                    .contains { !$0.alwaysAskTools.isEmpty }
+                let extra = alwaysAsks ? "; sharing a file or moving it to the trash always needs approval" : ""
+                lines.append("- **\(tool.displayName(in: .english))** — \(detail)\(extra)")
             }
         }
         lines.append("")
@@ -349,7 +400,7 @@ enum AgentsFileRenderer {
             """
             1. **You never send anything over WhatsApp.** You only read it. The tool to send \
             does not exist, so don't look for it and don't suggest workarounds.
-            2. **Anything that reaches other people — a Slack message, an email — needs \
+            2. **Anything that reaches other people — a Slack message, an email, a calendar event with guests — needs \
             approval.** Before you ask for it, show who it goes to and what it says, so it can \
             be checked at a glance.
             3. **You don't run code.** You have no terminal. You only write files inside \
@@ -365,6 +416,35 @@ enum AgentsFileRenderer {
             """
         )
         lines.append("")
+
+        let connectors = connectorNames(connections)
+        if !connectors.isEmpty {
+            lines.append("## If a connected tool is missing")
+            lines.append("")
+            lines.append(
+                """
+                \(connectors.joined(separator: ", ")) come through the connectors of the user's Claude \
+                account, and **they are already connected**. In the Claude app each conversation has \
+                them switched on or off, so you may not see their tools even though they are \
+                connected. If you are about to use one and it isn't there:
+
+                1. Check the state with `\(connectorStatusTool)` (it only exists in the Claude app).
+                2. If the connector shows as off (`disabled`), turn it on with \
+                `\(connectorEnableTool)`. Only the ones in this list; no other connector. Tell the \
+                user in one line that you turned it on and to ask again: the tools arrive with the \
+                next message.
+                3. If it isn't listed, ask them to turn it on in the conversation's **+ → Connectors** \
+                menu; if it isn't there either, to quit the Claude app completely and open it \
+                again, or to open this agent in Terminal from Galeno, where connectors are \
+                already on.
+                4. If it says sign-in is missing (`needs_auth`), ask them to connect it again from \
+                Galeno.
+
+                Don't say the service isn't connected, and don't suggest another way to read it.
+                """
+            )
+            lines.append("")
+        }
 
         lines.append("## Your memory")
         lines.append("")

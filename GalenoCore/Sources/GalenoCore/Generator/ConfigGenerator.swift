@@ -91,6 +91,17 @@ public struct ConfigGenerator: Sendable {
                 ))
         }
 
+        // En la app de Claude los conectores de la cuenta llevan otro nombre: sus lecturas pasan por un hook.
+        let needsConnectorReadsHook = SettingsRenderer.connectorReadsMatcher(in: config) != nil
+        if needsConnectorReadsHook {
+            planned.append(
+                Planned(
+                    path: SettingsRenderer.connectorReadsHookPath,
+                    contents: ApprovalHookRenderer.renderConnectorReads(language: config.language),
+                    posixPermissions: 0o755
+                ))
+        }
+
         // La memoria es del agente: se crea una vez y no se vuelve a tocar,
         // ni el archivo ni nada más dentro de `memoria/`.
         if !fileManager.fileExists(
@@ -133,11 +144,14 @@ public struct ConfigGenerator: Sendable {
         // MARK: 3. Quitar lo que la config ya no pide
 
         var removed: [String] = []
-        if !needsApprovalHook {
-            let hook = destination.appending(path: SettingsRenderer.hookPath)
+        let staleHooks =
+            (needsApprovalHook ? [] : [SettingsRenderer.hookPath])
+            + (needsConnectorReadsHook ? [] : [SettingsRenderer.connectorReadsHookPath])
+        for path in staleHooks {
+            let hook = destination.appending(path: path)
             if fileManager.fileExists(atPath: hook.path) {
                 try fileManager.removeItem(at: hook)
-                removed.append(SettingsRenderer.hookPath)
+                removed.append(path)
             }
         }
         removed.append(

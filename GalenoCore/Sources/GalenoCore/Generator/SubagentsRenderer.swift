@@ -30,7 +30,16 @@ enum SubagentsRenderer {
     /// concedidos. Sin terminal, sin edición de archivos, sin `Agent` y sin
     /// `Skill`: lo que no está aquí no existe para el subagente.
     static func grantedTools(in config: AgentConfig) -> [String] {
-        SettingsRenderer.allowedReadTools + grantedServers(in: config).map { "mcp__\($0)" }
+        let servers = config.connectedConnections
+            .filter { $0.tool.externalSend == nil }
+            .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
+        return SettingsRenderer.allowedReadTools
+            + servers.flatMap { server -> [String] in
+                // Sin listas, el servidor entero. Con listas (Google Drive), solo lo que lee y lo que
+                // escribe bajo la regla del usuario: compartir y la papelera no existen para un subagente.
+                guard !server.readOnlyTools.isEmpty else { return ["mcp__\(server.serverName)"] }
+                return (server.readOnlyTools + server.writeTools).map { "mcp__\(server.serverName)__\($0)" }
+            }
     }
 
     static func render(_ config: AgentConfig) -> [File] {

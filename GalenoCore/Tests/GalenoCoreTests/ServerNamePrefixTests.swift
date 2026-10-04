@@ -24,9 +24,17 @@ final class ServerNamePrefixTests: XCTestCase {
 
     func testTheCatalogAppliesThePrefixToEveryServerOfTheConnection() {
         let connection = ToolConnection(
+            tool: .notion, status: .connected, serverNamePrefix: MCPServerCatalog.alternateNamePrefix)
+        let names = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "").map(\.serverName)
+        XCTAssertEqual(names, ["galeno-notion"])
+    }
+
+    /// Un conector de la cuenta de Claude no se registra: su nombre lo pone Claude y no lleva prefijo.
+    func testAClaudeAccountConnectorNeverTakesThePrefix() {
+        let connection = ToolConnection(
             tool: .googleWorkspace, status: .connected, serverNamePrefix: MCPServerCatalog.alternateNamePrefix)
         let names = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "").map(\.serverName)
-        XCTAssertEqual(names, ["galeno-google-drive", "galeno-google-docs", "galeno-google-sheets"])
+        XCTAssertEqual(names, ["claude_ai_Google_Drive", "claude_ai_Google_Docs", "claude_ai_Google_Sheets"])
     }
 
     func testWithoutAPrefixTheNamesAreTheCatalogOnes() {

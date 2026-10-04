@@ -123,16 +123,21 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         }
     }
 
-    /// Gmail va entero a `ask`: no hay lista verificada de sus lecturas. Slack no: leer no
-    /// pregunta —sus herramientas de solo lectura van a `allow` por su nombre exacto— y todo lo que
-    /// envía o escribe va a `ask`. La precedencia de Claude Code es deny → ask → allow y gana la
+    /// En los servidores que envían a otras personas, leer no pregunta —las herramientas de solo
+    /// lectura van a `allow` por su nombre exacto— y todo lo que envía o escribe va a `ask`. La precedencia de Claude Code es deny → ask → allow y gana la
     /// primera, así que ninguna herramienta puede estar en las dos listas.
     func testReadingSlackNeverAsksButSendingAlwaysDoes() throws {
         try generate(GeneratorFixtures.englishEightTools)
         let permissions = try decodedPermissions()
 
-        XCTAssertTrue(permissions.ask.contains("mcp__gmail__*"), "gmail debería estar entero en ask")
-        XCTAssertFalse(permissions.allow.contains(where: { $0.hasPrefix("mcp__gmail__") }))
+        // Gmail, por el conector de la cuenta de Claude: leer no pregunta; un borrador o una etiqueta, sí.
+        XCTAssertTrue(permissions.allow.contains("mcp__claude_ai_Gmail__search_threads"))
+        XCTAssertTrue(permissions.ask.contains("mcp__claude_ai_Gmail__create_draft"))
+        for sends in ["send_message", "reply", "forward"] {
+            XCTAssertTrue(permissions.ask.contains("mcp__claude_ai_Gmail__\(sends)"), sends)
+            XCTAssertFalse(permissions.allow.contains("mcp__claude_ai_Gmail__\(sends)"), sends)
+        }
+        XCTAssertFalse((permissions.allow + permissions.ask).contains("mcp__claude_ai_Gmail__*"))
 
         XCTAssertFalse(permissions.ask.contains("mcp__slack__*"), "taparía las lecturas")
         XCTAssertFalse(permissions.allow.contains("mcp__slack__*"), "dejaría enviar sin preguntar")
@@ -220,21 +225,61 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertFalse(permissions.allow.contains("mcp__notion__*"))
     }
 
-    /// Google Workspace cubre Docs y Sheets, y son tres servidores físicos
-    /// (Drive, Docs, Sheets). Si cualquiera de las dos escrituras pide
-    /// confirmación, los tres van a `ask` por igual: la regla no distingue
-    /// servidor por servidor, es una sola decisión por herramienta.
-    func testGoogleWorkspaceGoesToAskIfEitherDocsOrSheetsAsks() throws {
+    /// Google Drive (el conector de la cuenta de Claude) cubre Docs y Sheets. Leer nunca pregunta. Si
+    /// cualquiera de las dos escrituras pide confirmación, crear y editar archivos va a `ask`: es una
+    /// sola decisión por herramienta. Compartir y la papelera preguntan siempre, diga lo que diga la regla.
+    func testGoogleDriveReadsFreelyWritesByRuleAndAlwaysAsksToShareOrTrash() throws {
+        let drive = "mcp__claude_ai_Google_Drive__"
         var config = GeneratorFixtures.englishEightTools
-        config.sendingRules.setPolicy(.ask, for: .googleSheets)
-
+        config.sendingRules.setPolicy(.allow, for: .googleDocs)
+        config.sendingRules.setPolicy(.allow, for: .googleSheets)
         try generate(config)
-        let permissions = try decodedPermissions()
+        var permissions = try decodedPermissions()
 
-        for server in ["google-drive", "google-docs", "google-sheets"] {
-            XCTAssertTrue(permissions.ask.contains("mcp__\(server)__*"), server)
-            XCTAssertFalse(permissions.allow.contains("mcp__\(server)__*"), server)
+        for tool in ["read_file_content", "search_files", "list_recent_files"] {
+            XCTAssertTrue(permissions.allow.contains(drive + tool), tool)
         }
+        for tool in ["create_file", "update_file", "copy_file"] {
+            XCTAssertTrue(permissions.allow.contains(drive + tool), "con «Sin preguntar», \(tool) no pregunta")
+        }
+        for tool in ["share_file", "trash_file"] {
+            XCTAssertTrue(permissions.ask.contains(drive + tool), "\(tool) pregunta siempre")
+            XCTAssertFalse(permissions.allow.contains(drive + tool), tool)
+        }
+        XCTAssertFalse((permissions.allow + permissions.ask).contains(drive + "*"), "ninguna regla cubre el conector entero")
+
+        config.sendingRules.setPolicy(.ask, for: .googleSheets)
+        try generate(config)
+        permissions = try decodedPermissions()
+        for tool in ["create_file", "update_file", "copy_file"] {
+            XCTAssertTrue(permissions.ask.contains(drive + tool), tool)
+            XCTAssertFalse(permissions.allow.contains(drive + tool), tool)
+        }
+        XCTAssertTrue(permissions.allow.contains(drive + "read_file_content"), "leer sigue sin preguntar")
+    }
+
+    /// El hook de aprobación alcanza a Google Drive: compartir, la papelera y cualquier herramienta
+    /// que el conector añada después. Leer y las escrituras que siguen la regla no pasan por él.
+    func testTheApprovalHookCoversSharingAndTrashingInGoogleDrive() throws {
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [ToolConnection(tool: .googleWorkspace, status: .connected, sources: .everything)]
+        try generate(config)
+
+        let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
+        let regex = try NSRegularExpression(pattern: try XCTUnwrap(hooks.first?["matcher"] as? String))
+        func fires(_ tool: String) -> Bool {
+            regex.firstMatch(in: tool, range: NSRange(tool.startIndex..., in: tool)) != nil
+        }
+        let drive = "mcp__claude_ai_Google_Drive__"
+        XCTAssertTrue(fires(drive + "share_file"))
+        XCTAssertTrue(fires(drive + "trash_file"))
+        XCTAssertTrue(fires(drive + "something_new"), "una herramienta nueva pregunta hasta que se revise")
+        for tool in ["read_file_content", "search_files", "create_file", "update_file", "copy_file"] {
+            XCTAssertFalse(fires(drive + tool), tool)
+        }
+        XCTAssertTrue(exists(SettingsRenderer.hookPath), "con Google Drive conectado hay hook, aunque no haya Slack")
     }
 
     /// Ninguna regla `mcp__` puede llevar paréntesis: Claude Code las descarta
@@ -306,8 +351,9 @@ final class ConfigGeneratorTests: GeneratorTestCase {
 
         let servers = try decodedMCPServerNames()
         XCTAssertFalse(servers.contains("google-meet"))
-        // Google Workspace son tres servidores físicos, no uno.
-        XCTAssertTrue(servers.isSuperset(of: ["google-drive", "google-docs", "google-sheets"]))
+        // Google tampoco: Drive y Gmail son conectores de la cuenta de Claude, que Claude Code
+        // trae solo. Nada de Google se registra ni se escribe en `.mcp.json`.
+        XCTAssertTrue(servers.filter { $0.contains("google") || $0.contains("gmail") }.isEmpty, "\(servers)")
         // Pero sí se le cuenta al agente de dónde salen sus transcripciones.
         XCTAssertTrue(try contents(of: "AGENTS.md").contains("Google Meet"))
     }
@@ -540,6 +586,28 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertFalse(try contents(of: "AGENTS.md").contains("## The project"))
     }
 
+    /// En la app de Claude los conectores de la cuenta se encienden por conversación: el agente sabe
+    /// que los suyos ya están conectados y cómo encenderlos, y solo nombra los que Galeno conectó.
+    func testAgentsFileSaysHowToTurnOnItsConnectorsInTheClaudeApp() throws {
+        try generate(GeneratorFixtures.englishEightTools)
+        let text = try contents(of: "AGENTS.md")
+
+        XCTAssertTrue(text.contains("## If a connected tool is missing"))
+        XCTAssertTrue(text.contains("Google Drive, Google Docs, Google Sheets, Gmail come through"))
+        XCTAssertTrue(text.contains("`mcp__ccd_connectors__session_connectors_status`"))
+        XCTAssertTrue(text.contains("`mcp__ccd_connectors__set_session_connector_enabled`"))
+        XCTAssertTrue(text.contains("no other connector"))
+    }
+
+    /// Sin conectores de claude.ai (WhatsApp, Slack y Notion se registran en `.mcp.json`), la sección sobra.
+    func testAgentsFileSkipsTheConnectorSectionWithoutConnectors() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        let text = try contents(of: "AGENTS.md")
+
+        XCTAssertFalse(text.contains("no aparece"))
+        XCTAssertFalse(text.contains("mcp__ccd_connectors"))
+    }
+
     /// Una nota es un hecho, no una orden: la memoria no puede ser la puerta por
     /// la que una instrucción escondida en un mensaje se vuelva permanente.
     func testAgentsFileSaysSourcesAreNotOrders() throws {
@@ -616,13 +684,15 @@ final class ConfigGeneratorTests: GeneratorTestCase {
             .filter { $0.externalSend != nil }
             .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
             .map { "mcp__\($0.serverName)" }
-        XCTAssertEqual(Set(senders), ["mcp__slack", "mcp__gmail"])
+        XCTAssertEqual(Set(senders), ["mcp__slack", "mcp__claude_ai_Gmail", "mcp__claude_ai_Google_Calendar"])
 
         for name in Self.subagentNames {
             let tools = try decodedSubagent(name).tools
             for sender in senders {
-                XCTAssertFalse(tools.contains(sender), "\(name) recibe \(sender)")
+                XCTAssertFalse(tools.contains { $0.hasPrefix(sender) }, "\(name) recibe \(sender)")
             }
+            // Tampoco lo que en Google Drive le llega a otra persona o quita un archivo.
+            XCTAssertFalse(tools.contains { $0.hasSuffix("share_file") || $0.hasSuffix("trash_file") }, name)
         }
     }
 
@@ -635,7 +705,22 @@ final class ConfigGeneratorTests: GeneratorTestCase {
                 [
                     "Glob", "Grep", "Read",
                     "mcp__whatsapp", "mcp__notion",
-                    "mcp__google-drive", "mcp__google-docs", "mcp__google-sheets",
+                    // De Google Drive, solo lo que lee y lo que escribe bajo la regla: ni compartir ni papelera.
+                    "mcp__claude_ai_Google_Drive__download_file_content",
+                    "mcp__claude_ai_Google_Drive__get_file_metadata",
+                    "mcp__claude_ai_Google_Drive__get_file_permissions",
+                    "mcp__claude_ai_Google_Drive__list_recent_files",
+                    "mcp__claude_ai_Google_Drive__read_file_content",
+                    "mcp__claude_ai_Google_Drive__search_files",
+                    "mcp__claude_ai_Google_Drive__copy_file",
+                    "mcp__claude_ai_Google_Drive__create_file",
+                    "mcp__claude_ai_Google_Drive__update_file",
+                    "mcp__claude_ai_Google_Docs__read_doc", "mcp__claude_ai_Google_Docs__update_doc",
+                    "mcp__claude_ai_Google_Sheets__get_spreadsheet", "mcp__claude_ai_Google_Sheets__get_values",
+                    "mcp__claude_ai_Google_Sheets__append_values", "mcp__claude_ai_Google_Sheets__batch_clear_values",
+                    "mcp__claude_ai_Google_Sheets__copy_sheet_to_another_spreadsheet",
+                    "mcp__claude_ai_Google_Sheets__insert_dimension", "mcp__claude_ai_Google_Sheets__update_formulas",
+                    "mcp__claude_ai_Google_Sheets__update_spreadsheet", "mcp__claude_ai_Google_Sheets__update_values",
                     "mcp__jira", "mcp__fireflies",
                 ])
         }
@@ -686,19 +771,17 @@ final class ConfigGeneratorTests: GeneratorTestCase {
     }
 
     /// Los endpoints que no hemos verificado salen como advertencia, para que
-    /// la app los muestre y no se nos olviden antes de vender.
-    /// La investigación cerró las cinco dudas que había (Slack, Notion,
-    /// Gmail, Google Workspace, Jira): ya no queda ningún endpoint sin
-    /// verificar en el catálogo, así que esta advertencia no se dispara hoy.
-    func testNoEndpointWarningsForTheToolsWeSupport() throws {
+    /// la app los muestre y no se nos olviden antes de vender. Los conectores de Google ya se vieron
+    /// en una cuenta real, así que del fixture no queda ninguno.
+    func testTheFixtureHasNoUnverifiedEndpoints() throws {
         let result = try generate(GeneratorFixtures.englishEightTools)
 
-        let unverified = result.warnings.compactMap {
-            if case let .unverifiedEndpoint(tool, _) = $0 { return tool }
+        let unverified = result.warnings.compactMap { warning -> String? in
+            if case let .unverifiedEndpoint(_, url) = warning { return url }
             return nil
         }
 
-        XCTAssertTrue(unverified.isEmpty, "\(unverified)")
+        XCTAssertEqual(unverified, [])
     }
 
     /// El mecanismo en sí sigue existiendo y es constructible, aunque hoy
@@ -727,10 +810,10 @@ final class ConfigGeneratorTests: GeneratorTestCase {
 
     // MARK: - App OAuth del cliente (Slack, Gmail, Google Workspace)
 
-    /// Sin client_id, el motor no puede generar nada para estas tres: esa app
+    /// Sin client_id, el motor no puede generar nada para Slack: esa app
     /// la trae el cliente, Galeno no puede inventarla.
     func testMissingOAuthClientFailsForEachToolThatNeedsOne() throws {
-        for tool in [Tool.slack, .gmail, .googleWorkspace] {
+        for tool in [Tool.slack] {
             var config = AgentConfig(agentName: "Galena", language: .spanish)
             config.connections = [
                 ToolConnection(tool: tool, status: .connected, sources: .everything)
@@ -779,19 +862,198 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertEqual(oauth["scopes"] as? String, SlackManifestRenderer.requiredScopes.joined(separator: " "))
     }
 
-    /// Las tres entradas de Google Workspace comparten el mismo client_id: es
-    /// la misma app del cliente la que cubre Drive, Docs y Sheets.
-    func testGoogleWorkspaceServersShareTheSameClientID() throws {
-        try generate(GeneratorFixtures.englishEightTools)
-        let mcp = try decodedMCPFile()
+    /// Google Calendar: mirar el calendario no pregunta; crear, cambiar o borrar un evento, o responder a una
+    /// invitación, les llega a los invitados y siempre pide aprobación (regla `ask` y hook).
+    func testReadingTheCalendarNeverAsksButEventsAlwaysDo() throws {
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [ToolConnection(tool: .googleCalendar, status: .connected, sources: .everything)]
+        try generate(config)
+        let permissions = try decodedPermissions()
+        let calendar = "mcp__claude_ai_Google_Calendar__"
 
-        let clientIDs = try ["google-drive", "google-docs", "google-sheets"].map { name in
-            let server = try XCTUnwrap(mcp[name] as? [String: Any])
-            let oauth = try XCTUnwrap(server["oauth"] as? [String: Any])
-            return try XCTUnwrap(oauth["clientId"] as? String)
+        for tool in ["list_events", "search_events", "get_event", "list_calendars", "suggest_time"] {
+            XCTAssertTrue(permissions.allow.contains(calendar + tool), tool)
+        }
+        for tool in ["create_event", "update_event", "delete_event", "respond_to_event"] {
+            XCTAssertTrue(permissions.ask.contains(calendar + tool), tool)
+            XCTAssertFalse(permissions.allow.contains(calendar + tool), tool)
         }
 
-        XCTAssertEqual(Set(clientIDs).count, 1)
+        let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
+        let regex = try NSRegularExpression(pattern: try XCTUnwrap(hooks.first?["matcher"] as? String))
+        func fires(_ tool: String) -> Bool {
+            regex.firstMatch(in: tool, range: NSRange(tool.startIndex..., in: tool)) != nil
+        }
+        XCTAssertTrue(fires(calendar + "create_event"))
+        XCTAssertTrue(fires(calendar + "something_new"))
+        XCTAssertFalse(fires(calendar + "list_events"))
+    }
+
+    // MARK: - Los conectores en la app de Claude (escritorio)
+
+    /// Los dos `matcher` de hooks de un agente con todo Google conectado.
+    private func googleHookMatchers() throws -> (approval: NSRegularExpression, reads: NSRegularExpression) {
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [Tool.gmail, .googleWorkspace, .googleCalendar].map {
+            ToolConnection(tool: $0, status: .connected, sources: .everything)
+        }
+        try generate(config)
+        let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
+        XCTAssertEqual(hooks.count, 2)
+        let commands = hooks.compactMap { (($0["hooks"] as? [[String: Any]])?.first?["command"] as? String) }
+        XCTAssertEqual(
+            commands,
+            [
+                "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/require-external-approval.sh\"",
+                "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/allow-connector-reads.sh\"",
+            ])
+        return (
+            try NSRegularExpression(pattern: try XCTUnwrap(hooks[0]["matcher"] as? String)),
+            try NSRegularExpression(pattern: try XCTUnwrap(hooks[1]["matcher"] as? String))
+        )
+    }
+
+    private func matches(_ regex: NSRegularExpression, _ tool: String) -> Bool {
+        regex.firstMatch(in: tool, range: NSRange(tool.startIndex..., in: tool)) != nil
+    }
+
+    /// La app de Claude nombra las herramientas de un conector `mcp__<uuid>__…` (visto el 4 de octubre de
+    /// 2026), y ahí no coincide ninguna regla de permiso. Enviar un correo, crear un evento o compartir un
+    /// archivo tienen que seguir pidiendo aprobación con ese nombre: es la línea roja 3.
+    func testSendingThroughAConnectorAsksForApprovalInTheClaudeAppToo() throws {
+        let (approval, reads) = try googleHookMatchers()
+        let desktop = "mcp__00000000-0000-4000-8000-000000000000__"
+
+        for tool in [
+            "send_message", "reply", "forward", "create_draft", "trash_thread",  // Gmail
+            "create_event", "delete_event", "respond_to_event", "update_event",  // Calendar
+            "share_file", "trash_file",  // Drive
+            "something_new",  // lo que Google añada mañana
+        ] {
+            XCTAssertTrue(matches(approval, desktop + tool), tool)
+            XCTAssertFalse(matches(reads, desktop + tool), "\(tool) nunca pasa sin preguntar")
+        }
+    }
+
+    /// Leer no pregunta tampoco en la app de Claude: lo deja pasar el segundo hook, y solo lecturas.
+    func testReadingThroughAConnectorDoesNotAskInTheClaudeApp() throws {
+        let (approval, reads) = try googleHookMatchers()
+        let desktop = "mcp__00000000-0000-4000-8000-000000000000__"
+
+        for tool in ["list_events", "search_threads", "get_message", "search_files", "read_doc", "get_values"] {
+            XCTAssertTrue(matches(reads, desktop + tool), tool)
+            XCTAssertFalse(matches(approval, desktop + tool), tool)
+        }
+        // Las escrituras que en Terminal siguen la regla del usuario: en la app no las aprueba el hook
+        // de lecturas (se decide por nombre, y otro conector podría tener una que se llame igual) ni
+        // las detiene el de envíos. Preguntan como cualquier herramienta sin regla.
+        for tool in ["create_file", "update_file", "update_doc", "append_values"] {
+            XCTAssertFalse(matches(reads, desktop + tool), tool)
+            XCTAssertFalse(matches(approval, desktop + tool), tool)
+        }
+        // Solo el nombre exacto, y solo en un servidor con nombre de conector.
+        XCTAssertFalse(matches(reads, desktop + "list_events_and_send"))
+        XCTAssertFalse(matches(reads, "mcp__slack__list_events"))
+        XCTAssertFalse(matches(reads, "mcp__claude_ai_Google_Calendar__list_events"), "en Terminal lo decide la regla allow")
+    }
+
+    /// El hook de lecturas responde `allow` y es ejecutable; sin conectores, ni el archivo ni el matcher.
+    func testTheConnectorReadsHookIsWrittenOnlyWithConnectors() throws {
+        _ = try googleHookMatchers()
+        let path = destination.appending(path: SettingsRenderer.connectorReadsHookPath)
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: path.path))
+
+        let process = Process()
+        process.executableURL = path
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        process.waitUntilExit()
+        let output = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: pipe.fileHandleForReading.readDataToEndOfFile()) as? [String: Any])
+        let decision = try XCTUnwrap(output["hookSpecificOutput"] as? [String: Any])
+        XCTAssertEqual(decision["permissionDecision"] as? String, "allow")
+        XCTAssertEqual(decision["hookEventName"] as? String, "PreToolUse")
+
+        // Al quitar Google, regenerar se lleva el hook.
+        let result = try generate(GeneratorFixtures.spanishThreeTools)
+        XCTAssertFalse(exists(SettingsRenderer.connectorReadsHookPath))
+        XCTAssertTrue(result.removedFiles.contains(SettingsRenderer.connectorReadsHookPath))
+        XCTAssertFalse(try contents(of: ".claude/settings.json").contains("allow-connector-reads"))
+    }
+
+    /// La carpeta de un agente puede llevar espacios («TESTING 2»). Claude Code pasa el comando del hook
+    /// a `/bin/sh`: sin comillas falla sin bloquear y nadie pide aprobación. Se corre de verdad, como lo
+    /// correría Claude Code, desde una carpeta con espacio.
+    func testHooksRunFromAnAgentFolderWithASpaceInItsName() throws {
+        let folder = destination.appending(path: "Mi agente 2", directoryHint: .isDirectory)
+        var config = AgentConfig(agentName: "Mi agente 2", language: .spanish)
+        config.connections = [Tool.gmail, .googleCalendar].map {
+            ToolConnection(tool: $0, status: .connected, sources: .everything)
+        }
+        try ConfigGenerator().generate(config, into: folder, options: SnapshotSupport.options)
+
+        let data = try Data(contentsOf: folder.appending(path: ".claude/settings.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
+        let commands = hooks.compactMap { (($0["hooks"] as? [[String: Any]])?.first?["command"] as? String) }
+        XCTAssertEqual(commands.count, 2)
+
+        for (command, decision) in zip(commands, ["ask", "allow"]) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", command]
+            process.environment = ["CLAUDE_PROJECT_DIR": folder.path, "PATH": "/usr/bin:/bin"]
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = Pipe()
+            try process.run()
+            process.waitUntilExit()
+            XCTAssertEqual(process.terminationStatus, 0, command)
+            let output = try XCTUnwrap(
+                JSONSerialization.jsonObject(with: pipe.fileHandleForReading.readDataToEndOfFile()) as? [String: Any],
+                command)
+            XCTAssertEqual((output["hookSpecificOutput"] as? [String: Any])?["permissionDecision"] as? String, decision)
+        }
+    }
+
+    /// Lo que la app dice en «Reglas» sale de las mismas reglas que se escriben: una herramienta está en
+    /// la lista si, y solo si, alguna lectura suya quedó en `allow` y ninguna regla `ask` cubre el servidor entero.
+    func testToolsReadingWithoutAskingMatchTheWrittenRules() throws {
+        var config = GeneratorFixtures.englishEightTools
+        config.sendingRules.setPolicy(.ask, for: .notion)
+        try generate(config)
+        let permissions = try decodedPermissions()
+
+        let free = config.toolsReadingWithoutAsking
+        XCTAssertTrue(free.contains(.gmail))
+        XCTAssertTrue(free.contains(.googleWorkspace))
+        XCTAssertTrue(free.contains(.whatsapp))
+        XCTAssertFalse(free.contains(.notion), "con «Preguntarme», Notion pregunta también al leer: no hay lista de lecturas")
+        XCTAssertFalse(free.contains(.googleMeet), "no tiene servidor propio")
+
+        for connection in config.connectedConnections {
+            let servers = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
+            guard !servers.isEmpty else { continue }
+            let wholeServerAsks = servers.contains { permissions.ask.contains("mcp__\($0.serverName)__*") }
+            XCTAssertEqual(free.contains(connection.tool), !wholeServerAsks, "\(connection.tool)")
+        }
+    }
+
+    /// Google no necesita ningún `client_id`: se usa por el conector de la cuenta de Claude, cuya
+    /// app OAuth es de Anthropic. El motor genera sin que la conexión traiga nada.
+    func testGoogleNeedsNoOAuthClientOfItsOwn() throws {
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [
+            ToolConnection(tool: .googleWorkspace, status: .connected, sources: .everything),
+            ToolConnection(tool: .gmail, status: .connected, sources: .everything),
+        ]
+        XCTAssertNoThrow(try generate(config))
+        XCTAssertFalse(try contents(of: ".mcp.json").contains("oauth"))
     }
 
     /// Notion y Jira se registran dinámicamente: su entrada no lleva `oauth`.
