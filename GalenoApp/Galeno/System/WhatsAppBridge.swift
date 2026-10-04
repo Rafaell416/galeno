@@ -125,6 +125,10 @@ nonisolated struct BridgeInstaller: Sendable {
             let temporary = directory.appendingPathComponent(".galeno-whatsapp-\(UUID().uuidString)")
             try FileManager.default.copyItem(at: source, to: temporary)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: temporary.path)
+            // La copia hereda la marca de cuarentena de una app recién descargada, y fuera del paquete
+            // macOS puede negarse a ejecutarla aunque el usuario ya haya aprobado Galeno. Es nuestro
+            // propio binario, el que venía dentro de la app: se le quita solo a esta copia.
+            removexattr(temporary.path, "com.apple.quarantine", 0)
             if FileManager.default.fileExists(atPath: destination.path) {
                 _ = try FileManager.default.replaceItemAt(destination, withItemAt: temporary)
             } else {
