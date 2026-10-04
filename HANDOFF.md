@@ -454,6 +454,50 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 - **Tecnología de `site/`:** sin definir. Estructura y estilo sí (`docs/04` §9).
 - **Tiempo de Rafa:** MediClub lanza el 15 de noviembre de 2026 y compite por su atención.
 
+### Pendientes del primer demo (4 oct 2026, con Simon): antes de la Fase 4b
+
+Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo que salió:
+
+**Fallos y huecos (se arreglan):**
+
+- **WhatsApp no descarga adjuntos.** `download_media` solo mira la caché local y nadie llama a
+  `downloadMedia` (`whatsapp-bridge/media.go`): `sync` recibe y guarda, pero no baja archivos. El
+  agente encontró 5 documentos y no pudo abrirlos. Dos pasos: (1) corregir el mensaje de la
+  herramienta, que hoy manda a «asegurarse de que el servicio corre y reintentar» y hace que el
+  agente dé un consejo que no sirve; (2) descargar de verdad, por el servicio de fondo (el único con
+  conexión viva; `serve` no puede abrir otra). Los archivos viejos pueden pedir que el teléfono los
+  vuelva a subir. Sigue siendo solo lectura. Sube la versión del bridge.
+- **Chats sin nombre.** Un chat salió como `106712858140679` en vez del nombre del contacto: es un
+  identificador interno de WhatsApp (`@lid`) que el puente no cruza con la agenda.
+- **Tono de lo que redacta.** Al pedirle cómo hacer seguimiento a un correo, propuso un texto
+  agresivo (amenazar con denunciar ante la SIC). Falta una regla en el `AGENTS.md` generado: tono
+  profesional y cordial por defecto; nada de amenazas, ultimátums ni escalamiento legal salvo que
+  el usuario lo pida expresamente; si el caso lo amerita, ofrecerlo como opción aparte, no como
+  borrador principal.
+
+**Peticiones del usuario (necesitan decisión de Rafa: tocan líneas rojas):**
+
+- **Tareas repetitivas** («todos los días a las 8 am, haz tal cosa»). Está fuera de v0.0.1 a
+  propósito (línea roja 8, «tareas programadas»). Primera señal real de demanda.
+- **Cargar sus propias skills.** Está cerrado a propósito (línea roja 6, «trae tu skill»): una skill
+  son instrucciones para el agente y hoy solo entran las nuestras y las curadas.
+
+**Comprobado en el demo, en el Mac de Simon (un Mac limpio):**
+
+- La instalación sin Terminal, por Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente».
+  El puente de WhatsApp arrancó: macOS no bloqueó su copia.
+- El reinicio de Claude desde «Listo»: se cierra, se reabre en el agente y ve los conectores.
+- Las cinco herramientas en «Próximamente» (Jira, Fireflies, Granola, Fathom, Google Meet;
+  `Tool.isComingSoon`) se quedan así hasta probarlas de punta a punta.
+
+**Sigue sin verificar:**
+
+- La aprobación al enviar un correo o crear un evento en la app de escritorio, en una sesión real
+  (los hooks solo están probados con patrones).
+
+**Para el release, no antes (decisión de Rafa):** el certificado «Developer ID Application» y la
+notarización. Hasta entonces los demos van con el DMG sin notarizar y su `LÉEME.md`.
+
 ---
 
 ## 13. Documentos
