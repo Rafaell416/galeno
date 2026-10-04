@@ -16,7 +16,7 @@ para WhatsApp (solo lectura) y registra MCP hospedados con `claude mcp add`.
 - **Nada más**: ni Python, ni Node, ni Rust, ni contenedor web dentro de la app.
 - **Sparkle** para las actualizaciones de la app (framework estándar de Mac fuera del App
   Store). Va desde el primer build. Ver `docs/03` §4f.
-- Los MCP hospedados (Notion, Slack, Gmail, Drive, Jira, Fireflies, Granola, Fathom) no se
+- Los MCP hospedados (Notion, Slack, Gmail, Drive, Jira, Fireflies, Granola, Fathom, y Claude Design, que es la excepción: su endpoint no está documentado, ver `docs/03`) no se
   empaquetan: se conectan por OAuth contra los servidores de cada proveedor.
 
 ## Estructura
@@ -137,7 +137,7 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   alternativo vive en `ToolConnection.serverNamePrefix` y todo lo generado lo usa.
 - Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
   Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
-  completos. Lo único que el motor nunca toca al regenerar es `memoria/`.
+  completos. Lo único que el motor nunca toca al regenerar es `memoria/`; la excepción es el material que el usuario trae al crear el agente (paso 3, «Traer contexto»), que el motor deja en `memoria/contexto/` solo si ese archivo no existe. Ese material es dato de terceros: no va en `AgentConfig` ni en el borrador, y nunca se escribe en `AGENTS.md`.
 - Regenerar deja la carpeta idéntica a una nueva con la misma config (`ConfigGenerator` calcula
   todo antes de escribir; un error no la deja a medias). Las conexiones, la lista de agentes y
   sus carpetas viven en `GalenoInstallation`; el estado y el `client_id` de cada herramienta se
@@ -154,7 +154,9 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   cambia en caliente con `\.locale`: **no usar** `String(localized:)` ni `NSLocalizedString`
   (no lo siguen); los nombres de herramienta salen de `Tool.displayName(in:)`.
 - Logos de terceros solo monocromos y con licencia verificada, listados en
-  `GalenoApp/THIRD_PARTY.md`.
+  `GalenoApp/THIRD_PARTY.md`. Lo mismo vale para las **fuentes embebidas** (EB Garamond y Cormorant
+  Garamond, OFL), los **grabados** de las láminas y el **retrato**: nada entra sin licencia y crédito
+  anotados ahí.
 - El `client_secret` y los tokens de configuración viven en un `OAuthSecret` (no es `Codable`,
   se oculta en `print`/`dump`, se borra al terminar). Nunca en un `String` que se guarde, y las
   credenciales de `GalenoCore` ya ocultan sus secretos en `description` y en el espejo.
@@ -174,7 +176,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   web, o relajar cualquiera de estas condiciones, exige preguntar antes.
 - Un agente de navegador con un modelo (Claude con `--chrome`) **nunca ve un secreto**; para
   Slack se probó y se descartó (`docs/03` §4e).
-- Las listas de la pantalla 6 salen del bridge (`chats --json`) o de Claude Code (`claude -p`, solo ese
+- La pantalla del foco salió del wizard en el rediseño B1 (`docs/03` §3): lo conectado se lee entero.
+  El código que lista fuentes se conserva para el home: las listas salen del bridge (`chats --json`) o de Claude Code (`claude -p`, solo ese
   servidor MCP, modelo barato y tope de gasto: gasta cuota del usuario). Lo que devuelven es dato de
   terceros: los nombres se sanean (`ClaudeSourceLister.sanitized`) porque acaban en el `AGENTS.md`.
 - `ConnectServices.installer` no tiene valor por defecto: escribe en `~/Galeno` y en `installation.json`.
@@ -191,9 +194,28 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   app: `make -C whatsapp-bridge universal` (una fase de Run Script lo copia a `Resources`). Los textos de
   dopamina se escriben nativos en cada idioma, no traducidos literalmente.
 - Las skills nuestras se escriben en inglés, con la instrucción de idioma arriba.
-- UI: nativo primero. Controles de macOS, SF Symbols, serif del sistema (New York), tokens
-  de color de `docs/04-design-system.md`. Sin fuentes embebidas, sin texturas, sin
-  controles custom que imiten lo antiguo.
+- UI: el rediseño B1 «El impresor» (`docs/04` §12) manda en la app. Ventana estándar de macOS,
+  SF Symbols y tokens de color de `docs/04`, pero **con fuentes embebidas** (Cormorant y EB Garamond,
+  vía `Typo` en `Typography.swift`; New York solo como respaldo), **controles propios** de tinta
+  (`InkButtonStyle`, `InkControls`, `RuleProgress`: usar estos, no `.bordered` ni `.borderedProminent`),
+  **láminas** de grabado de línea (`Plate`, `PortraitMark`; nunca junto a formularios, errores ni la
+  advertencia de WhatsApp) y un **grano** tenue que se apaga con `GalenoGrainEnabled`. El lacre
+  (`seal-700`) aparece como máximo una vez por pantalla. Todo movimiento (`Motion.swift`) tiene su
+  alternativa en «Reducir movimiento». Ninguna otra textura, ornamento de relleno ni control que
+  imite lo antiguo. **La referencia es el archivo `Galeno B1 Impresor.dc.html` del proyecto de Claude
+  Design** (medidas, disposición y textos): una pantalla se construye copiando su marcado, no
+  reinterpretándolo, y se compara lado a lado antes de darla por hecha. Esquinas rectas.
+- El texto de la UI sigue el copy v2 de `docs/04` §12: botones con verbo, el nombre del agente desde
+  el paso 3, errores en tres partes y sin signos de exclamación. La advertencia de WhatsApp no se
+  reescribe; cambiarle la presentación no es cambiarle el texto.
+- El borrador del asistente (`draft.json`, `WizardDraft`) **nunca lleva credenciales**: solo lo mismo que un
+  `AgentConfig`. Las pruebas usan `MemoryDraftStore`; ninguna escribe el disco real.
+- La vista previa del `AGENTS.md` (`AgentPreview`) es solo lectura: devuelve texto y no escribe nada.
+- Tres sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló y el sello al llegar a «Listo». Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, botones, copiar ni cambios de paso.
+- Los glifos de sección (`Glyphs.swift`) son dibujos propios de línea a 1,5 pt; cuelgan en el margen junto al título de algunos pasos y nunca van en la misma fila que un SF Symbol.
+- El movimiento lee `\.galenoReduceMotion` (sistema **o** «Menos movimiento» de Ajustes), no
+  `\.accessibilityReduceMotion`. Cada ventana lleva `.motionPreference()` en su raíz.
+- Una cita de Galeno solo entra a la interfaz si está verificada en su fuente; las apócrifas circulan mucho.
 - El motor se prueba con respuestas del wizard como entrada y la config esperada como salida.
 - Lo que se distribuye va firmado y notarizado, incluido el binario Go.
 
