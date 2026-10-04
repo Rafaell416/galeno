@@ -1,0 +1,465 @@
+{
+  "schemaVersion": 1,
+  "groups": [
+    {
+      "id": "documents",
+      "name": {
+        "es": "Producir documentos de producto",
+        "en": "Write product documents"
+      }
+    },
+    {
+      "id": "work",
+      "name": {
+        "es": "Gestionar el trabajo",
+        "en": "Manage the work"
+      }
+    },
+    {
+      "id": "reports",
+      "name": {
+        "es": "Seguimiento y reportes",
+        "en": "Tracking and reports"
+      }
+    },
+    {
+      "id": "meetings",
+      "name": {
+        "es": "Reuniones y descubrimiento",
+        "en": "Meetings and discovery"
+      }
+    }
+  ],
+  "galeno": [
+    {
+      "id": "prd",
+      "group": "documents",
+      "name": {
+        "es": "PRD",
+        "en": "PRD"
+      },
+      "summary": {
+        "es": "Convierte una idea o una reunión en un PRD con la estructura del equipo.",
+        "en": "Turns an idea or a meeting into a PRD with your team's structure."
+      },
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "user-stories",
+      "group": "documents",
+      "name": {
+        "es": "Historias de usuario",
+        "en": "User stories"
+      },
+      "summary": {
+        "es": "Del PRD saca historias de usuario con criterios de aceptación.",
+        "en": "Breaks a PRD into user stories with acceptance criteria."
+      },
+      "writes": [
+        "notion",
+        "jira"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "roadmap",
+      "group": "documents",
+      "name": {
+        "es": "Roadmap",
+        "en": "Roadmap"
+      },
+      "summary": {
+        "es": "Arma o actualiza el roadmap por trimestre a partir de las épicas.",
+        "en": "Builds or updates the quarterly roadmap from the epics."
+      },
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "release-notes",
+      "group": "documents",
+      "name": {
+        "es": "Notas de versión",
+        "en": "Release notes"
+      },
+      "summary": {
+        "es": "De los tickets cerrados del sprint, redacta notas de versión para clientes.",
+        "en": "Writes customer-facing release notes from the sprint's closed tickets."
+      },
+      "writes": [
+        "notion",
+        "google-workspace",
+        "slack"
+      ],
+      "needsAny": [
+        "jira"
+      ]
+    },
+    {
+      "id": "epics",
+      "group": "work",
+      "name": {
+        "es": "Épicas",
+        "en": "Epics"
+      },
+      "summary": {
+        "es": "Del PRD crea las épicas.",
+        "en": "Creates the epics from a PRD."
+      },
+      "writes": [
+        "jira",
+        "notion"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "tickets",
+      "group": "work",
+      "name": {
+        "es": "Tickets",
+        "en": "Tickets"
+      },
+      "summary": {
+        "es": "De cada épica crea tickets estimados y priorizados, en estado «Propuesto».",
+        "en": "Creates estimated, prioritized tickets for each epic, in “Proposed” status."
+      },
+      "writes": [
+        "jira",
+        "notion"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "tareas-recurrentes",
+      "group": "work",
+      "name": {
+        "es": "Tareas recurrentes",
+        "en": "Recurring tasks"
+      },
+      "summary": {
+        "es": "Crea las tareas que se repiten cada semana o sprint.",
+        "en": "Creates the tasks that repeat every week or sprint."
+      },
+      "writes": [
+        "jira",
+        "notion"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "groom",
+      "group": "work",
+      "name": {
+        "es": "Revisar el backlog",
+        "en": "Groom the backlog"
+      },
+      "summary": {
+        "es": "Revisa el backlog: duplicados, tickets sin criterios, huérfanos sin épica. Solo reporta.",
+        "en": "Reviews the backlog: duplicates, tickets without criteria, orphans with no epic. Report only."
+      },
+      "writes": [
+        "jira",
+        "notion"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "sprint-log",
+      "group": "work",
+      "name": {
+        "es": "Doc del sprint",
+        "en": "Sprint log"
+      },
+      "summary": {
+        "es": "Abre el documento del sprint semanal: objetivo, entregables y fechas.",
+        "en": "Opens the weekly sprint document: goal, deliverables and dates."
+      },
+      "writes": [
+        "notion"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "resumen-proyecto",
+      "group": "reports",
+      "name": {
+        "es": "Resumen del proyecto",
+        "en": "Project summary"
+      },
+      "summary": {
+        "es": "Qué pasó esta semana en todas las fuentes del proyecto.",
+        "en": "What happened this week across all the project's sources."
+      },
+      "writes": [
+        "notion",
+        "slack"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "seguimiento",
+      "group": "reports",
+      "name": {
+        "es": "Seguimiento de pendientes",
+        "en": "Follow-up on open items"
+      },
+      "summary": {
+        "es": "Estado de los pendientes: qué sigue abierto, quién debe qué, qué se venció.",
+        "en": "Status of open items: what is still open, who owes what, what is overdue."
+      },
+      "writes": [
+        "notion",
+        "slack"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "informe-slack",
+      "group": "reports",
+      "name": {
+        "es": "Informe a Slack",
+        "en": "Slack report"
+      },
+      "summary": {
+        "es": "Arma un informe para el canal del proyecto y lo envía solo con tu aprobación.",
+        "en": "Builds a report for the project channel and sends it only with your approval."
+      },
+      "writes": [
+        "slack"
+      ],
+      "needsAny": [
+        "slack"
+      ]
+    },
+    {
+      "id": "reporte-excel",
+      "group": "reports",
+      "name": {
+        "es": "Reporte en hoja de cálculo",
+        "en": "Spreadsheet report"
+      },
+      "summary": {
+        "es": "Genera un reporte de métricas o estado en una hoja de cálculo.",
+        "en": "Builds a metrics or status report in a spreadsheet."
+      },
+      "writes": [
+        "google-workspace"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "reporte-dia",
+      "group": "reports",
+      "name": {
+        "es": "Reporte del día",
+        "en": "Daily report"
+      },
+      "summary": {
+        "es": "Reporte diario de lo trabajado.",
+        "en": "A daily report of what was worked on."
+      },
+      "writes": [
+        "slack"
+      ],
+      "needsAny": []
+    },
+    {
+      "id": "acta",
+      "group": "meetings",
+      "name": {
+        "es": "Acta de reunión",
+        "en": "Meeting minutes"
+      },
+      "summary": {
+        "es": "De una transcripción saca decisiones, acciones y responsables, y crea las tareas.",
+        "en": "From a transcript, extracts decisions, actions and owners, and creates the tasks."
+      },
+      "writes": [
+        "notion",
+        "jira"
+      ],
+      "needsAny": [
+        "fireflies",
+        "granola",
+        "fathom",
+        "google-workspace"
+      ]
+    },
+    {
+      "id": "sintesis-research",
+      "group": "meetings",
+      "name": {
+        "es": "Síntesis de research",
+        "en": "Research synthesis"
+      },
+      "summary": {
+        "es": "De varias entrevistas, extrae temas y hallazgos.",
+        "en": "From several interviews, extracts themes and findings."
+      },
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [
+        "fireflies",
+        "granola",
+        "fathom",
+        "google-workspace"
+      ]
+    },
+    {
+      "id": "priorizar",
+      "group": "meetings",
+      "name": {
+        "es": "Priorizar ideas",
+        "en": "Prioritize ideas"
+      },
+      "summary": {
+        "es": "Aplica un marco (RICE, ICE) a una lista de ideas con los criterios del equipo.",
+        "en": "Applies a framework (RICE, ICE) to a list of ideas with your team's criteria."
+      },
+      "writes": [
+        "google-workspace",
+        "notion"
+      ],
+      "needsAny": []
+    }
+  ],
+  "curated": [
+    {
+      "id": "pm-skills-deliver-prd",
+      "name": {
+        "es": "Entregar un PRD",
+        "en": "Deliver a PRD"
+      },
+      "summary": {
+        "es": "Un PRD completo, de la fase de entrega de pm-skills.",
+        "en": "A complete PRD, from pm-skills' deliver phase."
+      },
+      "author": "product-on-purpose",
+      "repository": "https://github.com/product-on-purpose/pm-skills",
+      "path": "skills/deliver-prd",
+      "license": "Apache-2.0",
+      "available": false
+    },
+    {
+      "id": "pm-skills-discover-interview-synthesis",
+      "name": {
+        "es": "Síntesis de entrevistas",
+        "en": "Interview synthesis"
+      },
+      "summary": {
+        "es": "Sintetiza entrevistas de descubrimiento.",
+        "en": "Synthesizes discovery interviews."
+      },
+      "author": "product-on-purpose",
+      "repository": "https://github.com/product-on-purpose/pm-skills",
+      "path": "skills/discover-interview-synthesis",
+      "license": "Apache-2.0",
+      "available": false
+    },
+    {
+      "id": "pm-skills-foundation-meeting-recap",
+      "name": {
+        "es": "Resumen de reunión",
+        "en": "Meeting recap"
+      },
+      "summary": {
+        "es": "Un resumen claro de una reunión.",
+        "en": "A clear recap of a meeting."
+      },
+      "author": "product-on-purpose",
+      "repository": "https://github.com/product-on-purpose/pm-skills",
+      "path": "skills/foundation-meeting-recap",
+      "license": "Apache-2.0",
+      "available": false
+    },
+    {
+      "id": "pm-skills-iterate-retrospective",
+      "name": {
+        "es": "Retrospectiva",
+        "en": "Retrospective"
+      },
+      "summary": {
+        "es": "Prepara y documenta una retrospectiva.",
+        "en": "Prepares and documents a retrospective."
+      },
+      "author": "product-on-purpose",
+      "repository": "https://github.com/product-on-purpose/pm-skills",
+      "path": "skills/iterate-retrospective",
+      "license": "Apache-2.0",
+      "available": false
+    },
+    {
+      "id": "phuryn-pre-mortem",
+      "name": {
+        "es": "Pre-mortem",
+        "en": "Pre-mortem"
+      },
+      "summary": {
+        "es": "Imagina por qué fallaría el proyecto, antes de que falle.",
+        "en": "Imagines why the project would fail, before it does."
+      },
+      "author": "phuryn",
+      "repository": "https://github.com/phuryn/pm-skills",
+      "path": "pm-execution/skills/pre-mortem",
+      "license": "MIT",
+      "available": false
+    },
+    {
+      "id": "phuryn-stakeholder-map",
+      "name": {
+        "es": "Mapa de stakeholders",
+        "en": "Stakeholder map"
+      },
+      "summary": {
+        "es": "Mapea quién influye y a quién hay que mantener informado.",
+        "en": "Maps who has influence and who to keep informed."
+      },
+      "author": "phuryn",
+      "repository": "https://github.com/phuryn/pm-skills",
+      "path": "pm-execution/skills/stakeholder-map",
+      "license": "MIT",
+      "available": false
+    },
+    {
+      "id": "phuryn-prioritize-features",
+      "name": {
+        "es": "Priorizar funcionalidades",
+        "en": "Prioritize features"
+      },
+      "summary": {
+        "es": "Ayuda a priorizar una lista de funcionalidades.",
+        "en": "Helps prioritize a list of features."
+      },
+      "author": "phuryn",
+      "repository": "https://github.com/phuryn/pm-skills",
+      "path": "pm-product-discovery/skills/prioritize-features",
+      "license": "MIT",
+      "available": false
+    },
+    {
+      "id": "ralph-prd",
+      "name": {
+        "es": "PRD de Ralph",
+        "en": "Ralph's PRD"
+      },
+      "summary": {
+        "es": "Genera un PRD para una funcionalidad nueva.",
+        "en": "Generates a PRD for a new feature."
+      },
+      "author": "snarktank",
+      "repository": "https://github.com/snarktank/ralph",
+      "path": "skills/prd",
+      "license": "MIT",
+      "available": false
+    }
+  ]
+}
