@@ -10,7 +10,7 @@ import "fmt"
 //
 // Sube el MINOR cuando cambia lo que la app o Claude Code ven (subcomandos,
 // herramientas MCP) y el PATCH cuando solo se corrige algo por dentro.
-var bridgeVersion = "0.2.1"
+var bridgeVersion = "0.2.2"
 
 // runVersion — subcomando "version": imprime solo el número, para que la app
 // lo lea sin tener que separar nada.
