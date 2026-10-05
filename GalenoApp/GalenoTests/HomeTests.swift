@@ -298,6 +298,53 @@ final class HomeTests: XCTestCase {
         XCTAssertEqual(opener.calls, ["prepare", "continue Hera"])
     }
 
+    /// «Gestionar» le cambió las herramientas: la conversación a la que se vuelve arrancó con las de antes, así que
+    /// Claude se reinicia y vuelve a ella. Lo avisa antes, con su propio motivo.
+    func testAnAgentWhoseToolsChangedRestartsTheClaudeAppAndComesBackToItsConversation() async throws {
+        try install([("Hera", [.whatsapp, .jira])])
+        let opener = RecordingOpener()
+        opener.restartNeeded = true
+        let model = makeModel(opener: opener)
+        let agent = model.agents[0]
+        XCTAssertNil(model.restartReason(for: agent), "sin cambios no hay por qué reiniciar")
+
+        model.noteToolsChanged(agent.id)
+        XCTAssertEqual(model.restartReason(for: agent), .toolsChanged)
+
+        model.open(agent, in: .app)
+        await waitForCalls(model, opener)
+        XCTAssertEqual(opener.calls, ["restart Hera resume=true"])
+    }
+
+    /// Si Claude se abrió después del cambio (o está cerrado), ya carga las herramientas nuevas: no se reinicia.
+    func testChangedToolsDoNotRestartAClaudeAppThatStartedAfterTheChange() async throws {
+        try install([("Hera", [.whatsapp, .jira])])
+        let opener = RecordingOpener()
+        opener.restartNeeded = false
+        let model = makeModel(opener: opener)
+        model.noteToolsChanged(model.agents[0].id)
+
+        XCTAssertNil(model.restartReason(for: model.agents[0]))
+        model.open(model.agents[0], in: .app)
+        await waitForCalls(model, opener)
+        XCTAssertEqual(opener.calls, ["prepare", "continue Hera"])
+    }
+
+    /// El aviso es de ese agente: a los demás no los toca. Y en Terminal no se reinicia nada.
+    func testChangedToolsOnlyConcernThatAgentAndNeverTheTerminal() async throws {
+        try install([("Hera", [.whatsapp]), ("Aurora", [.notion])])
+        let opener = RecordingOpener()
+        opener.restartNeeded = true
+        let model = makeModel(opener: opener)
+        model.noteToolsChanged(model.agents[0].id)
+
+        XCTAssertEqual(model.restartReason(for: model.agents[0]), .toolsChanged)
+        XCTAssertNil(model.restartReason(for: model.agents[1]))
+        model.open(model.agents[0], in: .terminal)
+        await waitForCalls(model, opener)
+        XCTAssertEqual(opener.calls, ["terminal Hera prompt=nil"])
+    }
+
     func testOpeningInTerminalNeverRestartsTheClaudeApp() async throws {
         try install([("Hera", [.gmail])])
         let opener = RecordingOpener()

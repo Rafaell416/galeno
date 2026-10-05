@@ -14,6 +14,9 @@ struct ConnectServices {
     /// Muestra la autorización de Slack en una ventana de Galeno. `nil` (pruebas y conectores
     /// falsos) = se usa el navegador del sistema.
     var authorizer: (any SlackAuthorizationPresenting)?
+    /// Muestra la autorización de las demás herramientas en la hoja de autenticación del sistema. `nil` (pruebas y
+    /// conectores falsos) = se abre el navegador del sistema.
+    var systemAuthorizer: (any SystemAuthorizationPresenting)?
     /// Lista lo que se puede elegir leer de cada herramienta (pantalla 6).
     var makeLister: @MainActor (_ claudePath: String) -> any SourceListing = { ClaudeSourceLister(claudePath: $0) }
     /// Escribe la carpeta del agente y lo registra en la instalación (pantalla 9).
@@ -43,6 +46,7 @@ struct ConnectServices {
             makeMCP: { ClaudeMCPClient(claudePath: $0) },
             whatsapp: WhatsAppBridge.live(),
             authorizer: SlackAuthorizeWindowPresenter(),
+            systemAuthorizer: SystemAuthorizationSheet(),
             installer: .live(),
             returnToApp: { AppFocus.bringToFront() },
             openURL: { NSWorkspace.shared.open($0) })

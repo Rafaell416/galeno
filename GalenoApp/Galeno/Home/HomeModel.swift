@@ -147,8 +147,31 @@ final class HomeModel: ObservableObject {
     }
 
     /// ¿Abrir este agente en la app de Claude la va a cerrar y reabrir? Se avisa antes de elegir.
-    func willRestartClaude(for agent: HomeAgent) -> Bool {
-        AgentOpenPolicy.needsClaudeRestart(tools: agent.tools, folder: agent.folder, opener: opener)
+    func willRestartClaude(for agent: HomeAgent) -> Bool { restartReason(for: agent) != nil }
+
+    /// Por qué: por sus conectores de la cuenta, o porque «Gestionar» le cambió las herramientas.
+    func restartReason(for agent: HomeAgent) -> AgentOpenPolicy.RestartReason? {
+        AgentOpenPolicy.restartReason(
+            tools: agent.tools, folder: agent.folder, toolsChangedAt: toolsChangedAt(agent.id), opener: opener)
+    }
+
+    /// «Gestionar» le cambió las herramientas a este agente: se anota cuándo, para que la próxima vez que se abra
+    /// en una app de Claude que ya estaba abierta, se reinicie y la conversación cargue las nuevas.
+    func noteToolsChanged(_ id: UUID, at date: Date = Date()) {
+        var all = defaults.dictionary(forKey: Prefs.toolsChangedAt) ?? [:]
+        all[id.uuidString] = date.timeIntervalSince1970
+        defaults.set(all, forKey: Prefs.toolsChangedAt)
+        objectWillChange.send()
+    }
+
+    private func toolsChangedAt(_ id: UUID) -> Date? {
+        (defaults.dictionary(forKey: Prefs.toolsChangedAt)?[id.uuidString] as? Double).map(Date.init(timeIntervalSince1970:))
+    }
+
+    private func forgetToolsChanged(_ id: UUID) {
+        guard var all = defaults.dictionary(forKey: Prefs.toolsChangedAt), all[id.uuidString] != nil else { return }
+        all[id.uuidString] = nil
+        defaults.set(all, forKey: Prefs.toolsChangedAt)
     }
 
     /// La instalación tal como está en disco, para armar el punto de partida de un agente nuevo. `nil` si no se
@@ -184,7 +207,7 @@ final class HomeModel: ObservableObject {
         Task {
             let outcome = await AgentOpenPolicy.open(
                 folder: agent.folder, tools: agent.tools, inApp: target == .app, prompt: nil, resume: true,
-                opener: opener, claudePath: claudePath)
+                toolsChangedAt: toolsChangedAt(agent.id), opener: opener, claudePath: claudePath)
             if outcome != .opened { problems[agent.id] = outcome }
             await settle()
             opening = nil
@@ -317,6 +340,7 @@ final class HomeModel: ObservableObject {
             let outcome = try remover.execute(plan)
             try installation.removeAgent(id: agent.id)
             try store.save(installation)
+            forgetToolsChanged(agent.id)
             dialog = nil
             dialogError = nil
             notice = outcome.failed.isEmpty ? nil : Localized.string("home.delete.partial %lld", outcome.failed.count, locale: locale)

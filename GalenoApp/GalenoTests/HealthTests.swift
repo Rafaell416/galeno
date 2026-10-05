@@ -153,15 +153,18 @@ final class HealthTests: XCTestCase {
         ).record
     }
 
+    private final class Cues { var played: [Sounds.Cue] = [] }
+
     private func makeModel(
         mcp: FakeMCP = FakeMCP(), whatsapp: FakeWhatsApp = FakeWhatsApp(), claude: String? = "/ruta/claude",
-        skills: any SkillUpdating = SkillUpdaterNotAvailable(), opened: OpenedURLs = OpenedURLs()
+        skills: any SkillUpdating = SkillUpdaterNotAvailable(), opened: OpenedURLs = OpenedURLs(), cues: Cues = Cues()
     ) -> HealthModel {
         HealthModel(
             store: installer.store, locateClaude: { claude }, makeMCP: { _ in mcp }, whatsapp: whatsapp,
-            skillUpdater: skills, authorizer: nil, language: { .spanish },
+            skillUpdater: skills, authorizer: nil, systemAuthorizer: nil, language: { .spanish },
             openURL: { opened.urls.append($0) }, returnToApp: {}, sleep: { _ in },
-            timing: HealthModel.Timing(connectorPoll: 1, connectorMax: 3, pendingLooks: 3))
+            timing: HealthModel.Timing(connectorPoll: 1, connectorMax: 3, pendingLooks: 3),
+            playSound: { cues.played.append($0) })
     }
 
     final class OpenedURLs { var urls: [URL] = [] }
@@ -268,6 +271,46 @@ final class HealthTests: XCTestCase {
         XCTAssertTrue(done)
         XCTAssertTrue(mcp.calls.contains("login \(serverName(.fathom))"))
         XCTAssertNil(model.reconnectIssues[.fathom])
+    }
+
+    /// Reconectar suena como el resto de la app: el sonido de conexión lograda al quedar viva, el de fallo si no.
+    func testReconnectingPlaysTheConnectedSoundWhenItWorks() async throws {
+        _ = try install([ToolConnection(tool: .fathom, status: .connected, sources: .everything)])
+        let cues = Cues()
+        let model = makeModel(mcp: FakeMCP(statuses: [serverName(.fathom): .needsAuthentication]), cues: cues)
+        await model.check()
+        XCTAssertTrue(cues.played.isEmpty, "mirar el estado no suena")
+
+        model.reconnect(.fathom)
+        _ = await waitUntil { !cues.played.isEmpty }
+
+        XCTAssertEqual(cues.played, [.connected])
+    }
+
+    func testReconnectingPlaysTheFailedSoundWhenItDoesNot() async throws {
+        _ = try install([ToolConnection(tool: .notion, status: .connected, sources: .everything)])
+        let cues = Cues()
+        let model = makeModel(mcp: FakeMCP(otherServers: [serverName(.notion)]), cues: cues)
+        await model.check()
+
+        model.reconnect(.notion)
+        _ = await waitUntil { !cues.played.isEmpty }
+
+        XCTAssertEqual(cues.played, [.failed])
+    }
+
+    func testCancellingAReconnectionPlaysNothing() async throws {
+        _ = try install([ToolConnection(tool: .fathom, status: .connected, sources: .everything)])
+        let cues = Cues()
+        let mcp = FakeMCP(statuses: [serverName(.fathom): .needsAuthentication], holdLogin: true)
+        let model = makeModel(mcp: mcp, cues: cues)
+        await model.check()
+
+        model.reconnect(.fathom)
+        model.cancelReconnect()
+        try await Task.sleep(for: .milliseconds(200))
+
+        XCTAssertTrue(cues.played.isEmpty)
     }
 
     func testReconnectNeverTouchesAServerThatIsNotOurs() async throws {
@@ -394,6 +437,21 @@ final class HealthTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(model.whatsapp).shouldRelink())
     }
 
+    /// Quien actualiza Galeno trae instalado un puente anterior a `status --json`: se pone al día antes de preguntar.
+    func testTheInstalledBridgeIsBroughtUpToDateBeforeAskingItsStatus() async throws {
+        _ = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 1)
+        let model = makeModel(whatsapp: bridge)
+
+        await model.check()
+
+        let calls = bridge.calls
+        let prepared = try XCTUnwrap(calls.firstIndex(of: "prepare"))
+        let asked = try XCTUnwrap(calls.firstIndex(of: "status"))
+        XCTAssertLessThan(prepared, asked)
+    }
+
     func testABridgeThatDoesNotAnswerIsShownAsSuch() async throws {
         _ = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
         let model = makeModel(whatsapp: FakeWhatsApp())  // sin estado: no contesta
@@ -419,8 +477,8 @@ final class HealthTests: XCTestCase {
         let done = await waitUntil { model.relink == .done }
 
         XCTAssertTrue(done)
-        let calls = bridge.calls.filter { ["prepare", "unlink", "pair", "installLaunchd"].contains($0) }
-        XCTAssertEqual(calls, ["prepare", "unlink", "pair", "installLaunchd"])
+        let calls = bridge.calls.filter { ["unlink", "pair", "installLaunchd"].contains($0) }
+        XCTAssertEqual(calls, ["unlink", "pair", "installLaunchd"])
         XCTAssertEqual(model.whatsapp?.sync, .running)
         XCTAssertFalse(try XCTUnwrap(model.whatsapp).shouldRelink(), "recién vinculado")
     }

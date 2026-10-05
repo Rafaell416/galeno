@@ -2,7 +2,7 @@
 
 ## Logos de las herramientas (paso 4 del wizard)
 
-`Galeno/Assets.xcassets/ToolIcons/` contiene siete logos de [Simple Icons](https://github.com/simple-icons/simple-icons),
+`Galeno/Assets.xcassets/ToolIcons/` contiene cinco logos de [Simple Icons](https://github.com/simple-icons/simple-icons),
 versión **16.33.0**, publicados bajo **CC0 1.0 Universal** (dominio público). Son SVG de un solo
 `<path>`, sin scripts ni referencias externas, y se muestran siempre en monocromo (`ink-700`,
 `docs/04` §7).
@@ -14,13 +14,11 @@ versión **16.33.0**, publicados bajo **CC0 1.0 Universal** (dominio público). 
 | `tool-googledrive` | Google Drive, Docs y Sheets |
 | `tool-gmail` | Gmail |
 | `tool-jira` | Jira |
-| `tool-googlemeet` | Google Meet |
-| `tool-fathom` | Fathom |
 
 Fuente de cada archivo: `https://raw.githubusercontent.com/simple-icons/simple-icons/16.33.0/icons/<nombre>.svg`.
 
-**Marcas.** CC0 libera los archivos, no las marcas: WhatsApp, Notion, Google, Gmail, Jira, Google Meet
-y Fathom son marcas de sus dueños. Aquí solo identifican la herramienta con la que Galeno se
+**Marcas.** CC0 libera los archivos, no las marcas: WhatsApp, Notion, Google, Gmail y Jira
+son marcas de sus dueños. Aquí solo identifican la herramienta con la que Galeno se
 conecta; no sugieren que esos proveedores respalden a Galeno.
 
 **Slack.** Su marca (el «hash» de ocho formas) va en `tool-slack`, dibujada en **monocromo**, un solo trazo
@@ -31,6 +29,13 @@ cortar ni deformar la marca; aquí se tinta en `ink-700`/`ink-900`, que es monoc
 blanco puro. Es un uso nominativo (identifica la herramienta, no sugiere respaldo). **Pendiente de revisar:**
 las guías hablan de apps del Slack Marketplace, y Galeno no está en él; si Slack lo objeta, volver al SF Symbol
 `number` en `ToolIcon.swift`.
+
+**Fathom.** Su marca (dos barras inclinadas y una pieza corta) va en `tool-fathom`, dibujada en **monocromo**, un solo
+trazo tintado como los demás logos. Origen: el logo de Fathom (el grabador de reuniones, fathom.video), que Rafa aportó
+como imagen el 4 de octubre de 2026; la geometría es la del logo, sin sus dos tonos de azul. Hasta ese día el archivo era
+el «Fathom» de Simple Icons, que resultó ser el logo de **otra empresa** (Fathom Analytics): se reemplazó. Es un uso
+nominativo (identifica la herramienta, no sugiere respaldo). **Pendiente de revisar:** no se han leído las guías de marca
+de Fathom; si piden otra cosa, volver a un SF Symbol (`waveform`) en `ToolIcon.swift`.
 
 **Sin logo en esa colección:** Fireflies y Granola usan un SF Symbol (`waveform`, `note.text`) en el mismo color. **Sin logo todavía:** Google Calendar (`calendar`) y Claude Design (`paintpalette`) usan también un SF Symbol hasta tener uno monocromo con licencia verificada. Si se sustituyen por los SVG oficiales, anotarlos aquí con su origen
 y sus reglas de uso.

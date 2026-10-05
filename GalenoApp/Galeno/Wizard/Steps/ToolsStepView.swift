@@ -8,16 +8,16 @@ struct ToolsStepView: View {
     /// La tarjeta con el foco del teclado: flechas para moverse, espacio para marcar.
     @FocusState private var focused: Tool?
     @Environment(\.galenoReduceMotion) private var reduceMotion
-    /// Las que se marcaron solas por depender de otra (Meet → Drive): se encienden 100 ms después.
+    /// Las que se marcaron solas por depender de otra (`Tool.requires`): se encienden 100 ms después.
     @State private var autoTicked: Set<Tool> = []
-    @State private var noteDim = false
 
     /// Los grupos y su orden, como en el diseño.
     private static let groups: [(label: String, tools: [Tool])] = [
         ("tools.group.messaging", [.whatsapp, .slack]),
         ("tools.group.docs", [.notion, .googleWorkspace, .gmail]),
         ("tools.group.work", [.jira, .googleCalendar, .claudeDesign]),
-        ("tools.group.meetings", [.fireflies, .granola, .fathom, .googleMeet]),
+        // Google Meet no va en la grilla: no tiene servidor, sus transcripciones se leen por Drive.
+        ("tools.group.meetings", [.fireflies, .granola, .fathom]),
     ]
 
     var body: some View {
@@ -63,17 +63,8 @@ struct ToolsStepView: View {
                         .foregroundStyle(Color.ink500)
                         .transition(.opacity)
                 }
-                if wizard.isSelected(.googleMeet) {
-                    Text("tools.meetNote")
-                        .font(Typo.text(13))
-                        .foregroundStyle(Color.ink500)
-                        // Si se intenta quitar Drive con Meet marcado, la nota parpadea una vez para explicarlo.
-                        .opacity(noteDim ? 0.4 : 1)
-                        .transition(.opacity)
-                }
             }
             .onMoveCommand(perform: move)
-            .animation(.easeOut(duration: Motion.enter), value: wizard.isSelected(.googleMeet))
             .animation(.easeOut(duration: Motion.enter), value: wizard.isSelected(.claudeDesign))
         }
     }
@@ -84,14 +75,6 @@ struct ToolsStepView: View {
         let needed = tool.requires.filter { !wizard.isSelected($0) }
         wizard.toggle(tool)
         autoTicked = wasSelected ? [] : Set(needed)
-        if wasSelected, wizard.isSelected(tool) {
-            // No se pudo quitar: la nota explica por qué (1 → 0,4 → 1 en 300 ms).
-            withAnimation(.easeOut(duration: 0.15)) { noteDim = true }
-            Task {
-                try? await Task.sleep(for: .milliseconds(150))
-                withAnimation(.easeOut(duration: 0.15)) { noteDim = false }
-            }
-        }
     }
 
     /// Las flechas recorren la grilla como se ve: izquierda y derecha por la fila, arriba y abajo
@@ -225,20 +208,20 @@ private struct ToolCard: View {
 }
 
 extension Tool {
-    /// Las que todavía no se han probado de punta a punta con una cuenta real (4 oct 2026): se muestran
-    /// en el paso 4 como «Próximamente» y no se pueden marcar. El motor las sigue sabiendo generar;
-    /// para abrir una, basta quitarla de aquí después de probarla.
+    /// Las que todavía no se han probado de punta a punta con una cuenta real: se muestran en el paso 4
+    /// como «Próximamente» y no se pueden marcar. El motor las sigue sabiendo generar; para abrir una,
+    /// basta quitarla de aquí después de probarla. Google Meet ya no se ofrece (se lee por Drive).
     var isComingSoon: Bool {
         switch self {
-        case .jira, .fireflies, .granola, .fathom, .googleMeet: true
-        case .whatsapp, .slack, .notion, .gmail, .googleWorkspace, .googleCalendar, .claudeDesign: false
+        case .fireflies, .granola, .googleMeet: true
+        case .whatsapp, .slack, .notion, .gmail, .googleWorkspace, .googleCalendar, .claudeDesign, .jira, .fathom: false
         }
     }
 }
 
 #Preview {
     let state = WizardState()
-    state.toggle(.googleMeet)
+    state.toggle(.notion)
     state.toggle(.slack)
     return ToolsStepView()
         .environmentObject(state)

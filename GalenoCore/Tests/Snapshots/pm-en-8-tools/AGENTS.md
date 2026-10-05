@@ -33,7 +33,7 @@ Google Meet transcripts are written by Gemini and land in Drive: read them throu
 - **Notion** — you may write without asking
 - **Google Drive, Docs and Sheets** — you may write without asking; sharing a file or moving it to the trash always needs approval
 - **Gmail** — **always ask for approval before sending**
-- **Jira** — confirm before writing
+- **Jira** — confirm before writing; deleting anything, and any action other than creating or editing issues, comments or pages, always needs approval
 
 ## Rules
 

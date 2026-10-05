@@ -253,6 +253,62 @@ public enum MCPServerCatalog {
     /// Compartir le llega a otra persona y la papelera quita un archivo: siempre piden aprobación.
     static let googleDriveAlwaysAskTools = ["share_file", "trash_file"]
 
+    /// Las 12 herramientas del servidor de Fathom, vistas en una cuenta real el 4 de octubre de 2026 (lo que
+    /// Claude Code recibe al conectarse). Todas leen: el propio servidor se declara de solo lectura. Van por
+    /// nombre y no con el servidor entero para que, si Fathom añade una que comparta o cambie algo, caiga en el
+    /// hook de aprobación hasta que se revise.
+    static let fathomReadOnlyTools = [
+        "find_person",
+        "find_relevant_meetings",
+        "get_identity",
+        "get_meeting_summary",
+        "get_meeting_transcript",
+        "get_recording_by_call_id",
+        "get_recording_by_url",
+        "get_relevant_meetings_result",
+        "list_meetings",
+        "list_teams",
+        "scan_meeting_summaries",
+        "search_meetings",
+    ]
+
+    /// Las 21 herramientas del servidor de Atlassian (Rovo MCP v2), vistas en una cuenta real el 4 de octubre
+    /// de 2026 (lo que Claude Code recibe al conectarse) y clasificadas con la documentación de Atlassian
+    /// (developer.atlassian.com/cloud/rovo-mcp/guides/supported-tools). El servidor no es solo Jira: con la
+    /// misma cuenta lee Confluence, Loom y el grafo de Atlassian. Estas doce solo leen; `discover` busca en el
+    /// catálogo de herramientas diferidas y `executeRead` ejecuta las que el propio servidor marca como lectura.
+    static let jiraReadOnlyTools = [
+        "atlassianUserInfo",
+        "discover",
+        "executeRead",
+        "getAccessibleAtlassianResources",
+        "getConfluenceContent",
+        "getGraphContext",
+        "getGraphObject",
+        "getJiraIssue",
+        "getLoomVideo",
+        "search",
+        "searchConfluence",
+        "searchJiraIssuesUsingJql",
+    ]
+
+    /// Crean o cambian algo del propio espacio de trabajo: siguen la regla de Jira del paso «Reglas».
+    static let jiraWriteTools = [
+        "addGraphContext",
+        "addOrEditJiraIssueComment",
+        "createConfluenceContent",
+        "createJiraIssue",
+        "editJiraIssue",
+        "transitionJiraIssue",
+        "updateConfluenceContent",
+    ]
+
+    /// Siempre piden aprobación, diga lo que diga la regla de Jira. `executeDestructive` borra para siempre
+    /// (tickets, comentarios, adjuntos). `executeWrite` ejecuta **cualquier** herramienta diferida de escritura,
+    /// y entre ellas las hay que le llegan a otras personas o publican (compartir un video de Loom, abrir un
+    /// enlace público de Confluence, cambiar permisos): no se puede saber cuál va a correr por su nombre.
+    static let jiraAlwaysAskTools = ["executeDestructive", "executeWrite"]
+
     public static func definitions(
         for tool: Tool,
         whatsAppBridgePath: String
@@ -291,7 +347,8 @@ public enum MCPServerCatalog {
                 MCPServerDefinition(
                     serverName: "fathom",
                     transport: .http(url: "https://api.fathom.ai/mcp"),
-                    endpointIsVerified: true
+                    endpointIsVerified: true,
+                    readOnlyTools: fathomReadOnlyTools
                 )
             ]
 
@@ -312,7 +369,10 @@ public enum MCPServerCatalog {
                 MCPServerDefinition(
                     serverName: "jira",
                     transport: .http(url: "https://mcp.atlassian.com/v2/mcp"),
-                    endpointIsVerified: true
+                    endpointIsVerified: true,
+                    readOnlyTools: jiraReadOnlyTools,
+                    writeTools: jiraWriteTools,
+                    alwaysAskTools: jiraAlwaysAskTools
                 )
             ]
 

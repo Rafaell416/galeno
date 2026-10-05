@@ -242,6 +242,9 @@ final class ConnectFlow: ObservableObject {
     private let onClientID: @MainActor (Tool, String) -> Void
     private let onNamePrefix: @MainActor (Tool, String?) -> Void
     private let authorizer: (any SlackAuthorizationPresenting)?
+    /// La hoja de autenticación del sistema, para las herramientas que se autorizan en el navegador (Notion, Jira,
+    /// las de reuniones). `nil` (pruebas y conectores falsos) = se abre el navegador del sistema, como antes.
+    private let systemAuthorizer: (any SystemAuthorizationPresenting)?
     private let language: @MainActor () -> Language
     /// Trae Galeno al frente cuando el usuario termina de autorizar en su navegador: la pestaña se
     /// queda allá, pero él vuelve solo al asistente.
@@ -287,12 +290,14 @@ final class ConnectFlow: ObservableObject {
         namePrefixes: [Tool: String] = [:],
         onNamePrefix: @escaping @MainActor (Tool, String?) -> Void = { _, _ in },
         authorizer: (any SlackAuthorizationPresenting)? = nil,
+        systemAuthorizer: (any SystemAuthorizationPresenting)? = nil,
         language: @escaping @MainActor () -> Language = { .spanish },
         returnToApp: @escaping @MainActor () -> Void = {},
         openURL: @escaping @MainActor (URL) -> Void = { _ in }
     ) {
         self.openURL = openURL
         self.authorizer = authorizer
+        self.systemAuthorizer = systemAuthorizer
         self.language = language
         self.returnToApp = returnToApp
         let connectionTools = ConnectTarget.connectionTools(from: tools)
@@ -417,6 +422,7 @@ final class ConnectFlow: ObservableObject {
         guard case .connection(let tool) = screen else { return }
         cancelWork()
         authorizer?.dismissAuthorization()
+        systemAuthorizer?.dismiss()
         webSession.reset()
         setStatus(tool, .skipped)
         advance()
@@ -593,11 +599,24 @@ final class ConnectFlow: ObservableObject {
 
         update(.working(.waitingForBrowser))
         // Con la app propia de Slack, la autorización se muestra en la ventana de Galeno (con la
-        // sesión que ya tiene) y se cierra sola; las demás herramientas usan el navegador del usuario.
-        let opener: AuthorizationOpener? =
-            (target.requiresOwnOAuthApp && authorizer != nil)
-            ? { @MainActor [weak self] url in self?.showAuthorization(url) ?? false } : nil
-        defer { authorizer?.dismissAuthorization() }
+        // sesión que ya tiene) y se cierra sola. Las demás herramientas usan la hoja de autenticación del
+        // sistema: el navegador del usuario, con su sesión, en una ventana que Galeno cierra al terminar.
+        // Si la hoja no se puede mostrar, la dirección se abre en el navegador como siempre.
+        let usesOwnWindow = target.requiresOwnOAuthApp && authorizer != nil
+        let opener: AuthorizationOpener?
+        if usesOwnWindow {
+            opener = { @MainActor [weak self] url in self?.showAuthorization(url) ?? false }
+        } else if let systemAuthorizer {
+            opener = { @MainActor [weak self] url in
+                systemAuthorizer.present(url: url) { self?.authorizationWindowClosedByUser() }
+            }
+        } else {
+            opener = nil
+        }
+        defer {
+            authorizer?.dismissAuthorization()
+            systemAuthorizer?.dismiss()
+        }
         do {
             try await mcp.login(server: server.name, openAuthorization: opener)
         } catch let error as MCPConnectError {
@@ -616,8 +635,12 @@ final class ConnectFlow: ObservableObject {
             return
         }
         if Task.isCancelled { return }
-        // Autorizó en su navegador: se le trae de vuelta. (Con la ventana propia de Slack nunca salió de Galeno.)
-        if opener == nil { returnToApp() }
+        // Autorizó en su navegador: se cierra la hoja y se le trae de vuelta. (Con la ventana propia de Slack
+        // nunca salió de Galeno.)
+        if !usesOwnWindow {
+            systemAuthorizer?.dismiss()
+            returnToApp()
+        }
 
         // Con una app propia, «autorizado» no basta: Slack puede aceptar el inicio de sesión y
         // rechazar luego la conexión (la app sin el MCP activado). Se comprueba antes de decir
@@ -1048,6 +1071,7 @@ final class ConnectFlow: ObservableObject {
     func cancelAll() {
         cancelWork()
         authorizer?.dismissAuthorization()
+        systemAuthorizer?.dismiss()
         webSession.reset()
         for task in dataTasks.values { task.cancel() }
         dataTasks = [:]
