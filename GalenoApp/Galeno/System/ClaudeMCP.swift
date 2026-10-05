@@ -9,6 +9,9 @@ nonisolated enum MCPStatus: Equatable, Sendable {
     case failed
     /// Claude Code no lo conoce.
     case notRegistered
+    /// Un conector de la cuenta que al arrancar la sesión todavía se estaba conectando (`pending`). No pide
+    /// autorización: es solo lento, y varía de un Mac a otro. No es un fallo ni es «falta autorizar».
+    case pending
     /// Ya hay un servidor con ese nombre pero **otro** (otra dirección, o uno local de
     /// `npx`): registrar el nuestro encima lo pisaría, y darlo por conectado sería mentira.
     case differentServer
@@ -53,7 +56,7 @@ nonisolated protocol MCPConnecting: Sendable {
     func login(server: String, openAuthorization: AuthorizationOpener?) async throws
     /// El estado **real** de un conector de la cuenta de Claude, leído del arranque de una sesión
     /// (`ClaudeSessionProbe`): `claude mcp get` lo da por conectado aunque le falte la autorización.
-    /// `.notRegistered` = no está en la cuenta; `.failed` = no se pudo saber (aún «pendiente»).
+    /// `.notRegistered` = no está en la cuenta; `.pending` = aún se conectaba al arrancar; `.failed` = no responde.
     func connectorStatus(_ server: String) async -> MCPStatus
     /// `claude mcp login "claude.ai <nombre>"` para un conector de la cuenta de Claude: abre el navegador
     /// en la página de permiso y **termina enseguida**, sin esperar a que el usuario autorice (Claude Code
@@ -113,6 +116,8 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
     var runner: any CommandRunning = ProcessRunner()
     var terminal: any TerminalRunning = ProcessTerminalRunner()
     var probe: any SessionProbing = ClaudeSessionProbe()
+    /// El último arranque leído, compartido un momento entre consultas seguidas.
+    var sessionStatuses = SessionStatusCache()
 
     /// Cuánto se espera a que el usuario autorice en el navegador.
     var loginTimeout: TimeInterval = 180
@@ -206,17 +211,40 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
         guard await status(of: server) == .connected else { throw MCPConnectError.notConnectedAfterLogin }
     }
 
+    /// El estado de un conector de la cuenta, leído del arranque de una sesión. Varios conectores seguidos
+    /// (Drive, Docs y Sheets) comparten un mismo arranque (`SessionStatusCache`).
+    ///
+    /// Si el arranque no trae **ningún** conector de la cuenta, lo más probable es que la lista aún no hubiera
+    /// llegado de claude.ai cuando Claude Code dio su estado (se vio en la práctica: arranques de 1–2 s sin
+    /// ninguno), no que la cuenta esté vacía: se vuelve a mirar antes de decir «no está en la cuenta». Sin eso,
+    /// Galeno abría la página de un conector que ya estaba conectado y se quedaba esperando.
     func connectorStatus(_ server: String) async -> MCPStatus {
-        guard let statuses = await probe.serverStatuses(claudePath: claudePath) else { return .failed }
+        var statuses: [String: String]?
+        for attempt in 0..<Self.accountListAttempts {
+            statuses = await sessionStatuses.statuses(fresh: attempt > 0) { [probe, claudePath] in
+                await probe.serverStatuses(claudePath: claudePath)
+            }
+            guard let statuses, !Self.listsAccountConnectors(statuses) else { break }
+        }
+        guard let statuses else { return .failed }
         return Self.connectorStatus(of: server, in: statuses)
     }
 
-    /// `connected` → conectado; `needs-auth` → falta autorizar; no aparece → no está en la cuenta; cualquier
-    /// otra cosa (`pending`, `failed`) → no se sabe todavía.
+    /// Cuántos arranques se miran antes de creer que la cuenta no tiene ningún conector.
+    static let accountListAttempts = 3
+
+    /// ¿Llegó la lista de conectores de la cuenta? Sus servidores se llaman `claude.ai <Nombre>`.
+    static func listsAccountConnectors(_ statuses: [String: String]) -> Bool {
+        statuses.keys.contains { $0.hasPrefix("claude.ai ") }
+    }
+
+    /// `connected` → conectado; `needs-auth` → falta autorizar; `pending` → se estaba conectando; no aparece →
+    /// no está en la cuenta; cualquier otra cosa (`failed`) → no responde.
     static func connectorStatus(of server: String, in statuses: [String: String]) -> MCPStatus {
         switch statuses[server] {
         case "connected": .connected
         case "needs-auth": .needsAuthentication
+        case "pending": .pending
         case nil: .notRegistered
         default: .failed
         }
@@ -378,4 +406,25 @@ nonisolated final class BrowserInterceptor: @unchecked Sendable {
     }
 
     func cleanUp() { try? FileManager.default.removeItem(at: directory) }
+}
+
+/// Guarda unos segundos lo que dijo el último arranque de sesión. «Google Drive, Docs y Sheets» son tres
+/// conectores que se miran uno tras otro: sin esto serían tres arranques (5–15 s cada uno) para leer lo mismo.
+actor SessionStatusCache {
+    private var last: (statuses: [String: String], at: Date)?
+    private let lifetime: TimeInterval
+    private let now: @Sendable () -> Date
+
+    init(lifetime: TimeInterval = 6, now: @escaping @Sendable () -> Date = { Date() }) {
+        self.lifetime = lifetime
+        self.now = now
+    }
+
+    /// Lo guardado si es reciente; si no (o con `fresh`), lo que devuelva `read`, que queda guardado.
+    func statuses(fresh: Bool = false, read: @Sendable () async -> [String: String]?) async -> [String: String]? {
+        if !fresh, let last, now().timeIntervalSince(last.at) < lifetime { return last.statuses }
+        guard let statuses = await read() else { return nil }
+        last = (statuses, now())
+        return statuses
+    }
 }

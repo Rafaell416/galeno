@@ -255,6 +255,47 @@ final class ConnectFlowTests: XCTestCase {
         XCTAssertEqual(returnsToApp, 0)
     }
 
+    /// El demo de Simon: los conectores ya estaban conectados, pero al arrancar la sesión salían «pendientes».
+    /// Antes se abría una página que decía «ya conectado» y la espera giraba cinco minutos. Ahora no se abre nada.
+    func testAConnectorStillPendingAtStartupIsTreatedAsConnectedWithoutOpeningAnything() async {
+        let mcp = FakeMCP(statuses: [
+            "claude.ai Google Drive": .pending, "claude.ai Google Docs": .pending,
+            "claude.ai Google Sheets": .pending,
+        ])
+        let flow = makeFlow([.googleWorkspace, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: true) }
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertTrue(openedURLs.isEmpty, "no abre la página del directorio")
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("authorize") }, "ni el permiso")
+        XCTAssertEqual(returnsToApp, 0)
+    }
+
+    /// Pendiente al arrancar y conectado a la siguiente mirada: es solo lento.
+    func testAPendingConnectorThatConnectsOnTheNextLookIsJustSlow() async {
+        let mcp = FakeMCP(statuses: ["claude.ai Gmail": .pending])
+        mcp.connectorConnectsAfterChecks = 1
+        let flow = makeFlow([.gmail, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: true) }
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertTrue(openedURLs.isEmpty)
+    }
+
+    /// Pendiente no tapa lo que sí falta: si pide autorización, sigue pidiéndola.
+    func testAConnectorThatNeedsAuthorizationIsNotMistakenForPending() async {
+        let mcp = FakeMCP(statuses: ["claude.ai Gmail": .needsAuthentication])
+        mcp.connectorConnectsAfterChecks = 1
+        let flow = makeFlow([.gmail, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+        defer { flow.cancelAll() }
+        flow.connect()
+        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: false) }
+        XCTAssertTrue(done, "\(flow.phase)")
+        XCTAssertTrue(mcp.calls.contains("authorize claude.ai Gmail"))
+    }
+
     /// El estado sale de una sesión real, nunca de `claude mcp get`: ese comando da por conectado un
     /// conector al que le falta la autorización de Google (así se coló un «ya estaba conectado» falso).
     func testTheConnectorStateIsNeverReadFromMCPGet() async {

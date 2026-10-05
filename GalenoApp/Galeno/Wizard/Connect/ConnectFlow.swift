@@ -224,6 +224,9 @@ final class ConnectFlow: ObservableObject {
         /// Cada cuánto se mira si el conector de Claude ya quedó conectado, y hasta cuándo.
         var connectorPoll: Double = 3
         var connectorMax: Double = 300
+        /// Cuántas veces más se mira un conector que al arrancar la sesión seguía «pendiente» antes de darlo
+        /// por conectado (y las veces seguidas que debe verse así tras abrir el navegador).
+        var connectorPendingLooks: Int = 3
         /// Lo que Galeno se queda al frente tras un conector, antes de abrir el navegador para el siguiente.
         var connectorPause: Double = 1.2
     }
@@ -460,8 +463,20 @@ final class ConnectFlow: ObservableObject {
             update(.working(.checking))
             var current = await mcp.connectorStatus(connector.serverName)
             if Task.isCancelled { return }
+            // «Pendiente» no es «falta autorizar»: el conector está en la cuenta y no pidió nada, solo tardaba en
+            // conectarse al arrancar la sesión (en un Mac nuevo es lo normal). Se le dan unas miradas más; si
+            // sigue así, se da por conectado en vez de abrir una página que dirá «ya conectado» y dejar
+            // la espera girando cinco minutos (así se pegó en el demo de Simon, 4 oct 2026).
+            var looks = 0
+            while current == .pending, looks < timing.connectorPendingLooks {
+                await sleep(.seconds(timing.connectorPoll))
+                current = await mcp.connectorStatus(connector.serverName)
+                if Task.isCancelled { return }
+                looks += 1
+            }
+            if current == .pending { current = .connected }
             if current == .failed {
-                // Al arrancar la sesión seguía «pendiente»: se mira una vez más antes de decidir.
+                // No respondió: se mira una vez más antes de decidir.
                 await sleep(.seconds(timing.connectorPoll))
                 current = await mcp.connectorStatus(connector.serverName)
                 if Task.isCancelled { return }
@@ -488,11 +503,15 @@ final class ConnectFlow: ObservableObject {
 
             var connected = false
             var waited = 0.0
+            var pendingInARow = 0
             while waited < timing.connectorMax {
                 await sleep(.seconds(timing.connectorPoll))
                 waited += timing.connectorPoll
                 if Task.isCancelled { return }
-                if await mcp.connectorStatus(connector.serverName) == .connected {
+                let status = await mcp.connectorStatus(connector.serverName)
+                // Tras autorizar, «pendiente» (ya no pide autorización) varias veces seguidas también es conectado.
+                pendingInARow = status == .pending ? pendingInARow + 1 : 0
+                if status == .connected || pendingInARow >= timing.connectorPendingLooks {
                     connected = true
                     break
                 }
@@ -553,7 +572,7 @@ final class ConnectFlow: ObservableObject {
             }
             if Task.isCancelled { return }
             if oauth != nil { slackAppRegistered = true }
-        case .needsAuthentication, .failed:
+        case .needsAuthentication, .failed, .pending:
             break
         }
 
@@ -784,7 +803,7 @@ final class ConnectFlow: ObservableObject {
             finishHosted(target, alreadyConnected: true)
         case .differentServer:
             resolveNameConflict(target, server: server)
-        case .needsAuthentication, .failed:
+        case .needsAuthentication, .failed, .pending:
             // Registrado antes con su app: solo falta autorizar.
             slackAppRegistered = true
             update(.ready)
