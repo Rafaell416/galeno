@@ -457,12 +457,17 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 
 **Fase 4b (home) hecha (4 oct 2026):** lista de agentes, «Abrir» en la app de Claude o Terminal (recuerda la última elección, botón
 partido), «Nuevo agente» por el wizard corto y «Gestionar» (cambiar qué lee, skills y reglas; recupera una herramienta saltada).
-Falta «Salud y mantenimiento» (`docs/03` §3b).
+«Salud» hecha (ver abajo); falta el mecanismo de «Actualizar skills» y la actualización de la app (Fase 5).
+
+**Salud (4 oct 2026, rama `feat/salud`, sin commit):** enlace «Salud» en el home → conexiones con su estado y «Reconectar» (`claude mcp list`
+para servidores propios; los conectores de la cuenta de Claude, por el arranque de una sesión), panel de WhatsApp (sesión, `sync`
+corriendo, días vinculado, aviso a los 18 días, versión del puente, «Re-vincular» con QR), entrada de «Actualizar skills» (deshabilitada
+hasta la Fase 5) y carpetas borradas a mano («Regenerar la carpeta» / «Quitar el agente»). **Tocó el bridge: 0.2.2 → 0.3.0** (`status --json`
+y `unlink`), así que hay que compilarlo antes de la app. Detalle en `docs/03` §3b.
 
 **Renombrar y eliminar un agente — hecho (4 oct 2026), según lo que decidió Rafa:** renombrar cambia solo el nombre (la carpeta no
 se mueve, `memoria/` no se toca). Eliminar manda a la Papelera, tras confirmar, la carpeta del agente, sus conversaciones de Claude
-Code y las de la app de Claude (`AgentRemover`); si era el último agente se abre el wizard corto. Detalle en `docs/03` §3b. Falta
-«Salud y mantenimiento».
+Code y las de la app de Claude (`AgentRemover`); si era el último agente se abre el wizard corto. Detalle en `docs/03` §3b.
 
 ### Aloha en la carpeta de Jarvi (4 oct 2026)
 

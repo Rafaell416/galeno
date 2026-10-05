@@ -8,6 +8,8 @@ galeno-whatsapp pair             # Vincula este Mac con tu WhatsApp (muestra un 
 galeno-whatsapp sync             # Mantiene la conexión viva de fondo; nunca sirve MCP
 galeno-whatsapp serve            # Sirve las 9 herramientas MCP por stdio; no conecta a WhatsApp
 galeno-whatsapp status           # Dice si hay una sesión vinculada, sin conectar a WhatsApp
+galeno-whatsapp status --json    # Lo mismo para la app: {linked, number, linked_at, version}
+galeno-whatsapp unlink           # Cierra la sesión vinculada (no borra el historial) para volver a vincular
 galeno-whatsapp install-launchd  # Instala "sync" como LaunchAgent (arranca solo tras el login)
 galeno-whatsapp chats --json     # Lista los chats guardados, para la pantalla "elige qué leer"
 galeno-whatsapp version          # Imprime la versión del bridge (solo el número)
@@ -131,7 +133,7 @@ stderr). No abre ninguna conexión a WhatsApp y lee todo lo que `sync` guardó:
 
 ## `version`
 
-Imprime solo el número (`0.2.2`), para que la app lo lea sin separar nada. Es independiente de la
+Imprime solo el número (`0.3.0`), para que la app lo lea sin separar nada. Es independiente de la
 versión de la app: el bridge es la capa que más se rompe por causas externas y tiene que poder
 parchearse por su cuenta (`docs/03` §4f). Vive en `version.go` como variable, así que se puede
 fijar al compilar con `-ldflags "-X main.bridgeVersion=…"`. Sube el MINOR cuando cambia lo que

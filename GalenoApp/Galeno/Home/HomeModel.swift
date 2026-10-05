@@ -49,14 +49,16 @@ final class HomeModel: ObservableObject {
     /// El agente cuyo menú «Abrir en» está desplegado.
     @Published private(set) var menuOpen: UUID?
 
-    /// Un diálogo del home: renombrar un agente, o confirmar que se elimina (con lo que se mandaría a la Papelera).
+    /// Un diálogo del home: renombrar un agente, confirmar que se elimina (con lo que se mandaría a la Papelera), o
+    /// confirmar que se vuelve a crear la carpeta que alguien borró o movió a mano.
     enum Dialog: Equatable {
         case rename(HomeAgent)
         case delete(HomeAgent, AgentRemovalPlan)
+        case regenerate(HomeAgent)
 
         var agent: HomeAgent {
             switch self {
-            case .rename(let agent), .delete(let agent, _): agent
+            case .rename(let agent), .delete(let agent, _), .regenerate(let agent): agent
             }
         }
     }
@@ -215,6 +217,15 @@ final class HomeModel: ObservableObject {
         dialog = .delete(agent, remover.plan(for: record))
     }
 
+    /// «Regenerar la carpeta» de un agente cuya carpeta ya no está: se explica qué se crea y qué no se puede traer
+    /// de vuelta (`memoria/`), y no se escribe nada hasta confirmar.
+    func askRegenerate(_ agent: HomeAgent) {
+        manageMenu = nil
+        dialogError = nil
+        guard !agent.folderExists else { return }
+        dialog = .regenerate(agent)
+    }
+
     func cancelDialog() {
         guard !isWorking else { return }
         dialog = nil
@@ -255,6 +266,35 @@ final class HomeModel: ObservableObject {
             return true
         } catch {
             dialogError = Localized.string("home.rename.failed", locale: Locale(identifier: language.rawValue))
+            return false
+        }
+    }
+
+    /// Vuelve a escribir la carpeta de un agente **con su configuración** (lo que guardó el asistente), en la misma
+    /// ruta. Lo que había en `memoria/` y lo editado a mano no vuelve: la carpeta ya no estaba. Si la carpeta
+    /// reapareció mientras tanto (alguien la devolvió a su sitio) no se escribe nada. Devuelve si quedó hecho.
+    @discardableResult
+    func confirmRegenerate() -> Bool {
+        guard case .regenerate(let agent)? = dialog, !isWorking else { return false }
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            guard let installation = try store.load(), let record = installation.agent(id: agent.id),
+                let config = installation.resolvedConfig(for: agent.id)
+            else {
+                dialogError = Localized.string("home.regenerate.failed", locale: Locale(identifier: language.rawValue))
+                return false
+            }
+            // Si ya está de vuelta, regenerar la pisaría: se deja como esté.
+            if !FileManager.default.fileExists(atPath: record.folderPath) {
+                _ = try installer.install(config, existingAgentID: agent.id)
+            }
+            dialog = nil
+            dialogError = nil
+            reload()
+            return true
+        } catch {
+            dialogError = Localized.string("home.regenerate.failed", locale: Locale(identifier: language.rawValue))
             return false
         }
     }

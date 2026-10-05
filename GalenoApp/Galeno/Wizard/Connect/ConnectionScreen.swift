@@ -746,7 +746,7 @@ private struct RemovalConfirmPanel: View {
 /// La advertencia explícita de `docs/03` §4, **antes** del QR y con un botón para
 /// continuar: "Tú decides si continuar". El texto es el de la spec y no se toca
 /// sin que Rafa lo apruebe (`AGENTS.md`).
-private struct WhatsAppWarning: View {
+struct WhatsAppWarning: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             SmallCapsLabel("connect.whatsapp.warning.title", size: 13, tracking: 0.14)
@@ -767,7 +767,7 @@ private struct WhatsAppWarning: View {
 
 /// El QR, en un marco de 1 px `ink-900` sobre `parchment-100` (`docs/04` §9). Va
 /// sobre blanco: un QR de tinta clara sobre fondo oscuro no se lee.
-private struct QRPanel: View {
+struct QRPanel: View {
     let image: Data?
     @Environment(\.galenoReduceMotion) private var reduceMotion
     /// Desde cuándo está visible este código: lo reinicia cada código nuevo.

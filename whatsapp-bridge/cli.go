@@ -34,7 +34,9 @@ func main() {
 	case "sync":
 		runSync()
 	case "status":
-		runStatus()
+		runStatus(len(os.Args) > 2 && os.Args[2] == "--json")
+	case "unlink":
+		runUnlink()
 	case "install-launchd":
 		runInstallLaunchd()
 	case "chats":
@@ -60,6 +62,9 @@ Uso:
   galeno-whatsapp serve            Corre el servidor MCP (stdio); exige estar ya vinculado.
                                    No conecta a WhatsApp: solo lee lo que sync ya guardó
   galeno-whatsapp status           Dice si hay una sesión vinculada, sin conectar a WhatsApp
+                                   (con --json, además cuándo se vinculó y la versión)
+  galeno-whatsapp unlink           Cierra la sesión vinculada (para volver a vincular con pair).
+                                   No borra los mensajes que ya se guardaron
   galeno-whatsapp install-launchd  Instala "sync" como LaunchAgent, para que arranque
                                    solo al iniciar sesión
   galeno-whatsapp chats --json     Lista los chats guardados (la app arma con esto la
@@ -302,8 +307,8 @@ func runServe() {
 }
 
 // runStatus — subcomando "status": nunca conecta a WhatsApp, solo mira si
-// hay un dispositivo guardado.
-func runStatus() {
+// hay un dispositivo guardado. Con --json imprime un informe para la app.
+func runStatus(asJSON bool) {
 	logger := newLogger("Status", "INFO", false)
 
 	client, messageStore, _, err := openClient(logger)
@@ -313,12 +318,62 @@ func runStatus() {
 	}
 	defer messageStore.Close()
 
+	if asJSON {
+		linked := client.Store.ID != nil
+		number := ""
+		if linked {
+			number = client.Store.ID.User
+		}
+		fmt.Println(buildStatusReport(number, linked, client.Store.Account).json())
+		return
+	}
+
 	if client.Store.ID == nil {
 		fmt.Println("Sin vincular. Corre: galeno-whatsapp pair")
 		return
 	}
 
 	fmt.Printf("Vinculado como %s.\n", client.Store.ID.User)
+}
+
+// runUnlink — subcomando "unlink": cierra la sesión vinculada para poder volver a vincular. Se conecta con la sesión
+// y le pide a WhatsApp que quite el dispositivo; si no se puede (la sesión ya caducó, o no hay red), borra la sesión
+// local de todos modos y avisa de que el teléfono puede seguir mostrándolo en «Dispositivos vinculados».
+//
+// **No borra el historial** (messages.db): solo la sesión. Tampoco envía nada a nadie.
+func runUnlink() {
+	logger := newLogger("Unlink", "INFO", false)
+
+	client, messageStore, _, err := openClient(logger)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	defer messageStore.Close()
+
+	if client.Store.ID == nil {
+		fmt.Println("Sin vincular. Nada que cerrar.")
+		return
+	}
+
+	ctx := context.Background()
+	connectErr := client.Connect()
+	if connectErr == nil {
+		connectErr = client.Logout(ctx)
+	}
+	if connectErr == nil {
+		fmt.Println("Sesión cerrada.")
+		return
+	}
+
+	// WhatsApp no confirmó: se borra la sesión local para poder volver a vincular.
+	fmt.Fprintf(os.Stderr, "No pude avisarle a WhatsApp: %v\n", connectErr)
+	client.Disconnect()
+	if err := client.Store.Delete(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "Tampoco pude borrar la sesión local: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Sesión local cerrada. Si tu teléfono sigue mostrando este Mac en «Dispositivos vinculados», quítalo desde ahí.")
 }
 
 // runInstallLaunchd — subcomando "install-launchd": ver launchd.go.

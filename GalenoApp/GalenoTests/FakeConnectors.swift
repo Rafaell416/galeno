@@ -150,6 +150,15 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
         }
     }
 
+    /// `claude mcp list`: lo mismo que `statuses`, salvo que se haga fallar el listado.
+    var listingFails = false
+    func listStatuses() async -> [String: MCPStatus]? {
+        lock.withLock {
+            recorded.append("list")
+            return listingFails ? nil : statuses
+        }
+    }
+
     func countItems(server: String, noun: String) async -> ItemCount? {
         let mustHold: Bool = lock.withLock {
             recorded.append("count \(server) \(noun)")
@@ -201,6 +210,49 @@ final class FakeWhatsApp: WhatsAppLinking, @unchecked Sendable {
 
     var calls: [String] { lock.withLock { recorded } }
 
+    // Lo que ve la vista de salud. `pair` con éxito vincula, `unlink` desvincula, `installLaunchd` deja `sync` corriendo.
+    private var statusValue: WhatsAppStatus?
+    private var syncValue: WhatsAppSyncState = .notInstalled
+    private var unlinkError: WhatsAppBridgeError?
+    var reportedStatus: WhatsAppStatus? {
+        get { lock.withLock { statusValue } }
+        set { lock.withLock { statusValue = newValue } }
+    }
+    var reportedSync: WhatsAppSyncState {
+        get { lock.withLock { syncValue } }
+        set { lock.withLock { syncValue = newValue } }
+    }
+    var failUnlink: WhatsAppBridgeError? {
+        get { lock.withLock { unlinkError } }
+        set { lock.withLock { unlinkError = newValue } }
+    }
+
+    func status() async -> WhatsAppStatus? {
+        lock.withLock {
+            recorded.append("status")
+            return statusValue
+        }
+    }
+
+    func syncState() async -> WhatsAppSyncState {
+        lock.withLock {
+            recorded.append("syncState")
+            return syncValue
+        }
+    }
+
+    func unlink() async throws {
+        let error: WhatsAppBridgeError? = lock.withLock {
+            recorded.append("unlink")
+            return unlinkError
+        }
+        if let error { throw error }
+        lock.withLock {
+            statusValue = WhatsAppStatus(isLinked: false, number: nil, linkedAt: nil, bridgeVersion: statusValue?.bridgeVersion ?? "0.3.0")
+            syncValue = .notInstalled
+        }
+    }
+
     func prepare() async throws {
         lock.withLock { recorded.append("prepare") }
         if let prepareError { throw prepareError }
@@ -213,6 +265,12 @@ final class FakeWhatsApp: WhatsAppLinking, @unchecked Sendable {
 
     func pair() -> AsyncStream<WhatsAppPairEvent> {
         lock.withLock { recorded.append("pair") }
+        if pairEvents.contains(.succeeded) {
+            lock.withLock {
+                statusValue = WhatsAppStatus(
+                    isLinked: true, number: "573001234567", linkedAt: Date(), bridgeVersion: statusValue?.bridgeVersion ?? "0.3.0")
+            }
+        }
         let events = pairEvents
         return AsyncStream { continuation in
             for event in events { continuation.yield(event) }
@@ -223,6 +281,7 @@ final class FakeWhatsApp: WhatsAppLinking, @unchecked Sendable {
     func installLaunchd() async throws {
         lock.withLock { recorded.append("installLaunchd") }
         if let installError { throw installError }
+        lock.withLock { syncValue = .running }
     }
 
     func chatCounts() async -> ChatCounts? {

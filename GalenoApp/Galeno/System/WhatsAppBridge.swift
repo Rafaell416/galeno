@@ -4,11 +4,9 @@ import Foundation
 
 /// Lo que `galeno-whatsapp` imprime y la app reconoce.
 ///
-/// El bridge no tiene salida estructurada salvo `chats --json`: `status` y
-/// `pair` se entienden por su texto, que está en español. Todo lo que depende
-/// de esos textos vive aquí, en un solo lugar y con pruebas, para que un cambio
-/// en el bridge se note enseguida. (Un `status --json` sería mejor: queda
-/// propuesto como paso aparte porque toca Go.)
+/// `pair` y `status` a secas se entienden por su texto, que está en español. La vista de salud
+/// usa `status --json` (desde la 0.3.0) y `chats --json`. Todo lo que depende de esos textos vive
+/// aquí, en un solo lugar y con pruebas, para que un cambio en el bridge se note enseguida.
 nonisolated enum BridgeText {
     /// `status`: "Vinculado como 573001234567." / "Sin vincular. Corre: galeno-whatsapp pair"
     static let linkedPrefix = "Vinculado como "
@@ -36,6 +34,42 @@ nonisolated struct ChatCounts: Equatable, Sendable {
     var groups: Int
 }
 
+/// `status --json`: lo que la vista de salud sabe de la sesión de WhatsApp.
+nonisolated struct WhatsAppStatus: Equatable, Sendable {
+    var isLinked: Bool
+    var number: String?
+    /// Cuándo vinculó WhatsApp este dispositivo. `nil` si el bridge no lo pudo leer: no se inventa.
+    var linkedAt: Date?
+    /// La versión del bridge que contestó.
+    var bridgeVersion: String
+}
+
+/// ¿Está `sync` (el servicio de fondo) corriendo? Sale de `launchctl print`.
+nonisolated enum WhatsAppSyncState: Equatable, Sendable {
+    case running
+    /// El LaunchAgent está cargado pero el proceso no corre ahora.
+    case stopped
+    /// No hay LaunchAgent: nunca se instaló, o se quitó.
+    case notInstalled
+}
+
+/// Cuándo avisar de que la sesión de WhatsApp puede rotar. El «~20 días» es la estimación de la guía de
+/// construcción, no un dato que WhatsApp publique: el aviso lo dice con «puede». Se avisa con un margen.
+nonisolated enum WhatsAppSession {
+    static let estimatedRotationDays = 20
+    static let warnAfterDays = 18
+
+    /// Días enteros desde que se vinculó, o `nil` si no se sabe.
+    static func ageInDays(linkedAt: Date?, now: Date = Date()) -> Int? {
+        guard let linkedAt else { return nil }
+        return max(0, Calendar(identifier: .gregorian).dateComponents([.day], from: linkedAt, to: now).day ?? 0)
+    }
+
+    static func shouldRelink(linkedAt: Date?, now: Date = Date()) -> Bool {
+        (ageInDays(linkedAt: linkedAt, now: now) ?? 0) >= warnAfterDays
+    }
+}
+
 nonisolated enum WhatsAppBridgeError: Error, Equatable, Sendable {
     case bridgeMissing
     case installFailed(String)
@@ -56,6 +90,19 @@ nonisolated protocol WhatsAppLinking: Sendable {
     /// Idempotente: se puede correr de nuevo.
     func installLaunchd() async throws
     func chatCounts() async -> ChatCounts?
+    /// `status --json`. `nil` si el bridge no contestó o su salida no se entendió.
+    func status() async -> WhatsAppStatus?
+    /// ¿Corre `sync`? (`launchctl print`).
+    func syncState() async -> WhatsAppSyncState
+    /// Cierra la sesión: detiene `sync`, le avisa a WhatsApp (`unlink`) y deja el Mac sin vincular, listo para
+    /// un `pair` nuevo. **No borra** el historial ya sincronizado.
+    func unlink() async throws
+}
+
+extension WhatsAppLinking {
+    func status() async -> WhatsAppStatus? { nil }
+    func syncState() async -> WhatsAppSyncState { .notInstalled }
+    func unlink() async throws { throw WhatsAppBridgeError.unexpectedOutput("unlink no disponible") }
 }
 
 // MARK: - El binario
@@ -222,6 +269,35 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
         }
     }
 
+    func status() async -> WhatsAppStatus? {
+        // Solo stdout: stderr lleva los logs y rompería el JSON.
+        guard let result = await runner.run(binaryPath, arguments: ["status", "--json"], timeout: 15),
+            result.status == 0
+        else { return nil }
+        return Self.parseStatus(jsonOutput: result.output)
+    }
+
+    func syncState() async -> WhatsAppSyncState {
+        let target = "gui/\(getuid())/\(Self.launchAgentLabel)"
+        guard let result = await runner.run("/bin/launchctl", arguments: ["print", target], timeout: 10) else {
+            return .notInstalled
+        }
+        return Self.parseSyncState(launchctlOutput: result.output, exitStatus: result.status)
+    }
+
+    func unlink() async throws {
+        // `sync` y `unlink` usan la misma sesión: con los dos conectados WhatsApp expulsa a uno. Se detiene
+        // `sync` primero (si no estaba, `bootout` falla y no importa); quien vuelva a vincular lo reinstala.
+        _ = await runner.run(
+            "/bin/launchctl", arguments: ["bootout", "gui/\(getuid())/\(Self.launchAgentLabel)"], timeout: 15)
+        guard let result = await runCapturing(["unlink"], timeout: 45), result.status == 0 else {
+            throw WhatsAppBridgeError.unexpectedOutput("no se pudo cerrar la sesión")
+        }
+    }
+
+    /// El LaunchAgent de `launchd.go` (`launchAgentLabel`).
+    static let launchAgentLabel = "com.galeno.whatsapp-bridge"
+
     func chatCounts() async -> ChatCounts? {
         // Solo stdout: stderr lleva los logs y rompería el JSON.
         guard let result = await runner.run(binaryPath, arguments: ["chats", "--json"], timeout: 30),
@@ -257,6 +333,35 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
             .filter { !$0.isEmpty }
             .suffix(2).joined(separator: " ")
         return .failed(result.wasStopped ? "se agotó el tiempo" : detail)
+    }
+
+    /// `{"linked":true,"number":"573001234567","linked_at":1760000000,"version":"0.3.0"}`. Sin `version` no se
+    /// da por entendido: sería otro programa.
+    static func parseStatus(jsonOutput: String) -> WhatsAppStatus? {
+        struct Report: Decodable {
+            var linked: Bool
+            var number: String?
+            var linked_at: Double?
+            var version: String
+        }
+        guard let data = jsonOutput.data(using: .utf8),
+            let report = try? JSONDecoder().decode(Report.self, from: data)
+        else { return nil }
+        return WhatsAppStatus(
+            isLinked: report.linked,
+            number: report.number,
+            linkedAt: report.linked_at.flatMap { $0 > 0 ? Date(timeIntervalSince1970: $0) : nil },
+            bridgeVersion: report.version)
+    }
+
+    /// `launchctl print gui/<uid>/<label>`: sale con 0 y `state = running` si corre; con 0 y otro estado, cargado
+    /// pero parado; con otro código, no existe.
+    static func parseSyncState(launchctlOutput: String, exitStatus: Int32) -> WhatsAppSyncState {
+        guard exitStatus == 0 else { return .notInstalled }
+        let running = launchctlOutput.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .contains { $0 == "state = running" }
+        return running ? .running : .stopped
     }
 
     static func parseChatCounts(jsonOutput: String) -> ChatCounts? {
