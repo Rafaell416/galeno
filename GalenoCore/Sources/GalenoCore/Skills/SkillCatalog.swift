@@ -59,8 +59,34 @@ public struct SkillExample: Codable, Hashable, Sendable {
     }
 }
 
-/// Una skill nuestra, tal como la lista el catálogo. El contenido está en
-/// `skills/galeno/<id>/SKILL.md`; esto es lo que la pantalla 7 muestra.
+/// De quién es una skill que no escribimos nosotros: su autor, su repositorio y su licencia. Va siempre a la
+/// vista en la app, con el enlace al original.
+public struct SkillCredit: Codable, Hashable, Sendable {
+    /// El autor, tal como se acredita en la pantalla.
+    public var author: String
+    /// El repositorio de origen.
+    public var repository: URL
+    /// La ruta de la skill dentro del repositorio.
+    public var path: String
+    /// La licencia (SPDX).
+    public var license: String
+
+    public init(author: String, repository: URL, path: String, license: String) {
+        self.author = author
+        self.repository = repository
+        self.path = path
+        self.license = license
+    }
+
+    /// El link a la skill dentro de su GitHub.
+    public var sourceURL: URL {
+        repository.appending(path: "tree/main").appending(path: path)
+    }
+}
+
+/// Una skill tal como la muestra el paso «Skills»: una tarjeta con su vista previa. Las nuestras salen de
+/// `galeno` en el catálogo (contenido en `skills/galeno/<id>/SKILL.md`); las de terceros ya traídas y
+/// revisadas, de `curated` (``CuratedSkill/card``, contenido en `skills/curated/<id>/`), y llevan `credit`.
 public struct CatalogSkill: Codable, Hashable, Sendable, Identifiable {
     public var id: String
     public var group: String
@@ -78,12 +104,15 @@ public struct CatalogSkill: Codable, Hashable, Sendable, Identifiable {
     public var example: SkillExample?
     /// Una garantía propia de esta skill, para la vista previa («No crea ninguna tarea sin tu "sí"»).
     public var guarantee: LocalizedText?
+    /// De quién es, si no es nuestra. `nil` = la escribimos nosotros.
+    public var credit: SkillCredit?
 
     public init(
         id: String, group: String, name: LocalizedText, summary: LocalizedText, writes: [Tool] = [],
         needsAny: [Tool] = [], ask: LocalizedText? = nil, example: SkillExample? = nil,
-        guarantee: LocalizedText? = nil
+        guarantee: LocalizedText? = nil, credit: SkillCredit? = nil
     ) {
+        self.credit = credit
         self.id = id
         self.group = group
         self.name = name
@@ -97,6 +126,9 @@ public struct CatalogSkill: Codable, Hashable, Sendable, Identifiable {
 
     /// El comando con el que se invoca.
     public var command: String { "/" + id }
+
+    /// De qué carpeta se instala: las nuestras de `galeno/`, las de terceros de `curated/`.
+    public var source: SkillSource { credit == nil ? .galeno : .curated }
 
     /// ¿Puede terminar enviando algo a otras personas? Hoy, las que escriben en Slack. La vista
     /// previa lo dice: «Siempre te pide aprobación antes de enviar».
@@ -127,10 +159,29 @@ public struct CuratedSkill: Codable, Hashable, Sendable, Identifiable {
     /// `false` mientras su contenido todavía no se ha traído a `skills/curated/<id>/`: se
     /// muestra con su crédito pero no se puede marcar.
     public var available: Bool
+    /// El grupo del paso «Skills» donde se muestra. Sin grupo no tiene tarjeta (las de la comunidad que solo
+    /// están listadas).
+    public var group: String?
+    /// Lo mismo que en ``CatalogSkill``: dónde escribe, qué necesita y lo que enseña su vista previa.
+    public var writes: [Tool]?
+    public var needsAny: [Tool]?
+    public var ask: LocalizedText?
+    public var example: SkillExample?
+    public var guarantee: LocalizedText?
+
+    public var credit: SkillCredit {
+        SkillCredit(author: author, repository: repository, path: path, license: license)
+    }
 
     /// El link a la skill dentro de su GitHub.
-    public var sourceURL: URL {
-        repository.appending(path: "tree/main").appending(path: path)
+    public var sourceURL: URL { credit.sourceURL }
+
+    /// Su tarjeta en el paso «Skills»: solo si su contenido ya está traído y tiene grupo.
+    public var card: CatalogSkill? {
+        guard available, let group else { return nil }
+        return CatalogSkill(
+            id: id, group: group, name: name, summary: summary, writes: writes ?? [], needsAny: needsAny ?? [],
+            ask: ask, example: example, guarantee: guarantee, credit: credit)
     }
 }
 
@@ -216,7 +267,14 @@ public struct SkillCatalog: Codable, Hashable, Sendable {
         for skill in galeno where !groupIDs.contains(skill.group) {
             throw SkillCatalogError.invalid("«\(skill.id)» está en un grupo que no existe: \(skill.group)")
         }
+        // Una nuestra no lleva crédito de nadie: si lo llevara, se instalaría desde `curated/`.
+        for skill in galeno where skill.credit != nil {
+            throw SkillCatalogError.invalid("«\(skill.id)» está entre las nuestras y trae crédito de un tercero")
+        }
         for skill in curated {
+            if let group = skill.group, !groupIDs.contains(group) {
+                throw SkillCatalogError.invalid("«\(skill.id)» está en un grupo que no existe: \(group)")
+            }
             guard Self.permittedLicenses.contains(skill.license) else {
                 throw SkillCatalogError.invalid("«\(skill.id)» tiene una licencia no permitida: \(skill.license)")
             }
@@ -231,12 +289,16 @@ public struct SkillCatalog: Codable, Hashable, Sendable {
 
     // MARK: Usar
 
-    /// Las skills nuestras de un grupo, en el orden del catálogo.
+    /// Todas las skills que tienen tarjeta: las nuestras y las de terceros ya traídas, en el orden del catálogo.
+    public var cards: [CatalogSkill] { galeno + curated.compactMap(\.card) }
+
+    /// Las skills de un grupo, en el orden del catálogo: primero las nuestras.
     public func skills(in group: SkillGroup) -> [CatalogSkill] {
-        galeno.filter { $0.group == group.id }
+        cards.filter { $0.group == group.id }
     }
 
-    /// Lo que viene marcado de fábrica: todas las nuestras. El usuario desmarca las que no quiere.
+    /// Lo que viene marcado de fábrica: todas las nuestras. El usuario desmarca las que no quiere, y marca
+    /// las de terceros que le sirvan.
     public var defaultSelection: [SelectedSkill] {
         galeno.map { SelectedSkill(id: $0.id, source: .galeno) }
     }

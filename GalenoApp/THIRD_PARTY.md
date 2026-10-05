@@ -82,3 +82,17 @@ quitó el texto y se ajustó el contraste; no se redibujó nada.
 | `plate-pluma` | *A seated man sharpening a quill pen*, grabado de línea con aguafuerte de Robert William Wallis según Frans van Mieris el Viejo (publicado en 1880): el hombre, la pluma, el libro y el globo, en viñeta. Se usó el archivo de 890 px que aportó Rafa | [Wellcome Collection, 46345i](https://wellcomecollection.org/works/wpjz9b6n) | Public Domain Mark (según la ficha de Wellcome) |
 
 Si faltara alguna, `Plate` dibuja un marcador solo en Debug (`Plate.swift`).
+
+## Skills de terceros
+
+Las skills de `skills/curated/` viajan dentro de la app (y de ahí, a la carpeta de cada agente que las marque). Son
+**adaptaciones**, no copias: cada `SKILL.md` termina con una sección «Source» que dice de dónde salió y qué cambió
+Galeno, y lleva al lado el `LICENSE` de su origen. Cómo se adapta una: `docs/03` §6.2.
+
+| Skills | Autor | Origen | Licencia |
+|---|---|---|---|
+| `campaign-plan`, `content-creation`, `email-sequence`, `brand-review`, `performance-report`, `seo-audit`, `competitive-brief` | Anthropic | [`anthropics/knowledge-work-plugins`, `marketing/`](https://github.com/anthropics/knowledge-work-plugins/tree/main/marketing) | Apache-2.0 |
+| `discover-brand`, `guideline-generation`, `brand-voice-enforcement` | Tribe AI | [`anthropics/knowledge-work-plugins`, `partner-built/brand-voice/`](https://github.com/anthropics/knowledge-work-plugins/tree/main/partner-built/brand-voice) | MIT |
+
+Sus iconos (`Assets.xcassets/SkillIcons/skill-<id>`) son dibujos propios de Galeno, de línea a 1,5 pt, como los de
+las skills nuestras.

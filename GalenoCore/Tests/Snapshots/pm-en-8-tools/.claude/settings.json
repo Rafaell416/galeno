@@ -28,6 +28,7 @@
       "Glob",
       "Grep",
       "Read",
+      "WebSearch",
       "mcp__claude_ai_Gmail__get_draft",
       "mcp__claude_ai_Gmail__get_message",
       "mcp__claude_ai_Gmail__get_thread",

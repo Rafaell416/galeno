@@ -541,6 +541,14 @@ Claude Design («Galeno B1 Activación») y la base de skills por rol que consig
 **tres roles (producto, marketing, comercial)**, lo que reabre «solo PM» y «otras plantillas»; se documenta al construirlo.
 Y **las demás conexiones quedan en pausa** (Fireflies, Granola) hasta que lo que hay quede sólido.
 
+*Skills por rol (rama `feat/skills-marketing`, 5 oct 2026):* **marketing completo, diez skills** adaptadas y con su licencia
+(`skills/curated/`, `docs/03` §6.2): siete de Anthropic y tres de voz de marca de Tribe AI. Aparecen en el paso de skills en
+un grupo «Marketing», sin marcar de fábrica, cada una con su dibujo. El agente **busca en la web sin pedir permiso**
+(`WebSearch`; se ve en «Tus herramientas»). Faltan: que Rafa las revise, comercial, y **los roles**, que todavía no existen:
+hoy cualquier agente ve las de marketing como un grupo más. Por decidir: **si `WebFetch` (abrir una página concreta) también
+va sin preguntar**, que hoy pide aprobación porque una dirección puede llevar datos; y si la copia de la guía anterior de
+marca la debe hacer la app en vez del modelo (`guideline-generation` la reescribe a mano y puede no quedar fiel).
+
 Lo que no entendió (UX):
 
 - No hay onboarding: no sabía qué estaba haciendo ni para qué.

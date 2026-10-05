@@ -66,12 +66,12 @@ private struct SkillsTotals: View {
     @State private var cascade: Task<Void, Never>?
 
     private var selectedCount: Int {
-        catalog.galeno.filter { wizard.isSkillSelected($0.id, source: .galeno) }.count
+        catalog.cards.filter { wizard.isSkillSelected($0.id, source: $0.source) }.count
     }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Text(verbatim: Localized.string("skills.count %lld %lld", selectedCount, catalog.galeno.count, locale: locale))
+            Text(verbatim: Localized.string("skills.count %lld %lld", selectedCount, catalog.cards.count, locale: locale))
                 .font(Typo.text(14))
                 .foregroundStyle(Color.ink700)
                 // El contador cuenta mientras los checks van cayendo.
@@ -86,16 +86,16 @@ private struct SkillsTotals: View {
     /// Marca o desmarca todas en cascada de 30 ms, en el orden del catálogo. Con «Reducir movimiento» cambian
     /// todas a la vez.
     private func setAll(_ on: Bool) {
-        let pending = catalog.galeno.filter { wizard.isSkillSelected($0.id, source: .galeno) != on }
+        let pending = catalog.cards.filter { wizard.isSkillSelected($0.id, source: $0.source) != on }
         cascade?.cancel()
         if reduceMotion || pending.count < 2 {
-            for skill in pending { wizard.toggleSkill(skill.id, source: .galeno) }
+            for skill in pending { wizard.toggleSkill(skill.id, source: skill.source) }
             return
         }
         cascade = Task {
             for skill in pending {
                 if Task.isCancelled { return }
-                wizard.toggleSkill(skill.id, source: .galeno)
+                wizard.toggleSkill(skill.id, source: skill.source)
                 try? await Task.sleep(for: .milliseconds(30))
             }
         }
@@ -151,7 +151,7 @@ private struct SkillsContent<Header: View>: View {
     /// El rótulo de un grupo, fijo arriba: su nombre en versalitas y su «marcadas/total».
     private func groupHeader(_ group: SkillGroup) -> some View {
         let skills = catalog.skills(in: group)
-        let on = skills.filter { wizard.isSkillSelected($0.id, source: .galeno) }.count
+        let on = skills.filter { wizard.isSkillSelected($0.id, source: $0.source) }.count
         return HStack(alignment: .firstTextBaseline) {
             SmallCapsText(string: group.name.text(in: wizard.language), size: 12, tracking: 0.12)
                 .foregroundStyle(Color.ink500)
@@ -177,14 +177,14 @@ private struct SkillsContent<Header: View>: View {
             ForEach(catalog.skills(in: group)) { skill in
                 SkillCard(
                     skill: skill, isFocused: focused == skill.id,
-                    toggle: { wizard.toggleSkill(skill.id, source: .galeno) },
+                    toggle: { wizard.toggleSkill(skill.id, source: skill.source) },
                     preview: { wizard.previewedSkill = skill }
                 )
                 .id(skill.id)
                 .focusable()
                 .focused($focused, equals: skill.id)
                 .onKeyPress(.space) {
-                    wizard.toggleSkill(skill.id, source: .galeno)
+                    wizard.toggleSkill(skill.id, source: skill.source)
                     return .handled
                 }
                 .onKeyPress(.return) {
@@ -245,7 +245,7 @@ struct SkillCard: View {
     @State private var hovering = false
     @Environment(\.locale) private var locale
 
-    private var isOn: Bool { wizard.isSkillSelected(skill.id, source: .galeno) }
+    private var isOn: Bool { wizard.isSkillSelected(skill.id, source: skill.source) }
     private var isMissing: Bool { !skill.isUseful(with: wizard.connectedTools) }
     private var isHot: Bool { hovering || forcedHover }
     private var showsPreview: Bool { isHot || isFocused }

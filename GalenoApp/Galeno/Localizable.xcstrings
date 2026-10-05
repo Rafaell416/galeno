@@ -9211,6 +9211,40 @@
         }
       }
     },
+    "skills.from.author %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By %@ · %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De %@ · %@"
+          }
+        }
+      }
+    },
+    "skills.credit.original" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See the original"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver el original"
+          }
+        }
+      }
+    },
     "step.agent.summary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9826,6 +9860,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Todo lo que elegiste ya está conectado"
+          }
+        }
+      }
+    },
+    "tools.web.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Web search"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Búsqueda web"
+          }
+        }
+      }
+    },
+    "tools.included" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Included"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incluida"
+          }
+        }
+      }
+    },
+    "tools.web.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your agent searches the web without asking. To open a specific page it does ask you."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu agente busca en la web sin pedir permiso. Para abrir una página concreta sí te lo pide."
           }
         }
       }
