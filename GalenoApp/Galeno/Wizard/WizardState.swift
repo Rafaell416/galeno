@@ -15,6 +15,11 @@ final class WizardState: ObservableObject {
     /// El paso más lejano al que se ha llegado: ⌘1…⌘0 solo salta a pasos ya visitados.
     private(set) var furthestStep: WizardStep = .welcome
 
+    /// El wizard completo (la primera vez) o el corto de «Nuevo agente» (`docs/03` §3b): sin idioma, detección ni
+    /// conexiones ya hechas; parte de las herramientas que la instalación ya tiene conectadas.
+    enum Mode: Equatable { case full, short }
+    let mode: Mode
+
     // MARK: Lo que captura el wizard
 
     @Published var language: Language
@@ -99,13 +104,28 @@ final class WizardState: ObservableObject {
         claudeStatus: ClaudeCodeStatus = .checking,
         claudeDetector: ClaudeCodeDetector = .live,
         connectServices: ConnectServices = .live(),
-        draftStore: (any DraftStoring)? = nil
+        draftStore: (any DraftStoring)? = nil,
+        startingFrom installation: GalenoInstallation? = nil
     ) {
         language = Self.defaultLanguage(from: preferredLanguages)
         self.claudeStatus = claudeStatus
         self.claudeDetector = claudeDetector
         self.connectServices = connectServices
-        self.draftStore = draftStore
+        // El corto se hace de una vez: nunca guarda ni pisa el borrador del wizard completo.
+        self.draftStore = installation == nil ? draftStore : nil
+        if let installation {
+            // «Nuevo agente»: el idioma y las conexiones ya hechas son los de la instalación (la función de
+            // la Fase 3b), y se empieza en el nombre. No hay borrador: es corto y se hace de una vez.
+            mode = .short
+            language = installation.language
+            connections = installation.startingPoint(agentName: "").connections
+            step = .agent
+            furthestStep = .agent
+            // Conectar una herramienta nueva necesita saber dónde está `claude`; el paso 2 no existe aquí.
+            if !claudeStatus.isFound { Task { await detectClaudeCode() } }
+            return
+        }
+        mode = .full
         if let draft = draftStore?.load(), draft.step > WizardStep.welcome.rawValue {
             pendingDraft = draft
             language = draft.language  // la pantalla de «¿Seguimos?» habla en su idioma
@@ -167,16 +187,47 @@ final class WizardState: ObservableObject {
 
     // MARK: Navegación
 
-    var stepCount: Int { WizardStep.allCases.count }
+    /// Los pasos de este wizard, en orden. El corto no tiene bienvenida ni detección, y solo tiene «Conectar» si
+    /// alguna herramienta elegida todavía no está conectada.
+    var stepOrder: [WizardStep] {
+        switch mode {
+        case .full: return WizardStep.allCases
+        case .short:
+            let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
+            return [.agent, .tools] + (connecting ? [.connect] : []) + [.skills, .rules, .review, .generating, .done]
+        }
+    }
 
-    /// De 1/10 en el primer paso a 1 en el último: la barra se ve desde el
+    /// Si «Conectar» entra en el wizard corto, decidido al salir de «Tus herramientas»: mientras se conecta,
+    /// las herramientas pasan a conectadas y el paso no puede desaparecer a mitad de camino.
+    private var connectStepLocked = false
+
+    var stepCount: Int { stepOrder.count }
+
+    /// 1 en el primer paso del wizard (no el número fijo del paso: el corto tiene menos).
+    var stepNumber: Int { (stepOrder.firstIndex(of: step) ?? 0) + 1 }
+
+    /// De 1/N en el primer paso a 1 en el último: la barra se ve desde el
     /// principio y se llena del todo en "Listo".
-    var progress: Double { Double(step.number) / Double(stepCount) }
+    var progress: Double { Double(stepNumber) / Double(stepCount) }
 
-    var isFirstStep: Bool { step == WizardStep.allCases.first }
-    var isLastStep: Bool { step == WizardStep.allCases.last }
+    var isFirstStep: Bool { step == stepOrder.first }
+    var isLastStep: Bool { step == stepOrder.last }
 
-    var canGoBack: Bool { step.allowsGoingBack }
+    private func step(after current: WizardStep) -> WizardStep? {
+        let order = stepOrder
+        guard let index = order.firstIndex(of: current), index + 1 < order.count else { return nil }
+        return order[index + 1]
+    }
+
+    private func step(before current: WizardStep) -> WizardStep? {
+        let order = stepOrder
+        guard let index = order.firstIndex(of: current), index > 0 else { return nil }
+        return order[index - 1]
+    }
+
+    /// En el primer paso no hay atrás: en el wizard corto se cancela (vuelve al home).
+    var canGoBack: Bool { step.allowsGoingBack && !isFirstStep }
     var canGoForward: Bool { !isLastStep && isCurrentStepComplete }
 
     /// El sub-wizard del paso 5 lleva sus propios botones (Conectar, Conectar después,
@@ -200,7 +251,8 @@ final class WizardState: ObservableObject {
     }
 
     func next() {
-        guard canGoForward, let following = WizardStep(rawValue: step.rawValue + 1) else { return }
+        if mode == .short, step == .tools { connectStepLocked = hasToConnect }
+        guard canGoForward, let following = step(after: step) else { return }
         // Cada vez que se entra a «Generando» es una generación nueva: la de antes ya no cuenta.
         if following == .generating {
             generation?.cancel()
@@ -210,7 +262,7 @@ final class WizardState: ObservableObject {
     }
 
     func back() {
-        guard canGoBack, let previous = WizardStep(rawValue: step.rawValue - 1) else { return }
+        guard canGoBack, let previous = step(before: step) else { return }
         // Desde «Listo» se vuelve a la revisión, no a la pantalla de escribir (que no se puede
         // deshacer): al avanzar se regenera el mismo agente, en la misma carpeta.
         step = step == .done ? .review : previous
@@ -246,7 +298,7 @@ final class WizardState: ObservableObject {
         default:
             pending = 0
         }
-        return max(1, pending + max(0, stepCount - step.number))
+        return max(1, pending + max(0, stepCount - stepNumber))
     }
 
     // MARK: Paso 2: Claude Code
@@ -346,14 +398,20 @@ final class WizardState: ObservableObject {
         }
     }
 
-    /// "~X min" del pie de la grilla.
-    var estimatedSetupMinutes: Int { ToolEstimate.minutes(for: selectedTools) }
+    /// Las elegidas que todavía no están conectadas: lo que el paso 5 tiene que hacer. En el wizard completo son
+    /// todas; en el corto, solo las que la instalación aún no tenía.
+    var toConnect: [Tool] { connections.filter { $0.status != .connected }.map(\.tool) }
+    var hasToConnect: Bool { !toConnect.isEmpty }
+
+    /// "~X min" del pie de la grilla: solo lo que falta por conectar.
+    var estimatedSetupMinutes: Int { ToolEstimate.minutes(for: toConnect) }
 
     // MARK: Paso 5: conectar
 
     /// Crea el sub-wizard (o conserva el que ya hay, si las herramientas son las mismas).
     func beginConnecting() {
-        let tools = ConnectTarget.connectionTools(from: selectedTools)
+        let pending = connections.filter { mode == .full || $0.status != .connected }.map(\.tool)
+        let tools = ConnectTarget.connectionTools(from: pending)
         if connectFlow != nil, connectFlowTools == tools { return }
 
         connectFlow?.cancelAll()
@@ -362,7 +420,7 @@ final class WizardState: ObservableObject {
         if case .found(_, let path, _) = claudeStatus { claudePath = path } else { claudePath = "claude" }
 
         let flow = ConnectFlow(
-            tools: selectedTools,
+            tools: pending,
             statuses: Dictionary(uniqueKeysWithValues: connections.map { ($0.tool, $0.status) }),
             mcp: connectServices.makeMCP(claudePath),
             whatsapp: connectServices.whatsapp,
@@ -568,7 +626,7 @@ final class WizardState: ObservableObject {
     /// Terminó bien: se pasa a «Listo». El borrador ya no hace falta.
     func finishGeneration() {
         guard step == .generating, generation?.phase == .succeeded,
-            let following = WizardStep(rawValue: step.rawValue + 1)
+            let following = step(after: step)
         else { return }
         step = following
         draftStore?.clear()

@@ -114,17 +114,20 @@ struct ToolsStepView: View {
     /// «Vas a conectar 5 herramientas · ~8 min», a la derecha del título.
     @ViewBuilder
     private var summary: some View {
-        let count = wizard.selectedTools.count
+        // Solo cuenta lo que falta por conectar: en el wizard corto, lo ya conectado no se vuelve a hacer.
+        let count = wizard.toConnect.count
         let minutes = wizard.estimatedSetupMinutes
+        let chosen = wizard.selectedTools.count
         Group {
             switch count {
+            case 0 where chosen > 0: Text("tools.summary.ready")
             case 0: Text("tools.summary.none")
             case 1: Text("tools.summary.one \(minutes)")
             default: Text("tools.summary.other \(count) \(minutes)")
             }
         }
         .font(Typo.list)
-        .foregroundStyle(count == 0 ? Color.ink500 : Color.ink700)
+        .foregroundStyle(chosen == 0 ? Color.ink500 : Color.ink700)
         .multilineTextAlignment(.trailing)
         // Las cifras giran como un rodillo; el texto no se reconstruye entero.
         .contentTransition(.numericText())
@@ -148,9 +151,11 @@ private struct ToolCard: View {
         let selected = wizard.isSelected(tool)
         let name = tool.displayName(in: wizard.language)
         let soon = tool.isComingSoon
+        // En el wizard corto, las que la instalación ya tiene conectadas llevan su marca: no habrá que conectarlas.
+        let alreadyConnected = wizard.mode == .short && wizard.connection(for: tool)?.status == .connected
 
         Button(action: action) {
-            VStack(spacing: soon ? 2 : 5) {
+            VStack(spacing: soon || alreadyConnected ? 2 : 5) {
                 // El logo se enciende: de `ink-500` a `ink-900` (200 ms).
                 ToolIcon(tool: tool, size: soon ? 20 : 24, color: selected ? .ink900 : .ink500)
                     .opacity(soon ? 0.55 : 1)
@@ -164,6 +169,9 @@ private struct ToolCard: View {
                 if soon {
                     // Todavía no se ha probado de punta a punta: se ve, pero no se puede marcar.
                     SmallCapsLabel("tools.comingSoon", size: 10)
+                        .foregroundStyle(Color.ink500)
+                } else if alreadyConnected {
+                    SmallCapsLabel("tools.connected", size: 10)
                         .foregroundStyle(Color.ink500)
                 }
             }

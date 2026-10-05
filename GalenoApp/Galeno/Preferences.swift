@@ -8,6 +8,8 @@ enum Prefs {
     /// Los tres sonidos (`Sounds`). Sin valor guardado cuentan como encendidos.
     static let sounds = "GalenoSoundsEnabled"
     static let splashShown = "GalenoSplashShown"
+    /// Dónde abre el home un agente: la app de Claude o Terminal (la última elección).
+    static let openTarget = "GalenoOpenTarget"
 }
 
 /// Cómo se ve la app: la del sistema, siempre clara o siempre oscura.
@@ -63,4 +65,31 @@ private struct MotionPreference: ViewModifier {
 extension View {
     /// Se pone una vez en la raíz de cada ventana.
     func motionPreference() -> some View { modifier(MotionPreference()) }
+}
+
+// MARK: - Terminar el wizard
+
+private struct FinishWizardKey: EnvironmentKey {
+    static let defaultValue: (@MainActor () -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// Qué hace «Terminar» en el último paso. Con el home, vuelve a él; sin él (pruebas, vista previa),
+    /// el wizard cierra la app como antes.
+    var galenoFinishWizard: (@MainActor () -> Void)? {
+        get { self[FinishWizardKey.self] }
+        set { self[FinishWizardKey.self] = newValue }
+    }
+}
+
+private struct CancelWizardKey: EnvironmentKey {
+    static let defaultValue: (@MainActor () -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// «Cancelar» en el primer paso del wizard corto: vuelve al home sin crear nada.
+    var galenoCancelWizard: (@MainActor () -> Void)? {
+        get { self[CancelWizardKey.self] }
+        set { self[CancelWizardKey.self] = newValue }
+    }
 }

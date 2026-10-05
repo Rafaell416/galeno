@@ -11,51 +11,78 @@ enum WindowMetrics {
 @main
 struct GalenoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var wizard = WizardState(draftStore: FileDraftStore())
+    @StateObject private var app = AppModel()
 
     var body: some Scene {
         // `Window` y no `WindowGroup`: una sola ventana, nunca una segunda.
         Window("Galeno", id: "wizard") {
-            WizardView()
-                .environmentObject(wizard)
-                .motionPreference()
-                // El idioma del paso 1 cambia toda la app en caliente. Por eso el código
-                // no usa `String(localized:)`: no sigue `\.locale`.
-                .environment(\.locale, Locale(identifier: wizard.language.rawValue))
-                .frame(width: WindowMetrics.width, height: WindowMetrics.height)
-                .background(WindowConfigurator())
+            RootView(app: app)
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
         .commands {
             CommandGroup(replacing: .newItem) {}
-            StepCommands(wizard: wizard)
+            StepCommands(app: app)
         }
 
         Settings {
-            SettingsView().environmentObject(wizard)
+            SettingsView(app: app)
         }
         .windowResizability(.contentSize)
     }
 }
 
+/// La ventana: el home si ya hay agentes, el wizard si no (o con «Nuevo agente»).
+private struct RootView: View {
+    @ObservedObject var app: AppModel
+    @Environment(\.galenoReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            switch app.screen {
+            case .home:
+                HomeView(model: app.home, onNewAgent: app.startNewAgent)
+                    .transition(reduceMotion ? .opacity : .pageTurn)
+            case .wizard:
+                // Un wizard nuevo (otro objeto) empieza de cero también en lo local de cada vista.
+                WizardView()
+                    .id(ObjectIdentifier(app.wizard))
+                    .environmentObject(app.wizard)
+                    .environment(\.galenoFinishWizard, app.finishWizard)
+                    .environment(\.galenoCancelWizard, app.cancelWizard)
+                    .transition(reduceMotion ? .opacity : .pageTurn)
+            }
+        }
+        .animation(reduceMotion ? nil : .pageTurn, value: app.screen)
+        .motionPreference()
+        // El idioma del paso 1 cambia toda la app en caliente. Por eso el código
+        // no usa `String(localized:)`: no sigue `\.locale`.
+        .environment(\.locale, Locale(identifier: app.language.rawValue))
+        .frame(width: WindowMetrics.width, height: WindowMetrics.height)
+        .background(WindowConfigurator())
+    }
+}
+
 /// El menú «Paso»: avanzar, volver y saltar a un paso ya visitado (⌘1…⌘0).
 private struct StepCommands: Commands {
-    @ObservedObject var wizard: WizardState
+    @ObservedObject var app: AppModel
+    private var wizard: WizardState { app.wizard }
+    /// El menú «Paso» solo vale con el wizard a la vista.
+    private var inWizard: Bool { app.screen == .wizard }
 
     var body: some Commands {
         CommandMenu("menu.step") {
             Button("menu.step.next") { wizard.next() }
                 .keyboardShortcut(.rightArrow, modifiers: .command)
-                .disabled(!wizard.canGoForward || wizard.hidesNavigation && wizard.step != .connect)
+                .disabled(!inWizard || !wizard.canGoForward || wizard.hidesNavigation && wizard.step != .connect)
             Button("menu.step.back") { wizard.back() }
                 .keyboardShortcut(.leftArrow, modifiers: .command)
-                .disabled(!wizard.canGoBack)
+                .disabled(!inWizard || !wizard.canGoBack)
             Divider()
-            ForEach(WizardStep.allCases) { step in
-                Button("menu.step.jump \(step.number)") { wizard.goTo(step) }
-                    .keyboardShortcut(KeyEquivalent(Character(String(step.number % 10))), modifiers: .command)
-                    .disabled(step.rawValue > wizard.furthestStep.rawValue || step == wizard.step)
+            ForEach(Array(wizard.stepOrder.enumerated()), id: \.element) { index, step in
+                Button("menu.step.jump \(index + 1)") { wizard.goTo(step) }
+                    .keyboardShortcut(KeyEquivalent(Character(String((index + 1) % 10))), modifiers: .command)
+                    .disabled(!inWizard || step.rawValue > wizard.furthestStep.rawValue || step == wizard.step)
             }
         }
     }

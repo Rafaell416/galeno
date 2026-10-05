@@ -7,6 +7,7 @@ import SwiftUI
 struct WizardView: View {
     @EnvironmentObject private var wizard: WizardState
     @Environment(\.galenoReduceMotion) private var reduceMotion
+    @Environment(\.galenoCancelWizard) private var cancelWizard
 
     /// La portada de la primera vez: el retrato y el nombre, un momento. Después, nunca más.
     @AppStorage(Prefs.splashShown) private var splashShown = false
@@ -36,7 +37,8 @@ struct WizardView: View {
         .onExitCommand {
             switch wizard.step {
             case .welcome, .connect, .generating: break
-            default: wizard.back()
+            default:
+                if wizard.isFirstStep { cancelWizard?() } else { wizard.back() }
             }
         }
     }
@@ -82,7 +84,7 @@ private struct ProgressHeader: View {
     @Environment(\.locale) private var locale
 
     private var label: String {
-        Localized.string("wizard.progress.step %lld %lld", wizard.step.number, wizard.stepCount, locale: locale)
+        Localized.string("wizard.progress.step %lld %lld", wizard.stepNumber, wizard.stepCount, locale: locale)
             + " · "
             + Localized.string("wizard.progress.timeLeft %lld", wizard.estimatedMinutesLeft, locale: locale)
     }
@@ -115,6 +117,8 @@ private struct ProgressHeader: View {
 /// Atrás a la izquierda; a la derecha, la frase de dopamina y el botón que dice qué hace.
 private struct NavigationBar: View {
     @EnvironmentObject private var wizard: WizardState
+    @Environment(\.galenoFinishWizard) private var finishWizard
+    @Environment(\.galenoCancelWizard) private var cancelWizard
 
     private var agentName: String { wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -133,7 +137,8 @@ private struct NavigationBar: View {
     private var primaryLabel: Text {
         switch wizard.step {
         case .welcome: Text("wizard.start")
-        case .tools where !wizard.connections.isEmpty: Text("tools.primary \(wizard.connections.count)")
+        // «Conectar 5 herramientas»: solo las que faltan por conectar. Si ya están todas, «Siguiente».
+        case .tools where wizard.hasToConnect: Text("tools.primary \(wizard.toConnect.count)")
         case .review: Text("review.primary \(agentName)")
         case .done: Text("wizard.finish")
         default: Text("wizard.next")
@@ -144,6 +149,10 @@ private struct NavigationBar: View {
         HStack(spacing: Space.s16) {
             if wizard.canGoBack {
                 Button("wizard.back") { wizard.back() }
+                    .buttonStyle(InkButtonStyle(.secondary, padding: 20))
+            } else if wizard.mode == .short, wizard.isFirstStep, let cancelWizard {
+                // El wizard corto no tiene «Atrás» en su primer paso: se cancela y se vuelve al home.
+                Button("wizard.cancel") { cancelWizard() }
                     .buttonStyle(InkButtonStyle(.secondary, padding: 20))
             }
 
@@ -163,7 +172,7 @@ private struct NavigationBar: View {
 
             Button {
                 if wizard.isLastStep {
-                    NSApplication.shared.terminate(nil)
+                    if let finishWizard { finishWizard() } else { NSApplication.shared.terminate(nil) }
                 } else {
                     wizard.next()
                 }

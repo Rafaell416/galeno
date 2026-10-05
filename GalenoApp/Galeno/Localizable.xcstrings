@@ -5109,6 +5109,278 @@
         }
       }
     },
+    "home.error.body" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No toqué nada: tus agentes siguen donde estaban. Reintenta; si sigue igual, el detalle de abajo dice qué pasó."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I didn't touch anything: your agents are still where they were. Try again; if it persists, the detail below says what happened."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.error.retry" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.error.title" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pude leer tus agentes"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I couldn't read your agents"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.folderMissing" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su carpeta ya no está donde Galeno la dejó."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Its folder is no longer where Galeno left it."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.menu.restart" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cierra y reabre Claude"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quits and reopens Claude"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.new" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuevo agente"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New agent"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.open" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.openIn" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir en"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.reads.none" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todavía no lee ninguna herramienta."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It doesn't read any tool yet."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.reads.one" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lee 1 herramienta"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reads 1 tool"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.reads.other %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lee %lld herramientas"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reads %lld tools"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.summary.one" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 agente"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 agent"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.summary.other %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld agentes"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld agents"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.target.app" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App de Claude"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude app"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.target.terminal" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminal"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminal"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.title" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus agentes"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your agents"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "menu.step" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6724,6 +6996,23 @@
       },
       "extractionState" : "manual"
     },
+    "tools.connected" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectada"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "tools.designNote" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6918,6 +7207,23 @@
         }
       }
     },
+    "tools.summary.ready" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo lo que elegiste ya está conectado"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything you chose is already connected"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "welcome.does.body" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7070,6 +7376,23 @@
           }
         }
       }
+    },
+    "wizard.cancel" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      },
+      "extractionState" : "manual"
     },
     "wizard.finish" : {
       "extractionState" : "manual",

@@ -191,8 +191,9 @@ nonisolated final class ScriptedSourceLister: SourceListing, @unchecked Sendable
 struct ScriptedOpener: AgentOpening {
     var isClaudeAppAvailable: Bool { true }
     func openInClaudeApp(folder: URL, prompt: String?) -> Bool { true }
+    func continueInClaudeApp(folder: URL) -> Bool { true }
     func claudeAppNeedsRestart(since date: Date) -> Bool { false }
-    func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> Bool { true }
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> Bool { true }
     func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool { true }
     func reveal(_ folder: URL) {}
 }
