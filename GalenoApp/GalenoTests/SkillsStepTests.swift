@@ -90,7 +90,8 @@ final class SkillsStepTests: XCTestCase {
         }
         XCTAssertFalse(SkillIcon.hasDrawing("una-que-no-existe"), "una skill sin dibujo usa el símbolo genérico")
         XCTAssertEqual(
-            catalog.groups.filter { !catalog.skills(in: $0).isEmpty }.count, 5, "los cuatro grupos nuestros y el de marketing")
+            catalog.groups.filter { !catalog.skills(in: $0).isEmpty }.count, 6,
+            "los cuatro grupos nuestros, marketing y comercial")
     }
 
     // MARK: Las skills de Anthropic (marketing)
@@ -103,7 +104,9 @@ final class SkillsStepTests: XCTestCase {
         let cards = catalog.skills(in: marketing)
 
         XCTAssertEqual(cards.count, 10)
-        XCTAssertEqual(catalog.cards.count, 27, "17 nuestras, 7 de Anthropic y 3 de Tribe AI")
+        XCTAssertEqual(catalog.cards.count, 32, "17 nuestras, 10 de marketing y 5 de comercial")
+        let sales = try XCTUnwrap(catalog.groups.first { $0.id == "sales" })
+        XCTAssertEqual(catalog.skills(in: sales).count, 5)
         XCTAssertEqual(catalog.missingFiles(in: directory), [], "cada una con su SKILL.md dentro de la app")
         for card in cards {
             XCTAssertEqual(card.source, .curated)

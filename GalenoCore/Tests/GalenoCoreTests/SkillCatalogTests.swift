@@ -120,6 +120,8 @@ final class SkillCatalogTests: XCTestCase {
     /// Las que pueden terminar enviando algo a otras personas (Slack o correo): piden un «yes» explícito.
     private static let sends: Set<String> = [
         "release-notes", "resumen-proyecto", "seguimiento", "informe-slack", "reporte-dia", "acta",
+        // Las de comercial que pueden terminar en un correo o en un mensaje.
+        "call-summary", "draft-outreach", "inbox-sweep",
     ]
 
     /// Lo que cada skill nuestra tiene que traer (`docs/03` §6.1): un nombre que cuadra con su carpeta, la instrucción de idioma
@@ -127,7 +129,7 @@ final class SkillCatalogTests: XCTestCase {
     /// una orden; que no invente; que pregunte dónde escribir en vez de asumir; y, si envía a otros, aprobación explícita.
     func testEveryOfOurSkillsIsComplete() throws {
         let value = try SkillCatalog.load(from: repoSkills)
-        XCTAssertTrue(Self.sends.isSubset(of: Set(value.galeno.map(\.id))))
+        XCTAssertTrue(Self.sends.isSubset(of: Set(value.cards.map(\.id))))
         XCTAssertGreaterThan(value.cards.count, value.galeno.count, "también las de terceros ya traídas")
         for skill in value.cards {
             let id = skill.id
@@ -259,6 +261,25 @@ final class SkillCatalogTests: XCTestCase {
         XCTAssertTrue(text.contains("Gmail is searched only when it is one of this agent's connected tools"))
     }
 
+    /// Las de comercial que tocan el correo: nada sale sin un «sí» al texto exacto, el borrador también se aprueba,
+    /// y un correo que le habla al agente se avisa, no se obedece. Y ninguna da por hecho un CRM que Galeno no tiene.
+    func testTheSalesSkillsNeverSendOnTheirOwnAndAssumeNoCRM() throws {
+        let value = try SkillCatalog.load(from: repoSkills)
+        for id in ["call-summary", "draft-outreach", "inbox-sweep"] {
+            let text = try skillText(try XCTUnwrap(value.cards.first { $0.id == id }, id))
+            XCTAssertTrue(text.contains("## Approval, then send"), id)
+            XCTAssertTrue(text.contains("Create the draft only after the user says yes") || text.contains("Create only those"), id)
+            XCTAssertTrue(text.contains("WhatsApp is read-only"), id)
+        }
+        let sweep = try skillText(try XCTUnwrap(value.cards.first { $0.id == "inbox-sweep" }))
+        XCTAssertTrue(sweep.contains("ask the user once whether to read their recent sent emails"))
+        XCTAssertFalse(sweep.contains("read 30-40 recent sent emails"))
+        for id in ["call-summary", "call-prep", "draft-outreach", "inbox-sweep", "daily-briefing"] {
+            let text = try skillText(try XCTUnwrap(value.cards.first { $0.id == id }, id))
+            XCTAssertTrue(text.contains("Galeno connects no CRM") || text.contains("Galeno does not connect a CRM"), "\(id): dice que no hay CRM")
+        }
+    }
+
     func testABroughtInSkillHasACardAndIsNotTickedByDefault() throws {
         let value = try SkillCatalog.load(from: repoSkills)
         let marketing = try XCTUnwrap(value.groups.first { $0.id == "marketing" })
@@ -277,6 +298,16 @@ final class SkillCatalogTests: XCTestCase {
             XCTAssertEqual(card.credit?.license, isTribe ? "MIT" : "Apache-2.0", card.id)
             XCTAssertEqual(card.credit?.repository.absoluteString, "https://github.com/anthropics/knowledge-work-plugins")
             XCTAssertFalse(card.sendsToOthers, "\(card.id): escribe borradores, no envía")
+        }
+
+        // Comercial: las que pueden terminar en un correo lo dicen en su tarjeta («siempre te pide aprobación»).
+        let sales = try XCTUnwrap(value.groups.first { $0.id == "sales" })
+        let salesCards = value.skills(in: sales)
+        XCTAssertEqual(salesCards.map(\.id), ["call-summary", "call-prep", "draft-outreach", "inbox-sweep", "daily-briefing"])
+        for card in salesCards {
+            XCTAssertEqual(card.credit?.author, "Anthropic", card.id)
+            XCTAssertEqual(card.credit?.license, "Apache-2.0", card.id)
+            XCTAssertEqual(card.sendsToOthers, Self.sends.contains(card.id), card.id)
         }
         // De fábrica solo van marcadas las nuestras: las de otro rol las marca quien las quiera.
         XCTAssertEqual(Set(value.defaultSelection.map(\.id)), Set(value.galeno.map(\.id)))

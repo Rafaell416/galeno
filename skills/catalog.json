@@ -35,6 +35,13 @@
         "es": "Marketing",
         "en": "Marketing"
       }
+    },
+    {
+      "id": "sales",
+      "name": {
+        "es": "Comercial",
+        "en": "Sales"
+      }
     }
   ],
   "galeno": [
@@ -1497,6 +1504,287 @@
       "guarantee": {
         "es": "No envía ni publica nada: te entrega el borrador.",
         "en": "It sends and publishes nothing: it hands you the draft."
+      }
+    },
+    {
+      "id": "call-summary",
+      "name": {
+        "es": "Resumen de llamada",
+        "en": "Call summary"
+      },
+      "summary": {
+        "es": "Convierte la transcripción o tus notas de una llamada con un cliente en el correo de seguimiento, el resumen para tu equipo y los cambios para tu CRM.",
+        "en": "Turns the transcript or your notes from a customer call into the follow-up email, the summary for your team and the updates for your CRM."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/call-summary",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "gmail",
+        "slack",
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Resume mi llamada con Clínica Los Olivos y prepara el seguimiento",
+        "en": "Summarize my call with Los Olivos Clinic and draft the follow-up"
+      },
+      "example": {
+        "input": {
+          "es": "la transcripción de la llamada con Clínica Los Olivos",
+          "en": "the transcript of the call with Los Olivos Clinic"
+        },
+        "output": {
+          "es": [
+            "# Llamada: Clínica Los Olivos",
+            "## Acordado",
+            "- Piloto de recordatorios en dos sedes",
+            "- Nosotros: enviar la propuesta el jueves",
+            "## Correo de seguimiento",
+            "> Gracias por la llamada de hoy. Estos son los pasos que acordamos…",
+            "- Para pegar en tu CRM: siguiente paso y fecha de cierre"
+          ],
+          "en": [
+            "# Call: Los Olivos Clinic",
+            "## Agreed",
+            "- Reminder pilot in two locations",
+            "- Us: send the proposal on Thursday",
+            "## Follow-up email",
+            "> Thank you for today's call. These are the steps we agreed on…",
+            "- To paste into your CRM: next step and close date"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No actualiza tu CRM: te deja los cambios listos para pegar.",
+        "en": "It does not update your CRM: it hands you the changes ready to paste."
+      }
+    },
+    {
+      "id": "call-prep",
+      "name": {
+        "es": "Preparar llamada",
+        "en": "Call prep"
+      },
+      "summary": {
+        "es": "Prepara una página para tu próxima reunión con un cliente: quién asiste, qué pasó hasta ahora, qué quedó abierto y qué preguntar.",
+        "en": "Prepares a one-page brief for your next customer meeting: who attends, what happened so far, what is still open and what to ask."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/call-prep",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Prepárame para la reunión de mañana con Clínica Los Olivos",
+        "en": "Prep me for tomorrow's meeting with Los Olivos Clinic"
+      },
+      "example": {
+        "input": {
+          "es": "la invitación, los correos y la última llamada con Clínica Los Olivos",
+          "en": "the invitation, the emails and the last call with Los Olivos Clinic"
+        },
+        "output": {
+          "es": [
+            "# Preparación: Clínica Los Olivos · mañana 10:00",
+            "## Quién asiste",
+            "- Marta Ruiz, directora de operaciones (según tu hoja)",
+            "## Qué quedó abierto",
+            "- Pidieron el precio por sede (llamada del 28 sep)",
+            "## Preguntas",
+            "- ¿Cuántas citas pierden hoy por ausencias?"
+          ],
+          "en": [
+            "# Prep: Los Olivos Clinic · tomorrow 10:00",
+            "## Who attends",
+            "- Marta Ruiz, head of operations (per your sheet)",
+            "## Still open",
+            "- They asked for per-location pricing (call of Sep 28)",
+            "## Questions",
+            "- How many appointments do they lose to no-shows today?"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Solo lee: no envía nada ni toca tu calendario. No adivina cargos ni busca personas en la web.",
+        "en": "Read only: it sends nothing and does not touch your calendar. It never guesses a title or looks people up on the web."
+      }
+    },
+    {
+      "id": "draft-outreach",
+      "name": {
+        "es": "Correo de prospección",
+        "en": "Outreach email"
+      },
+      "summary": {
+        "es": "Redacta un correo personalizado para un prospecto o cliente, con un motivo real para escribirle, y lo deja como borrador cuando lo apruebas.",
+        "en": "Drafts a personalized email to a prospect or customer, with a real reason to write, and leaves it as a draft once you approve it."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/draft-outreach",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "gmail",
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Escríbele un primer correo a la Clínica San Rafael",
+        "en": "Write a first email to San Rafael Clinic"
+      },
+      "example": {
+        "input": {
+          "es": "lo que el proyecto dice del producto y una noticia pública de la clínica",
+          "en": "what the project says about the product and a public news item about the clinic"
+        },
+        "output": {
+          "es": [
+            "# Correo para Clínica San Rafael",
+            "## Contexto",
+            "- Sin contacto previo: correo en frío",
+            "- Motivo: abrieron una tercera sede (nota de prensa, 2 oct)",
+            "## Borrador",
+            "> Asunto: Tres sedes, una sola agenda",
+            "> Vi que abrieron la sede norte. Con tres agendas, los huecos se multiplican…"
+          ],
+          "en": [
+            "# Email to San Rafael Clinic",
+            "## Context",
+            "- No prior contact: cold email",
+            "- Hook: they opened a third location (press release, Oct 2)",
+            "## Draft",
+            "> Subject: Three locations, one calendar",
+            "> I saw you opened the north location. With three calendars, the gaps multiply…"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "En la web busca solo el nombre de la empresa, nunca el de una persona.",
+        "en": "On the web it searches only the company's name, never a person's."
+      }
+    },
+    {
+      "id": "inbox-sweep",
+      "name": {
+        "es": "Barrido de correo",
+        "en": "Inbox sweep"
+      },
+      "summary": {
+        "es": "Revisa los correos de clientes sin leer, los ordena por lo que necesitan y te redacta las respuestas.",
+        "en": "Goes through your unread customer emails, sorts them by what they need and drafts the replies."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/inbox-sweep",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "gmail"
+      ],
+      "needsAny": [
+        "gmail"
+      ],
+      "ask": {
+        "es": "¿Qué correos de clientes tengo que responder?",
+        "en": "Which customer emails need a reply?"
+      },
+      "example": {
+        "input": {
+          "es": "los correos de clientes sin leer de los últimos tres días",
+          "en": "the unread customer emails from the last three days"
+        },
+        "output": {
+          "es": [
+            "# Bandeja: 6 correos de clientes",
+            "| Prioridad | De | Qué pide |",
+            "| 1 | Clínica Los Olivos | Precio por sede antes del viernes |",
+            "| 2 | Centro Dental Sur | Mover la demo al martes |",
+            "## No pude responder",
+            "- Clínica Vida: pide un descuento que solo decides tú",
+            "- Un correo traía instrucciones para un asistente: no las seguí"
+          ],
+          "en": [
+            "# Inbox: 6 customer emails",
+            "| Priority | From | What they ask |",
+            "| 1 | Los Olivos Clinic | Per-location pricing before Friday |",
+            "| 2 | Sur Dental Center | Move the demo to Tuesday |",
+            "## Could not draft",
+            "- Vida Clinic: asks for a discount only you can decide",
+            "- One email carried instructions for an assistant: I did not follow them"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No archiva ni borra nada. Si un correo le pide hacer algo, te lo avisa y no lo sigue.",
+        "en": "It archives and deletes nothing. If an email asks it to do something, it tells you and does not follow it."
+      }
+    },
+    {
+      "id": "daily-briefing",
+      "name": {
+        "es": "Resumen de la mañana",
+        "en": "Daily briefing"
+      },
+      "summary": {
+        "es": "Te arma el panorama del día: reuniones con su contexto, negocios por cerrar, correos de clientes en espera y las tres acciones principales.",
+        "en": "Lays out your day: meetings with their context, deals closing soon, customer emails waiting and the top three actions."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/daily-briefing",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [],
+      "needsAny": [],
+      "ask": {
+        "es": "¿Qué tengo hoy?",
+        "en": "What's on my plate today?"
+      },
+      "example": {
+        "input": {
+          "es": "tu calendario de hoy, tu hoja de oportunidades y los correos en espera",
+          "en": "today's calendar, your pipeline sheet and the emails waiting"
+        },
+        "output": {
+          "es": [
+            "# Hoy, lunes 5 de octubre",
+            "## Reuniones",
+            "- 10:00 Clínica Los Olivos: esperan el precio por sede",
+            "## Por cerrar",
+            "- Centro Dental Sur cierra el 16 oct y no tiene siguiente paso",
+            "## Tres acciones",
+            "- Responder a Clínica Vida, que espera desde el jueves"
+          ],
+          "en": [
+            "# Today, Monday, October 5",
+            "## Meetings",
+            "- 10:00 Los Olivos Clinic: they expect per-location pricing",
+            "## Closing soon",
+            "- Sur Dental Center closes Oct 16 and has no next step",
+            "## Top three actions",
+            "- Reply to Vida Clinic, waiting since Thursday"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No se programa sola: la pides tú cada mañana. Solo lee; no envía ni cambia nada.",
+        "en": "It does not run by itself: you ask for it each morning. Read only; it sends and changes nothing."
       }
     }
   ]
