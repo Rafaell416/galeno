@@ -81,13 +81,13 @@ public enum SlackManifestRenderer {
         var settings: Settings
     }
 
-    /// El nombre de la app de Slack: el del agente ("Hipócrates") seguido de «· Galeno», sin paréntesis,
-    /// salvo que el agente ya lo incluya. Es el mismo que se le enseña al usuario si hay que pedirle a un
-    /// administrador que apruebe la app.
+    /// El nombre de la app de Slack: **el del agente, tal cual** ("Hipócrates"). Es lo que Slack escribe en
+    /// «Sent using …» bajo cada mensaje que el agente envía y lo que se le enseña a un administrador que
+    /// tenga que aprobarla. Sin «· Galeno» ni paréntesis (decisión de Rafa, 4 oct 2026): el nombre que ven los
+    /// compañeros es el del agente. Solo si el nombre viniera vacío queda «Galeno».
     public static func appName(forAgent agentName: String) -> String {
         let name = agentName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if name.isEmpty { return "Galeno" }
-        return name.localizedCaseInsensitiveContains("galeno") ? name : "\(name) · Galeno"
+        return name.isEmpty ? "Galeno" : name
     }
 
     /// `agentName` es el nombre del agente del usuario ("Hipócrates").

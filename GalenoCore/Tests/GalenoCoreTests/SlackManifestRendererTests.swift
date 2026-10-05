@@ -4,11 +4,18 @@ import XCTest
 @testable import GalenoCore
 
 final class SlackManifestRendererTests: XCTestCase {
-    func testTheAppNameNeverUsesParentheses() {
-        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "Hera"), "Hera · Galeno")
-        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "  Hera  "), "Hera · Galeno")
-        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "Galeno Pro"), "Galeno Pro", "ya lo incluye")
+    /// El nombre de la app es el del agente, sin «· Galeno» ni paréntesis: es lo que sale en «Sent using …»
+    /// bajo los mensajes y lo que ve el administrador que la aprueba.
+    func testTheAppNameIsJustTheAgentName() {
+        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "Hera"), "Hera")
+        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "  Francisco AI  "), "Francisco AI")
+        XCTAssertEqual(SlackManifestRenderer.appName(forAgent: "Galeno Pro"), "Galeno Pro")
         XCTAssertEqual(SlackManifestRenderer.appName(forAgent: ""), "Galeno")
+        for name in ["Hera", "Francisco AI", "Hipócrates"] {
+            let shown = SlackManifestRenderer.appName(forAgent: name)
+            XCTAssertFalse(shown.contains("("), shown)
+            XCTAssertFalse(shown.contains("Galeno"), shown)
+        }
     }
 
     func testManifestHasTheExpectedShape() throws {
@@ -17,7 +24,7 @@ final class SlackManifestRendererTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         let display = try XCTUnwrap(object["display_information"] as? [String: Any])
-        XCTAssertEqual(display["name"] as? String, "Hipócrates · Galeno", "sin paréntesis")
+        XCTAssertEqual(display["name"] as? String, "Hipócrates", "el nombre del agente, nada más")
         XCTAssertFalse((display["description"] as? String ?? "").isEmpty)
 
         let oauth = try XCTUnwrap(object["oauth_config"] as? [String: Any])
