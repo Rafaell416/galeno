@@ -5,14 +5,17 @@ import GalenoCore
 /// Qué muestra la ventana: el home (ya hay agentes) o el wizard (la primera vez, o «Nuevo agente»).
 @MainActor
 final class AppModel: ObservableObject {
-    enum Screen: Equatable { case home, wizard }
+    enum Screen: Equatable { case home, wizard, health }
 
     @Published private(set) var screen: Screen
     @Published private(set) var wizard: WizardState
     /// El idioma de la ventana y de Ajustes: el del wizard mientras se usa, el de la instalación en el home.
     @Published private(set) var language: Language
     let home: HomeModel
+    /// La vista de salud, mientras está abierta (se crea al entrar y se suelta al salir).
+    @Published private(set) var health: HealthModel?
 
+    private let makeHealth: @MainActor (Language) -> HealthModel
     private let makeWizard: @MainActor ([String]) -> WizardState
     private let makeShortWizard: @MainActor (GalenoInstallation) -> WizardState
     private let makeEditWizard: @MainActor (GalenoInstallation, UUID) -> WizardState
@@ -29,9 +32,13 @@ final class AppModel: ObservableObject {
         },
         makeEditWizard: @escaping @MainActor (GalenoInstallation, UUID) -> WizardState = {
             WizardState(preferredLanguages: [$0.language.rawValue], startingFrom: $0, editing: $1)
+        },
+        makeHealth: @escaping @MainActor (Language) -> HealthModel = { language in
+            HealthModel(language: { language })
         }
     ) {
         self.home = home
+        self.makeHealth = makeHealth
         self.makeWizard = makeWizard
         self.makeShortWizard = makeShortWizard
         self.makeEditWizard = makeEditWizard
@@ -80,6 +87,21 @@ final class AppModel: ObservableObject {
         observe(fresh)
         language = fresh.language
         screen = .wizard
+    }
+
+    /// «Salud»: qué conexiones están vivas y cómo va WhatsApp. Solo se entra desde el home, con la instalación legible.
+    func openHealth() {
+        guard screen == .home, !home.isUnreadable else { return }
+        health = makeHealth(home.language)
+        screen = .health
+    }
+
+    /// De vuelta al home desde la salud. Se vuelve a leer la instalación: allí se pudo regenerar o quitar algo.
+    func closeHealth() {
+        health?.stop()
+        health = nil
+        home.reload()
+        screen = .home
     }
 
     /// Se eliminó un agente desde el home. Si era el último, no hay nada que listar: se abre el wizard corto, que

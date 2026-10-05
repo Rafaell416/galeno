@@ -59,7 +59,7 @@ Límites entre carpetas:
 
 `GalenoCore/` ya tiene comportamiento (el generador de config). `whatsapp-bridge/` también:
 el puente (lectura de WhatsApp) y las 9 herramientas MCP de solo lectura, con subcomandos
-`pair`/`sync`/`serve`/`status`/`install-launchd` — ver `whatsapp-bridge/README.md`.
+`pair`/`sync`/`serve`/`status` (con `--json`)/`unlink`/`install-launchd` — ver `whatsapp-bridge/README.md`.
 `GalenoApp/` ya tiene proyecto Xcode con el esqueleto del wizard (pantallas vacías por ahora).
 El CI corre los jobs `swift`, `go`, `go-universal` y `app` en cada PR y en cada push a `main`
 (`.github/workflows/ci.yml`); `app` corre solo `GalenoTests`, no los UI tests.
@@ -250,6 +250,15 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   duplicar la lógica de reiniciar la app de Claude.
 - «Gestionar» (`WizardState.Mode.edit`) regenera la carpeta **del mismo agente** y la Revisión avisa antes de guardar que lo editado a
   mano se pierde y que `memoria/` no se toca. No pasar contexto traído (`importedContext`) al guardar, y no habilitarlo si la carpeta no existe.
+- La vista de salud (`HealthModel`, `docs/03` §3b) **diagnostica y solo actúa si el usuario lo pide**: «Reconectar» una herramienta y
+  «Re-vincular» WhatsApp. El estado de un **conector de la cuenta de Claude** nunca sale de `claude mcp list` (lo da por conectado sin
+  estarlo): sale del arranque de una sesión (`ClaudeSessionProbe`). Si no se pudo averiguar, se dice «Sin saber», jamás «Conectada».
+  Reconectar no pisa un servidor ajeno con el mismo nombre ni registra a ciegas una herramienta con app OAuth propia (Slack: se rehace
+  desde «Gestionar»). Re-vincular WhatsApp enseña antes la advertencia de siempre (el mismo texto) y, para cerrar la sesión, detiene `sync`
+  y corre `unlink`; **no borra** `messages.db`. El aviso de rotación (18 días, «~20») es una estimación: sin fecha de vinculación leída
+  por el bridge no se avisa. «Actualizar skills» es solo el punto de entrada (`SkillUpdating`) hasta la Fase 5.
+- Una carpeta de agente borrada a mano nunca tumba el home: se ofrece «Regenerar la carpeta» (misma ruta, tras confirmar, sin pisar si
+  reapareció) o «Quitar el agente» (el diálogo de Eliminar).
 - La vista previa del `AGENTS.md` (`AgentPreview`) es solo lectura: devuelve texto y no escribe nada.
 - Tres sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló y el sello al llegar a «Listo». Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, botones, copiar ni cambios de paso.
 - Los glifos de sección (`Glyphs.swift`) son dibujos propios de línea a 1,5 pt; cuelgan en el margen junto al título de algunos pasos y nunca van en la misma fila que un SF Symbol.

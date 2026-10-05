@@ -43,8 +43,13 @@ private struct RootView: View {
             case .home:
                 HomeView(
                     model: app.home, onNewAgent: app.startNewAgent, onManage: app.manageAgent,
-                    onAgentRemoved: app.agentRemoved)
+                    onAgentRemoved: app.agentRemoved, onHealth: app.openHealth)
                     .transition(reduceMotion ? .opacity : .pageTurn)
+            case .health:
+                if let health = app.health {
+                    HealthView(model: health, home: app.home, onBack: app.closeHealth)
+                        .transition(reduceMotion ? .opacity : .pageTurn)
+                }
             case .wizard:
                 // Un wizard nuevo (otro objeto) empieza de cero también en lo local de cada vista.
                 WizardView()

@@ -71,9 +71,14 @@ nonisolated protocol MCPConnecting: Sendable {
     /// La línea `Issue:` de `claude mcp get`: por qué un servidor registrado no conecta (p. ej. una
     /// app de Slack sin el MCP activado). `nil` si no hay o no se pudo leer.
     func issue(of server: String) async -> String?
+    /// `claude mcp list`: el estado de **todos** los servidores registrados, de una vez. Es para la vista de
+    /// salud. Para un conector de la cuenta de Claude (`claude.ai …`) no sirve (da conectado a uno sin
+    /// autorizar): ahí manda `connectorStatus`. `nil` si no se pudo leer.
+    func listStatuses() async -> [String: MCPStatus]?
 }
 
 extension MCPConnecting {
+    func listStatuses() async -> [String: MCPStatus]? { nil }
     func login(server: String) async throws { try await login(server: server, openAuthorization: nil) }
     func issue(of server: String) async -> String? { nil }
     func status(of server: String) async -> MCPStatus { await status(of: server, expectingURL: nil) }
@@ -264,6 +269,42 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
         guard let result = await runner.run(claudePath, arguments: ["mcp", "get", server], timeout: 30)
         else { return nil }
         return Self.parseIssue(result.output)
+    }
+
+    /// `claude mcp list` mira la salud de cada servidor con la red: tarda de varios segundos a un minuto.
+    func listStatuses() async -> [String: MCPStatus]? {
+        guard let result = await runner.run(claudePath, arguments: ["mcp", "list"], timeout: 90),
+            result.status == 0
+        else { return nil }
+        let statuses = Self.parseList(result.output)
+        return statuses.isEmpty && !result.output.contains("No MCP servers") ? nil : statuses
+    }
+
+    /// Cada servidor es una línea `nombre: destino - ✔ Connected` (o `! Needs authentication`,
+    /// `✘ Failed to connect`). El nombre llega hasta el primer «: » (los hay con dos puntos, como
+    /// `plugin:vercel:vercel`) y el estado es lo que sigue al último « - ». Todo lo demás (el encabezado, los
+    /// diagnósticos) se ignora.
+    static func parseList(_ output: String) -> [String: MCPStatus] {
+        var statuses: [String: MCPStatus] = [:]
+        for raw in output.split(whereSeparator: \.isNewline) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            guard let nameEnd = line.range(of: ": "), let statusStart = line.range(of: " - ", options: .backwards),
+                nameEnd.upperBound <= statusStart.lowerBound
+            else { continue }
+            let status = line[statusStart.upperBound...].lowercased()
+            let parsed: MCPStatus
+            if status.contains("needs authentication") {
+                parsed = .needsAuthentication
+            } else if status.contains("failed") {
+                parsed = .failed
+            } else if status.contains("connected") {
+                parsed = .connected
+            } else {
+                continue
+            }
+            statuses[String(line[..<nameEnd.lowerBound])] = parsed
+        }
+        return statuses
     }
 
     /// `Issue: HTTP 400: …` → el texto después de `Issue:`.

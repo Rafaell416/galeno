@@ -10,6 +10,8 @@ struct HomeView: View {
     var onManage: (UUID) -> Void = { _ in }
     /// Se eliminó un agente (si era el último, la ventana abre el wizard corto).
     var onAgentRemoved: () -> Void = {}
+    /// «Salud»: la vista que dice qué conexiones están vivas y cómo va WhatsApp.
+    var onHealth: () -> Void = {}
     @Environment(\.locale) private var locale
 
     var body: some View {
@@ -131,6 +133,11 @@ struct HomeView: View {
                     .foregroundStyle(Color.ink700)
             }
             Spacer(minLength: 12)
+            if !model.isUnreadable {
+                Button("home.health", action: onHealth)
+                    .buttonStyle(LinkTextStyle())
+                    .accessibilityHint(Text("home.health.hint"))
+            }
         }
     }
 
@@ -324,7 +331,16 @@ private struct AgentCard: View {
     @ViewBuilder
     private var note: some View {
         if !agent.folderExists {
-            Text("home.folderMissing").font(Typo.text(13)).foregroundStyle(Color.ink500)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("home.folderMissing").font(Typo.text(13)).foregroundStyle(Color.ink500)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 16) {
+                    Button("home.folder.regenerate") { model.askRegenerate(agent) }
+                    Button("home.folder.remove") { model.askDelete(agent) }
+                }
+                .buttonStyle(LinkTextStyle())
+                .disabled(model.opening != nil || model.isWorking)
+            }
         } else if let problem = model.problems[agent.id] {
             Text(problem == .claudeDidNotQuit ? "done.open.claudeStillOpen" : "done.open.failed")
                 .font(Typo.text(13)).foregroundStyle(Color.ink700)
@@ -406,6 +422,7 @@ private struct HomeDialogView: View {
             switch dialog {
             case .rename(let agent): renameContent(agent)
             case .delete(let agent, let plan): deleteContent(agent, plan)
+            case .regenerate(let agent): regenerateContent(agent)
             }
             if let error = model.dialogError {
                 Text(verbatim: error).font(Typo.text(13.5)).foregroundStyle(Color.seal700)
@@ -439,6 +456,25 @@ private struct HomeDialogView: View {
             Button("home.delete.confirm") { if model.confirmDelete() { onRemoved() } }
                 .buttonStyle(InkButtonStyle(.primary, padding: 22, isLoading: model.isWorking))
                 .disabled(model.isWorking)
+        case .regenerate:
+            Button("home.regenerate.confirm") { model.confirmRegenerate() }
+                .buttonStyle(InkButtonStyle(.primary, padding: 22, isLoading: model.isWorking))
+                .keyboardShortcut(.defaultAction)
+                .disabled(model.isWorking)
+        }
+    }
+
+    // MARK: Regenerar la carpeta
+
+    private func regenerateContent(_ agent: HomeAgent) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(verbatim: Localized.string("home.regenerate.title %@", agent.name, locale: locale))
+                .font(Typo.display(26)).foregroundStyle(Color.ink900)
+            Text(verbatim: Localized.string("home.regenerate.body %@", Self.displayPath(agent.folder), locale: locale))
+                .font(Typo.text(14.5)).foregroundStyle(Color.ink700)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("home.regenerate.lost").font(Typo.text(13.5)).foregroundStyle(Color.ink500)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
