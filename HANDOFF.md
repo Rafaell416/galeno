@@ -607,6 +607,17 @@ Instalación sin Terminal OK. Falló lo de Google, que es lo que más pesa:
 
 **No se regenera el DMG hasta que Rafa lo pida.**
 
+*DMG de prueba con instalador (5 oct 2026, tarde; rama `chore/dmg-instalador`):* `scripts/hacer-dmg-demo.sh` arma `build/Galeno-demo-<fecha>-<commit>.dmg`
+(bridge universal, app Release universal con firma ad hoc, comprobaciones, disco). El disco lleva `Galeno.app`, el acceso a Aplicaciones,
+**`instalar-galeno.sh`** y el LÉEME (`scripts/dmg/LEEME.md`). El usuario no hace «arrastrar a Aplicaciones» ni pelea con Gatekeeper: abre la
+Terminal, escribe `bash `, arrastra `instalar-galeno.sh` a la ventana y pulsa Intro. El script lista lo que va a quitar y pide `si`; manda **a la
+Papelera** (nunca borra) la app anterior, `~/Galeno`, `Application Support/Galeno` (con la sesión de WhatsApp), cachés y preferencias, las
+conversaciones de esos agentes en Claude Code y en la app de Claude; quita las conexiones de Claude Code que apuntan a las **direcciones
+oficiales** (una tuya con el mismo nombre y otra dirección no se toca); copia la app, le quita la cuarentena y la abre. No toca `~/.claude.json`
+ni Claude Code. Solo usa lo que trae macOS (sin Python: el de macOS sin herramientas de desarrollo abre un aviso de instalación). Probado en un
+HOME de mentira con dobles de `launchctl`, `defaults`, `claude`, `trash`…, con la app real; **sin correr de verdad en otro Mac**. `scripts/reset-pruebas.sh`
+sigue siendo la versión para desarrollo (con `--dry`/`--yes`).
+
 ### Slack: los mensajes salen con el nombre de la persona (demo de Felipe, 4 oct 2026)
 
 El MCP de Slack solo acepta tokens de usuario: todo lo que el agente envía sale con el nombre y la foto de quien
