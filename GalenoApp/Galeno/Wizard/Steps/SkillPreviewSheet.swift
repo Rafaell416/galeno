@@ -14,7 +14,7 @@ struct SkillPreviewSheet: View {
     @State private var replays = 0
 
     private var language: Language { wizard.language }
-    private var isOn: Bool { wizard.isSkillSelected(skill.id, source: .galeno) }
+    private var isOn: Bool { wizard.isSkillSelected(skill.id, source: skill.source) }
     private var agentName: String { wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines) }
     /// Quién responde en la demostración: el agente por su nombre, o «Tu agente» si aún no lo tiene.
     private var speaker: String {
@@ -49,8 +49,7 @@ struct SkillPreviewSheet: View {
                         Text(verbatim: skill.command)
                             .font(.system(size: 13, design: .monospaced))
                             .foregroundStyle(Color.ink500)
-                        SmallCapsLabel("skills.from.galeno", size: 12, tracking: 0.1)
-                            .foregroundStyle(Color.ink500)
+                        origin
                     }
                 }
                 Spacer(minLength: 0)
@@ -79,11 +78,11 @@ struct SkillPreviewSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Spacer(minLength: 0)
                 if isOn {
-                    Button("skills.preview.unmark") { wizard.toggleSkill(skill.id, source: .galeno) }
+                    Button("skills.preview.unmark") { wizard.toggleSkill(skill.id, source: skill.source) }
                         .buttonStyle(InkButtonStyle(.secondary, padding: 18, height: 40))
                 } else {
                     Button {
-                        wizard.toggleSkill(skill.id, source: .galeno)
+                        wizard.toggleSkill(skill.id, source: skill.source)
                     } label: {
                         Text(verbatim: markLabel)
                     }
@@ -101,6 +100,28 @@ struct SkillPreviewSheet: View {
         .overlay(Rectangle().strokeBorder(Color.ink900, lineWidth: 1.5))
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+    }
+
+    /// De quién es: «De Galeno», o el autor de una skill de un tercero con su licencia y el enlace al original.
+    /// El crédito va siempre a la vista (`AGENTS.md`, «Skills y licencias»).
+    @ViewBuilder
+    private var origin: some View {
+        if let credit = skill.credit {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                SmallCapsText(
+                    string: Localized.string("skills.from.author %@ %@", credit.author, credit.license, locale: locale),
+                    size: 12, tracking: 0.1
+                )
+                .foregroundStyle(Color.ink500)
+                Link("skills.credit.original", destination: credit.sourceURL)
+                    .font(Typo.text(13))
+                    .foregroundStyle(Color.ink700)
+                    .underline()
+            }
+        } else {
+            SmallCapsLabel("skills.from.galeno", size: 12, tracking: 0.1)
+                .foregroundStyle(Color.ink500)
+        }
     }
 
     private var markLabel: String {

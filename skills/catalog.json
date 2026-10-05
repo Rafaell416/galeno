@@ -28,6 +28,13 @@
         "es": "Reuniones y descubrimiento",
         "en": "Meetings and discovery"
       }
+    },
+    {
+      "id": "marketing",
+      "name": {
+        "es": "Marketing",
+        "en": "Marketing"
+      }
     }
   ],
   "galeno": [
@@ -955,6 +962,542 @@
       "path": "skills/prd",
       "license": "MIT",
       "available": false
+    },
+    {
+      "id": "campaign-plan",
+      "name": {
+        "es": "Plan de campaña",
+        "en": "Campaign plan"
+      },
+      "summary": {
+        "es": "Arma el brief de una campaña: objetivo, audiencia, mensajes, canales, calendario y métricas.",
+        "en": "Builds a campaign brief: goal, audience, messages, channels, calendar and metrics."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "marketing/skills/campaign-plan",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "marketing",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Arma el plan de la campaña de lanzamiento de reagendar",
+        "en": "Plan the launch campaign for rescheduling"
+      },
+      "example": {
+        "input": {
+          "es": "lo que el proyecto dice del lanzamiento",
+          "en": "what the project says about the launch"
+        },
+        "output": {
+          "es": [
+            "# Plan de campaña: Reagendar sin llamar",
+            "## Objetivo",
+            "- 300 clínicas activan la función en 6 semanas · línea base: pendiente",
+            "## Calendario",
+            "| Semana | Pieza | Canal |",
+            "| 1 | Anuncio a clientes | Email |",
+            "| 2 | Caso de una clínica | Blog |"
+          ],
+          "en": [
+            "# Campaign plan: Reschedule without calling",
+            "## Goal",
+            "- 300 clinics turn the feature on in 6 weeks · baseline: pending",
+            "## Calendar",
+            "| Week | Piece | Channel |",
+            "| 1 | Customer announcement | Email |",
+            "| 2 | A clinic's story | Blog |"
+          ]
+        }
+      }
+    },
+    {
+      "id": "content-creation",
+      "name": {
+        "es": "Contenido",
+        "en": "Content"
+      },
+      "summary": {
+        "es": "Redacta una pieza para un canal: blog, redes, newsletter, landing, nota de prensa o caso de éxito.",
+        "en": "Drafts a piece for a channel: blog, social, newsletter, landing page, press release or case study."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "marketing/skills/draft-content",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "marketing",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Escribe el post de LinkedIn del lanzamiento",
+        "en": "Write the LinkedIn post for the launch"
+      },
+      "example": {
+        "input": {
+          "es": "el brief de la campaña",
+          "en": "the campaign brief"
+        },
+        "output": {
+          "es": [
+            "# Post de LinkedIn: Reagendar sin llamar",
+            "> Reagendar una cita no debería costar una llamada. Desde hoy, tus pacientes lo hacen solos en dos toques.",
+            "## Otros titulares",
+            "- Menos llamadas, más citas cumplidas",
+            "- Tu recepción, sin la fila del teléfono",
+            "## Falta",
+            "- [resultado con su cifra]"
+          ],
+          "en": [
+            "# LinkedIn post: Reschedule without calling",
+            "> Rescheduling an appointment shouldn't cost a phone call. From today, your patients do it themselves in two taps.",
+            "## Other headlines",
+            "- Fewer calls, more kept appointments",
+            "- Your front desk, without the phone queue",
+            "## Missing",
+            "- [result with its number]"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No publica nada: te entrega el borrador.",
+        "en": "It publishes nothing: it hands you the draft."
+      }
+    },
+    {
+      "id": "email-sequence",
+      "name": {
+        "es": "Secuencia de emails",
+        "en": "Email sequence"
+      },
+      "summary": {
+        "es": "Diseña una secuencia de correos con textos, tiempos, ramas y condiciones de salida.",
+        "en": "Designs an email sequence with copy, timing, branches and exit conditions."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "marketing/skills/email-sequence",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "marketing",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Hazme la secuencia de bienvenida para clínicas nuevas",
+        "en": "Write the onboarding sequence for new clinics"
+      },
+      "example": {
+        "input": {
+          "es": "lo que el proyecto dice de las clínicas nuevas",
+          "en": "what the project says about new clinics"
+        },
+        "output": {
+          "es": [
+            "# Secuencia: Bienvenida a clínicas nuevas",
+            "| # | Asunto | Cuándo |",
+            "| 1 | Tu agenda ya está lista | Día 0 |",
+            "| 2 | Activa los recordatorios | Día 3 |",
+            "| 3 | ¿Cómo va la primera semana? | Día 7 |",
+            "## Salida",
+            "- Sale de la secuencia al activar los recordatorios"
+          ],
+          "en": [
+            "# Sequence: Welcome for new clinics",
+            "| # | Subject | When |",
+            "| 1 | Your calendar is ready | Day 0 |",
+            "| 2 | Turn on reminders | Day 3 |",
+            "| 3 | How is the first week going? | Day 7 |",
+            "## Exit",
+            "- Leaves the sequence on turning reminders on"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No envía ni programa ningún correo: te entrega los textos.",
+        "en": "It sends and schedules no email: it hands you the copy."
+      }
+    },
+    {
+      "id": "brand-review",
+      "name": {
+        "es": "Revisión de marca",
+        "en": "Brand review"
+      },
+      "summary": {
+        "es": "Revisa un texto contra la voz de tu marca y señala cada desvío con su corrección.",
+        "en": "Reviews a text against your brand voice and flags each deviation with its fix."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "marketing/skills/brand-review",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "marketing",
+      "writes": [],
+      "needsAny": [],
+      "ask": {
+        "es": "Revisa este post contra nuestra voz de marca",
+        "en": "Review this post against our brand voice"
+      },
+      "example": {
+        "input": {
+          "es": "tu borrador y la voz de la marca",
+          "en": "your draft and the brand voice"
+        },
+        "output": {
+          "es": [
+            "# Revisión: post de lanzamiento",
+            "| Problema | Gravedad | Sugerencia |",
+            "| «La mejor agenda del mercado» | Alta | Quitarlo o dar la fuente |",
+            "| Cambia de tú a usted | Media | Mantener el tú |",
+            "## Legal",
+            "- «Garantizado»: que lo revise una persona antes de publicar"
+          ],
+          "en": [
+            "# Review: launch post",
+            "| Issue | Severity | Suggestion |",
+            "| “The best calendar on the market” | High | Remove it or cite the source |",
+            "| Switches from casual to formal | Medium | Keep it casual |",
+            "## Legal",
+            "- “Guaranteed”: have a person review it before publishing"
+          ]
+        }
+      }
+    },
+    {
+      "id": "performance-report",
+      "name": {
+        "es": "Reporte de marketing",
+        "en": "Marketing report"
+      },
+      "summary": {
+        "es": "Convierte tus números en un reporte con tendencias, aciertos, fallos y qué hacer después.",
+        "en": "Turns your numbers into a report with trends, wins, misses and what to do next."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "marketing/skills/performance-report",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "marketing",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Hazme el reporte de la campaña de octubre",
+        "en": "Write the report for the October campaign"
+      },
+      "example": {
+        "input": {
+          "es": "la hoja con los números de la campaña",
+          "en": "the sheet with the campaign numbers"
+        },
+        "output": {
+          "es": [
+            "# Reporte: campaña de octubre",
+            "| Métrica | Octubre | Cambio |",
+            "| Clínicas activadas | 212 | +18 % |",
+            "| Costo por activación | $41 | −6 % |",
+            "## Qué funcionó",
+            "- El caso de la clínica trajo 1 de cada 3 activaciones"
+          ],
+          "en": [
+            "# Report: October campaign",
+            "| Metric | October | Change |",
+            "| Clinics activated | 212 | +18% |",
+            "| Cost per activation | $41 | −6% |",
+            "## What worked",
+            "- The clinic's story brought 1 in 3 activations"
+          ]
+        }
+      }
+    },
+    {
+      "id": "seo-audit",
+      "name": {
+        "es": "Auditoría SEO",
+        "en": "SEO audit"
+      },
+      "summary": {
+        "es": "Revisa el SEO de un sitio: palabras clave, páginas, huecos de contenido y qué arreglar primero.",
+        "en": "Reviews a site's SEO: keywords, pages, content gaps and what to fix first."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "marketing/skills/seo-audit",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "marketing",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Audita el SEO de nuestra página de clínicas",
+        "en": "Audit the SEO of our clinics page"
+      },
+      "example": {
+        "input": {
+          "es": "las páginas del sitio que le indiques",
+          "en": "the pages of the site you point to"
+        },
+        "output": {
+          "es": [
+            "# Auditoría SEO: agenda.ejemplo.com",
+            "| Página | Problema | Gravedad |",
+            "| Inicio | Sin meta descripción | Alta |",
+            "| Precios | Dos H1 | Media |",
+            "## Esta semana",
+            "- Escribir las meta descripciones que faltan",
+            "- Velocidad: sin medir"
+          ],
+          "en": [
+            "# SEO audit: calendar.example.com",
+            "| Page | Issue | Severity |",
+            "| Home | No meta description | High |",
+            "| Pricing | Two H1s | Medium |",
+            "## This week",
+            "- Write the missing meta descriptions",
+            "- Speed: not measured"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Busca en la web por su cuenta; para abrir una página concreta te pide permiso.",
+        "en": "It searches the web on its own; to open a specific page it asks for your permission."
+      }
+    },
+    {
+      "id": "competitive-brief",
+      "name": {
+        "es": "Brief competitivo",
+        "en": "Competitive brief"
+      },
+      "summary": {
+        "es": "Compara tu posicionamiento y tus mensajes con los de un competidor, y arma la ficha para ventas.",
+        "en": "Compares your positioning and messages with a competitor's, and builds the battlecard for sales."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "marketing/skills/competitive-brief",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "marketing",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Compáranos con CitaFácil",
+        "en": "Compare us with EasyBooking"
+      },
+      "example": {
+        "input": {
+          "es": "lo que publica el competidor",
+          "en": "what the competitor publishes"
+        },
+        "output": {
+          "es": [
+            "# Brief competitivo: CitaFácil",
+            "| Tema | Nosotros | Ellos |",
+            "| Mensaje | Menos llamadas | Agenda llena |",
+            "| Precio | Público | No encontrado |",
+            "## Oportunidad",
+            "- Nadie habla de reagendar sin llamar",
+            "- Fuentes: su web y dos reseñas, 5 oct"
+          ],
+          "en": [
+            "# Competitive brief: EasyBooking",
+            "| Topic | Us | Them |",
+            "| Message | Fewer calls | A full calendar |",
+            "| Price | Public | Not found |",
+            "## Opportunity",
+            "- Nobody talks about rescheduling without a call",
+            "- Sources: their site and two reviews, Oct 5"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Busca en la web por su cuenta; para abrir una página concreta te pide permiso.",
+        "en": "It searches the web on its own; to open a specific page it asks for your permission."
+      }
+    },
+    {
+      "id": "discover-brand",
+      "name": {
+        "es": "Descubrir la marca",
+        "en": "Brand discovery"
+      },
+      "summary": {
+        "es": "Busca en tus herramientas los materiales de marca, los ordena por confianza y te dice qué encontró, qué se contradice y qué falta.",
+        "en": "Searches your tools for brand materials, ranks them by trust and tells you what it found, what conflicts and what is missing."
+      },
+      "author": "Tribe AI",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "partner-built/brand-voice/skills/discover-brand",
+      "license": "MIT",
+      "available": true,
+      "group": "marketing",
+      "writes": [],
+      "needsAny": [
+        "notion",
+        "google-workspace"
+      ],
+      "ask": {
+        "es": "¿Qué materiales de marca tenemos? Búscalos",
+        "en": "What brand materials do we have? Find them"
+      },
+      "example": {
+        "input": {
+          "es": "tus páginas de Notion y tu Google Drive",
+          "en": "your Notion pages and your Google Drive"
+        },
+        "output": {
+          "es": [
+            "# Descubrimiento de marca",
+            "| Fuente | Categoría | Fecha |",
+            "| Guía de estilo (Notion) | Oficial | mar 2025 |",
+            "| Plantillas de correo (Drive) | Operativa | ago 2026 |",
+            "## Conflictos y vacíos",
+            "- La guía dice «usted» y las plantillas tutean. Recomiendo el tú: es lo más reciente",
+            "- Nada sobre redes sociales en ninguna fuente"
+          ],
+          "en": [
+            "# Brand discovery",
+            "| Source | Category | Date |",
+            "| Style guide (Notion) | Authoritative | Mar 2025 |",
+            "| Email templates (Drive) | Operational | Aug 2026 |",
+            "## Conflicts and gaps",
+            "- The guide is formal and the templates are casual. I recommend casual: it is the most recent",
+            "- Nothing about social media in any source"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Solo lee y reporta. Para que busque también en tu correo, añade Gmail como herramienta; sin eso no lo mira.",
+        "en": "It only reads and reports. For it to search your email too, add Gmail as a tool; without it, it doesn't look there."
+      }
+    },
+    {
+      "id": "guideline-generation",
+      "name": {
+        "es": "Guía de voz de marca",
+        "en": "Brand voice guidelines"
+      },
+      "summary": {
+        "es": "Convierte tus documentos de marca y tus llamadas en una guía de voz con evidencia, nivel de confianza y preguntas abiertas.",
+        "en": "Turns your brand documents and calls into voice guidelines with evidence, a confidence level and open questions."
+      },
+      "author": "Tribe AI",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "partner-built/brand-voice/skills/guideline-generation",
+      "license": "MIT",
+      "available": true,
+      "group": "marketing",
+      "writes": [],
+      "needsAny": [],
+      "ask": {
+        "es": "Arma nuestra guía de voz de marca con estos documentos",
+        "en": "Build our brand voice guidelines from these documents"
+      },
+      "example": {
+        "input": {
+          "es": "el reporte de descubrimiento y tres llamadas con clínicas",
+          "en": "the discovery report and three calls with clinics"
+        },
+        "output": {
+          "es": [
+            "# Guía de voz de marca",
+            "- Confianza general: media (2 documentos, 3 llamadas)",
+            "| Somos | No somos |",
+            "| Claros | Simplistas |",
+            "| Cercanos | Descuidados |",
+            "## Preguntas abiertas",
+            "- ¿Tú o usted? Recomiendo el tú; confirma o corrige"
+          ],
+          "en": [
+            "# Brand voice guidelines",
+            "- Overall confidence: medium (2 documents, 3 calls)",
+            "| We are | We are not |",
+            "| Clear | Simplistic |",
+            "| Approachable | Sloppy |",
+            "## Open questions",
+            "- Casual or formal address? I recommend casual; confirm or override"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Nunca reemplaza tu voz de marca sin preguntar.",
+        "en": "It never replaces your brand voice without asking."
+      }
+    },
+    {
+      "id": "brand-voice-enforcement",
+      "name": {
+        "es": "Aplicar la voz de marca",
+        "en": "Apply the brand voice"
+      },
+      "summary": {
+        "es": "Escribe o reescribe un texto con la voz de tu marca y te explica qué reglas de la guía aplicó.",
+        "en": "Writes or rewrites a piece in your brand voice and explains which guidelines it applied."
+      },
+      "author": "Tribe AI",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "partner-built/brand-voice/skills/brand-voice-enforcement",
+      "license": "MIT",
+      "available": true,
+      "group": "marketing",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Reescribe este correo para que suene a nosotros",
+        "en": "Rewrite this email so it sounds like us"
+      },
+      "example": {
+        "input": {
+          "es": "tu borrador y la voz de la marca",
+          "en": "your draft and the brand voice"
+        },
+        "output": {
+          "es": [
+            "# Correo a clínicas, con voz de marca",
+            "> Reagendar ya no pasa por el teléfono: tus pacientes mueven su cita solos y tu recepción respira.",
+            "## Notas de marca",
+            "- Voz: clara y cercana; fuera «revolucionario», término prohibido en la guía",
+            "- Tono: formalidad media, energía alta",
+            "- Falta: [resultado con su cifra]"
+          ],
+          "en": [
+            "# Email to clinics, in brand voice",
+            "> Rescheduling no longer goes through the phone: your patients move their own appointment and your front desk can breathe.",
+            "## Brand notes",
+            "- Voice: clear and approachable; “revolutionary” is out, a prohibited term in the guidelines",
+            "- Tone: medium formality, high energy",
+            "- Missing: [result with its number]"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No envía ni publica nada: te entrega el borrador.",
+        "en": "It sends and publishes nothing: it hands you the draft."
+      }
     }
   ]
 }

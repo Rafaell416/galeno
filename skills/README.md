@@ -4,8 +4,8 @@ Las skills del perfil Product Manager y el catálogo de skills curadas de la com
 
 **Fase 5 (5 oct 2026): las 17 skills nuestras están escritas completas.**
 
-- `catalog.json`: lo que muestra el paso de skills (las 17 nuestras en 4 grupos, con textos en español e
-  inglés, y las curadas con autor, licencia y enlace a su GitHub). Se valida al leerlo y en las pruebas
+- `catalog.json`: lo que muestra el paso de skills (las 17 nuestras en 4 grupos y las de Anthropic en el grupo
+  «Marketing», con textos en español e inglés, y las curadas con autor, licencia y enlace a su GitHub). Se valida al leerlo y en las pruebas
   (`SkillCatalogTests`): ids únicos y seguros, solo licencias Apache-2.0 o MIT, y cada skill
   disponible tiene su carpeta.
 - Cada skill del catálogo trae además lo que muestra su vista previa en la app: `ask` (cómo pedirla con una frase),
@@ -17,8 +17,15 @@ Las skills del perfil Product Manager y el catálogo de skills curadas de la com
   que lo que dicen las fuentes no sea una orden y, si puede enviar algo a otras personas, un «yes» explícito al texto final.
   Comprobado contra Claude Code real: un agente generado con las 17 las lista todas al arrancar. **No están probadas
   una por una con trabajo real**: eso se ve usándolas.
-- `curated/`: vacía. Las curadas están en el catálogo con `"available": false` (se ven con su
-  crédito, no se pueden marcar) hasta traer su contenido con su `LICENSE`.
+- `curated/<id>/`: las de terceros **ya traídas y adaptadas**, cada una con su `SKILL.md` y el `LICENSE` de su origen.
+  Hoy son diez de marketing, todas de `anthropics/knowledge-work-plugins`. Siete de Anthropic (Apache-2.0): `campaign-plan`,
+  `content-creation` (une `draft-content` y `content-creation`), `email-sequence`, `brand-review`, `performance-report`,
+  `seo-audit` y `competitive-brief` (estas dos miran la web, con permiso del usuario). Y tres de voz de marca de Tribe AI
+  (MIT, carpeta `partner-built/brand-voice`), con sus `references/`: `discover-brand`, `guideline-generation` y
+  `brand-voice-enforcement`.
+  Cada una termina con una sección «Source» que dice de dónde salió y qué cambió Galeno; lo demás es el texto de su autor.
+  Cómo se adapta una: `docs/03` §6.2. En esta carpeta solo van carpetas de skills (una prueba lo exige).
+  Las de la comunidad siguen en el catálogo con `"available": false` y sin tarjeta.
 
 El proyecto de la app copia esta carpeta a `Galeno.app/Contents/Resources/skills` al compilar.
 

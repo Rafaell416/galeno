@@ -42,6 +42,15 @@ enum SettingsRenderer {
     /// Las lecturas locales que siempre se permiten.
     static let allowedReadTools = ["Glob", "Grep", "Read"]
 
+    /// Buscar en la web no pide permiso (decisión de Rafa, 5 oct 2026): es una herramienta más del agente, a la
+    /// vista en «Tus herramientas».
+    ///
+    /// **Solo `WebSearch`. `WebFetch` no va aquí a propósito:** abre cualquier dirección, y una dirección puede
+    /// llevar datos (`https://sitio/?q=<lo que leyó>`). Permitirlo sin preguntar sería un envío externo sin
+    /// aprobación (línea roja 3): una página o un documento con instrucciones escondidas podría sacar por ahí lo
+    /// que el agente lee. Abrir una página concreta sigue pidiendo la aprobación del usuario.
+    static let allowedWebTools = ["WebSearch"]
+
     static let hookPath = ".claude/hooks/require-external-approval.sh"
 
     /// El hook que deja pasar sin preguntar las lecturas de los conectores de la cuenta de Claude
@@ -211,7 +220,7 @@ enum SettingsRenderer {
     }
 
     static func render(_ config: AgentConfig) throws -> String {
-        var allow = allowedReadTools + [memoryAllowRule]
+        var allow = allowedReadTools + allowedWebTools + [memoryAllowRule]
         var ask: [String] = []
 
         for connection in config.connectedConnections {

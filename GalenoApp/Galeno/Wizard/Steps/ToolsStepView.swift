@@ -20,6 +20,9 @@ struct ToolsStepView: View {
         ("tools.group.meetings", [.fireflies, .granola, .fathom]),
     ]
 
+    /// El grupo donde se enseña la búsqueda web, que no es una conexión.
+    private static let webSearchGroup = "tools.group.work"
+
     var body: some View {
         StepScaffold(step: .tools, summarySize: 15, titleGap: 6, contentGap: 10) {
             summary
@@ -51,6 +54,9 @@ struct ToolsStepView: View {
                                         return .handled
                                     }
                             }
+                            // La búsqueda web no se conecta ni se elige: viene con el agente (decisión de Rafa,
+                            // 5 oct 2026). Se enseña aquí para que se sepa que la tiene.
+                            if group.label == Self.webSearchGroup { IncludedToolCard() }
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -204,6 +210,48 @@ private struct ToolCard: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
         .animation(.easeOut(duration: 0.2).delay(lightDelay), value: selected)
         .animation(.easeOut(duration: Motion.micro), value: hovering)
+    }
+}
+
+/// Lo que el agente trae sin conectar nada: hoy, la búsqueda web. Tiene la forma de una tarjeta marcada, pero no
+/// es un botón: no hay nada que elegir ni que autorizar. El agente busca sin pedir permiso; abrir una página
+/// concreta sí lo pide (`SettingsRenderer.allowedWebTools`).
+private struct IncludedToolCard: View {
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "globe")
+                .font(.system(size: 20, weight: .light))
+                .foregroundStyle(Color.ink900)
+                .frame(height: 24)
+            Text("tools.web.name")
+                .font(Typo.text(13.5, .medium))
+                .foregroundStyle(Color.ink900)
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            SmallCapsLabel("tools.included", size: 10)
+                .foregroundStyle(Color.ink500)
+        }
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity)
+        .frame(height: 76)
+        .background(Color.parchment100, in: RoundedRectangle(cornerRadius: Radius.b1))
+        .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.ink900, lineWidth: 1.5))
+        .overlay(alignment: .topTrailing) {
+            Rectangle()
+                .fill(Color.ink900)
+                .overlay { CheckMark().stroke(Color.onInk, lineWidth: 1.5).padding(1) }
+                .frame(width: 14, height: 14)
+                .padding(4)
+                .accessibilityHidden(true)
+        }
+        .help(Text("tools.web.help"))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            Text(verbatim: Localized.string("tools.web.name", locale: locale) + ", ") + Text("tools.included"))
+        .accessibilityHint(Text("tools.web.help"))
     }
 }
 

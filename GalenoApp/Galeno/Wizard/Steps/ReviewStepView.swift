@@ -67,15 +67,15 @@ struct ReviewStepView: View {
 
     private var selectedSkillNames: [String] {
         guard case .loaded(let catalog) = wizard.skillCatalog else { return [] }
-        return catalog.galeno
-            .filter { wizard.isSkillSelected($0.id, source: .galeno) }
+        return catalog.cards
+            .filter { wizard.isSkillSelected($0.id, source: $0.source) }
             .map { $0.name.text(in: wizard.language) }
     }
 
     private var skillsCard: some View {
         let names = selectedSkillNames
         let total: Int = {
-            if case .loaded(let catalog) = wizard.skillCatalog { return catalog.galeno.count }
+            if case .loaded(let catalog) = wizard.skillCatalog { return catalog.cards.count }
             return names.count
         }()
         let title =

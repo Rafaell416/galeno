@@ -19,6 +19,7 @@
       "Glob",
       "Grep",
       "Read",
+      "WebSearch",
       "mcp__notion__*",
       "mcp__slack__slack_get_reactions",
       "mcp__slack__slack_list_channel_members",

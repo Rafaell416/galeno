@@ -82,13 +82,76 @@ final class SkillsStepTests: XCTestCase {
         let directory = try XCTUnwrap(SkillsLocation.bundled(), "las skills van dentro de la app")
         let catalog = try SkillCatalog.load(from: directory)
         XCTAssertEqual(catalog.galeno.count, 17)
-        for skill in catalog.galeno {
+        // Todas las que tienen tarjeta, también las de terceros: ninguna sale con el símbolo genérico.
+        for skill in catalog.cards {
             XCTAssertTrue(SkillIcon.hasDrawing(skill.id), "\(skill.id) no tiene dibujo")
             XCTAssertNotNil(skill.ask, skill.id)
             XCTAssertNotNil(skill.example, skill.id)
         }
         XCTAssertFalse(SkillIcon.hasDrawing("una-que-no-existe"), "una skill sin dibujo usa el símbolo genérico")
-        XCTAssertEqual(catalog.groups.filter { !catalog.skills(in: $0).isEmpty }.count, 4, "cuatro grupos con su rótulo")
+        XCTAssertEqual(
+            catalog.groups.filter { !catalog.skills(in: $0).isEmpty }.count, 5, "los cuatro grupos nuestros y el de marketing")
+    }
+
+    // MARK: Las skills de Anthropic (marketing)
+
+    /// Las de marketing viajan con la app, tienen tarjeta con su vista previa y dicen de quién son.
+    func testTheMarketingSkillsShipWithTheirCreditAndPreview() throws {
+        let directory = try XCTUnwrap(SkillsLocation.bundled())
+        let catalog = try SkillCatalog.load(from: directory)
+        let marketing = try XCTUnwrap(catalog.groups.first { $0.id == "marketing" })
+        let cards = catalog.skills(in: marketing)
+
+        XCTAssertEqual(cards.count, 10)
+        XCTAssertEqual(catalog.cards.count, 27, "17 nuestras, 7 de Anthropic y 3 de Tribe AI")
+        XCTAssertEqual(catalog.missingFiles(in: directory), [], "cada una con su SKILL.md dentro de la app")
+        for card in cards {
+            XCTAssertEqual(card.source, .curated)
+            XCTAssertTrue(["Anthropic", "Tribe AI"].contains(card.credit?.author ?? ""), card.id)
+            XCTAssertEqual(card.credit?.sourceURL.host, "github.com")
+            XCTAssertNotNil(card.ask, card.id)
+            XCTAssertNotNil(card.example, card.id)
+            XCTAssertTrue(
+                FileManager.default.fileExists(atPath: directory.appending(path: "curated/\(card.id)/LICENSE").path),
+                "\(card.id): la licencia viaja con ella")
+        }
+    }
+
+    /// De fábrica no vienen marcadas (son de otro rol); se marcan como cualquier otra, y cuentan en el total.
+    func testAMarketingSkillIsTickedLikeAnyOtherAndInstalledFromItsOwnFolder() throws {
+        let state = try stateAtSkills()
+        guard case .loaded(let catalog) = state.skillCatalog else { return XCTFail("sin catálogo") }
+        let plan = try XCTUnwrap(catalog.cards.first { $0.id == "campaign-plan" })
+        XCTAssertFalse(state.isSkillSelected(plan.id, source: plan.source), "de fábrica solo las nuestras")
+
+        state.toggleSkill(plan.id, source: plan.source)
+
+        XCTAssertTrue(state.skills.contains(SelectedSkill(id: "campaign-plan", source: .curated)))
+        XCTAssertFalse(state.isSkillSelected(plan.id, source: .galeno), "no se confunde con una nuestra")
+    }
+
+    /// Un agente generado con una de marketing la recibe entera: el `SKILL.md` adaptado y su licencia.
+    func testAnAgentGetsTheMarketingSkillWithItsLicense() throws {
+        let skills = try XCTUnwrap(SkillsLocation.bundled())
+        let installer = AgentInstaller.sandboxed(skills: skills)
+        addTeardownBlock { try? FileManager.default.removeItem(at: installer.agentsRoot.deletingLastPathComponent()) }
+
+        let record = try installer.install(
+            AgentConfig(
+                agentName: "Mara", language: .spanish, projectDescription: "Marketing",
+                connections: [ToolConnection(tool: .notion, status: .connected, sources: .everything)],
+                skills: [
+                    SelectedSkill(id: "acta", source: .galeno), SelectedSkill(id: "campaign-plan", source: .curated),
+                ])
+        ).record
+
+        let installed = record.folder.appending(path: ".claude/skills/campaign-plan")
+        let text = try String(contentsOf: installed.appending(path: "SKILL.md"), encoding: .utf8)
+        XCTAssertTrue(text.hasPrefix("---\nname: campaign-plan\n"))
+        XCTAssertTrue(text.contains("Respond and produce all documents in the user's configured language."))
+        XCTAssertTrue(text.contains("Apache-2.0"), "dice de dónde salió y con qué licencia")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: installed.appending(path: "LICENSE").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: record.folder.appending(path: ".claude/skills/acta/SKILL.md").path))
     }
 
     /// Todos los textos que la pantalla arma con `Localized.string` existen en los dos idiomas (si faltara uno se
@@ -98,7 +161,8 @@ final class SkillsStepTests: XCTestCase {
             "skills.count %lld %lld", "skills.missing %@", "skills.missing.meetings", "skills.list.or",
             "skills.preview.needs.meetings %@", "skills.preview.needs.tool %@", "skills.preview.writes.none",
             "skills.preview.writes.one %@", "skills.preview.writes.several %@", "skills.preview.writes.slack",
-            "skills.preview.mark %@", "skills.preview.mark.plain", "skills.from.galeno", "skills.preview.how",
+            "skills.preview.mark %@", "skills.preview.mark.plain", "skills.from.galeno", "skills.from.author %@ %@",
+            "skills.credit.original", "skills.preview.how",
             "skills.preview.needs", "skills.preview.illustrative", "skills.demo.reads %@ %@",
             "skills.demo.placeholder %@", "skills.demo.replay", "skills.demo.agent",
         ]
