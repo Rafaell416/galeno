@@ -35,6 +35,8 @@ nonisolated enum MCPConnectError: Error, Equatable, Sendable {
     /// El comando terminó bien pero el servidor sigue sin responder.
     case notConnectedAfterLogin
     case cancelled
+    /// `claude` no conoce `mcp login` («unknown command 'login'»): es una versión anterior a la 2.1.186.
+    case claudeOutdated
 }
 
 /// Quien recibe la dirección de autorización que `claude` iba a abrir en el navegador. Devuelve
@@ -58,6 +60,9 @@ nonisolated protocol MCPConnecting: Sendable {
     /// (`ClaudeSessionProbe`): `claude mcp get` lo da por conectado aunque le falte la autorización.
     /// `.notRegistered` = no está en la cuenta; `.pending` = aún se conectaba al arrancar; `.failed` = no responde.
     func connectorStatus(_ server: String) async -> MCPStatus
+    /// Lo mismo, pero con un arranque **nuevo**: sin lo que se haya leído hace unos segundos. Es para cuando
+    /// el usuario dice «ya lo conecté» y hay que mirar ahora.
+    func freshConnectorStatus(_ server: String) async -> MCPStatus
     /// `claude mcp login "claude.ai <nombre>"` para un conector de la cuenta de Claude: abre el navegador
     /// en la página de permiso y **termina enseguida**, sin esperar a que el usuario autorice (Claude Code
     /// no avisa cuando lo hace). Quien llama mira después el estado con `status(of:)`.
@@ -78,6 +83,7 @@ nonisolated protocol MCPConnecting: Sendable {
 }
 
 extension MCPConnecting {
+    func freshConnectorStatus(_ server: String) async -> MCPStatus { await connectorStatus(server) }
     func listStatuses() async -> [String: MCPStatus]? { nil }
     func login(server: String) async throws { try await login(server: server, openAuthorization: nil) }
     func issue(of server: String) async -> String? { nil }
@@ -209,7 +215,7 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
         if result.wasStopped {
             throw Task.isCancelled ? MCPConnectError.cancelled : MCPConnectError.loginTimedOut
         }
-        guard result.status == 0 else { throw MCPConnectError.loginFailed(Self.tail(result.output)) }
+        guard result.status == 0 else { throw Self.loginError(result.output) }
         // `login` imprime "Authenticated with …" al terminar bien: con eso no hace falta otro
         // `get` (4 s). Si no lo imprime, se confirma el estado por si acaso.
         if ManagedProcess.stripTerminalCodes(result.output).contains("Authenticated with") { return }
@@ -223,10 +229,14 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
     /// llegado de claude.ai cuando Claude Code dio su estado (se vio en la práctica: arranques de 1–2 s sin
     /// ninguno), no que la cuenta esté vacía: se vuelve a mirar antes de decir «no está en la cuenta». Sin eso,
     /// Galeno abría la página de un conector que ya estaba conectado y se quedaba esperando.
-    func connectorStatus(_ server: String) async -> MCPStatus {
+    func connectorStatus(_ server: String) async -> MCPStatus { await connectorStatus(server, fresh: false) }
+
+    func freshConnectorStatus(_ server: String) async -> MCPStatus { await connectorStatus(server, fresh: true) }
+
+    private func connectorStatus(_ server: String, fresh: Bool) async -> MCPStatus {
         var statuses: [String: String]?
         for attempt in 0..<Self.accountListAttempts {
-            statuses = await sessionStatuses.statuses(fresh: attempt > 0) { [probe, claudePath] in
+            statuses = await sessionStatuses.statuses(fresh: fresh || attempt > 0) { [probe, claudePath] in
                 await probe.serverStatuses(claudePath: claudePath)
             }
             guard let statuses, !Self.listsAccountConnectors(statuses) else { break }
@@ -260,9 +270,15 @@ nonisolated struct ClaudeMCPClient: MCPConnecting {
             let result = await terminal.runInTerminal(
                 claudePath, arguments: ["mcp", "login", server], environment: [:], timeout: 60)
         else { throw MCPConnectError.loginFailed("no se pudo lanzar") }
-        guard result.status == 0, !result.wasStopped else {
-            throw MCPConnectError.loginFailed(Self.tail(result.output))
-        }
+        guard result.status == 0, !result.wasStopped else { throw Self.loginError(result.output) }
+    }
+
+    /// Por qué falló `claude mcp login`. Un `claude` viejo no conoce el comando y lo dice así; culpar al
+    /// navegador de eso manda al usuario a buscar donde no es (demo de Aquiles, 5 oct 2026).
+    static func loginError(_ output: String) -> MCPConnectError {
+        let text = ManagedProcess.stripTerminalCodes(output).lowercased()
+        if text.contains("unknown command") && text.contains("login") { return .claudeOutdated }
+        return .loginFailed(tail(output))
     }
 
     func issue(of server: String) async -> String? {

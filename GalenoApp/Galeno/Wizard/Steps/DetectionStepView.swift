@@ -1,59 +1,76 @@
 import AppKit
 import SwiftUI
 
-/// Paso 2: detectar Claude Code (`docs/03` §3). Galeno solo mira y guía: no
-/// instala nada. Si falta, muestra el comando oficial para que el usuario lo
-/// corra en su terminal.
+/// Paso 2: dejar Claude Code listo (`docs/03` §3). Galeno mira qué falta y lo hace cuando el usuario lo
+/// pide con un botón: instalarlo, actualizarlo o iniciar su sesión. No se sigue hasta que esté listo.
 struct DetectionStepView: View {
+    static let guideURL = URL(string: "https://code.claude.com/docs/en/setup")!
+
+    var body: some View {
+        StepScaffold(step: .detection, summarySize: 16, titleGap: 8, contentGap: 20) {
+            ClaudeSetupContent()
+        }
+    }
+}
+
+/// Cómo está Claude Code y, si falta algo, el botón que lo arregla. Lo usan el paso 2 y la entrada a
+/// «Conectar» del wizard corto y de «Gestionar», que no pasan por el paso 2.
+struct ClaudeSetupContent: View {
     @EnvironmentObject private var wizard: WizardState
     /// El último resultado que no fue «buscando»: al comprobar de nuevo, la tarjeta se queda (a media
     /// opacidad) en vez de ceder el sitio a la rueda.
     @State private var previous: ClaudeCodeStatus?
 
-    static let installCommand = "curl -fsSL https://claude.ai/install.sh | bash"
-    static let guideURL = URL(string: "https://code.claude.com/docs/en/setup")!
-
     private var isChecking: Bool { wizard.claudeStatus == .checking }
 
-    /// Lo que se dibuja: el resultado anterior mientras se vuelve a buscar, si lo había.
+    /// Lo que se dibuja: el resultado anterior mientras se vuelve a buscar, si pedía algo.
     private var shown: ClaudeCodeStatus {
-        if isChecking, let previous, previous != .checking, !previous.isFound || isLoggedOut(previous) {
-            return previous
-        }
+        if isChecking, let previous, previous != .checking, !previous.isReady { return previous }
         return wizard.claudeStatus
     }
 
-    private func isLoggedOut(_ status: ClaudeCodeStatus) -> Bool {
-        if case .found(_, _, let loggedIn) = status { return loggedIn == false }
-        return false
-    }
-
     var body: some View {
-        StepScaffold(step: .detection, summarySize: 16, titleGap: 8, contentGap: 20) {
-            switch shown {
-            case .checking:
-                HStack(spacing: Space.s12) {
-                    InkSpinner(size: 16)
-                    Text("detection.checking")
-                        .font(Typo.body)
-                        .foregroundStyle(Color.ink700)
-                }
-            case .found(let version, let path, let loggedIn):
-                // `nil` es "no se pudo saber": en ese caso no se avisa de nada.
-                if loggedIn == false {
-                    LoggedOutPanel(version: version, path: path, isChecking: isChecking)
-                } else {
-                    FoundPanel(version: version, path: path, loggedIn: loggedIn == true)
-                }
-            case .notFound:
-                NotFoundPanel(isChecking: isChecking)
+        Group {
+            switch wizard.claudeSetup {
+            case .installing, .signingIn:
+                SetupWorkingPanel(phase: wizard.claudeSetup)
+            case .failed(let failure):
+                SetupFailurePanel(failure: failure)
+            case .idle:
+                status
             }
         }
         .onChange(of: wizard.claudeStatus) { _, status in if status != .checking { previous = status } }
         .onAppear { if wizard.claudeStatus != .checking { previous = wizard.claudeStatus } }
         .task {
-            // Si ya se encontró, volver atrás y adelante no lo vuelve a buscar.
-            if !wizard.claudeStatus.isFound { await wizard.detectClaudeCode() }
+            // Si ya está listo, volver atrás y adelante no lo vuelve a buscar.
+            if !wizard.claudeStatus.isReady, !wizard.claudeSetup.isWorking, !isChecking {
+                await wizard.detectClaudeCode()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var status: some View {
+        switch shown {
+        case .checking:
+            HStack(spacing: Space.s12) {
+                InkSpinner(size: 16)
+                Text("detection.checking")
+                    .font(Typo.body)
+                    .foregroundStyle(Color.ink700)
+            }
+        case .found(let version, let path, let loggedIn):
+            // `nil` es "no se pudo saber": en ese caso no se detiene a nadie.
+            if loggedIn == false {
+                SetupPanel(need: .signIn, isChecking: isChecking)
+            } else {
+                FoundPanel(version: version, path: path, loggedIn: loggedIn == true)
+            }
+        case .outdated(let version, _):
+            SetupPanel(need: .update(version: version), isChecking: isChecking)
+        case .notFound:
+            SetupPanel(need: .install, isChecking: isChecking)
         }
     }
 }
@@ -104,12 +121,17 @@ private struct FoundPanel: View {
     }
 }
 
-/// Instalado pero sin sesión: no bloquea, solo avisa. Entra como «encontrado», pero con un anillo
-/// ocre completo y un «!» en lugar de la palomita.
-private struct LoggedOutPanel: View {
+/// Algo falta y Galeno lo arregla (decisión de Rafa, 5 oct 2026): un aviso corto y **un** botón. El usuario
+/// no ve comandos ni abre la Terminal.
+private struct SetupPanel: View {
+    enum Need: Equatable {
+        case install
+        case update(version: String)
+        case signIn
+    }
+
     @EnvironmentObject private var wizard: WizardState
-    let version: String
-    let path: String
+    let need: Need
     var isChecking = false
 
     var body: some View {
@@ -123,146 +145,167 @@ private struct LoggedOutPanel: View {
                     }
                     .padding(.top, 2)
                 NoticePanel(kind: .ochre) {
-                    Text("detection.loggedOut.title")
+                    Text(title)
                         .font(Typo.display(20))
                         .foregroundStyle(Color.ink900)
-                    Text("detection.loggedOut.body")
+                    body(for: need)
                         .font(Typo.list)
                         .foregroundStyle(Color.ink700)
                         .fixedSize(horizontal: false, vertical: true)
-                    (Text("detection.found.version \(version)") + Text(verbatim: " · \(path)"))
-                        .font(Typo.mono)
-                        .foregroundStyle(Color.ink500)
-                        .textSelection(.enabled)
-                        .padding(.top, 4)
                 }
             }
             .opacity(isChecking ? 0.5 : 1)
             .animation(.easeOut(duration: Motion.micro), value: isChecking)
-            Button("detection.recheck") { Task { await wizard.detectClaudeCode() } }
-                .buttonStyle(InkButtonStyle(.secondary, padding: 20, isLoading: isChecking))
+            Button(action: act) { Text(button) }
+                .buttonStyle(InkButtonStyle(.primary, padding: 24, isLoading: isChecking))
+                .keyboardShortcut(.defaultAction)
                 .disabled(isChecking)
-        }
-    }
-}
-
-/// Qué hacer si `claude` no está: tres pasos numerados, el comando para copiar y volver a comprobar.
-/// El aviso entra (300 ms); el comando se «teclea» y luego aparecen los pasos 2 y 3 en escalón.
-private struct NotFoundPanel: View {
-    @EnvironmentObject private var wizard: WizardState
-    @Environment(\.galenoReduceMotion) private var reduceMotion
-    var isChecking = false
-    @State private var copied = false
-    /// El bloque del comando se ilumina un momento al copiarlo («lo tomé»).
-    @State private var lit = false
-
-    private static let typingDuration = 0.6
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Group {
-                NoticePanel(kind: .seal) {
-                    Text("detection.notFound.title")
-                        .font(Typo.display(20))
-                        .foregroundStyle(Color.ink900)
-                    Text("detection.notFound.body")
-                        .font(Typo.list)
-                        .foregroundStyle(Color.ink700)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    NumberedLine(number: 1) {
-                        HStack(alignment: .bottom, spacing: Space.s12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("detection.step1").font(Typo.list).foregroundStyle(Color.ink900)
-                                TypedCommand(text: DetectionStepView.installCommand, duration: Self.typingDuration)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 8)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(lit ? Color.parchment300 : Color.parchment200)
-                                    .overlay(Rectangle().strokeBorder(Color.parchment400, lineWidth: 1))
-                            }
-                            Button { copyCommand() } label: {
-                                CopyLabel(copied: copied, idle: "detection.copy", done: "detection.copied")
-                            }
-                            .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 16))
-                        }
-                    }
-                    NumberedLine(number: 2) {
-                        Text("detection.step2").font(Typo.list).foregroundStyle(Color.ink900)
-                    }
-                    .appearing(after: Self.typingDuration + 0.1)
-                    NumberedLine(number: 3) {
-                        Text("detection.step3").font(Typo.list).foregroundStyle(Color.ink900)
-                    }
-                    .appearing(after: Self.typingDuration + 0.18)
-                }
-            }
-            // Mientras se busca de nuevo, la tarjeta baja a media opacidad; si sigue sin estar, vuelve a 1.
-            .opacity(isChecking ? 0.5 : 1)
-            .animation(.easeOut(duration: Motion.micro), value: isChecking)
-
-            HStack(spacing: Space.s16) {
-                Button("detection.recheck") { Task { await wizard.detectClaudeCode() } }
-                    .buttonStyle(InkButtonStyle(.primary, padding: 20, isLoading: isChecking))
-                    .disabled(isChecking)
-                // Enlace en lacre con subrayado fino, no el azul del sistema.
-                Link("detection.guide", destination: DetectionStepView.guideURL)
-                    .font(Typo.list)
-                    .foregroundStyle(Color.seal700)
-                    .underline()
-            }
         }
         .appearing(after: 0, duration: Motion.enter)
     }
 
-    private func copyCommand() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(DetectionStepView.installCommand, forType: .string)
-        copied = true
-        withAnimation(.easeOut(duration: Motion.micro)) { lit = true }
-        Task {
-            try? await Task.sleep(for: .milliseconds(150))
-            withAnimation(.easeOut(duration: 0.4)) { lit = false }
-            try? await Task.sleep(for: .seconds(1.35))
-            copied = false
+    private func act() {
+        switch need {
+        case .install, .update: wizard.installClaudeCode()
+        case .signIn: wizard.signInToClaude()
+        }
+    }
+
+    private var title: LocalizedStringKey {
+        switch need {
+        case .install: "detection.notFound.title"
+        case .update: "detection.outdated.title"
+        case .signIn: "detection.loggedOut.title"
+        }
+    }
+
+    private func body(for need: Need) -> Text {
+        switch need {
+        case .install: Text("detection.notFound.body")
+        case .update(let version): Text("detection.outdated.body \(version)")
+        case .signIn: Text("detection.loggedOut.body")
+        }
+    }
+
+    private var button: LocalizedStringKey {
+        switch need {
+        case .install: "detection.install"
+        case .update: "detection.update"
+        case .signIn: "detection.signin"
         }
     }
 }
 
-/// El comando que se escribe solo, carácter a carácter (600 ms en total), con un cursor fino al final
-/// que desaparece al terminar. Con «Reducir movimiento» aparece completo. Ocupa siempre el espacio del
-/// comando entero, así que nada se mueve mientras se «teclea».
-private struct TypedCommand: View {
-    let text: String
-    let duration: Double
-    @Environment(\.galenoReduceMotion) private var reduceMotion
-    @State private var count = 0
-
-    private var finished: Bool { reduceMotion || count >= text.count }
+/// Galeno está instalando, o espera a que el usuario entre en el navegador. Mientras se espera el
+/// navegador hay dos salidas a la vista: «Ya inicié sesión, comprobar» y «Cancelar».
+private struct SetupWorkingPanel: View {
+    @EnvironmentObject private var wizard: WizardState
+    let phase: ClaudeSetupPhase
+    @State private var confirming = false
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            Text(verbatim: text).hidden()
-            if finished {
-                Text(verbatim: text).textSelection(.enabled)
-            } else {
-                Text(verbatim: String(text.prefix(count))) + Text(verbatim: "▏").foregroundColor(Color.ink500)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 14) {
+                InkSpinner(size: 22).padding(.top, 4)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(phase == .installing ? "detection.installing" : "detection.signingIn")
+                        .font(Typo.display(20))
+                        .foregroundStyle(Color.ink900)
+                    Text(phase == .installing ? "detection.installing.hint" : "detection.signingIn.hint")
+                        .font(Typo.list)
+                        .foregroundStyle(Color.ink700)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if phase == .signingIn {
+                HStack(spacing: Space.s12) {
+                    Button("detection.signingIn.confirm") {
+                        confirming = true
+                        Task {
+                            await wizard.confirmClaudeSignIn()
+                            confirming = false
+                        }
+                    }
+                    .buttonStyle(InkButtonStyle(.secondary, padding: 20, isLoading: confirming))
+                    .disabled(confirming)
+                    Button("detection.cancel") { wizard.cancelClaudeSetup() }
+                        .buttonStyle(.inkTertiary)
+                }
             }
         }
-        .font(Typo.mono)
-        .foregroundStyle(Color.ink900)
-        .task {
-            guard !reduceMotion else { return }
-            let step = Duration.milliseconds(max(1, Int(duration * 1000) / max(text.count, 1)))
-            while count < text.count {
-                try? await Task.sleep(for: step)
-                if Task.isCancelled { return }
-                count += 1
+        .appearing(after: 0, duration: Motion.enter)
+    }
+}
+
+/// Lo que Galeno intentó y no salió: qué pasó, por qué y qué hacer, con «Reintentar» siempre a la vista.
+private struct SetupFailurePanel: View {
+    @EnvironmentObject private var wizard: WizardState
+    let failure: ClaudeSetupFailure
+
+    private var isInstall: Bool {
+        switch failure {
+        case .offline, .installTimedOut, .installFailed: true
+        case .signInTimedOut, .signInFailed: false
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            NoticePanel(kind: .seal) {
+                Text(isInstall ? "detection.failure.install.title" : "detection.failure.signin.title")
+                    .font(Typo.display(20))
+                    .foregroundStyle(Color.ink900)
+                Text(cause)
+                    .font(Typo.list)
+                    .foregroundStyle(Color.ink900)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(what)
+                    .font(Typo.list)
+                    .foregroundStyle(Color.ink700)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !failure.detail.isEmpty {
+                    Text("connect.failure.detail \(failure.detail)")
+                        .font(Typo.mono)
+                        .foregroundStyle(Color.ink500)
+                        .lineLimit(2)
+                        .textSelection(.enabled)
+                }
+            }
+            HStack(spacing: Space.s16) {
+                Button("detection.retry") {
+                    if isInstall { wizard.installClaudeCode() } else { wizard.signInToClaude() }
+                }
+                .buttonStyle(InkButtonStyle(.primary, padding: 24))
+                .keyboardShortcut(.defaultAction)
+                if isInstall, failure != .offline {
+                    // La salida de emergencia: la guía oficial, para hacerlo a mano.
+                    Link("detection.guide", destination: DetectionStepView.guideURL)
+                        .font(Typo.list)
+                        .foregroundStyle(Color.ink900)
+                        .underline()
+                }
             }
         }
-        .accessibilityLabel(Text(verbatim: text))
+        .onAppear { Sounds.play(.failed) }
+        .appearing(after: 0, duration: Motion.enter)
+    }
+
+    private var cause: LocalizedStringKey {
+        switch failure {
+        case .offline: "detection.failure.offline"
+        case .installTimedOut: "detection.failure.installTimedOut"
+        case .installFailed: "detection.failure.installFailed"
+        case .signInTimedOut: "detection.failure.signInTimedOut"
+        case .signInFailed: "detection.failure.signInFailed"
+        }
+    }
+
+    private var what: LocalizedStringKey {
+        switch failure {
+        case .offline: "detection.failure.offline.what"
+        case .installTimedOut, .installFailed: "detection.failure.install.what"
+        case .signInTimedOut, .signInFailed: "detection.failure.signin.what"
+        }
     }
 }
 
@@ -270,6 +313,14 @@ private struct TypedCommand: View {
     DetectionStepView()
         .environmentObject(
             WizardState(claudeStatus: .found(version: "2.1.277", path: "/opt/homebrew/bin/claude", loggedIn: false)))
+        .frame(width: WindowMetrics.width, height: 440)
+        .background(Color.parchment50)
+}
+
+#Preview("Desactualizado") {
+    DetectionStepView()
+        .environmentObject(
+            WizardState(claudeStatus: .outdated(version: "2.1.150", path: "/usr/local/bin/claude")))
         .frame(width: WindowMetrics.width, height: 440)
         .background(Color.parchment50)
 }

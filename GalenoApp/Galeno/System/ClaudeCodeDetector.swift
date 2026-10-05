@@ -7,11 +7,29 @@ nonisolated enum ClaudeCodeStatus: Equatable, Sendable {
     /// Instalado. `loggedIn` es `nil` si no se pudo saber (una versión sin
     /// `claude auth status`): en ese caso no se avisa de nada.
     case found(version: String, path: String, loggedIn: Bool?)
+    /// Instalado, pero es una versión anterior a la mínima con la que Galeno sabe conectar
+    /// (`ClaudeCodeDetector.minimumVersion`). No se sigue con ella: se actualiza.
+    case outdated(version: String, path: String)
     case notFound
 
     var isFound: Bool {
         if case .found = self { return true }
         return false
+    }
+
+    /// Listo para seguir: instalado, al día y con sesión. Sin poder saber si hay sesión (`nil`) no se
+    /// detiene a nadie.
+    var isReady: Bool {
+        if case .found(_, _, let loggedIn) = self { return loggedIn != false }
+        return false
+    }
+
+    /// Dónde está `claude`, aunque esté desactualizado.
+    var path: String? {
+        switch self {
+        case .found(_, let path, _), .outdated(_, let path): path
+        case .checking, .notFound: nil
+        }
     }
 }
 
@@ -47,9 +65,20 @@ extension CommandRunning {
 /// miran primero las rutas donde lo dejan los instaladores y, si no está ahí,
 /// se le pregunta a un shell de login, que sí ve el PATH del usuario (npm, nvm).
 ///
-/// Galeno nunca instala Claude Code: instalarlo es descargar y ejecutar un
-/// script remoto, y eso lo hace el usuario en su terminal (`docs/03` §3).
+/// El detector solo mira. Instalar, actualizar e iniciar sesión los hace `ClaudeCodeSetup`,
+/// cuando el usuario lo pide (`docs/03` §3).
 nonisolated struct ClaudeCodeDetector: Sendable {
+    /// La versión más vieja de Claude Code con la que Galeno conecta. No es un gusto: por debajo, lo que
+    /// Galeno usa no existe o miente (CHANGELOG de Claude Code):
+    ///
+    /// - `claude mcp login` aparece en la 2.1.186. Sin él no se autoriza ninguna herramienta («unknown
+    ///   command 'login'», demo de Aquiles, 5 oct 2026).
+    /// - Hasta la 2.1.281, `MCP_CONNECTION_NONBLOCKING=0` se rendía con los conectores de la cuenta al
+    ///   segundo, sin respetar `MCP_CONNECT_TIMEOUT_MS`: el sondeo (`ClaudeSessionProbe`) los veía
+    ///   `pending` aunque estuvieran bien.
+    static let minimumVersion = "2.1.281"
+
+
     var runner: any CommandRunning = ProcessRunner()
     var homeDirectory: String = NSHomeDirectory()
     var isExecutable: @Sendable (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }
@@ -64,28 +93,51 @@ nonisolated struct ClaudeCodeDetector: Sendable {
         ]
     }
 
+    /// Un Mac puede tener varios `claude` (uno viejo de npm y el nativo, por ejemplo): se miran todos y
+    /// se usa **el más nuevo**. Si ni ese llega a la versión mínima, está desactualizado.
     func detect() async -> ClaudeCodeStatus {
         var tried: Set<String> = []
+        var best: (version: String, path: String)?
+        func consider(_ path: String) async {
+            guard tried.insert(path).inserted, let version = await version(at: path) else { return }
+            if best == nil || Self.compare(version, best!.version) == .orderedDescending { best = (version, path) }
+        }
 
         // Primero las rutas conocidas: son instantáneas. El shell de login es lo
         // lento (puede cargar un `.zshrc` pesado), así que solo se le pregunta si
-        // ninguna de ellas dio un `claude` que funcione.
-        for path in knownPaths.filter(isExecutable) where tried.insert(path).inserted {
-            if let found = await probe(path) { return found }
+        // ninguna de ellas dio un `claude` que sirva.
+        for path in knownPaths.filter(isExecutable) { await consider(path) }
+        if best.map({ !Self.isSupported($0.version) }) ?? true, let path = await pathFromLoginShell() {
+            await consider(path)
         }
-        if let path = await pathFromLoginShell(), tried.insert(path).inserted {
-            if let found = await probe(path) { return found }
+
+        guard let best else { return .notFound }
+        guard Self.isSupported(best.version) else { return .outdated(version: best.version, path: best.path) }
+        return .found(version: best.version, path: best.path, loggedIn: await loginState(at: best.path))
+    }
+
+    // MARK: Versiones
+
+    static func isSupported(_ version: String) -> Bool {
+        compare(version, minimumVersion) != .orderedAscending
+    }
+
+    /// Compara `2.1.90` con `2.1.281` por números, no por letras. Lo que siga a los tres números
+    /// (`-beta.1`) no cuenta.
+    static func compare(_ a: String, _ b: String) -> ComparisonResult {
+        func numbers(_ version: String) -> [Int] {
+            let parts = version.split(separator: ".").prefix(3).map { part in
+                Int(part.prefix { $0.isNumber }) ?? 0
+            }
+            return parts + Array(repeating: 0, count: max(0, 3 - parts.count))
         }
-        return .notFound
+        for (x, y) in zip(numbers(a), numbers(b)) where x != y {
+            return x < y ? .orderedAscending : .orderedDescending
+        }
+        return .orderedSame
     }
 
     // MARK: Pasos
-
-    /// Versión y sesión de un `claude` concreto, o `nil` si no funciona.
-    private func probe(_ path: String) async -> ClaudeCodeStatus? {
-        guard let version = await version(at: path) else { return nil }
-        return .found(version: version, path: path, loggedIn: await loginState(at: path))
-    }
 
     private func pathFromLoginShell() async -> String? {
         // `-i` además de `-l`: el PATH de nvm y de npm suele ponerse en `.zshrc`.
@@ -130,9 +182,14 @@ nonisolated struct ClaudeCodeDetector: Sendable {
 
 extension ClaudeCodeDetector {
     /// El detector real. En Debug, el argumento de arranque `-galeno-claude-missing`
-    /// finge que `claude` no está, para ver esa pantalla en un Mac que sí lo tiene.
+    /// finge que `claude` no está, para ver esa pantalla en un Mac que sí lo tiene. **Ojo:** sin
+    /// `-galeno-fake-connect`, «Instalar» corre el instalador de verdad.
     static var live: ClaudeCodeDetector {
         #if DEBUG
+        // Con conectores falsos, el Mac también es de mentira: el paso 2 se puede recorrer sin instalar nada.
+        if ProcessInfo.processInfo.arguments.contains("-galeno-fake-connect") {
+            return ScriptedClaudeMac.shared.detector
+        }
         if ProcessInfo.processInfo.arguments.contains("-galeno-claude-missing") {
             return ClaudeCodeDetector(runner: NothingRunner(), isExecutable: { _ in false })
         }

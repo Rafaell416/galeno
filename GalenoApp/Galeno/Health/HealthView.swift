@@ -366,6 +366,7 @@ private struct ConnectionLine: View {
         case .timedOut: "health.reconnect.issue.timedOut"
         case .stillNotConnected: "health.reconnect.issue.stillNotConnected"
         case .nameTaken: "health.reconnect.issue.nameTaken"
+        case .claudeOutdated: "health.reconnect.issue.claudeOutdated"
         case .failed: "health.reconnect.issue.failed"
         }
     }

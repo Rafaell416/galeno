@@ -198,6 +198,71 @@ struct ScriptedOpener: AgentOpening {
     func reveal(_ folder: URL) {}
 }
 
+/// Un Mac de mentira para el paso 2, solo con `-galeno-fake-connect`: deja ver «Falta Claude Code», «necesita
+/// actualizarse» y «Falta iniciar sesión» —y lo que pasa al pulsar cada botón— sin instalar ni abrir nada.
+/// Cómo arranca: `-galeno-claude-missing` (sin Claude Code), `-galeno-claude-outdated` (uno viejo),
+/// `-galeno-claude-signedout` (sin sesión); sin ninguno, todo listo.
+nonisolated final class ScriptedClaudeMac: CommandRunning, @unchecked Sendable {
+    static let shared = ScriptedClaudeMac(arguments: ProcessInfo.processInfo.arguments)
+    static let path = "/Users/demo/.local/bin/claude"
+
+    private let lock = NSLock()
+    private var version: String?
+    private var loggedIn: Bool
+
+    init(arguments: [String]) {
+        if arguments.contains("-galeno-claude-missing") {
+            version = nil
+            loggedIn = false
+        } else if arguments.contains("-galeno-claude-outdated") {
+            version = "2.1.150"
+            loggedIn = true
+        } else {
+            version = "2.1.289"
+            loggedIn = !arguments.contains("-galeno-claude-signedout")
+        }
+    }
+
+    var detector: ClaudeCodeDetector {
+        ClaudeCodeDetector(
+            runner: self, homeDirectory: "/Users/demo",
+            isExecutable: { [self] in $0 == Self.path && lock.withLock { version != nil } })
+    }
+
+    func install() { lock.withLock { version = "2.1.289" } }
+    func signIn() { lock.withLock { loggedIn = true } }
+
+    func run(
+        _ executable: String, arguments: [String], environment: [String: String], timeout: TimeInterval
+    ) async -> CommandResult? {
+        lock.withLock {
+            guard executable == Self.path, let version else { return nil }
+            if arguments == ["--version"] { return CommandResult(status: 0, output: "\(version) (Claude Code)") }
+            if arguments == ["auth", "status"] {
+                return CommandResult(status: 0, output: #"{"loggedIn": \#(loggedIn)}"#)
+            }
+            return nil
+        }
+    }
+}
+
+/// «Instalar» e «Iniciar sesión» de mentira: esperan un momento y cambian el Mac de mentira.
+nonisolated struct ScriptedClaudeSetup: ClaudeCodeSettingUp {
+    func install() async -> ClaudeSetupOutcome {
+        try? await Task.sleep(for: .seconds(3))
+        if Task.isCancelled { return .cancelled }
+        ScriptedClaudeMac.shared.install()
+        return .done
+    }
+
+    func signIn(claudePath: String) async -> ClaudeSetupOutcome {
+        try? await Task.sleep(for: .seconds(4))
+        if Task.isCancelled { return .cancelled }
+        ScriptedClaudeMac.shared.signIn()
+        return .done
+    }
+}
+
 extension ConnectServices {
     static func scripted() -> ConnectServices {
         // Con conectores falsos, el agente se genera en una carpeta temporal: probar la
@@ -218,7 +283,7 @@ extension ConnectServices {
                 options: ConfigGenerator.Options(
                     skillsDirectory: skills ?? URL(fileURLWithPath: "/nonexistent/skills"),
                     whatsAppBridgePath: "/usr/bin/true")),
-            opener: ScriptedOpener(), skillsDirectory: skills)
+            opener: ScriptedOpener(), skillsDirectory: skills, claudeSetup: ScriptedClaudeSetup())
     }
 }
 #endif

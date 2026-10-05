@@ -35,6 +35,9 @@ struct ConnectServices {
     var returnToApp: @MainActor () -> Void = {}
     /// Abre una dirección en el navegador del sistema. Las pruebas y los conectores falsos no abren nada.
     var openURL: @MainActor (URL) -> Void = { _ in }
+    /// Instala Claude Code e inicia su sesión (paso 2). Por defecto no hace nada: el de verdad descarga y
+    /// ejecuta, y solo lo pone `live()`.
+    var claudeSetup: any ClaudeCodeSettingUp = NoClaudeCodeSetup()
 
     static func live() -> ConnectServices {
         #if DEBUG
@@ -49,7 +52,8 @@ struct ConnectServices {
             systemAuthorizer: SystemAuthorizationSheet(),
             installer: .live(),
             returnToApp: { AppFocus.bringToFront() },
-            openURL: { NSWorkspace.shared.open($0) })
+            openURL: { NSWorkspace.shared.open($0) },
+            claudeSetup: ClaudeCodeSetup())
     }
 }
 

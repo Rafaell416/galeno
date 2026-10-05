@@ -524,6 +524,23 @@ Fallos (causa leída en el código; **ninguno reproducido en su Mac**):
    navegador, tres lecturas `pending` seguidas cuentan como conectado (`ConnectFlow.connectClaudeConnectors`). Con un
    `claude` viejo, además, puede que el sondeo no respete `MCP_CONNECTION_NONBLOCKING` y todo salga `pending` (sin comprobar).
 
+*Arreglado en la rama `fix/activacion` (5 oct 2026), con pruebas; ver `docs/03` §3 y §4e:*
+
+- Fallos 2 y 3: Galeno instala, actualiza e inicia la sesión de Claude Code con un botón (decisión de Rafa: «corramos
+  nosotros el comando»). Versión mínima 2.1.281; con varios `claude`, el más nuevo. El wizard corto y «Gestionar» pasan
+  por la misma puerta antes de conectar. El instalador real se probó en una carpeta aislada; **el inicio de sesión real
+  completo está sin probar** (hay que hacerlo en un Mac sin sesión).
+- Fallo 4: solo cuenta un «conectado» de verdad; «Ya lo conecté, comprobar» y «Abrir la página otra vez» durante la espera.
+  También en «Reconectar» de Salud. **Sin probar con una cuenta real.**
+- Los iconos de la tira del paso 5 ya llevan a cada conexión.
+- `unknown command 'login'` ya no culpa a las ventanas emergentes: dice que Claude Code está desactualizado.
+
+*Sigue pendiente:* el fallo 1 (el `LÉEME.md` del DMG ya trae el comando de Terminal, pero la solución es notarizar);
+Salud no ofrece actualizar Claude Code ni iniciar su sesión (solo lo dice); y todo lo de abajo, que espera el diseño de
+Claude Design («Galeno B1 Activación») y la base de skills por rol que consigue Rafa. Decidido por Rafa el 5 oct 2026:
+**tres roles (producto, marketing, comercial)**, lo que reabre «solo PM» y «otras plantillas»; se documenta al construirlo.
+Y **las demás conexiones quedan en pausa** (Fireflies, Granola) hasta que lo que hay quede sólido.
+
 Lo que no entendió (UX):
 
 - No hay onboarding: no sabía qué estaba haciendo ni para qué.

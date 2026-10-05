@@ -139,7 +139,7 @@ private struct NavigationBar: View {
     private var dopamine: LocalizedStringKey? {
         switch wizard.step {
         case .welcome: return "dopamine.welcome"
-        case .detection: return wizard.claudeStatus.isFound ? "dopamine.detection" : nil
+        case .detection: return wizard.claudeStatus.isReady ? "dopamine.detection" : nil
         case .agent: return wizard.agentNameIssue == nil ? "dopamine.agent" : nil
         case .tools: return wizard.connections.isEmpty ? nil : "dopamine.tools \(agentName)"
         default: return nil

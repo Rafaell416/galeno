@@ -108,7 +108,7 @@ struct ConnectionScreen: View {
             }
             .frame(maxWidth: 540)
         case .working(let step):
-            WorkingPanel(step: step, connector: flow.connectorProgress)
+            WorkingPanel(step: step, connector: flow.connectorProgress, flow: flow)
         case .ready:
             if tool == .whatsapp, showsWhatsAppWarning {
                 WhatsAppWarningLayout(name: name)
@@ -254,6 +254,7 @@ private struct WorkingPanel: View {
     let step: ConnectFlow.Step
     /// El conector de la cuenta de Claude que se está conectando: «Google Docs · 2 de 3».
     var connector: ConnectFlow.ConnectorProgress?
+    @ObservedObject var flow: ConnectFlow
     @Environment(\.locale) private var locale
     /// "Revisando…" dura 1–4 s y casi siempre menos: se muestra solo si tarda, para que una
     /// comprobación rápida no parpadee como si fuera una espera.
@@ -297,6 +298,11 @@ private struct WorkingPanel: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .appearing(after: 0.3)
             }
+            if flow.isWaitingForConnector {
+                ConnectorWaitActions(flow: flow)
+                    .padding(.top, 14)
+                    .appearing(after: 0.5)
+            }
         }
         .animation(.easeOut(duration: Motion.micro), value: step)
         .task {
@@ -319,6 +325,34 @@ private struct WorkingPanel: View {
         case .creatingSlackApp: "connect.step.creatingSlackApp"
         case .removingServer: "connect.step.removingServer"
         }
+    }
+}
+
+/// Mientras el usuario conecta un conector en el navegador: Galeno sigue mirando sola, pero nunca lo da por
+/// conectado por el paso del tiempo. Estas son las dos salidas a la vista (demo de Aquiles, 5 oct 2026).
+private struct ConnectorWaitActions: View {
+    @ObservedObject var flow: ConnectFlow
+
+    var body: some View {
+        VStack(spacing: 10) {
+            if flow.connectorCheck == .notYet {
+                Text("connect.connector.notYet")
+                    .font(Typo.list)
+                    .foregroundStyle(Color.ochre700)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 440)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
+            HStack(spacing: Space.s16) {
+                Button("connect.connector.confirm") { flow.confirmConnector() }
+                    .buttonStyle(InkButtonStyle(.secondary, padding: 20, isLoading: flow.connectorCheck == .checking))
+                    .disabled(flow.connectorCheck == .checking)
+                Button("connect.connector.reopen") { flow.reopenConnectorPage() }
+                    .buttonStyle(.inkTertiary)
+            }
+        }
+        .animation(.easeOut(duration: Motion.micro), value: flow.connectorCheck)
     }
 }
 
@@ -398,6 +432,8 @@ private struct FailurePanel: View {
             "connect.failure.what.browser"
         case .bridgeFailed, .bridgeMissing, .qrExpired, .tokenRejected, .slackManifest, .slackUnreachable:
             "connect.failure.what.generic"
+        case .claudeOutdated:
+            "connect.failure.claudeOutdated.what"
         case .slackNotAllowed, .nameInUse, .couldNotRemove, .slackMCPNotEnabled, .slackAppMissing:
             nil
         }
@@ -420,6 +456,7 @@ private struct FailurePanel: View {
         case .couldNotRemove: "connect.failure.couldNotRemove"
         case .slackMCPNotEnabled: "connect.failure.slackMCPNotEnabled"
         case .slackAppMissing: "connect.failure.slackAppMissing"
+        case .claudeOutdated: "connect.failure.claudeOutdated"
         }
     }
 }
