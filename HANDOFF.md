@@ -454,7 +454,11 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 - **Tecnología de `site/`:** sin definir. Estructura y estilo sí (`docs/04` §9).
 - **Tiempo de Rafa:** MediClub lanza el 15 de noviembre de 2026 y compite por su atención.
 
-### Pendientes del primer demo (4 oct 2026, con Simon): antes de la Fase 4b
+**Fase 4b (home) hecha en su primer corte (4 oct 2026):** lista de agentes, «Abrir» en la app de Claude o Terminal
+(recuerda la última elección, botón partido) y «Nuevo agente» por el wizard corto (reutiliza los pasos del completo).
+Faltan «Gestionar la config» y «Salud y mantenimiento» (`docs/03` §3b).
+
+### Pendientes del primer demo (4 oct 2026, con Simon): la Fase 4b ya está
 
 Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo que salió:
 
