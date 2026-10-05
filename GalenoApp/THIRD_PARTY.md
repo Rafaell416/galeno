@@ -92,7 +92,7 @@ Galeno, y lleva al lado el `LICENSE` de su origen. Cómo se adapta una: `docs/03
 | Skills | Autor | Origen | Licencia |
 |---|---|---|---|
 | `campaign-plan`, `content-creation`, `email-sequence`, `brand-review`, `performance-report`, `seo-audit`, `competitive-brief` | Anthropic | [`anthropics/knowledge-work-plugins`, `marketing/`](https://github.com/anthropics/knowledge-work-plugins/tree/main/marketing) | Apache-2.0 |
-| `call-summary`, `call-prep`, `draft-outreach`, `inbox-sweep`, `daily-briefing` | Anthropic | [`anthropics/knowledge-work-plugins`, `sales/`](https://github.com/anthropics/knowledge-work-plugins/tree/main/sales) | Apache-2.0 |
+| `call-summary`, `call-prep`, `draft-outreach`, `inbox-sweep`, `daily-briefing`, `schedule-meeting`, `customer-voice`, `account-plan`, `close-plan`, `handle-objection`, `stakeholder-map`, `account-context`, `create-an-asset`, `weekly-wrap`, `lead-triage`, `account-tiering` | Anthropic | [`anthropics/knowledge-work-plugins`, `sales/`](https://github.com/anthropics/knowledge-work-plugins/tree/main/sales) | Apache-2.0 |
 | `discover-brand`, `guideline-generation`, `brand-voice-enforcement` | Tribe AI | [`anthropics/knowledge-work-plugins`, `partner-built/brand-voice/`](https://github.com/anthropics/knowledge-work-plugins/tree/main/partner-built/brand-voice) | MIT |
 
 Sus iconos (`Assets.xcassets/SkillIcons/skill-<id>`) son dibujos propios de Galeno, de línea a 1,5 pt, como los de

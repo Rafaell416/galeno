@@ -1786,6 +1786,625 @@
         "es": "No se programa sola: la pides tú cada mañana. Solo lee; no envía ni cambia nada.",
         "en": "It does not run by itself: you ask for it each morning. Read only; it sends and changes nothing."
       }
+    },
+    {
+      "id": "schedule-meeting",
+      "name": {
+        "es": "Agendar reunión",
+        "en": "Schedule meeting"
+      },
+      "summary": {
+        "es": "Busca un hueco en tu calendario, propone horarios y crea la invitación cuando apruebas exactamente lo que va a salir.",
+        "en": "Finds a slot in your calendar, proposes times and creates the invitation once you approve exactly what will go out."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/schedule-meeting",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "google-calendar",
+        "gmail"
+      ],
+      "needsAny": [
+        "google-calendar"
+      ],
+      "ask": {
+        "es": "Agenda la demo con Clínica Los Olivos la próxima semana",
+        "en": "Book the demo with Los Olivos Clinic next week"
+      },
+      "example": {
+        "input": {
+          "es": "tu calendario de la próxima semana y los contactos de Clínica Los Olivos",
+          "en": "next week's calendar and the contacts at Los Olivos Clinic"
+        },
+        "output": {
+          "es": [
+            "# Demo con Clínica Los Olivos",
+            "## Horarios libres",
+            "- Martes 13 oct, 10:00 (hora de Bogotá)",
+            "- Jueves 15 oct, 15:30 (hora de Bogotá)",
+            "## Invitación para aprobar",
+            "- 60 min · Marta Ruiz y tú · enlace de Meet",
+            "- Al crearla, Marta recibe la invitación: ¿la creo?"
+          ],
+          "en": [
+            "# Demo with Los Olivos Clinic",
+            "## Open times",
+            "- Tuesday, Oct 13, 10:00 (Bogotá time)",
+            "- Thursday, Oct 15, 15:30 (Bogotá time)",
+            "## Invitation to approve",
+            "- 60 min · Marta Ruiz and you · Meet link",
+            "- Creating it sends Marta the invitation: shall I?"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Tampoco mueve, acepta ni cancela una reunión por su cuenta. La zona horaria nunca la supone.",
+        "en": "It never moves, accepts or cancels a meeting on its own either. It never guesses the time zone."
+      }
+    },
+    {
+      "id": "customer-voice",
+      "name": {
+        "es": "Voz del cliente",
+        "en": "Customer voice"
+      },
+      "summary": {
+        "es": "Reúne lo que tus clientes dijeron sobre un tema, en citas textuales con quién lo dijo, cuándo y dónde.",
+        "en": "Gathers what your customers said about a topic, as verbatim quotes with who said it, when and where."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/customer-voice",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "¿Qué están diciendo los clientes sobre el precio por sede?",
+        "en": "What are customers saying about per-location pricing?"
+      },
+      "example": {
+        "input": {
+          "es": "las llamadas y los correos del último mes con tus clientes",
+          "en": "last month's calls and emails with your customers"
+        },
+        "output": {
+          "es": [
+            "# Voz del cliente: precio por sede",
+            "## Les cuesta prever el gasto · 3 cuentas",
+            "> «Con cinco sedes no sé cuánto voy a pagar en diciembre.»",
+            "- Marta Ruiz, Clínica Los Olivos · llamada del 28 sep",
+            "## Sin datos",
+            "- Centro Dental Sur: ninguna llamada en el periodo"
+          ],
+          "en": [
+            "# Customer voice: per-location pricing",
+            "## Hard to predict the spend · 3 accounts",
+            "> \"With five locations I can't tell what I'll pay in December.\"",
+            "- Marta Ruiz, Los Olivos Clinic · call of Sep 28",
+            "## No data",
+            "- Sur Dental Center: no calls in the period"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Solo citas textuales, cada una con su fuente y su fecha: nunca pone una paráfrasis entre comillas.",
+        "en": "Verbatim quotes only, each with its source and date: it never puts a paraphrase in quotation marks."
+      }
+    },
+    {
+      "id": "account-plan",
+      "name": {
+        "es": "Plan de cuenta",
+        "en": "Account plan"
+      },
+      "summary": {
+        "es": "Arma o actualiza el plan de una cuenta: dónde está, qué busca el cliente, a quién conoces, oportunidades, riesgos y acciones con fecha.",
+        "en": "Builds or refreshes an account plan: where it stands, what the customer is after, who you know, opportunities, risks and dated actions."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/account-plan",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Arma el plan de cuenta de Clínica Los Olivos para este trimestre",
+        "en": "Build the account plan for Los Olivos Clinic for this quarter"
+      },
+      "example": {
+        "input": {
+          "es": "tu hoja de oportunidades, las llamadas y los correos con Clínica Los Olivos",
+          "en": "your pipeline sheet, the calls and the emails with Los Olivos Clinic"
+        },
+        "output": {
+          "es": [
+            "# Plan de cuenta: Clínica Los Olivos",
+            "## Sus metas",
+            "- Bajar las ausencias en sus cinco sedes (llamada del 28 sep)",
+            "## Riesgos",
+            "- Nadie de finanzas ha estado en una llamada",
+            "| Acción | Responsable | Fecha |",
+            "| Presentar el piloto a finanzas | Tú (propuesto) | 20 oct |"
+          ],
+          "en": [
+            "# Account plan: Los Olivos Clinic",
+            "## Their goals",
+            "- Cut no-shows across their five locations (call of Sep 28)",
+            "## Risks",
+            "- Nobody from finance has joined a call",
+            "| Action | Owner | Date |",
+            "| Present the pilot to finance | You (proposed) | Oct 20 |"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No actualiza tu CRM: te deja el resumen listo para pegar. Lo que nadie dijo va como hipótesis o «propuesto».",
+        "en": "It does not update your CRM: it hands you the summary ready to paste. What nobody said is marked as a hypothesis or “proposed”."
+      }
+    },
+    {
+      "id": "close-plan",
+      "name": {
+        "es": "Plan de cierre",
+        "en": "Close plan"
+      },
+      "summary": {
+        "es": "Escribe el caso de negocio y el plan de acción conjunto de una venta: por qué comprar ahora y cada paso hasta la firma, con responsable y fecha.",
+        "en": "Writes the business case and the mutual action plan for a deal: why buy now, and every step to signature with its owner and date."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/close-plan",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace",
+        "gmail"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Arma el plan de cierre de Clínica Los Olivos",
+        "en": "Build a close plan for Los Olivos Clinic"
+      },
+      "example": {
+        "input": {
+          "es": "las llamadas, la propuesta y los correos de la venta a Clínica Los Olivos",
+          "en": "the calls, the proposal and the emails of the Los Olivos Clinic deal"
+        },
+        "output": {
+          "es": [
+            "# Plan de cierre: Clínica Los Olivos",
+            "## Caso de negocio",
+            "- Pierden 1 de cada 5 citas por ausencias (Marta, llamada del 28 sep)",
+            "- Por validar: cuánto les cuesta cada cita perdida",
+            "## Camino a la firma: 30 oct",
+            "| Paso | Responsable | Fecha |",
+            "| Revisión legal del contrato | Cliente (propuesto) | 16 oct |"
+          ],
+          "en": [
+            "# Close plan: Los Olivos Clinic",
+            "## Business case",
+            "- They lose 1 in 5 appointments to no-shows (Marta, call of Sep 28)",
+            "- To validate: what each missed appointment costs them",
+            "## Path to signature: Oct 30",
+            "| Step | Owner | Date |",
+            "| Legal review of the contract | Customer (proposed) | Oct 16 |"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Cada cifra lleva su fuente: lo que el cliente no dijo queda «por validar». No comparte los documentos con el cliente.",
+        "en": "Every figure carries its source: what the customer did not say is marked “to validate”. It does not share the documents with the customer."
+      }
+    },
+    {
+      "id": "handle-objection",
+      "name": {
+        "es": "Responder una objeción",
+        "en": "Handle an objection"
+      },
+      "summary": {
+        "es": "Trabaja una objeción o un competidor que aparece en una venta: qué hay detrás, cómo responder y con qué pruebas, a partir de tu propio historial.",
+        "en": "Works through an objection or a competitor showing up in a deal: what is behind it, how to respond and with what proof, drawn from your own history."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/handle-objection",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "gmail",
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Clínica Vida dice que somos muy caros, ¿cómo respondo?",
+        "en": "Vida Clinic says we're too expensive. How do I respond?"
+      },
+      "example": {
+        "input": {
+          "es": "el correo de Clínica Vida, tus llamadas con ellos y tus casos de éxito",
+          "en": "the email from Vida Clinic, your calls with them and your case studies"
+        },
+        "output": {
+          "es": [
+            "# Objeción: «son muy caros»",
+            "## Qué hay detrás",
+            "- Negocia, no rechaza: pidió propuesta para tres sedes (correo, 1 oct)",
+            "## Respuesta",
+            "> Entiendo que el precio pese. Ustedes contaron que pierden 1 de cada 5 citas…",
+            "## Pruebas",
+            "- Caso Clínica Los Olivos (por confirmar antes de usarlo)"
+          ],
+          "en": [
+            "# Objection: \"you're too expensive\"",
+            "## What is behind it",
+            "- Negotiating, not refusing: asked for a 3-location proposal (email, Oct 1)",
+            "## Response",
+            "> I understand price matters. You told us you lose 1 in 5 appointments…",
+            "## Proof",
+            "- Los Olivos Clinic case study (to confirm before using it)"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Si no hay historial de ventas ganadas o perdidas, lo dice en vez de suponerlo. No ofrece descuentos que tú no hayas dicho.",
+        "en": "With no win/loss history it says so instead of guessing. It never offers a discount you did not state."
+      }
+    },
+    {
+      "id": "stakeholder-map",
+      "name": {
+        "es": "Mapa de interlocutores",
+        "en": "Stakeholder map"
+      },
+      "summary": {
+        "es": "Ordena a las personas de una cuenta o de una venta: quién decide, quién influye, con quién tienes relación de verdad y a quién te falta llegar.",
+        "en": "Maps the people in an account or a deal: who decides, who influences, where you have a real relationship and who you still need to reach."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/stakeholder-map",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "¿Quién decide en Clínica Los Olivos y a quién me falta llegar?",
+        "en": "Who decides at Los Olivos Clinic, and who am I missing?"
+      },
+      "example": {
+        "input": {
+          "es": "tus llamadas, correos y contactos de Clínica Los Olivos",
+          "en": "your calls, emails and contacts at Los Olivos Clinic"
+        },
+        "output": {
+          "es": [
+            "# Mapa: Clínica Los Olivos",
+            "| Marta Ruiz | Directora de operaciones | Impulsora · activa |",
+            "| Julián Peña | Gerente financiero | Decide · sin reunión |",
+            "## Cobertura",
+            "- 2 de 4 roles con contacto; todo pasa por Marta",
+            "- Rol de Julián: inferido del correo del 2 oct"
+          ],
+          "en": [
+            "# Map: Los Olivos Clinic",
+            "| Marta Ruiz | Operations director | Champion · active |",
+            "| Julián Peña | Finance manager | Decides · never met |",
+            "## Coverage",
+            "- 2 of 4 roles reached; everything runs through Marta",
+            "- Julián's role: inferred from the Oct 2 email"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Cada rol lleva su fuente y su fecha, y lo que deduce va marcado como inferencia. No adivina cargos ni busca a nadie en la web.",
+        "en": "Every role carries its source and date, and what it infers is marked as an inference. It never guesses a title or looks anyone up on the web."
+      }
+    },
+    {
+      "id": "account-context",
+      "name": {
+        "es": "Contexto de cuenta",
+        "en": "Account context"
+      },
+      "summary": {
+        "es": "Reúne en un solo brief lo que tus fuentes dicen de una cuenta: negocios, correos, documentos, llamadas y lo que se comenta en Slack.",
+        "en": "Pulls into one brief what your sources say about an account: deals, emails, documents, calls and the chatter in Slack."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/account-context",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace",
+        "slack"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Ponme al día con Clínica Los Olivos",
+        "en": "Catch me up on Los Olivos Clinic"
+      },
+      "example": {
+        "input": {
+          "es": "los correos, las llamadas y los documentos de Clínica Los Olivos",
+          "en": "the emails, calls and documents on Los Olivos Clinic"
+        },
+        "output": {
+          "es": [
+            "# Clínica Los Olivos: contexto",
+            "## Estado actual",
+            "- Propuesta enviada el 29 sep; esperan a finanzas",
+            "## Correspondencia reciente",
+            "- 2 oct · Marta Ruiz pide el precio por sede",
+            "## Alertas",
+            "- Siguiente paso en blanco en tu hoja de negocios"
+          ],
+          "en": [
+            "# Los Olivos Clinic: context",
+            "## Current state",
+            "- Proposal sent Sep 29; waiting on finance",
+            "## Recent correspondence",
+            "- Oct 2 · Marta Ruiz asks for per-location pricing",
+            "## Flags",
+            "- Next step is blank in your deals sheet"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Lo que tus fuentes no traen queda como «sin datos»: no lo rellena de memoria. No actualiza tu CRM.",
+        "en": "What your sources do not hold stays “not provided”: it never fills a gap from memory. It does not update your CRM."
+      }
+    },
+    {
+      "id": "create-an-asset",
+      "name": {
+        "es": "Material de ventas",
+        "en": "Sales asset"
+      },
+      "summary": {
+        "es": "Escribe el contenido de una presentación, un one-pager o un material para dejarle a un cliente, a partir de tus materiales aprobados y de lo que el cliente dijo.",
+        "en": "Writes the content of a deck, a one-pager or a leave-behind for a customer, from your approved materials and what the customer said."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/create-an-asset",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Escribe el contenido de una presentación para Clínica Los Olivos",
+        "en": "Write the content of a deck for Los Olivos Clinic"
+      },
+      "example": {
+        "input": {
+          "es": "tus materiales aprobados y las llamadas con Clínica Los Olivos",
+          "en": "your approved materials and the calls with Los Olivos Clinic"
+        },
+        "output": {
+          "es": [
+            "# Presentación para Clínica Los Olivos · 5 diapositivas",
+            "## Diapositiva 2 · Lo que cambió para las clínicas",
+            "- 1 de cada 5 citas se pierde por ausencias (Marta, llamada del 28 sep)",
+            "- Notas del orador: abrir con la cifra que dio Marta",
+            "## Diapositiva 3 · Prueba",
+            "- [CIFRA DEL CLIENTE]: ahorro por sede, por completar",
+            "- SIN VERIFICAR: integración con su sistema de historias"
+          ],
+          "en": [
+            "# Deck for Los Olivos Clinic · 5 slides",
+            "## Slide 2 · What changed for clinics",
+            "- 1 in 5 appointments is lost to no-shows (Marta, Sep 28 call)",
+            "- Speaker notes: open with the number Marta gave",
+            "## Slide 3 · Proof",
+            "- [CUSTOMER METRIC]: savings per location, to fill in",
+            "- UNVERIFIED: integration with their records system"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Escribe el contenido, no el archivo ni el diseño: la maquetación la haces tú en tu herramienta.",
+        "en": "It writes the content, not the file or the design: you lay it out in your own tool."
+      }
+    },
+    {
+      "id": "weekly-wrap",
+      "name": {
+        "es": "Cierre de semana",
+        "en": "Weekly wrap"
+      },
+      "summary": {
+        "es": "Resume tu semana comercial: qué se cerró, qué avanzó, qué se atrasó y qué viene el lunes, a partir de la hoja de negocios que traes.",
+        "en": "Sums up your sales week: what closed, what moved, what slipped and what is coming Monday, from the deals sheet you bring."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/weekly-wrap",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace",
+        "slack"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Hazme el cierre de la semana",
+        "en": "Give me my weekly wrap"
+      },
+      "example": {
+        "input": {
+          "es": "tu hoja de negocios de esta semana y de la anterior, y tu calendario",
+          "en": "this week's and last week's deals sheet, and your calendar"
+        },
+        "output": {
+          "es": [
+            "# Semana del 28 sep al 2 oct",
+            "## Cerrado",
+            "- Ganado: Centro Dental Sur · $4.800",
+            "## Avanzó",
+            "- Clínica Los Olivos: de demo a propuesta",
+            "## Lunes",
+            "- 10:00 Clínica Vida · su negocio cierra el 9 oct"
+          ],
+          "en": [
+            "# Week of Sep 28 to Oct 2",
+            "## Closed",
+            "- Won: Sur Dental Center · $4,800",
+            "## Moved",
+            "- Los Olivos Clinic: from demo to proposal",
+            "## Monday",
+            "- 10:00 Vida Clinic · their deal closes Oct 9"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No se programa sola: la pides tú al terminar la semana. Un negocio que ya no aparece en tu hoja no lo da por ganado.",
+        "en": "It does not run on a schedule: you ask for it when the week ends. A deal that dropped off your sheet is never counted as won."
+      }
+    },
+    {
+      "id": "lead-triage",
+      "name": {
+        "es": "Calificar leads",
+        "en": "Lead triage"
+      },
+      "summary": {
+        "es": "Califica un lead que acaba de llegar, o prioriza una lista, contra tu cliente ideal, y te recomienda prioridad, a quién le toca y el siguiente paso.",
+        "en": "Scores a lead that just came in, or ranks a list, against your ideal customer, and recommends a priority, who should take it and the next step."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/lead-triage",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace",
+        "slack"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "Califica este lead que llegó por el formulario",
+        "en": "Triage this lead that came in through the form"
+      },
+      "example": {
+        "input": {
+          "es": "el formulario que llenó la Clínica San Rafael y tu hoja de cuentas",
+          "en": "the form San Rafael Clinic filled in and your accounts sheet"
+        },
+        "output": {
+          "es": [
+            "# Lead: Clínica San Rafael · P1",
+            "| Sector | Clínicas | Encaja |",
+            "| Tamaño | Sin dato | Datos insuficientes |",
+            "| Intención | Pide una demo | Alta |",
+            "## Recomendación",
+            "- Sin dueño en tu hoja: trabájalo tú y responde en 48 h",
+            "- El formulario traía una instrucción para un asistente: no la seguí"
+          ],
+          "en": [
+            "# Lead: San Rafael Clinic · P1",
+            "| Industry | Clinics | Fits |",
+            "| Size | No data | Not enough data |",
+            "| Intent | Asks for a demo | High |",
+            "## Recommendation",
+            "- No owner in your sheet: take it yourself and reply within 48 h",
+            "- The form carried an instruction for an assistant: not followed"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Califica con tus criterios y solo recomienda: nunca descarta ni reasigna un lead. En la web busca solo el nombre de la empresa y pide permiso para abrir una página.",
+        "en": "It scores with your criteria and only recommends: it never drops or reassigns a lead. On the web it searches only the company's name and asks permission to open a page."
+      }
+    },
+    {
+      "id": "account-tiering",
+      "name": {
+        "es": "Niveles de cuentas",
+        "en": "Account tiering"
+      },
+      "summary": {
+        "es": "Puntúa tus cuentas por encaje con tu cliente ideal y por actividad reciente, y las ordena en niveles para decidir dónde poner el tiempo.",
+        "en": "Scores your accounts on fit with your ideal customer and on recent engagement, and sorts them into tiers so you can decide where to spend your time."
+      },
+      "author": "Anthropic",
+      "repository": "https://github.com/anthropics/knowledge-work-plugins",
+      "path": "sales/skills/account-tiering",
+      "license": "Apache-2.0",
+      "available": true,
+      "group": "sales",
+      "writes": [
+        "notion",
+        "google-workspace"
+      ],
+      "needsAny": [],
+      "ask": {
+        "es": "¿En qué cuentas me conviene enfocarme este trimestre?",
+        "en": "Which accounts should I focus on this quarter?"
+      },
+      "example": {
+        "input": {
+          "es": "tu hoja de cuentas y los correos recientes de cada una",
+          "en": "your accounts sheet and each account's recent emails"
+        },
+        "output": {
+          "es": [
+            "# Cuentas por nivel · corte en 6 de 10",
+            "| Cuenta | Encaje | Actividad |",
+            "| Clínica Los Olivos | 3+3+2+2 = 10 | 3+3+2+1 = 9 |",
+            "| Centro Dental Sur | 3+1+2+2 = 8 | 0+1+0+0 = 1 |",
+            "## Niveles",
+            "- A: Clínica Los Olivos · B: Centro Dental Sur",
+            "- Datos insuficientes: Clínica Vida (sin sector ni tamaño)"
+          ],
+          "en": [
+            "# Accounts by tier · cutoff at 6 of 10",
+            "| Account | Fit | Engagement |",
+            "| Los Olivos Clinic | 3+3+2+2 = 10 | 3+3+2+1 = 9 |",
+            "| Sur Dental Center | 3+1+2+2 = 8 | 0+1+0+0 = 1 |",
+            "## Tiers",
+            "- A: Los Olivos Clinic · B: Sur Dental Center",
+            "- Not enough data: Vida Clinic (no industry or size)"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Puntúa con tus criterios y enseña la suma detrás de cada puntaje. En la web busca solo el nombre de la empresa y pide permiso para abrir una página.",
+        "en": "It scores with your criteria and shows the sum behind every score. On the web it searches only the company's name and asks permission to open a page."
+      }
     }
   ]
 }

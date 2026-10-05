@@ -104,9 +104,9 @@ final class SkillsStepTests: XCTestCase {
         let cards = catalog.skills(in: marketing)
 
         XCTAssertEqual(cards.count, 10)
-        XCTAssertEqual(catalog.cards.count, 32, "17 nuestras, 10 de marketing y 5 de comercial")
+        XCTAssertEqual(catalog.cards.count, 43, "17 nuestras, 10 de marketing y 16 de comercial")
         let sales = try XCTUnwrap(catalog.groups.first { $0.id == "sales" })
-        XCTAssertEqual(catalog.skills(in: sales).count, 5)
+        XCTAssertEqual(catalog.skills(in: sales).count, 16)
         XCTAssertEqual(catalog.missingFiles(in: directory), [], "cada una con su SKILL.md dentro de la app")
         for card in cards {
             XCTAssertEqual(card.source, .curated)

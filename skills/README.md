@@ -18,12 +18,14 @@ Las skills del perfil Product Manager y el catálogo de skills curadas de la com
   Comprobado contra Claude Code real: un agente generado con las 17 las lista todas al arrancar. **No están probadas
   una por una con trabajo real**: eso se ve usándolas.
 - `curated/<id>/`: las de terceros **ya traídas y adaptadas**, cada una con su `SKILL.md` y el `LICENSE` de su origen.
-  Hoy son quince, todas de `anthropics/knowledge-work-plugins`: diez de marketing y cinco de comercial. Siete de Anthropic (Apache-2.0): `campaign-plan`,
+  Hoy son veintiséis, todas de `anthropics/knowledge-work-plugins`: diez de marketing y dieciséis de comercial. Siete de Anthropic (Apache-2.0): `campaign-plan`,
   `content-creation` (une `draft-content` y `content-creation`), `email-sequence`, `brand-review`, `performance-report`,
   `seo-audit` y `competitive-brief` (estas dos miran la web, con permiso del usuario). Y tres de voz de marca de Tribe AI
   (MIT, carpeta `partner-built/brand-voice`), con sus `references/`: `discover-brand`, `guideline-generation` y
-  `brand-voice-enforcement`. Y cinco de comercial, del plugin de ventas de Anthropic (Apache-2.0): `call-summary`,
-  `call-prep`, `draft-outreach`, `inbox-sweep` y `daily-briefing` (sin CRM: trabajan con lo que el usuario pega o con una
+  `brand-voice-enforcement`. Y dieciséis de comercial, del plugin de ventas de Anthropic (Apache-2.0): `call-summary`,
+  `call-prep`, `draft-outreach`, `inbox-sweep`, `daily-briefing`, `schedule-meeting`, `customer-voice`, `account-plan`,
+  `close-plan`, `handle-objection`, `stakeholder-map`, `account-context`, `create-an-asset`, `weekly-wrap`, `lead-triage`
+  y `account-tiering` (sin CRM: trabajan con lo que el usuario pega o con una
   hoja; las que tocan el correo no envían nada sin un «sí» al texto exacto).
   Cada una termina con una sección «Source» que dice de dónde salió y qué cambió Galeno; lo demás es el texto de su autor.
   Cómo se adapta una: `docs/03` §6.2. En esta carpeta solo van carpetas de skills (una prueba lo exige).
