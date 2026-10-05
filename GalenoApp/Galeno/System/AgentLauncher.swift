@@ -18,6 +18,14 @@ nonisolated enum AgentLink {
         build("claude://code/new", [("folder", folder.path), ("q", prompt)])
     }
 
+    /// Vuelve a una sesión concreta de la app de Claude. **No está documentado por Anthropic**: es el enlace que la
+    /// propia app usa en su menú del Dock («Continuar la última sesión»). Si la app no lo entiende, abre su pantalla
+    /// de Code y no rompe nada. El id debe tener la forma `local_…`.
+    static func claudeAppContinue(sessionID: String) -> URL? {
+        guard sessionID.range(of: ClaudeSessionStore.idPattern, options: .regularExpression) != nil else { return nil }
+        return build("claude://code/continue", [("session", sessionID)])
+    }
+
     static func claudeCLI(folder: URL, prompt: String?) -> URL {
         build("claude-cli://open", [("cwd", folder.path), ("q", prompt)])
     }
@@ -105,24 +113,76 @@ nonisolated enum FirstCommand {
 
 // MARK: - Abrir
 
+/// Cuándo abrir un agente obliga a reiniciar la app de Claude, y cómo se abre. Lo comparten «Listo» y el home.
+///
+/// La app de Claude carga los conectores de la cuenta (Gmail, Drive…) al arrancar y no los actualiza
+/// (`docs/03` §4e): si lleva abierta desde antes de que el agente existiera, no ve los suyos.
+@MainActor
+enum AgentOpenPolicy {
+    /// Si alguna de las herramientas conectadas llega por un conector de la cuenta de Claude.
+    static func usesConnectors(_ tools: [Tool]) -> Bool {
+        tools.contains { !MCPServerCatalog.claudeConnectorNames(for: $0).isEmpty }
+    }
+
+    /// Desde cuándo está listo el agente: cuando se escribió su configuración.
+    static func readySince(_ folder: URL) -> Date {
+        let settings = folder.appending(path: ".claude/settings.json")
+        let attributes = try? FileManager.default.attributesOfItem(atPath: settings.path)
+        return attributes?[.modificationDate] as? Date ?? Date()
+    }
+
+    static func needsClaudeRestart(tools: [Tool], folder: URL, opener: any AgentOpening) -> Bool {
+        usesConnectors(tools) && opener.claudeAppNeedsRestart(since: readySince(folder))
+    }
+
+    /// Abre el agente donde el usuario eligió. En la app de Claude, y solo si hace falta, la cierra y la
+    /// vuelve a abrir en el agente. Devuelve si pudo abrirlo.
+    @discardableResult
+    static func open(
+        folder: URL, tools: [Tool], inApp: Bool, prompt: String?, resume: Bool = false, opener: any AgentOpening,
+        claudePath: String
+    ) async -> Bool {
+        if inApp {
+            if needsClaudeRestart(tools: tools, folder: folder, opener: opener) {
+                return await opener.restartClaudeAppAndOpen(folder: folder, prompt: prompt, resume: resume)
+            }
+            return resume ? opener.continueInClaudeApp(folder: folder) : opener.openInClaudeApp(folder: folder, prompt: prompt)
+        }
+        return opener.openInTerminal(folder: folder, prompt: prompt, claudePath: claudePath)
+    }
+}
+
 /// Quien abre el agente. Las pruebas lo reemplazan.
 @MainActor
 protocol AgentOpening {
     /// ¿Está instalada la app de Claude (el manejador de `claude://`)?
     var isClaudeAppAvailable: Bool { get }
     @discardableResult func openInClaudeApp(folder: URL, prompt: String?) -> Bool
+    /// Vuelve a la última conversación de esa carpeta en la app de Claude; si no hay ninguna, abre una nueva.
+    @discardableResult func continueInClaudeApp(folder: URL) -> Bool
     /// ¿Hay que reiniciar la app de Claude para que vea los conectores de un agente listo desde `date`?
     /// La app carga los conectores de la cuenta al arrancar y no los actualiza (`docs/03` §4e): si
     /// lleva abierta desde antes, no ve los que se conectaron después.
     func claudeAppNeedsRestart(since date: Date) -> Bool
     /// Cierra la app de Claude, espera a que termine y la vuelve a abrir en el agente.
-    @discardableResult func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> Bool
+    /// `resume`: al reabrir, volver a la última conversación de la carpeta en vez de abrir una nueva.
+    @discardableResult func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> Bool
     @discardableResult func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool
     func reveal(_ folder: URL)
 }
 
+extension AgentOpening {
+    /// «Listo»: una conversación nueva, con la primera pregunta escrita.
+    @discardableResult
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> Bool {
+        await restartClaudeAppAndOpen(folder: folder, prompt: prompt, resume: false)
+    }
+}
+
 @MainActor
 struct SystemAgentOpener: AgentOpening {
+    var sessions = ClaudeSessionStore()
+
     /// Lo que registra Claude Code en macOS para `claude-cli://`.
     static var cliHandler: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -135,6 +195,13 @@ struct SystemAgentOpener: AgentOpening {
 
     func openInClaudeApp(folder: URL, prompt: String?) -> Bool {
         NSWorkspace.shared.open(AgentLink.claudeApp(folder: folder, prompt: prompt))
+    }
+
+    func continueInClaudeApp(folder: URL) -> Bool {
+        if let id = sessions.latestSessionID(in: folder), let link = AgentLink.claudeAppContinue(sessionID: id) {
+            return NSWorkspace.shared.open(link)
+        }
+        return openInClaudeApp(folder: folder, prompt: nil)
     }
 
     /// El identificador de la app de Claude para Mac.
@@ -151,7 +218,7 @@ struct SystemAgentOpener: AgentOpening {
 
     /// Se le pide salir como lo haría Cmd+Q (nunca se la mata) y se espera hasta 15 s. Si no salió
     /// —un diálogo suyo de «¿salir?»—, el agente se abre igual en la app que quedó.
-    func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> Bool {
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> Bool {
         let apps = runningClaudeApps
         for app in apps { app.terminate() }
         for _ in 0..<150 {
@@ -160,7 +227,7 @@ struct SystemAgentOpener: AgentOpening {
         }
         // Un respiro para que el sistema dé por cerrada la app antes de volver a lanzarla.
         try? await Task.sleep(for: .milliseconds(600))
-        return openInClaudeApp(folder: folder, prompt: prompt)
+        return resume ? continueInClaudeApp(folder: folder) : openInClaudeApp(folder: folder, prompt: prompt)
     }
 
     func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool {

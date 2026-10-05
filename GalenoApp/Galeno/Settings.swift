@@ -5,7 +5,7 @@ import SwiftUI
 /// Ajustes (⌘,): apariencia, menos movimiento, los sonidos y el grano. Nada de esto sale
 /// de la máquina ni cambia lo que el agente puede hacer.
 struct SettingsView: View {
-    @EnvironmentObject private var wizard: WizardState
+    @ObservedObject var app: AppModel
     @AppStorage(Prefs.appearance) private var appearance = AppearanceChoice.system.rawValue
     @AppStorage(Prefs.reduceMotion) private var reduceMotion = false
     @AppStorage(Prefs.sounds) private var sounds = true
@@ -45,7 +45,7 @@ struct SettingsView: View {
         .frame(width: 460, alignment: .topLeading)
         .background(Color.parchment50)
         .motionPreference()
-        .environment(\.locale, Locale(identifier: wizard.language.rawValue))
+        .environment(\.locale, Locale(identifier: app.language.rawValue))
     }
 
     private func row(_ title: LocalizedStringKey, _ hint: LocalizedStringKey, isOn: Binding<Bool>) -> some View {

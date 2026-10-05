@@ -161,22 +161,10 @@ struct DoneContent: View {
         .onAppear { Sounds.play(.seal) }
     }
 
-    /// El agente usa conectores de la cuenta de Claude (Gmail, Calendar, Drive, Docs y Sheets).
-    private var usesConnectors: Bool {
-        wizard.connectedTools.contains { !MCPServerCatalog.claudeConnectorNames(for: $0).isEmpty }
-    }
-
-    /// Desde cuándo está listo el agente: cuando se escribió su configuración.
-    private var readySince: Date {
-        let settings = agent.folder.appending(path: ".claude/settings.json")
-        let attributes = try? FileManager.default.attributesOfItem(atPath: settings.path)
-        return attributes?[.modificationDate] as? Date ?? Date()
-    }
-
     /// La app de Claude carga los conectores de la cuenta al arrancar (`docs/03` §4e): si lleva abierta
     /// desde antes de que el agente existiera, hay que reiniciarla para que vea los suyos.
     private var needsClaudeRestart: Bool {
-        usesConnectors && wizard.opener.claudeAppNeedsRestart(since: readySince)
+        AgentOpenPolicy.needsClaudeRestart(tools: wizard.connectedTools, folder: agent.folder, opener: wizard.opener)
     }
 
     /// La nota bajo los botones. Si Claude se va a reiniciar, se dice antes de pulsar.
