@@ -313,6 +313,7 @@ relevante; ellos devuelven un borrador y solo el principal envía, con aprobaci�
 | Separación garantizada de contexto entre agentes (más allá de WhatsApp) | v0.2 |
 | Vista transversal de todos los proyectos | v0.2 |
 | Ver actividad (qué hizo el agente, qué envió) | v0.0.2 |
+| Slack con identidad de bot propia (el agente envía con su nombre, no con el del usuario) | v0.0.2 |
 | Tareas programadas | después |
 | Skills externas, "trae la tuya" (link de GitHub) | v0.2, con su guardrail |
 | Plantillas dev / legal / salud | v0.3+ |
@@ -457,6 +458,50 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 **Fase 4b (home) hecha en su primer corte (4 oct 2026):** lista de agentes, «Abrir» en la app de Claude o Terminal
 (recuerda la última elección, botón partido) y «Nuevo agente» por el wizard corto (reutiliza los pasos del completo).
 Faltan «Gestionar la config» y «Salud y mantenimiento» (`docs/03` §3b).
+
+### Demo con Felipe (4 oct 2026): Rafa lo considera no exitoso por Google
+
+Instalación sin Terminal OK. Falló lo de Google, que es lo que más pesa:
+
+1. **El paso 5 se pegó con la suite de Google ya conectada** (Felipe ya la tenía conectada en Claude Code antes de usar
+   Galeno). La página del conector decía «Connected» y Galeno seguía girando; hubo que saltarlo, y **el agente se escribió sin
+   Google**. Causa, reproducida: el arranque de sesión que lee el estado a veces no trae la lista de conectores de la cuenta, y
+   con la caché de descubrimiento de Claude Code un conector ya usado sale `pending` siempre. *Arreglado en la rama
+   `fix/conector-ya-conectado` (sin commit): sondeo sin caché y esperando conexiones, reintento si no llega la lista, `pending`
+   no es «falta autorizar», y un solo arranque para conectores seguidos. Probado contra Claude Code real en el Mac de Rafa; falta
+   probarlo en el de Felipe.* Detalle en `docs/03` §4e.
+2. **«Abrir en la app de Claude» no reinició nada y el chat no tenía Gmail ni Drive**: consecuencia del punto 1 (confirmado por
+   Rafa). Sin Google en el agente no hay reinicio de Claude (`AgentOpenPolicy.usesConnectors`), ni reglas `claude_ai_*`, ni la
+   sección del `AGENTS.md` sobre conectores. No era un fallo del reinicio (con Simon funcionó).
+   - Hueco que queda: un agente al que se le saltó una herramienta no puede recuperarla (falta «Gestionar la config»). Hoy la
+     salida es crear otro con «Nuevo agente».
+   - Hueco menor: si Claude no sale al pedírselo, `restartClaudeAppAndOpen` abre igual sin avisar.
+3. **Slack**: el mensaje salió con el nombre y la foto de Felipe (token de usuario). Identidad de bot: v0.0.2. La app de
+   Slack ya se llama como el agente, sin «· Galeno» (abajo).
+
+**No se regenera el DMG hasta que Rafa lo pida.**
+
+### Slack: los mensajes salen con el nombre de la persona (demo de Felipe, 4 oct 2026)
+
+El MCP de Slack solo acepta tokens de usuario: todo lo que el agente envía sale con el nombre y la foto de quien
+autorizó la app, y solo la etiqueta «Sent using <agente>» (entonces «<agente> · Galeno») lo delata. Un compañero no puede saber que lo
+escribió una IA, y el agente redacta en primera persona.
+
+- **v0.0.2 (decidido por Rafa):** identidad de bot propia. Ya lo tiene armado a mano para su agente de MediClub
+  (product engineer). Es un camino de envío propio con token de bot: línea roja 3 (cada envío con aprobación, el
+  token de bot solo en la máquina del usuario). Está en `docs/03` §5.
+- **Mientras tanto, por decidir con Rafa:** (D) decir en «Reglas» y en el texto de la aprobación que lo de Slack
+  «saldrá con tu nombre y tu foto»; (A) una firma visible opcional en cada mensaje («— enviado por <agente>, en
+  nombre de <persona>»); (B) enviar como borrador (`slack_send_message_draft`) y que la persona lo envíe.
+- **Por confirmar:** si en ese demo Felipe vio la aprobación (texto y canal) antes de que saliera. Si no la vio, es un
+  fallo de la línea roja 3.
+- **Hecho (4 oct 2026):** la app de Slack se llama como el agente, sin «· Galeno» (`SlackManifestRenderer.appName`): era lo
+  que aparecía en «Sent using …» bajo los mensajes. Las apps ya creadas con el nombre anterior lo conservan; se cambia a mano
+  en api.slack.com/apps → la app → Basic Information → Display Information.
+- **Por qué la app no aparece como miembro del workspace ni firma los mensajes:** la app que crea Galeno es de **token de
+  usuario** y no tiene bot (`features.bot_user`). Slack solo muestra en la barra lateral las apps con bot, y un mensaje
+  enviado con token de usuario es de la persona; la app solo deja su nombre en «Sent using». Cambiarlo es la identidad de bot
+  de la v0.0.2: la app con bot y scope de bot, y un envío propio con el token de bot (el MCP de Slack no lo usa).
 
 ### Pendientes del primer demo (4 oct 2026, con Simon): la Fase 4b ya está
 

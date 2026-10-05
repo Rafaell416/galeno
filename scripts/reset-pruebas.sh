@@ -14,7 +14,7 @@
 #   · las preferencias de la app (apariencia, sonidos, pantalla de arranque…)
 # Qué NO hace (hay que hacerlo a mano, y al final lo recuerda):
 #   · cerrar la sesión de Galeno en el teléfono (WhatsApp → Dispositivos vinculados)
-#   · borrar la app de Slack «<agente> · Galeno» en api.slack.com/apps
+#   · borrar la app de Slack con el nombre del agente en api.slack.com/apps
 #   · tocar tu `slack` o `notion` de otra procedencia: solo se quitan si apuntan a los servidores oficiales
 
 set -u
@@ -126,4 +126,4 @@ rm -rf -- "$HOME/Library/Saved Application State/$BUNDLE.savedState" 2>/dev/null
 echo
 echo "Listo. Faltan dos cosas a mano:"
 echo "  1. En el teléfono: WhatsApp → Ajustes → Dispositivos vinculados → cierra la sesión de Galeno."
-echo "  2. En api.slack.com/apps: borra la app «<agente> · Galeno» si quedó alguna."
+echo "  2. En api.slack.com/apps: borra la app con el nombre de tu agente si quedó alguna."

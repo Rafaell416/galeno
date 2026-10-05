@@ -22,6 +22,9 @@ para WhatsApp (solo lectura) y registra MCP hospedados con `claude mcp add`.
   Galeno no registra nada ni trae app OAuth; solo guía al usuario a conectarlos y escribe sus reglas de permiso.
   El estado de un conector se lee con `ClaudeSessionProbe` (el arranque de una sesión real), **nunca con `claude mcp get`**,
   que da por conectado uno al que le falta la autorización.
+  El sondeo arranca sin la caché de descubrimiento y esperando a que los servidores conecten (`ClaudeSessionProbe.environment`):
+  sin eso, un conector que el usuario ya tenía conectado sale `pending` o ni aparece. Un arranque sin ningún `claude.ai …` se
+  vuelve a mirar antes de decir «no está en la cuenta», y `pending` nunca se trata como «falta autorizar».
   En la app de Claude (escritorio) los conectores se encienden por conversación y nada del proyecto los enciende:
   el `AGENTS.md` generado le dice al agente cómo encender **solo los suyos**; los demás de la cuenta se heredan apagados.
   Allí sus herramientas se llaman `mcp__<uuid>__…` y ninguna regla de permiso coincide: lo cubren dos hooks por nombre de
