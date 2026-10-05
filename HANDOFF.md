@@ -16,9 +16,9 @@ Terminal). **Slack ya crea su propia app
 OAuth y el usuario solo inicia sesión** (ventana de Galeno que captura el token de configuración);
 Gmail y Google siguen en "conectar
 después" y su automatización de navegador está diseñada, no construida (`docs/03` §4e,
-"Diseño de la conexión con app propia"). Las skills tienen catálogo y `SKILL.md` mínimos
-válidos (el contenido bueno y las curadas con su licencia son de la Fase 5); faltan el home,
-Sparkle y la distribución.
+"Diseño de la conexión con app propia"). Las 17 skills nuestras ya están escritas completas
+(Fase 5, 5 oct 2026); las curadas con su licencia siguen pendientes. Faltan Sparkle, la fuente remota
+de skills y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
 ---
@@ -362,6 +362,10 @@ embebidas, fondo `parchment-50`, `.tint` en `seal-700`. Sin texturas, sin sombra
 decorativas, sin controles custom que imiten lo viejo. Animaciones de 150-300 ms con trazo
 y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 
+**Ventana de 800 × 620 pt (decisión de Rafa, 5 oct 2026):** a 720 × 560 se sentía pequeña. Sigue fija. Los archivos del
+proyecto de Claude Design siguen dibujados a 720 × 560: siguen siendo la referencia de disposición y proporciones, no del
+tamaño exacto. Detalle en `docs/04` §12 («Pantallas»).
+
 ---
 
 ## 12. Puntos abiertos (no decididos en los docs)
@@ -450,10 +454,29 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 - **Nombres de las skills:** el contenido va en inglés, pero la lista mezcla nombres en
   inglés (`/prd`, `/groom`) y en español (`/acta`, `/seguimiento`). Falta decidir cómo se
   llaman para un usuario que eligió inglés.
-- **`/reporte-excel`:** la spec dice que escribe en "Google Sheets / Excel", pero Excel no
-  es una herramienta conectada y el agente no ejecuta código. Falta decidir si es solo Sheets.
+- **`/reporte-excel`:** resuelto al escribir la skill (5 oct 2026): **solo Google Sheets**; la skill le dice al
+  usuario que no puede crear `.xlsx` y que lo descargue desde Sheets. El nombre de la skill no cambió. Rafa lo vio
+  al revisar la tanda y no lo objetó; si quiere otra cosa, es una línea en la skill y en `docs/03` §6.1.
 - **Tecnología de `site/`:** sin definir. Estructura y estilo sí (`docs/04` §9).
 - **Tiempo de Rafa:** MediClub lanza el 15 de noviembre de 2026 y compite por su atención.
+
+**Fase 5, primer paso — las 17 skills, escritas (5 oct 2026, rama `feat/skills-pm`):** `skills/galeno/<id>/SKILL.md`, en
+cuatro tandas que Rafa fue revisando. Detalle y reglas comunes en `docs/03` §6.1; `SkillCatalogTests` las exige a todas.
+Verificado que Claude Code lista las 17 en un agente generado con `galeno-gen --skills-dir skills`. **Falta:** probarlas una
+por una con trabajo real, las curadas (siguen `available: false`), la fuente remota de skills y «Actualizar skills»,
+y Sparkle. Decisiones tomadas al escribirlas, para que Rafa las confirme o cambie: `/groom` solo reporta; `/tickets`
+usa la etiqueta `proposed` si el proyecto no tiene estado «Propuesto»; `/tareas-recurrentes` no se programa sola;
+antes de publicar en Slack se aparta lo que viene de lugares privados.
+
+**Paso «Skills» como cards (5 oct 2026, misma rama `feat/skills-pm`):** construido desde `Galeno B1 Skills.dc.html`, en la variante
+«scroll con rótulos fijos» (Claude Design recomendaba pestañas; Rafa eligió el scroll): cards con icono, vista previa al pasar el cursor (cómo pedirla, ejemplo ilustrativo, qué
+necesita), estados «todavía no te sirve» y foco de teclado. El catálogo ganó `ask`, `example` y `guarantee`. **Sin construir
+todavía, aunque están en el diseño:** el marco propio de «Gestionar → Skills» (cabecera «Hera · Skills» y «Guardar cambios»; hoy se
+llega por el asistente de «Gestionar» de siempre), el grupo «De Anthropic» (falta revisar y traer esas skills con su licencia, y que
+Rafa confirme a Anthropic como fuente) y el resultado por skill de «Actualizar skills» en Salud (falta el mecanismo). Las curadas de
+la comunidad dejaron de mostrarse. Sin probar a mano: el teclado (↩ sobre una card frente a «Siguiente») y el hover real. **Después (5 oct):** la vista previa pasó a
+estar centrada y a llevar una demostración animada (pregunta que se escribe, el agente «lee», resultado con el formato de la skill);
+los 17 ejemplos del catálogo se reescribieron con formato. Vista en renders fuera de pantalla; la animación en vivo, sin ver.
 
 **Fase 4b (home) hecha (4 oct 2026):** lista de agentes, «Abrir» en la app de Claude o Terminal (recuerda la última elección, botón
 partido), «Nuevo agente» por el wizard corto y «Gestionar» (cambiar qué lee, skills y reglas; recupera una herramienta saltada).
@@ -476,6 +499,39 @@ conversación que no es suya, y la app pidió permiso para leer el calendario po
 independientes; fue la conversación la que cayó mal. *Arreglo hecho (rama `feat/gestionar-agente`, sin verificar con la app real):* abrir
 Claude y esperar a que cargue antes de mandarle el enlace (`docs/03` §4e). Esa conversación mal archivada queda en Jarvi hasta que se
 elimine desde la app de Claude; **ojo: «Eliminar» sobre Jarvi la mandaría a la Papelera con el resto de su historial.**
+
+### Demo con Aquiles (5 oct 2026): fallido, no se activó
+
+Instaló desde `build/Galeno-demo-2026-10-05.dmg` (ventana 800 × 620, skills en cards; todo sin commit en `feat/skills-pm`).
+Solo le funcionó WhatsApp. Rafa lo da por fallido y fija la dirección: **rehacer el camino de activación pensando en un
+usuario nada técnico**, con un onboarding antes del asistente y los casos de error bien resueltos (qué pasa cuando falla,
+cómo reintento, cómo deshago y vuelvo a hacer). Nada de esto está construido ni decidido en detalle.
+
+Fallos (causa leída en el código; **ninguno reproducido en su Mac**):
+
+1. **No abría.** En macOS 26 el aviso fue «no se puede abrir» y «Abrir igualmente» no apareció en Privacidad y seguridad.
+   Abrió con `xattr -dr com.apple.quarantine /Applications/Galeno.app`. El `LÉEME.md` del DMG ya no trae ese comando: hay
+   que devolverlo mientras no haya notarización.
+2. **«Instalado, pero sin sesión» sin salida.** Tenía la app de escritorio de Claude (sesión aparte) y `claude` no estaba en
+   el PATH de su Terminal: el texto del paso 2 manda a «escribir claude» y eso dio `command not found`. Galeno sí sabe la
+   ruta (`ClaudeCodeStatus.found(path:)`) y no la usa para ayudar.
+3. **Slack: `error: unknown command 'login'`**, en el asistente y otra vez al «Reconectar» desde Salud. El `claude` de su Mac
+   no tiene `claude mcp login` (versión vieja; no se anotó cuál). Galeno no comprueba la versión ni esa capacidad en el paso
+   2, y el panel de error culpa a las ventanas emergentes. Toda herramienta con OAuth pasa por ese comando
+   (`ClaudeMCP.swift`), así que con ese `claude` no habría conectado ninguna.
+4. **Calendar marcado «conectado» sin terminar.** Abrió la página del conector, pulsó «Connect» y se quedó en el selector de
+   cuentas de Google; Galeno lo dio por conectado. Es la regla que se añadió tras el demo de Felipe: después de abrir el
+   navegador, tres lecturas `pending` seguidas cuentan como conectado (`ConnectFlow.connectClaudeConnectors`). Con un
+   `claude` viejo, además, puede que el sondeo no respete `MCP_CONNECTION_NONBLOCKING` y todo salga `pending` (sin comprobar).
+
+Lo que no entendió (UX):
+
+- No hay onboarding: no sabía qué estaba haciendo ni para qué.
+- La descripción y los archivos de contexto (paso 3) no se entienden ahí; irían en otro sitio.
+- Las reglas son demasiado texto; las quiere más visuales. Y en general hay demasiado texto en toda la app.
+- En el paso 5 quiso pasar de una conexión a otra pulsando los iconos de la tira (no son botones), no el botón del pie.
+- Para reconectar o desconectar una cuenta fue por instinto al detalle del agente. No encontró «Gestionar» → herramientas:
+  hace falta una entrada más visual (un icono).
 
 ### Demo con Felipe (4 oct 2026): Rafa lo considera no exitoso por Google
 

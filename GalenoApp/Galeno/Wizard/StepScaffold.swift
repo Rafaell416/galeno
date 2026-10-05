@@ -33,7 +33,7 @@ struct StepScaffold<Content: View, Trailing: View>: View {
 
     var body: some View {
         // En un `ScrollView` para que un paso nunca pueda empujar la cabecera ni los botones fuera
-        // de la ventana fija de 720×560: si el contenido no cupiera, se desplaza en vez de
+        // de la ventana fija de 800×620: si el contenido no cupiera, se desplaza en vez de
         // desbordar. Los pasos se diseñan para caber sin desplazarse.
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -67,12 +67,9 @@ struct StepScaffold<Content: View, Trailing: View>: View {
         .scrollBounceBehavior(.basedOnSize)
     }
 
-    /// La línea de qué se hace en el paso. Desde «Skills» habla del agente por su nombre.
+    /// La línea de qué se hace en el paso. «Reglas» habla del agente por su nombre; «Skills» se arma aparte, sin esta línea.
     private var summary: Text {
         switch step {
-        case .skills:
-            Text("step.skills.summary \(agentName)") + Text(verbatim: " ")
-                + Text("skills.what").foregroundColor(Color.ink500)
         case .rules: Text("step.rules.summary \(agentName)")
         case .review where wizard.mode == .edit: Text("step.review.summary.edit")
         default: Text(step.summary)

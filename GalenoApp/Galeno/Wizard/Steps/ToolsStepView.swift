@@ -160,7 +160,7 @@ private struct ToolCard: View {
             }
             .padding(.horizontal, 4)
             .frame(maxWidth: .infinity)
-            .frame(height: 68)
+            .frame(height: 76)
             .background(
                 selected || (hovering && !soon) ? Color.parchment100 : Color.clear, in: RoundedRectangle(cornerRadius: Radius.b1))
             .overlay(

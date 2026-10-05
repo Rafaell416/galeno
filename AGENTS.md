@@ -251,6 +251,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   imite lo antiguo. **La referencia es el archivo `Galeno B1 Impresor.dc.html` del proyecto de Claude
   Design** (medidas, disposición y textos): una pantalla se construye copiando su marcado, no
   reinterpretándolo, y se compara lado a lado antes de darla por hecha. Esquinas rectas.
+  La ventana es fija, de **800 × 620 pt** (`WindowMetrics`; decisión de Rafa, 5 oct 2026). Los archivos de Claude Design
+  siguen dibujados a 720 × 560: mandan en disposición y proporciones, no en el tamaño exacto (`docs/04` §12).
 - El texto de la UI sigue el copy v2 de `docs/04` §12: botones con verbo, el nombre del agente desde
   el paso 3, errores en tres partes y sin signos de exclamación. La advertencia de WhatsApp no se
   reescribe; cambiarle la presentación no es cambiarle el texto.
@@ -273,6 +275,13 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - La vista previa del `AGENTS.md` (`AgentPreview`) es solo lectura: devuelve texto y no escribe nada.
 - Tres sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló y el sello al llegar a «Listo». Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, botones, copiar ni cambios de paso. Suenan igual al conectar en el asistente, al «Reconectar»
   o «Re-vincular» desde Salud, y sea cual sea la autorización (hoja del sistema, navegador o ventana de Slack); mirar el estado o cancelar no suena.
+- El paso «Skills» (y «Gestionar» → Skills) se construye desde el archivo **`Galeno B1 Skills.dc.html`** del proyecto de Claude Design: cards
+  en una lista por grupos que se desplaza (la variante «scroll»; Rafa la eligió sobre las pestañas) y una hoja de vista previa. Lo que dicen las cards y la vista previa sale de `skills/catalog.json`
+  (`SkillPresentation`) y **nunca afirma más que el catálogo**. La vista previa lleva una demostración animada (`SkillDemoView`: se escribe
+  la pregunta, el agente «lee» y sale el resultado con su formato): es **ilustrativa**, sus textos se escriben a mano en el catálogo, no
+  llama a ningún modelo, y el rótulo «Ejemplo ilustrativo · no se ejecuta nada» va siempre a la vista. Responde el agente del usuario por
+  su nombre: no usar la marca ni el logo de Claude ahí. No ejecutar nada para producir el ejemplo. Los iconos de skill (`Assets.xcassets/SkillIcons`) son dibujos propios de línea, sin metadatos incrustados. Las
+  skills de la comunidad no se muestran; un grupo «De Anthropic» solo entra con skills revisadas, con licencia y crédito.
 - Los glifos de sección (`Glyphs.swift`) son dibujos propios de línea a 1,5 pt; cuelgan en el margen junto al título de algunos pasos y nunca van en la misma fila que un SF Symbol.
 - El movimiento lee `\.galenoReduceMotion` (sistema **o** «Menos movimiento» de Ajustes), no
   `\.accessibilityReduceMotion`. Cada ventana lleva `.motionPreference()` en su raíz.

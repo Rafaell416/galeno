@@ -35,7 +35,7 @@ struct WelcomeStepView: View {
 
                 let traces = tracing ?? !wizard.hasShownPortraitTrace
                 VStack(spacing: 10) {
-                    PortraitMark(size: 150, doubleRing: true, tracesRing: traces).stamp()
+                    PortraitMark(size: 168, doubleRing: true, tracesRing: traces).stamp()
                     SmallCapsText(
                         string: Localized.string("welcome.time", locale: locale), size: 12, tracking: 0.14
                     )
@@ -47,7 +47,7 @@ struct WelcomeStepView: View {
                     tracing = traces
                     wizard.hasShownPortraitTrace = true
                 }
-                .frame(width: 168)
+                .frame(width: 188)
                 .padding(.top, 4)
             }
             .padding(.horizontal, Space.s48)

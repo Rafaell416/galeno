@@ -51,7 +51,7 @@ enum GalenoFonts {
 }
 
 /// La escala tipográfica de B1 (`docs/05` §A). El texto del cuerpo nunca baja de 14.
-/// Los tamaños son fijos: la ventana es de 720×560 y no escala con Dynamic Type.
+/// Los tamaños son fijos: la ventana es de 800×620 y no escala con Dynamic Type.
 enum Typo {
     /// Cormorant Garamond: portada y títulos. `italic` usa Medium Italic.
     static func display(_ size: CGFloat, italic: Bool = false) -> Font {

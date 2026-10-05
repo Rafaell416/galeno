@@ -3,7 +3,7 @@
 La app de Mac, en Swift y SwiftUI. Es lo único que ve el usuario: el wizard de 10 pasos.
 
 **Fase 4, en curso.** Ya están el proyecto Xcode, el esqueleto de los 10 pasos de `docs/03` §3
-(navegación, barra de progreso siempre visible, ventana fija de 720×560 centrada) y las pantallas
+(navegación, barra de progreso siempre visible, ventana fija de 800×620 centrada) y las pantallas
 **1 a 5**: idioma y bienvenida (el idioma cambia toda la app en caliente), detección de Claude
 Code, tu agente, la grilla de herramientas y el sub-wizard de conexión (MCP hospedados con
 `claude mcp`, y WhatsApp con QR). Slack crea **su propia app OAuth** (guía + token pegado en un campo seguro; Gmail y Google siguen para después). Los pasos 6 a 10 siguen como marcadores y se llenan uno a
@@ -24,7 +24,7 @@ O abrir `Galeno.xcodeproj` en Xcode y ⌘R con destino **My Mac**.
 
 | Ruta | Qué es |
 |---|---|
-| `Galeno/GalenoApp.swift` | La app: una sola `Window` de 720×560, centrada y sin redimensionar |
+| `Galeno/GalenoApp.swift` | La app: una sola `Window` de 800×620, centrada y sin redimensionar |
 | `Galeno/Theme.swift` | Tokens de `docs/04` §10: colores dinámicos claro/oscuro, New York, espaciado |
 | `Galeno/Wizard/WizardStep.swift` | Los 10 pasos, en orden, con su título y si permiten volver |
 | `Galeno/Wizard/WizardState.swift` | `ObservableObject` con las respuestas; `makeConfig()` produce el `AgentConfig` |
