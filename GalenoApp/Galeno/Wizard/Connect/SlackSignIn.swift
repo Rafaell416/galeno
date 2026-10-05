@@ -95,6 +95,14 @@ final class SlackSignInModel: NSObject, ObservableObject {
     let webView: WKWebView
     /// Cuánto se espera en la página de tokens antes de pedirle al usuario que pulse él.
     var hintDelay: Duration = .seconds(15)
+    /// Cuánto se espera a que la página de tokens muestre sus controles antes de volver a cargarla. Justo
+    /// después de iniciar sesión, Slack a veces la pinta sin la sección de tokens, y una recarga la trae
+    /// (prueba del 5 oct 2026: 37 s parado hasta que el usuario pulsó «Ir a la página de tokens»). Cuando
+    /// la sección solo llega tarde, llega en menos de un segundo.
+    var reloadDelay: Duration = .seconds(5)
+    static let maxReloadsForControls = 2
+    private var reloadTask: Task<Void, Never>?
+    private var reloadsForControls = 0
 
     private let onToken: (OAuthSecret) -> Void
     private var captured = false
@@ -179,6 +187,7 @@ final class SlackSignInModel: NSObject, ObservableObject {
     /// Al cerrar la ventana: se corta todo y la sesión efímera se pierde con el `WKWebView`.
     func tearDown() {
         hintTask?.cancel()
+        reloadTask?.cancel()
         urlObserver = nil
         webView.stopLoading()
         webView.configuration.websiteDataStore.httpCookieStore.remove(self)
@@ -208,6 +217,13 @@ final class SlackSignInModel: NSObject, ObservableObject {
         case "page":
             guard !captured, let state = message["state"] as? String else { return }
             trace("página dice: \(state) en \(describe(webView.url)) \(message["kind"] ?? "") \(message["shape"] ?? "") \(message["html"] ?? "")")
+            // Con sesión pero sin botones: se vuelve a cargar sola, salvo que el usuario ya esté tocando la página.
+            if state == "noControls", message["touched"] == nil {
+                scheduleReloadForControls()
+            } else {
+                reloadTask?.cancel()
+                reloadTask = nil
+            }
             switch state {
             case "signedOut":
                 // Sin sesión: se abre el inicio de sesión de Slack, una sola vez.
@@ -256,6 +272,10 @@ final class SlackSignInModel: NSObject, ObservableObject {
         guard !captured else { return }
         host = url?.host ?? ""
         trace("ubicación \(describe(url)) → \(SlackSignInLocation.classify(url))")
+        if SlackSignInLocation.classify(url) != .tokensPage {
+            reloadTask?.cancel()
+            reloadTask = nil
+        }
         switch SlackSignInLocation.classify(url) {
         case .tokensPage:
             // Todavía no se sabe si hay sesión: lo dice el script en cuanto mira la página.
@@ -291,6 +311,22 @@ final class SlackSignInModel: NSObject, ObservableObject {
         else { return }
         returnedAfterSignIn = true
         goToTokensPage()
+    }
+
+    private func scheduleReloadForControls() {
+        guard reloadTask == nil, reloadsForControls < Self.maxReloadsForControls else { return }
+        let delay = reloadDelay
+        reloadTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self, !self.captured else { return }
+            self.reloadTask = nil
+            self.reloadsForControls += 1
+            trace("la página de tokens no mostró sus controles: se vuelve a cargar (\(self.reloadsForControls))")
+            // El «te toca» vuelve a contar desde la recarga: todavía trabaja Galeno.
+            self.hintTask?.cancel()
+            self.hintTask = nil
+            self.goToTokensPage()
+        }
     }
 
     private func startHintTimer() {

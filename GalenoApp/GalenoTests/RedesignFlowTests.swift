@@ -18,7 +18,7 @@ final class RedesignFlowTests: XCTestCase {
     func testTheReviewStepComesRightBeforeWriting() {
         let steps = WizardStep.allCases
         XCTAssertEqual(steps.firstIndex(of: .review), steps.firstIndex(of: .generating).map { $0 - 1 })
-        XCTAssertEqual(steps.count, 10)
+        XCTAssertEqual(steps.count, 11)
     }
 
     func testJumpOnlyGoesBackwards() {
@@ -26,6 +26,7 @@ final class RedesignFlowTests: XCTestCase {
         state.toggle(.notion)
         state.next()  // detección
         state.next()  // agente
+        state.next()  // contexto
         state.next()  // herramientas
         XCTAssertEqual(state.step, .tools)
 

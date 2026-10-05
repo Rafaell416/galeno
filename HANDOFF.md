@@ -552,8 +552,15 @@ previas (una vez, se saltan), el paso del rol, el nombre solo, la grilla de herr
 marcadas, la cabecera «Paso N de 6» y las skills por rol. **Decisiones tomadas al construir, por confirmar con Rafa:** «Reportes» y
 «Reuniones» son comunes a los tres roles (producto 17 skills, marketing 18, comercial 24); se ofrecen todas las herramientas de
 hoy, no solo las seis del boceto; la pantalla del rol no dice «se cambia después» porque «Gestionar» no cambia el rol; el idioma
-se cambia con un enlace al pie de las pantallas previas; y **la descripción del proyecto y los archivos de contexto no tienen
-dónde darse** hasta que exista «Darle contexto» (fase 4). Un borrador del asistente anterior se descarta (versión 2). Faltan las
+se cambia con un enlace al pie de las pantallas previas. **Prueba de arranque limpio de Rafa (5 oct 2026, tarde):** el paso 2 se
+quedaba «buscando» para siempre en un Mac sin instalación (venía del PR #32: nadie lanzaba la búsqueda la primera vez; corregido,
+con prueba). De esa prueba salieron tres pedidos, ya hechos: esperas con texto animado en vez de una rueda (`WaitingTicker`),
+«Darle contexto» como pantalla propia antes de las herramientas, y «crear» en vez de «escribir» al agente. **Segunda prueba
+limpia (misma tarde): se activó de punta a punta** (siete herramientas conectadas, agente «Testing»), con tres hallazgos, ya
+atendidos: Slack se quedó 37 s en la página de tokens porque, recién iniciada la sesión, Slack la pintó sin la sección de tokens
+(confirmado en el registro de esa corrida); ahora Galeno la vuelve a cargar sola a los 5 s; «Abrir en la app de Claude» cayó en «Folder not found» porque el
+enlace llegó mientras la app cargaba (ahora se espera a que deje de cargar, y «Listo» dice cómo repetirlo); y Rafa echó de menos
+el paso «Skills», que el boceto quitaba: vuelve, con las del rol marcadas (siete pasos). Un borrador del asistente anterior se descarta (versión 2). Faltan las
 fases 2 a 4 (`docs/03` §3). Sin probar a mano en la app real.
 Y **las demás conexiones quedan en pausa** (Fireflies, Granola) hasta que lo que hay quede sólido.
 

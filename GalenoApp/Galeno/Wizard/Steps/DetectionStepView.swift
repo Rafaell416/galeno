@@ -17,6 +17,7 @@ struct DetectionStepView: View {
 /// «Conectar» del wizard corto y de «Gestionar», que no pasan por el paso 2.
 struct ClaudeSetupContent: View {
     @EnvironmentObject private var wizard: WizardState
+    @Environment(\.locale) private var locale
     /// El último resultado que no fue «buscando»: al comprobar de nuevo, la tarjeta se queda (a media
     /// opacidad) en vez de ceder el sitio a la rueda.
     @State private var previous: ClaudeCodeStatus?
@@ -42,24 +43,22 @@ struct ClaudeSetupContent: View {
         }
         .onChange(of: wizard.claudeStatus) { _, status in if status != .checking { previous = status } }
         .onAppear { if wizard.claudeStatus != .checking { previous = wizard.claudeStatus } }
-        .task {
-            // Si ya está listo, volver atrás y adelante no lo vuelve a buscar.
-            if !wizard.claudeStatus.isReady, !wizard.claudeSetup.isWorking, !isChecking {
-                await wizard.detectClaudeCode()
-            }
-        }
+        .task { await wizard.detectClaudeCodeIfNeeded() }
     }
 
     @ViewBuilder
     private var status: some View {
         switch shown {
         case .checking:
-            HStack(spacing: Space.s12) {
-                InkSpinner(size: 16)
+            // Buscar tarda unos segundos (hay que preguntarle a `claude` su versión y su sesión): se dice qué
+            // se mira, en vez de dejar una rueda sola.
+            VStack(alignment: .leading, spacing: 10) {
                 Text("detection.checking")
-                    .font(Typo.body)
-                    .foregroundStyle(Color.ink700)
+                    .font(Typo.display(20))
+                    .foregroundStyle(Color.ink900)
+                WaitingTicker(lines: WaitingLines.checking(locale), interval: 3.5)
             }
+            .frame(maxWidth: 520, alignment: .leading)
         case .found(let version, let path, let loggedIn):
             // `nil` es "no se pudo saber": en ese caso no se detiene a nadie.
             if loggedIn == false {
@@ -202,20 +201,31 @@ private struct SetupWorkingPanel: View {
     @EnvironmentObject private var wizard: WizardState
     let phase: ClaudeSetupPhase
     @State private var confirming = false
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 14) {
-                InkSpinner(size: 22).padding(.top, 4)
-                VStack(alignment: .leading, spacing: 6) {
+            // La espera más larga del asistente: en vez de una rueda, frases que se escriben solas, un trazo
+            // que va y viene y el tiempo que lleva. A la derecha, la lámina de la pluma.
+            HStack(alignment: .top, spacing: 28) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text(phase == .installing ? "detection.installing" : "detection.signingIn")
-                        .font(Typo.display(20))
+                        .font(Typo.display(24))
                         .foregroundStyle(Color.ink900)
-                    Text(phase == .installing ? "detection.installing.hint" : "detection.signingIn.hint")
-                        .font(Typo.list)
-                        .foregroundStyle(Color.ink700)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if phase == .installing {
+                        WaitingTicker(
+                            lines: WaitingLines.installing(locale), loopFrom: 2,
+                            slowLine: Localized.string("wait.slow", locale: locale))
+                    } else {
+                        WaitingTicker(lines: WaitingLines.signingIn(locale), interval: 6)
+                    }
                 }
+                .frame(maxWidth: 440, alignment: .leading)
+                Plate(
+                    asset: "plate-pluma", caption: "pluma sobre un folio, grabado de línea",
+                    size: CGSize(width: 190, height: 120), printOnPaper: true
+                )
+                .appearing(after: 0.2, duration: 0.5)
             }
             if phase == .signingIn {
                 HStack(spacing: Space.s12) {
@@ -330,4 +340,16 @@ private struct SetupFailurePanel: View {
         .environmentObject(WizardState(claudeStatus: .notFound))
         .frame(width: WindowMetrics.width, height: 440)
         .background(Color.parchment50)
+}
+
+/// Las frases de cada espera del paso 2 (`WaitingTicker`), ya en el idioma de la app. Todas son ciertas pase
+/// lo que pase: no dicen en qué punto va la descarga, que Galeno no lo sabe.
+enum WaitingLines {
+    private static func lines(_ prefix: String, _ count: Int, _ locale: Locale) -> [String] {
+        (1...count).map { Localized.string(prefix + "." + String($0), locale: locale) }
+    }
+
+    static func checking(_ locale: Locale) -> [String] { lines("wait.check", 3, locale) }
+    static func installing(_ locale: Locale) -> [String] { lines("wait.install", 7, locale) }
+    static func signingIn(_ locale: Locale) -> [String] { lines("wait.signin", 3, locale) }
 }

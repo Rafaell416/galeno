@@ -46,15 +46,16 @@ final class WizardStateTests: XCTestCase {
 
     // MARK: - Los pasos
 
-    func testThereAreTenStepsInTheOrderOfTheSpec() {
+    func testTheStepsComeInTheOrderOfTheSpec() {
         XCTAssertEqual(
             WizardStep.allCases,
             [
-                .role, .detection, .agent, .tools, .connect,
+                .role, .detection, .agent, .context, .tools, .connect,
                 .skills, .rules, .review, .generating, .done,
             ])
-        // El usuario ve seis: «Conectar» es parte de las herramientas, y «Revisión», «Creando» y «Listo» son el último.
-        XCTAssertEqual(WizardStep.allCases.map(\.phase), [0, 1, 2, 3, 3, 4, 5, 6, 6, 6])
+        // El usuario ve seis: «Contexto» es parte de «Tu agente», «Conectar» de las herramientas, y «Revisión»,
+        // «Creando» y «Listo» son el último.
+        XCTAssertEqual(WizardStep.allCases.map(\.phase), [0, 1, 2, 2, 3, 3, 4, 5, 6, 6, 6])
     }
 
     /// Cada título y cada línea de resumen existen en español y en inglés: una
@@ -169,7 +170,6 @@ final class WizardStateTests: XCTestCase {
                 "onboarding.steps.title", "onboarding.steps.role", "onboarding.steps.connect", "onboarding.steps.ask",
                 "onboarding.need.title", "onboarding.need.claude", "onboarding.need.claude.note", "onboarding.need.tool",
                 "onboarding.need.tool.note", "role.product.summary", "role.marketing.summary", "role.sales.summary",
-                "review.role",
             ] + (1...3).flatMap { ["help.role.\($0).q", "help.role.\($0).a"] }
         for language in ["es", "en"] {
             let bundle = try XCTUnwrap(
@@ -198,8 +198,8 @@ final class WizardStateTests: XCTestCase {
     func testNextWalksEveryStepInOrderAndBackWalksThemBack() {
         let state = makeReadyState()
 
-        // «Skills» no está en el camino de crear un agente.
-        XCTAssertFalse(state.stepOrder.contains(.skills))
+        // «Skills» está en el camino, con las del rol ya marcadas.
+        XCTAssertTrue(state.stepOrder.contains(.skills))
         for expected in state.stepOrder.dropFirst() {
             stepForward(state)
             XCTAssertEqual(state.step, expected)
@@ -246,10 +246,10 @@ final class WizardStateTests: XCTestCase {
         }
     }
 
-    /// Seis pasos a la vista: la barra no retrocede, y solo avanza cuando cambia el paso que el usuario ve.
-    func testProgressGoesFromOneSixthToOne() {
+    /// Siete pasos a la vista: la barra no retrocede, y solo avanza cuando cambia el paso que el usuario ve.
+    func testProgressGoesFromOneSeventhToOne() {
         let state = makeReadyState()
-        XCTAssertEqual(state.progress, 1.0 / 6.0, accuracy: 0.0001)
+        XCTAssertEqual(state.progress, 1.0 / 7.0, accuracy: 0.0001)
 
         var previous = state.progress
         var numbers = [state.stepNumber]
@@ -259,7 +259,7 @@ final class WizardStateTests: XCTestCase {
             previous = state.progress
             numbers.append(state.stepNumber)
         }
-        XCTAssertEqual(numbers, [1, 2, 3, 4, 4, 5, 6, 6, 6])
+        XCTAssertEqual(numbers, [1, 2, 3, 3, 4, 4, 5, 6, 7, 7, 7])
         XCTAssertEqual(state.progress, 1.0, accuracy: 0.0001)
     }
 

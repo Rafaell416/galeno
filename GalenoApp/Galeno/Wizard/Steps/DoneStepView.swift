@@ -42,6 +42,8 @@ struct DoneContent: View {
     @State private var lit: Copied?
     /// Abriendo en la app o en Terminal: el botón conserva su ancho y muestra la rueda hasta que otra app toma el foco.
     @State private var opening: OpenTarget?
+    /// Ya se abrió una vez en la app de Claude: la nota pasa a decir cómo repetirlo si no cayó en su carpeta.
+    @State private var openedInApp = false
     private enum OpenTarget { case app, terminal }
 
     private enum Copied { case path, prompt }
@@ -105,16 +107,25 @@ struct DoneContent: View {
                     if let openProblem {
                         Text(openProblem == .claudeDidNotQuit ? "done.open.claudeStillOpen" : "done.open.failed")
                             .foregroundStyle(Color.seal700)
+                    } else if opening == .app {
+                        // Puede tardar: si hay que reiniciar la app de Claude, se espera a que termine de cargar.
+                        Text("done.open.opening \(agent.config.agentName)")
+                            .foregroundStyle(Color.ink700)
+                    } else if openedInApp {
+                        // La app de Claude a veces pierde la carpeta del enlace mientras carga. Con ella ya
+                        // abierta, repetirlo sí cae en su sitio.
+                        Text("done.open.again \(agent.config.agentName)")
+                            .foregroundStyle(Color.ink700)
                     } else {
                         (Text("done.open.hint") + Text(verbatim: " ") + Text(openNote))
                             .foregroundStyle(Color.ink500)
                     }
                 }
-                .id(openProblem)
+                .id(noteID)
                 .transition(.opacity)
                 .font(Typo.text(13))
                 .fixedSize(horizontal: false, vertical: true)
-                .animation(.easeOut(duration: Motion.micro), value: openProblem)
+                .animation(.easeOut(duration: Motion.micro), value: noteID)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
@@ -167,6 +178,13 @@ struct DoneContent: View {
     /// desde antes de que el agente existiera, hay que reiniciarla para que vea los suyos.
     private var needsClaudeRestart: Bool {
         AgentOpenPolicy.needsClaudeRestart(tools: wizard.connectedTools, folder: agent.folder, opener: wizard.opener)
+    }
+
+    /// Qué nota se ve bajo los botones, para fundir de una a otra.
+    private var noteID: String {
+        if let openProblem { return "problema-\(openProblem)" }
+        if opening == .app { return "abriendo" }
+        return openedInApp ? "abierto" : "antes"
     }
 
     /// La nota bajo los botones. Si Claude se va a reiniciar, se dice antes de pulsar.
@@ -272,6 +290,7 @@ struct DoneContent: View {
                 folder: agent.folder, tools: wizard.connectedTools, inApp: inApp, prompt: prompt, resume: false,
                 opener: opener, claudePath: claudePath)
             openProblem = outcome == .opened ? nil : outcome
+            if outcome == .opened, inApp { openedInApp = true }
             // Cargando hasta que la otra app toma el foco (o, como mucho, 2 s).
             if outcome == .opened {
                 for _ in 0..<20 {

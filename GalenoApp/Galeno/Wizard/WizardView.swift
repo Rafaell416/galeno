@@ -90,6 +90,7 @@ struct WizardView: View {
         case .role: RoleStepView()
         case .detection: DetectionStepView()
         case .agent: AgentStepView()
+        case .context: ContextStepView()
         case .tools: ToolsStepView()
         case .connect: ConnectStepView()
         case .skills: SkillsStepView()
@@ -101,7 +102,7 @@ struct WizardView: View {
     }
 }
 
-/// La cabecera: «Paso 3 de 6» en versalitas a la izquierda; a la derecha, en cursiva, el nombre del paso y,
+/// La cabecera: «Paso 3 de 7» en versalitas a la izquierda; a la derecha, en cursiva, el nombre del paso y,
 /// desde que el agente tiene nombre, su nombre. Debajo, el filete de 1 pt con el trazo de 3 pt que avanza.
 private struct ProgressHeader: View {
     @EnvironmentObject private var wizard: WizardState
@@ -169,6 +170,8 @@ private struct NavigationBar: View {
         switch wizard.step {
         // «Conectar 5 herramientas»: solo las que faltan por conectar. Si ya están todas, «Siguiente».
         case .tools where wizard.hasToConnect: Text("tools.primary \(wizard.toConnect.count)")
+        // Es opcional: sin nada escrito ni añadido, el botón dice lo que hace.
+        case .context where !wizard.hasContext: Text("context.skip")
         case .review: wizard.mode == .edit ? Text("review.primary.edit") : Text("review.primary \(agentName)")
         case .done: Text("wizard.finish")
         default: Text("wizard.next")

@@ -198,7 +198,12 @@ nonisolated enum SlackCapture {
       // Con `freshOnly` (Slack rechazó el token anterior) solo vale lo que aparezca **después**
       // de pulsar «Generate»: todo lo visto antes se anota para ignorarlo.
       var armed = !config.freshOnly, seenBefore = [];
-      var clickedGenerate = false, clickedConfirm = false, copyIndex = 0, generateAt = 0;
+      var clickedGenerate = false, clickedConfirm = false, copyIndex = 0, generateAt = 0, generateClicks = 0;
+      // Solo cuentan los gestos de verdad del usuario (`isTrusted`), no los clics que hace este script.
+      var userTouched = false;
+      ['mousedown', 'keydown'].forEach(function (type) {
+        document.addEventListener(type, function (event) { if (event.isTrusted) userTouched = true; }, true);
+      });
 
       function post(message) {
         try { window.webkit.messageHandlers.galeno.postMessage(message); } catch (e) {}
@@ -500,11 +505,20 @@ nonisolated enum SlackCapture {
         if (box) { handleDialog(box); return; }
 
         var generate = findButton(/generate\s+token/i);
-        if (generate && !clickedGenerate) {
+        // El primer clic puede llegar antes de que la página le haya puesto su acción al botón, y se pierde:
+        // si el diálogo no aparece, se repite (pocas veces). Nunca después de confirmar: ahí ya hay un token
+        // en camino y otro clic pediría uno más. El botón se trae a la vista: suele quedar bajo el pliegue,
+        // y si al final le toca pulsarlo al usuario tiene que poder verlo.
+        var retryGenerate = clickedGenerate && !clickedConfirm && generateClicks < 3 &&
+          Date.now() - generateAt > 2500 &&
+          !buttons().some(function (b) { return /^copy\b/i.test(textOf(b)); });
+        if (generate && (!clickedGenerate || retryGenerate)) {
           clickedGenerate = true;
+          generateClicks++;
           generateAt = Date.now();
+          try { generate.scrollIntoView({ block: 'center' }); } catch (e) {}
           generate.click();
-          report('clickedGenerate');
+          report('clickedGenerate', { n: generateClicks });
           return;
         }
 
@@ -519,7 +533,9 @@ nonisolated enum SlackCapture {
           return;
         }
         if (!generate && !copies.length && signInLink()) { report('signedOut'); return; }
-        report(generate || copies.length ? 'waiting' : 'noControls');
+        // Sin controles: Galeno puede volver a cargar la página, salvo que el usuario ya esté haciendo algo en ella.
+        if (generate || copies.length) report('waiting');
+        else report('noControls', userTouched ? { touched: 1 } : undefined);
       }
 
       setInterval(tick, 400);

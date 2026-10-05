@@ -43,6 +43,8 @@ final class WizardState: ObservableObject {
     }
     /// Las herramientas que el asistente marcó por el rol (y el usuario todavía no cambió).
     private var rolePreselection: [Tool] = []
+    /// El rol cuyas skills de fábrica están puestas.
+    private var skillsRole: AgentRole?
     @Published var agentName = ""
     @Published var projectDescription = ""
     @Published var connections: [ToolConnection] = []
@@ -227,6 +229,7 @@ final class WizardState: ObservableObject {
         connections = draft.connections
         skills = draft.skills
         skillsInitialized = draft.skillsInitialized
+        if draft.skillsInitialized { skillsRole = role }
         sendingRules = draft.sendingRules
         furthestStep = WizardStep(rawValue: draft.furthestStep) ?? .role
         let resumed = WizardStep(rawValue: draft.step) ?? .role
@@ -252,16 +255,16 @@ final class WizardState: ObservableObject {
 
     // MARK: Navegación
 
-    /// Los pasos de este asistente, en orden. Crear un agente no pasa por «Skills» (las fija el rol); el corto
-    /// («Nuevo agente») no tiene el paso de Claude Code, y solo tiene «Conectar» si alguna herramienta elegida
-    /// todavía no está conectada. «Gestionar» sí pasa por «Skills»: es donde se editan.
+    /// Los pasos de este asistente, en orden. «Skills» llega con las del rol ya marcadas (el boceto la quitaba
+    /// al crear un agente; Rafa la pidió de vuelta, 5 oct 2026). El corto («Nuevo agente») no tiene el paso de
+    /// Claude Code, y solo tiene «Conectar» si alguna herramienta elegida todavía no está conectada.
     var stepOrder: [WizardStep] {
         switch mode {
         case .full:
-            return [.role, .detection, .agent, .tools, .connect, .rules, .review, .generating, .done]
+            return [.role, .detection, .agent, .context, .tools, .connect, .skills, .rules, .review, .generating, .done]
         case .short:
             let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
-            return [.role, .agent, .tools] + (connecting ? [.connect] : []) + [.rules, .review, .generating, .done]
+            return [.role, .agent, .context, .tools] + (connecting ? [.connect] : []) + [.skills, .rules, .review, .generating, .done]
         case .edit:
             // Sin rol ni nombre (cambiarlos es otra cosa) ni «Listo»: al guardar se vuelve al home.
             let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
@@ -285,7 +288,7 @@ final class WizardState: ObservableObject {
         return seen
     }
 
-    /// «Paso N de 6»: seis en el asistente completo, cinco en «Nuevo agente», cuatro en «Gestionar».
+    /// «Paso N de 7»: siete en el asistente completo, seis en «Nuevo agente», cuatro en «Gestionar».
     var stepCount: Int { phases.count }
 
     /// 1 en el primer paso del asistente (no el número fijo del paso: el corto tiene menos).
@@ -333,7 +336,7 @@ final class WizardState: ObservableObject {
         // Se sale del sub-wizard cuando llega a la celebración: todas conectadas o saltadas.
         case .connect: connectFlow?.isFinished == true
         case .generating: generation?.phase == .succeeded
-        case .role, .skills, .rules, .review, .done: true
+        case .role, .context, .skills, .rules, .review, .done: true
         }
     }
 
@@ -374,9 +377,24 @@ final class WizardState: ObservableObject {
 
     // MARK: Paso 2: Claude Code
 
+    /// Hay una búsqueda en curso. `claudeStatus == .checking` no sirve para saberlo: también es el valor de
+    /// antes de haber mirado nunca, y tomarlo por «ya se está buscando» dejaba el paso girando para siempre
+    /// en un Mac sin instalación previa (prueba de arranque limpio, 5 oct 2026).
+    private var isDetectingClaude = false
+
+    /// Al entrar al paso: mira si todavía no está listo. Si ya lo está, volver atrás y adelante no lo
+    /// vuelve a buscar; si ya se está buscando, no se lanza otra búsqueda.
+    func detectClaudeCodeIfNeeded() async {
+        guard !claudeStatus.isReady, !claudeSetup.isWorking else { return }
+        await detectClaudeCode()
+    }
+
     /// Busca `claude` y actualiza `claudeStatus`. Se llama al entrar al paso y
     /// desde "Comprobar de nuevo".
     func detectClaudeCode() async {
+        guard !isDetectingClaude else { return }
+        isDetectingClaude = true
+        defer { isDetectingClaude = false }
         claudeStatus = .checking
         let started = ContinuousClock.now
         let result = await claudeDetector.detect()
@@ -477,6 +495,11 @@ final class WizardState: ObservableObject {
         return nil
     }
 
+    /// Si el usuario dio algo en «Darle contexto»: una línea del proyecto o algún archivo.
+    var hasContext: Bool {
+        !projectDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !contextItems.isEmpty
+    }
+
     func removeContext(_ item: ContextItem) {
         contextItems.removeAll { $0.id == item.id }
     }
@@ -522,8 +545,12 @@ final class WizardState: ObservableObject {
     private func applyRoleDefaults() {
         guard mode != .edit else { return }
         if case .loaded(let catalog) = skillCatalog {
-            skills = catalog.defaultSelection(for: role)
-            skillsInitialized = true
+            // Solo si el rol cambió: al volver a pasar por aquí con el mismo, lo que el usuario marcó en «Skills» se queda.
+            if skillsRole != role || !skillsInitialized {
+                skills = catalog.defaultSelection(for: role)
+                skillsInitialized = true
+                skillsRole = role
+            }
         } else {
             loadSkillCatalog()
         }
@@ -733,6 +760,7 @@ final class WizardState: ObservableObject {
             if !skillsInitialized {
                 skillsInitialized = true
                 skills = catalog.defaultSelection(for: role)
+                skillsRole = role
             }
         } catch {
             skillCatalog = .failed(String(describing: error))

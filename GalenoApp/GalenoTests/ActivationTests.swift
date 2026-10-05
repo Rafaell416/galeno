@@ -102,6 +102,33 @@ final class ActivationTests: XCTestCase {
                 fetchRealData: false, sleep: SleepLog().sleeper, claudeSetup: setup))
     }
 
+    // MARK: - El paso 2 en un Mac sin nada
+
+    /// La primera vez el estado es «buscando» sin que nadie haya buscado: entrar al paso tiene que mirar.
+    /// Tomarlo por una búsqueda en curso dejaba el paso girando para siempre (arranque limpio, 5 oct 2026).
+    func testEnteringTheStepLooksEvenThoughTheStatusStartsAsChecking() async {
+        let mac = ChangingMac(path: claude, version: "2.1.289", loggedIn: true)
+        let state = makeState(mac: mac, setup: FakeClaudeSetup())
+        XCTAssertEqual(state.claudeStatus, .checking)
+
+        await state.detectClaudeCodeIfNeeded()
+
+        XCTAssertNotEqual(state.claudeStatus, .checking, "se quedó sin mirar")
+        XCTAssertTrue(state.claudeStatus.isFound)
+    }
+
+    func testEnteringTheStepAgainDoesNotLookOnceItIsReady() async {
+        let mac = ChangingMac(path: claude, version: "2.1.289", loggedIn: true)
+        let state = makeState(mac: mac, setup: FakeClaudeSetup())
+        await state.detectClaudeCodeIfNeeded()
+        XCTAssertTrue(state.claudeStatus.isReady)
+
+        // Si volviera a mirar, ya no lo encontraría: que siga listo prueba que no miró.
+        mac.set(version: nil)
+        await state.detectClaudeCodeIfNeeded()
+        XCTAssertTrue(state.claudeStatus.isReady, "volver atrás y adelante no lo vuelve a buscar")
+    }
+
     // MARK: - Instalar, actualizar, iniciar sesión
 
     func testInstallRunsTheOfficialInstallerOverHTTPSAndNothingElse() async {
@@ -513,5 +540,80 @@ final class ActivationTests: XCTestCase {
 
         XCTAssertFalse(state.connectFlow === first, "el sub-wizard viejo apuntaba a un `claude` que no estaba")
         XCTAssertEqual(state.claudePath, claude)
+    }
+}
+
+/// Lo que se lee mientras algo tarda (`WaitingTicker`): una función del tiempo, sin estado.
+final class WaitingScriptTests: XCTestCase {
+    private let lines = ["Descargando.", "Tarda un minuto.", "Mientras tanto.", "Sigue en marcha."]
+
+    func testEachLineIsTypedLetterByLetterAndThenStays() {
+        let start = WaitingScript.frame(elapsed: 0, lines: lines, interval: 5)
+        XCTAssertEqual(start, .init(index: 0, visible: 0, isComplete: false))
+
+        let typing = WaitingScript.frame(elapsed: 0.1, lines: lines, interval: 5)
+        XCTAssertEqual(typing.index, 0)
+        XCTAssertTrue((1..<lines[0].count).contains(typing.visible), "a medio escribir: \(typing.visible)")
+
+        let resting = WaitingScript.frame(elapsed: 4.9, lines: lines, interval: 5)
+        XCTAssertEqual(resting, .init(index: 0, visible: lines[0].count, isComplete: true), "nunca más letras de las que hay")
+    }
+
+    func testLinesFollowOneAnotherAndTheLoopSkipsTheOpeningOnes() {
+        XCTAssertEqual(WaitingScript.frame(elapsed: 5.5, lines: lines, interval: 5).index, 1)
+        XCTAssertEqual(WaitingScript.frame(elapsed: 19, lines: lines, interval: 5).index, 3)
+        // Acabada la lista, no vuelve a «Descargando»: repite desde la tercera.
+        let looped = (4...9).map { WaitingScript.frame(elapsed: Double($0) * 5 + 1, lines: lines, interval: 5, loopFrom: 2).index }
+        XCTAssertEqual(looped, [2, 3, 2, 3, 2, 3])
+    }
+
+    func testOddInputsNeverCrash() {
+        XCTAssertEqual(WaitingScript.frame(elapsed: 3, lines: [], interval: 5).visible, 0)
+        XCTAssertEqual(WaitingScript.frame(elapsed: -4, lines: lines, interval: 5).index, 0)
+        XCTAssertEqual(WaitingScript.frame(elapsed: 999, lines: ["Sola."], interval: 5, loopFrom: 7).index, 0)
+        XCTAssertEqual(WaitingScript.frame(elapsed: 3, lines: lines, interval: 0).index, 0)
+    }
+
+    func testTheClockReadsMinutesAndSeconds() {
+        XCTAssertEqual(WaitingScript.clock(7.9), "0:07")
+        XCTAssertEqual(WaitingScript.clock(102), "1:42")
+        XCTAssertEqual(WaitingScript.clock(-3), "0:00")
+    }
+
+    /// Las frases de cada espera existen en los dos idiomas y ninguna promete un porcentaje ni un final.
+    func testTheWaitingLinesAreWrittenInBothLanguages() throws {
+        let app = Bundle(for: WizardState.self)
+        let keys =
+            (1...3).map { "wait.check.\($0)" } + (1...7).map { "wait.install.\($0)" } + (1...3).map { "wait.signin.\($0)" }
+            + ["wait.slow"]
+        for language in ["es", "en"] {
+            let bundle = try XCTUnwrap(Bundle(path: try XCTUnwrap(app.path(forResource: language, ofType: "lproj"))))
+            for key in keys {
+                let text = bundle.localizedString(forKey: key, value: "⟂", table: nil)
+                XCTAssertNotEqual(text, "⟂", "\(key) no está en \(language)")
+                XCTAssertFalse(text.contains("!") || text.contains("%"), "\(key): \(text)")
+            }
+        }
+    }
+}
+
+/// Cuándo se da por cargada la app de Claude antes de mandarle un enlace (`ClaudeAppLoad`).
+final class ClaudeAppLoadTests: XCTestCase {
+    func testOnlyTheProcessesInsideTheAppBundleCount() {
+        let ps = """
+              1.2 /Applications/Claude.app/Contents/MacOS/Claude
+             31,5 /Applications/Claude.app/Contents/Frameworks/Claude Helper (Renderer).app/Contents/MacOS/Claude Helper (Renderer)
+             80.0 /Users/prueba/Library/Application Support/Claude/claude-code/2.1.286/claude.app/Contents/MacOS/claude
+             12.0 /Applications/Claude Imitador.app/Contents/MacOS/Claude
+              0.0 /usr/sbin/cfprefsd
+            """
+        XCTAssertEqual(ClaudeAppLoad.total(psOutput: ps, bundlePath: "/Applications/Claude.app"), 32.7, accuracy: 0.001)
+        XCTAssertEqual(ClaudeAppLoad.total(psOutput: "", bundlePath: "/Applications/Claude.app"), 0)
+    }
+
+    func testWithoutAReadingItIsNotQuiet() {
+        XCTAssertFalse(ClaudeAppLoad.isQuiet(nil), "sin lectura se sigue esperando")
+        XCTAssertTrue(ClaudeAppLoad.isQuiet(3))
+        XCTAssertFalse(ClaudeAppLoad.isQuiet(140))
     }
 }
