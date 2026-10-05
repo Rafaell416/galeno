@@ -152,7 +152,7 @@ private struct ToolCard: View {
         let name = tool.displayName(in: wizard.language)
         let soon = tool.isComingSoon
         // En el wizard corto, las que la instalación ya tiene conectadas llevan su marca: no habrá que conectarlas.
-        let alreadyConnected = wizard.mode == .short && wizard.connection(for: tool)?.status == .connected
+        let alreadyConnected = wizard.mode != .full && wizard.connection(for: tool)?.status == .connected
 
         Button(action: action) {
             VStack(spacing: soon || alreadyConnected ? 2 : 5) {

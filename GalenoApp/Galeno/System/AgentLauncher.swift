@@ -157,6 +157,7 @@ enum AgentOpenPolicy {
             if needsClaudeRestart(tools: tools, folder: folder, opener: opener) {
                 return await opener.restartClaudeAppAndOpen(folder: folder, prompt: prompt, resume: resume)
             }
+            await opener.prepareClaudeApp()
             let opened = resume ? opener.continueInClaudeApp(folder: folder) : opener.openInClaudeApp(folder: folder, prompt: prompt)
             return opened ? .opened : .failed
         }
@@ -169,6 +170,10 @@ enum AgentOpenPolicy {
 protocol AgentOpening {
     /// ¿Está instalada la app de Claude (el manejador de `claude://`)?
     var isClaudeAppAvailable: Bool { get }
+    /// Que la app de Claude esté abierta y lista antes de mandarle un enlace. Si el enlace la arranca, llega mientras
+    /// carga y la app puede ignorar su carpeta y abrir la conversación en la última que usó (visto el 4 oct 2026:
+    /// el agente nuevo «Aloha» acabó con su primera pregunta dentro de la carpeta de «Jarvi»).
+    func prepareClaudeApp() async
     @discardableResult func openInClaudeApp(folder: URL, prompt: String?) -> Bool
     /// Vuelve a la última conversación de esa carpeta en la app de Claude; si no hay ninguna, abre una nueva.
     @discardableResult func continueInClaudeApp(folder: URL) -> Bool
@@ -184,6 +189,9 @@ protocol AgentOpening {
 }
 
 extension AgentOpening {
+    /// Por defecto no hay nada que preparar (las pruebas y los conectores falsos).
+    func prepareClaudeApp() async {}
+
     /// «Listo»: una conversación nueva, con la primera pregunta escrita.
     @discardableResult
     func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> AgentOpenOutcome {
@@ -207,6 +215,42 @@ struct SystemAgentOpener: AgentOpening {
 
     func openInClaudeApp(folder: URL, prompt: String?) -> Bool {
         NSWorkspace.shared.open(AgentLink.claudeApp(folder: folder, prompt: prompt))
+    }
+
+    /// Si la app de Claude no está abierta, se abre primero y se espera a que tenga ventana y termine de cargar; solo
+    /// entonces se le manda el enlace. Con la app ya abierta no hace nada.
+    func prepareClaudeApp() async {
+        guard !runningClaudeApps.contains(where: \.isFinishedLaunching) else { return }
+        await Self.launchClaudeAppAndWait()
+    }
+
+    /// Abre la app de Claude y espera hasta 15 s a que tenga una ventana a la vista, más 3 s para que termine de
+    /// cargar su última pantalla. Un enlace que llega antes puede perder su carpeta.
+    static func launchClaudeAppAndWait() async {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: claudeBundleID) else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+        for _ in 0..<60 {
+            if claudeHasWindow() { break }
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        try? await Task.sleep(for: .seconds(3))
+    }
+
+    /// ¿Tiene la app de Claude una ventana normal a la vista? Solo mira que exista (no su contenido).
+    private static func claudeHasWindow() -> Bool {
+        let pids = Set(NSRunningApplication.runningApplications(withBundleIdentifier: claudeBundleID).map(\.processIdentifier))
+        guard !pids.isEmpty,
+            let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]]
+        else { return false }
+        return windows.contains { window in
+            guard let pid = window[kCGWindowOwnerPID as String] as? pid_t, pids.contains(pid),
+                (window[kCGWindowLayer as String] as? Int) == 0,
+                let bounds = window[kCGWindowBounds as String] as? [String: CGFloat]
+            else { return false }
+            return (bounds["Width"] ?? 0) > 300 && (bounds["Height"] ?? 0) > 300
+        }
     }
 
     func continueInClaudeApp(folder: URL) -> Bool {
@@ -240,8 +284,10 @@ struct SystemAgentOpener: AgentOpening {
             try? await Task.sleep(for: .milliseconds(100))
         }
         guard apps.allSatisfy(\.isTerminated) else { return .claudeDidNotQuit }
-        // Un respiro para que el sistema dé por cerrada la app antes de volver a lanzarla.
+        // Un respiro para que el sistema dé por cerrada la app antes de volver a lanzarla; se abre sola y se
+        // espera a que cargue **antes** de mandarle el enlace (si no, el enlace puede perder su carpeta).
         try? await Task.sleep(for: .milliseconds(600))
+        await Self.launchClaudeAppAndWait()
         let opened = resume ? continueInClaudeApp(folder: folder) : openInClaudeApp(folder: folder, prompt: prompt)
         return opened ? .opened : .failed
     }

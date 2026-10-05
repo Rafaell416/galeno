@@ -74,6 +74,7 @@ struct StepScaffold<Content: View, Trailing: View>: View {
             Text("step.skills.summary \(agentName)") + Text(verbatim: " ")
                 + Text("skills.what").foregroundColor(Color.ink500)
         case .rules: Text("step.rules.summary \(agentName)")
+        case .review where wizard.mode == .edit: Text("step.review.summary.edit")
         default: Text(step.summary)
         }
     }

@@ -10,6 +10,10 @@ private final class RecordingOpener: AgentOpening {
     var restartNeeded = false
     private(set) var calls: [String] = []
 
+    /// Cuántas veces se preparó la app de Claude (abrirla y esperar) antes de mandarle un enlace.
+    private(set) var prepared = 0
+    func prepareClaudeApp() async { prepared += 1; calls.append("prepare") }
+
     var isClaudeAppAvailable: Bool { appAvailable }
     func openInClaudeApp(folder: URL, prompt: String?) -> Bool {
         calls.append("app \(folder.lastPathComponent) prompt=\(prompt ?? "nil")")
@@ -156,7 +160,7 @@ final class HomeTests: XCTestCase {
         model.open(model.agents[0])
         await waitForCalls(model, opener)
         XCTAssertNil(model.menuOpen)
-        XCTAssertEqual(opener.calls, ["continue Hera"], "la primera vez, la app de Claude")
+        XCTAssertEqual(opener.calls, ["prepare", "continue Hera"], "la primera vez, la app de Claude, ya preparada")
     }
 
     func testThePickedChoiceIsRememberedAndTheNextOpenUsesIt() async throws {
@@ -216,7 +220,26 @@ final class HomeTests: XCTestCase {
         let model = makeModel(opener: opener)
         model.open(model.agents[0], in: .app)
         await waitForCalls(model, opener)
-        XCTAssertEqual(opener.calls, ["continue Hera"])
+        XCTAssertEqual(opener.calls, ["prepare", "continue Hera"])
+    }
+
+    /// El agente nuevo «Aloha» acabó con su primera pregunta dentro de la carpeta de «Jarvi»: la app de Claude se había
+    /// arrancado con el enlace, y un enlace que llega mientras carga puede perder su carpeta. Ahora la app se prepara
+    /// —se abre y se espera— **antes** del enlace, y Terminal no necesita nada de eso.
+    func testTheClaudeAppIsPreparedBeforeTheLinkAndTerminalNeedsNothing() async throws {
+        try install([("Hera", [.whatsapp])])
+        let opener = RecordingOpener()
+        let model = makeModel(opener: opener)
+        model.open(model.agents[0], in: .app)
+        await waitForCalls(model, opener)
+        XCTAssertEqual(opener.calls.first, "prepare")
+        XCTAssertEqual(opener.calls.last, "continue Hera")
+
+        let terminal = RecordingOpener()
+        let other = makeModel(opener: terminal)
+        other.open(other.agents[0], in: .terminal)
+        await waitForCalls(other, terminal)
+        XCTAssertEqual(terminal.prepared, 0)
     }
 
     func testOpeningInTerminalUsesTheTerminal() async throws {
@@ -272,7 +295,7 @@ final class HomeTests: XCTestCase {
 
         model.open(model.agents[0], in: .app)
         await waitForCalls(model, opener)
-        XCTAssertEqual(opener.calls, ["continue Hera"])
+        XCTAssertEqual(opener.calls, ["prepare", "continue Hera"])
     }
 
     func testOpeningInTerminalNeverRestartsTheClaudeApp() async throws {

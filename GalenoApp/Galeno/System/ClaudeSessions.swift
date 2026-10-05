@@ -20,6 +20,29 @@ nonisolated struct ClaudeSessionStore: Sendable {
         var lastActivityAt: Double?
     }
 
+    /// Los archivos de **todas** las sesiones de esa carpeta, archivadas o no: lo que la app de Claude guarda de sus
+    /// conversaciones. Solo se usa para mandarlas a la Papelera cuando el usuario elimina el agente.
+    func sessionFiles(in folder: URL) -> [URL] {
+        let path = folder.standardizedFileURL.resolvingSymlinksInPath().path
+        guard let level1 = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+        else { return [] }
+        var found: [URL] = []
+        for dir1 in level1 {
+            for dir2 in (try? FileManager.default.contentsOfDirectory(at: dir1, includingPropertiesForKeys: nil)) ?? [] {
+                for file in (try? FileManager.default.contentsOfDirectory(at: dir2, includingPropertiesForKeys: nil)) ?? []
+                where file.lastPathComponent.hasPrefix("local_") && file.pathExtension == "json" {
+                    guard let data = try? Data(contentsOf: file),
+                        let entry = try? JSONDecoder().decode(Entry.self, from: data),
+                        entry.sessionId.range(of: Self.idPattern, options: .regularExpression) != nil,
+                        URL(fileURLWithPath: entry.cwd).standardizedFileURL.resolvingSymlinksInPath().path == path
+                    else { continue }
+                    found.append(file)
+                }
+            }
+        }
+        return found
+    }
+
     /// La sesión no archivada de esa carpeta con actividad más reciente.
     func latestSessionID(in folder: URL) -> String? {
         let path = folder.standardizedFileURL.resolvingSymlinksInPath().path

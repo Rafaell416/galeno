@@ -12,6 +12,15 @@ struct ReviewStepView: View {
     var body: some View {
         StepScaffold(step: .review, summarySize: 15, titleGap: 6, contentGap: 14) {
             VStack(spacing: 12) {
+                // «Gestionar»: Galeno es el dueño de la config. Se dice antes de guardar, no después.
+                if wizard.mode == .edit {
+                    NoticePanel(kind: .ochre) {
+                        Text("review.edit.warning \(agentName)")
+                            .font(Typo.text(14))
+                            .foregroundStyle(Color.ink900)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 HStack(alignment: .top, spacing: 20) {
                     toolsCard
                     skillsCard

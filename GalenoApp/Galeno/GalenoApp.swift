@@ -41,7 +41,9 @@ private struct RootView: View {
         ZStack {
             switch app.screen {
             case .home:
-                HomeView(model: app.home, onNewAgent: app.startNewAgent)
+                HomeView(
+                    model: app.home, onNewAgent: app.startNewAgent, onManage: app.manageAgent,
+                    onAgentRemoved: app.agentRemoved)
                     .transition(reduceMotion ? .opacity : .pageTurn)
             case .wizard:
                 // Un wizard nuevo (otro objeto) empieza de cero también en lo local de cada vista.

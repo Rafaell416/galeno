@@ -261,31 +261,23 @@ struct DoneContent: View {
 
     private func open(inApp: Bool) {
         let opener = wizard.opener
+        let claudePath = wizard.claudePath
         openProblem = nil
-        // Claude lleva abierto desde antes de conectar: se cierra y se vuelve a abrir en el agente
-        // (decisión de Rafa, 4 oct 2026). La nota bajo los botones ya lo avisó.
-        if inApp, needsClaudeRestart {
-            opening = .app
-            Task {
-                let outcome = await opener.restartClaudeAppAndOpen(folder: agent.folder, prompt: prompt)
-                opening = nil
-                openProblem = outcome == .opened ? nil : outcome
-            }
-            return
-        }
-        let opened = inApp
-            ? opener.openInClaudeApp(folder: agent.folder, prompt: prompt)
-            : opener.openInTerminal(folder: agent.folder, prompt: prompt, claudePath: wizard.claudePath)
-        if !opened {
-            openProblem = .failed
-            return
-        }
-        // Cargando hasta que la otra app toma el foco (o, como mucho, 2 s).
         opening = inApp ? .app : .terminal
+        // Un solo camino con el home (`AgentOpenPolicy`): si Claude lleva abierto desde antes de conectar, se cierra y se
+        // vuelve a abrir en el agente (decisión de Rafa, 4 oct 2026; la nota bajo los botones ya lo avisó), y si hay que
+        // arrancarlo, se espera a que cargue antes de mandarle el enlace.
         Task {
-            for _ in 0..<20 {
-                try? await Task.sleep(for: .milliseconds(100))
-                if !NSApp.isActive { break }
+            let outcome = await AgentOpenPolicy.open(
+                folder: agent.folder, tools: wizard.connectedTools, inApp: inApp, prompt: prompt, resume: false,
+                opener: opener, claudePath: claudePath)
+            openProblem = outcome == .opened ? nil : outcome
+            // Cargando hasta que la otra app toma el foco (o, como mucho, 2 s).
+            if outcome == .opened {
+                for _ in 0..<20 {
+                    try? await Task.sleep(for: .milliseconds(100))
+                    if !NSApp.isActive { break }
+                }
             }
             opening = nil
         }
