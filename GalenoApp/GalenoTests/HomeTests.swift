@@ -24,9 +24,11 @@ private final class RecordingOpener: AgentOpening {
         return true
     }
     func claudeAppNeedsRestart(since date: Date) -> Bool { restartNeeded }
-    func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> Bool {
+    /// Lo que devuelve el reinicio: por defecto, salió bien.
+    var restartOutcome: AgentOpenOutcome = .opened
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> AgentOpenOutcome {
         calls.append("restart \(folder.lastPathComponent) resume=\(resume)")
-        return true
+        return restartOutcome
     }
     func reveal(_ folder: URL) {}
 }
@@ -237,6 +239,28 @@ final class HomeTests: XCTestCase {
         model.open(model.agents[0], in: .app)
         await waitForCalls(model, opener)
         XCTAssertEqual(opener.calls, ["restart Hera resume=true"])
+    }
+
+    /// Claude no salió al pedírselo: no se abre nada en esa app y la tarjeta dice qué hacer. Antes se abría el
+    /// agente igual, en una app que no veía sus conectores, y nadie sabía por qué.
+    func testWhenClaudeDoesNotQuitTheCardSaysSoInsteadOfOpeningAnyway() async throws {
+        try install([("Hera", [.gmail])])
+        let opener = RecordingOpener()
+        opener.restartNeeded = true
+        opener.restartOutcome = .claudeDidNotQuit
+        let model = makeModel(opener: opener)
+        let agent = model.agents[0]
+
+        model.open(agent, in: .app)
+        await waitForCalls(model, opener)
+        XCTAssertEqual(opener.calls, ["restart Hera resume=true"], "ni abre en la app ni continúa la sesión")
+        XCTAssertEqual(model.problems[agent.id], .claudeDidNotQuit)
+
+        // Al volver a intentarlo y salir bien, el aviso se quita.
+        opener.restartOutcome = .opened
+        model.open(agent, in: .app)
+        await waitUntil { opener.calls.count == 2 && model.opening == nil }
+        XCTAssertNil(model.problems[agent.id])
     }
 
     func testAnAgentWithoutConnectorsNeverRestartsTheClaudeApp() async throws {

@@ -3579,6 +3579,23 @@
         }
       }
     },
+    "done.open.claudeStillOpen" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude no se cerró, así que no abrí el agente ahí: no vería tus herramientas de Google. Ciérralo con Cmd+Q y pulsa «Abrir» otra vez."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude didn't quit, so I didn't open the agent there: it wouldn't see your Google tools. Quit it with Cmd+Q and press “Open” again."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "done.open.confirm" : {
       "extractionState" : "manual",
       "localizations" : {

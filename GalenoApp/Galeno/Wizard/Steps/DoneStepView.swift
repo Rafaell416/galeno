@@ -36,7 +36,8 @@ struct DoneContent: View {
     let agent: AgentRecord
 
     @State private var copied: Copied?
-    @State private var openFailed = false
+    /// Lo que salió mal al abrir: no se pudo, o Claude no se cerró. `nil` = nada.
+    @State private var openProblem: AgentOpenOutcome?
     /// La tarjeta que se ilumina un momento al copiar (150 ms ida, 400 ms vuelta).
     @State private var lit: Copied?
     /// Abriendo en la app o en Terminal: el botón conserva su ancho y muestra la rueda hasta que otra app toma el foco.
@@ -101,18 +102,19 @@ struct DoneContent: View {
 
                 // Qué va a pasar al abrirlo; si no se pudo abrir, el texto cambia con un fundido.
                 Group {
-                    if openFailed {
-                        Text("done.open.failed").foregroundStyle(Color.seal700)
+                    if let openProblem {
+                        Text(openProblem == .claudeDidNotQuit ? "done.open.claudeStillOpen" : "done.open.failed")
+                            .foregroundStyle(Color.seal700)
                     } else {
                         (Text("done.open.hint") + Text(verbatim: " ") + Text(openNote))
                             .foregroundStyle(Color.ink500)
                     }
                 }
-                .id(openFailed)
+                .id(openProblem)
                 .transition(.opacity)
                 .font(Typo.text(13))
                 .fixedSize(horizontal: false, vertical: true)
-                .animation(.easeOut(duration: Motion.micro), value: openFailed)
+                .animation(.easeOut(duration: Motion.micro), value: openProblem)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
@@ -259,15 +261,15 @@ struct DoneContent: View {
 
     private func open(inApp: Bool) {
         let opener = wizard.opener
-        openFailed = false
+        openProblem = nil
         // Claude lleva abierto desde antes de conectar: se cierra y se vuelve a abrir en el agente
         // (decisión de Rafa, 4 oct 2026). La nota bajo los botones ya lo avisó.
         if inApp, needsClaudeRestart {
             opening = .app
             Task {
-                let opened = await opener.restartClaudeAppAndOpen(folder: agent.folder, prompt: prompt)
+                let outcome = await opener.restartClaudeAppAndOpen(folder: agent.folder, prompt: prompt)
                 opening = nil
-                openFailed = !opened
+                openProblem = outcome == .opened ? nil : outcome
             }
             return
         }
@@ -275,7 +277,7 @@ struct DoneContent: View {
             ? opener.openInClaudeApp(folder: agent.folder, prompt: prompt)
             : opener.openInTerminal(folder: agent.folder, prompt: prompt, claudePath: wizard.claudePath)
         if !opened {
-            openFailed = true
+            openProblem = .failed
             return
         }
         // Cargando hasta que la otra app toma el foco (o, como mucho, 2 s).

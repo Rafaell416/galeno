@@ -193,7 +193,7 @@ struct ScriptedOpener: AgentOpening {
     func openInClaudeApp(folder: URL, prompt: String?) -> Bool { true }
     func continueInClaudeApp(folder: URL) -> Bool { true }
     func claudeAppNeedsRestart(since date: Date) -> Bool { false }
-    func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> Bool { true }
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> AgentOpenOutcome { .opened }
     func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool { true }
     func reveal(_ folder: URL) {}
 }

@@ -40,7 +40,8 @@ final class HomeModel: ObservableObject {
     @Published private(set) var language: Language
     /// El agente que se está abriendo (el botón gira) y los que no se pudieron abrir.
     @Published private(set) var opening: UUID?
-    @Published private(set) var failed: Set<UUID> = []
+    /// Lo que salió mal al abrir un agente (no se pudo, o Claude no se cerró), para decirlo en su tarjeta.
+    @Published private(set) var problems: [UUID: AgentOpenOutcome] = [:]
     /// La última elección de dónde abrir (app de Claude o Terminal): la que sale marcada la próxima vez.
     @Published private(set) var openTarget: OpenTarget {
         didSet { defaults.set(openTarget.rawValue, forKey: Prefs.openTarget) }
@@ -142,12 +143,12 @@ final class HomeModel: ObservableObject {
         menuOpen = nil
         openTarget = target
         opening = agent.id
-        failed.remove(agent.id)
+        problems[agent.id] = nil
         Task {
-            let opened = await AgentOpenPolicy.open(
+            let outcome = await AgentOpenPolicy.open(
                 folder: agent.folder, tools: agent.tools, inApp: target == .app, prompt: nil, resume: true,
                 opener: opener, claudePath: claudePath)
-            if !opened { failed.insert(agent.id) }
+            if outcome != .opened { problems[agent.id] = outcome }
             await settle()
             opening = nil
         }

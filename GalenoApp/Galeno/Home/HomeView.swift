@@ -253,8 +253,10 @@ private struct AgentCard: View {
     private var note: some View {
         if !agent.folderExists {
             Text("home.folderMissing").font(Typo.text(13)).foregroundStyle(Color.ink500)
-        } else if model.failed.contains(agent.id) {
-            Text("done.open.failed").font(Typo.text(13)).foregroundStyle(Color.ink700)
+        } else if let problem = model.problems[agent.id] {
+            Text(problem == .claudeDidNotQuit ? "done.open.claudeStillOpen" : "done.open.failed")
+                .font(Typo.text(13)).foregroundStyle(Color.ink700)
+                .fixedSize(horizontal: false, vertical: true)
         } else if model.effectiveTarget == .app, model.willRestartClaude(for: agent) {
             Text("done.open.restart").font(Typo.text(13)).foregroundStyle(Color.ink500)
                 .fixedSize(horizontal: false, vertical: true)
