@@ -544,8 +544,11 @@ Y **las demás conexiones quedan en pausa** (Fireflies, Granola) hasta que lo qu
 *Skills por rol (rama `feat/skills-marketing`, 5 oct 2026):* **marketing completo, diez skills** adaptadas y con su licencia
 (`skills/curated/`, `docs/03` §6.2): siete de Anthropic y tres de voz de marca de Tribe AI. Aparecen en el paso de skills en
 un grupo «Marketing», sin marcar de fábrica, cada una con su dibujo. El agente **busca en la web sin pedir permiso**
-(`WebSearch`; se ve en «Tus herramientas»). Faltan: que Rafa las revise, comercial, y **los roles**, que todavía no existen:
-hoy cualquier agente ve las de marketing como un grupo más. Por decidir: **si `WebFetch` (abrir una página concreta) también
+(`WebSearch`; se ve en «Tus herramientas»). **Comercial completo: dieciséis** (rama `feat/skills-comercial`), las del plugin de ventas de Anthropic que funcionan sin
+CRM. Ninguna envía nada (ni una invitación) sin un «sí», y `create-an-asset` escribe el contenido de un material, no el
+archivo. Las otras veinte del plugin giran alrededor de un CRM y no se trajeron.
+Faltan: que Rafa las revise, el resto de comercial, y **los roles**, que todavía no existen: hoy cualquier agente ve
+marketing y comercial como dos grupos más. Por decidir: **si `WebFetch` (abrir una página concreta) también
 va sin preguntar**, que hoy pide aprobación porque una dirección puede llevar datos; y si la copia de la guía anterior de
 marca la debe hacer la app en vez del modelo (`guideline-generation` la reescribe a mano y puede no quedar fiel).
 
