@@ -211,7 +211,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   `claude://code/continue?session=local_<id>`, un enlace que la propia app usa en su menú del Dock pero que no está
   documentado. El id sale de `ClaudeSessionStore`, que lee en solo lectura la carpeta de datos de la app de Claude y solo
   cuatro campos (`sessionId`, `cwd`, `isArchived`, `lastActivityAt`); nunca títulos ni conversaciones. Si algo falla o
-  no hay sesión, se abre una nueva con el enlace documentado. No ampliar lo que se lee de esa carpeta. Nada se escribe dentro de la
+  no hay sesión, se abre una nueva con el enlace documentado. No ampliar lo que se lee de esa carpeta. **Segunda excepción, decidida por
+  Rafa (4 oct 2026):** al *eliminar* un agente, `AgentRemover` manda a la **Papelera** (nunca borra) su carpeta, la carpeta de proyecto de
+  Claude Code que corresponde a esa ruta y las sesiones de la app de Claude cuyo `cwd` es esa carpeta, tras una confirmación que lo lista.
+  La carpeta solo si está dentro de `~/Galeno` y no es un enlace; jamás `~/.claude.json`. Nada se escribe dentro de la
   carpeta del agente y nada se ejecuta con datos que no sean la ruta (citada) y el texto sugerido.
   Único caso en que Galeno cierra otra app: si el agente usa conectores de la cuenta de Claude y la app de Claude lleva
   abierta desde antes, «Abrir en la app de Claude» le pide salir (como Cmd+Q, nunca matarla) y la reabre en el agente,
@@ -245,6 +248,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - El home (`HomeModel`) lee la instalación con `InstallationStore.load()` y no escribe nunca. Ilegible = error visible con
   «Reintentar»: no se sobrescribe ni se vuelve al wizard en silencio. «Abrir» y «Listo» comparten `AgentOpenPolicy`; no
   duplicar la lógica de reiniciar la app de Claude.
+- «Gestionar» (`WizardState.Mode.edit`) regenera la carpeta **del mismo agente** y la Revisión avisa antes de guardar que lo editado a
+  mano se pierde y que `memoria/` no se toca. No pasar contexto traído (`importedContext`) al guardar, y no habilitarlo si la carpeta no existe.
 - La vista previa del `AGENTS.md` (`AgentPreview`) es solo lectura: devuelve texto y no escribe nada.
 - Tres sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló y el sello al llegar a «Listo». Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, botones, copiar ni cambios de paso.
 - Los glifos de sección (`Glyphs.swift`) son dibujos propios de línea a 1,5 pt; cuelgan en el margen junto al título de algunos pasos y nunca van en la misma fila que un SF Symbol.

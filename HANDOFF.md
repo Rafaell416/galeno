@@ -455,9 +455,22 @@ y opacidad. Leer el documento completo antes de tocar UI o el sitio.
 - **Tecnología de `site/`:** sin definir. Estructura y estilo sí (`docs/04` §9).
 - **Tiempo de Rafa:** MediClub lanza el 15 de noviembre de 2026 y compite por su atención.
 
-**Fase 4b (home) hecha en su primer corte (4 oct 2026):** lista de agentes, «Abrir» en la app de Claude o Terminal
-(recuerda la última elección, botón partido) y «Nuevo agente» por el wizard corto (reutiliza los pasos del completo).
-Faltan «Gestionar la config» y «Salud y mantenimiento» (`docs/03` §3b).
+**Fase 4b (home) hecha (4 oct 2026):** lista de agentes, «Abrir» en la app de Claude o Terminal (recuerda la última elección, botón
+partido), «Nuevo agente» por el wizard corto y «Gestionar» (cambiar qué lee, skills y reglas; recupera una herramienta saltada).
+Falta «Salud y mantenimiento» (`docs/03` §3b).
+
+**Renombrar y eliminar un agente — hecho (4 oct 2026), según lo que decidió Rafa:** renombrar cambia solo el nombre (la carpeta no
+se mueve, `memoria/` no se toca). Eliminar manda a la Papelera, tras confirmar, la carpeta del agente, sus conversaciones de Claude
+Code y las de la app de Claude (`AgentRemover`); si era el último agente se abre el wizard corto. Detalle en `docs/03` §3b. Falta
+«Salud y mantenimiento».
+
+### Aloha en la carpeta de Jarvi (4 oct 2026)
+
+Al crear a «Aloha» (Google), Galeno reinició Claude y su primera pregunta cayó en la carpeta de «Jarvi»: el historial de «Jarvi» ganó una
+conversación que no es suya, y la app pidió permiso para leer el calendario porque esa carpeta no tiene las reglas de Google. Los agentes son
+independientes; fue la conversación la que cayó mal. *Arreglo hecho (rama `feat/gestionar-agente`, sin verificar con la app real):* abrir
+Claude y esperar a que cargue antes de mandarle el enlace (`docs/03` §4e). Esa conversación mal archivada queda en Jarvi hasta que se
+elimine desde la app de Claude; **ojo: «Eliminar» sobre Jarvi la mandaría a la Papelera con el resto de su historial.**
 
 ### Demo con Felipe (4 oct 2026): Rafa lo considera no exitoso por Google
 
@@ -491,11 +504,6 @@ escribió una IA, y el agente redacta en primera persona.
 - **v0.0.2 (decidido por Rafa):** identidad de bot propia. Ya lo tiene armado a mano para su agente de MediClub
   (product engineer). Es un camino de envío propio con token de bot: línea roja 3 (cada envío con aprobación, el
   token de bot solo en la máquina del usuario). Está en `docs/03` §5.
-- **Mientras tanto, por decidir con Rafa:** (D) decir en «Reglas» y en el texto de la aprobación que lo de Slack
-  «saldrá con tu nombre y tu foto»; (A) una firma visible opcional en cada mensaje («— enviado por <agente>, en
-  nombre de <persona>»); (B) enviar como borrador (`slack_send_message_draft`) y que la persona lo envíe.
-- **Por confirmar:** si en ese demo Felipe vio la aprobación (texto y canal) antes de que saliera. Si no la vio, es un
-  fallo de la línea roja 3.
 - **Hecho (4 oct 2026):** la app de Slack se llama como el agente, sin «· Galeno» (`SlackManifestRenderer.appName`): era lo
   que aparecía en «Sent using …» bajo los mensajes. Las apps ya creadas con el nombre anterior lo conservan; se cambia a mano
   en api.slack.com/apps → la app → Basic Information → Display Information.
