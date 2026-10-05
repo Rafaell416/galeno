@@ -112,6 +112,59 @@ final class WizardStepsTests: XCTestCase {
         XCTAssertTrue(state.canGoForward)
     }
 
+    // MARK: - Skills por rol
+
+    /// Lo que el usuario marcó en «Skills» no se pierde por volver a pasar por el rol sin cambiarlo; si lo
+    /// cambia, sí trae las del rol nuevo.
+    func testGoingBackThroughTheRoleKeepsTheSkillsUnlessTheRoleChanges() {
+        let state = WizardState(
+            preferredLanguages: ["es"], claudeStatus: .found(version: "2.1.289", path: "/ruta/claude", loggedIn: true))
+        state.loadSkillCatalog()
+        guard case .loaded(let catalog) = state.skillCatalog else { return XCTFail("sin catálogo") }
+        state.next()
+        XCTAssertEqual(state.skills.count, catalog.defaultSelection(for: .productManager).count)
+
+        state.toggleSkill("prd", source: .galeno)
+        let mine = state.skills
+        state.back()
+        state.next()
+        XCTAssertEqual(state.skills, mine, "mismo rol: lo marcado se queda")
+
+        state.back()
+        state.role = .sales
+        XCTAssertEqual(state.skills, catalog.defaultSelection(for: .sales), "rol nuevo: sus skills")
+    }
+
+    // MARK: - Darle contexto
+
+    /// Es opcional: se pasa de largo sin tocar nada, y lo que se escriba llega al agente.
+    func testTheContextStepComesAfterTheNameAndCanBeSkipped() {
+        let state = readyState()
+        advance(state, to: .agent)
+        state.agentName = "Aurora"
+        state.next()
+        XCTAssertEqual(state.step, .context)
+        XCTAssertEqual(state.stepNumber, 3, "es la segunda mitad de «Tu agente»: no suma un paso")
+        XCTAssertFalse(state.hasContext)
+        XCTAssertTrue(state.canGoForward)
+
+        state.projectDescription = "  App de citas  "
+        XCTAssertTrue(state.hasContext)
+        state.next()
+        XCTAssertEqual(state.step, .tools)
+        XCTAssertEqual(state.makeConfig().projectDescription, "App de citas")
+    }
+
+    func testAFileCountsAsContextAndNeverReachesTheDraft() throws {
+        let state = readyState()
+        XCTAssertNil(state.addContext(ContextFile(title: "Brief", text: "contenido del usuario")))
+        XCTAssertTrue(state.hasContext)
+        if let draft = state.makeDraft() {
+            let json = try XCTUnwrap(String(data: JSONEncoder().encode(draft), encoding: .utf8))
+            XCTAssertFalse(json.contains("contenido del usuario"))
+        }
+    }
+
     // MARK: - Paso 4: las herramientas
 
     func testTheToolsStepNeedsAtLeastOneTool() {

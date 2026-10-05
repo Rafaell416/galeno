@@ -57,6 +57,34 @@ nonisolated enum AgentLink {
     }
 }
 
+// MARK: - Cuándo terminó de cargar la app de Claude
+
+/// Las cuentas de `SystemAgentOpener.waitUntilClaudeSettles`, aparte para poder probarlas.
+nonisolated enum ClaudeAppLoad {
+    /// Por debajo de esto, en la suma de todos sus procesos, la app ya no está cargando.
+    static let quietThreshold = 25.0
+
+    /// La salida de `ps -axo pcpu=,comm=`: se suman los procesos que viven dentro del paquete de la app.
+    static func total(psOutput: String, bundlePath: String) -> Double {
+        let prefix = bundlePath.hasSuffix("/") ? bundlePath : bundlePath + "/"
+        return psOutput.split(whereSeparator: \.isNewline).reduce(0) { sum, line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard let space = trimmed.firstIndex(of: " ") else { return sum }
+            let command = trimmed[trimmed.index(after: space)...].trimmingCharacters(in: .whitespaces)
+            guard command.hasPrefix(prefix) else { return sum }
+            // `ps` escribe los decimales con coma en algunos idiomas del sistema.
+            let value = Double(trimmed[..<space].replacingOccurrences(of: ",", with: ".")) ?? 0
+            return sum + value
+        }
+    }
+
+    /// Sin lectura no se da por quieta: se sigue esperando hasta el tope.
+    static func isQuiet(_ load: Double?) -> Bool {
+        guard let load else { return false }
+        return load < quietThreshold
+    }
+}
+
 // MARK: - El primer comando
 
 /// La primera pregunta de la pantalla 10 (`docs/03` §3): algo que el usuario puede probar ya con lo que
@@ -244,8 +272,10 @@ struct SystemAgentOpener: AgentOpening {
         await Self.launchClaudeAppAndWait()
     }
 
-    /// Abre la app de Claude y espera hasta 15 s a que tenga una ventana a la vista, más 3 s para que termine de
-    /// cargar su última pantalla. Un enlace que llega antes puede perder su carpeta.
+    /// Abre la app de Claude y espera hasta 15 s a que tenga una ventana a la vista, y después a que **deje de
+    /// cargar** (`waitUntilClaudeSettles`). Un enlace que llega antes puede perder su carpeta: la app se queda
+    /// con la última que usó, que puede ser de otro agente o ya no existir («Folder not found», prueba de
+    /// arranque limpio del 5 oct 2026, cuando la espera era de 3 s fijos).
     static func launchClaudeAppAndWait() async {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: claudeBundleID) else { return }
         let configuration = NSWorkspace.OpenConfiguration()
@@ -255,7 +285,31 @@ struct SystemAgentOpener: AgentOpening {
             if claudeHasWindow() { break }
             try? await Task.sleep(for: .milliseconds(250))
         }
-        try? await Task.sleep(for: .seconds(3))
+        await waitUntilClaudeSettles()
+    }
+
+    /// Con la ventana ya a la vista, la app todavía carga su interfaz y sus conversaciones. Se da por cargada
+    /// cuando sus procesos llevan dos segundos seguidos casi sin usar el procesador, con un mínimo de 4 s y un
+    /// tope de 25 s (una conversación trabajando de fondo puede no dejarla quieta nunca). Solo se mira cuánto
+    /// procesador usan sus procesos: nada de su contenido.
+    static func waitUntilClaudeSettles(minimum: Double = 4, maximum: Double = 25) async {
+        let started = Date()
+        var quiet = 0
+        while Date().timeIntervalSince(started) < maximum {
+            try? await Task.sleep(for: .seconds(1))
+            let load = await claudeProcessorLoad()
+            quiet = ClaudeAppLoad.isQuiet(load) ? quiet + 1 : 0
+            if quiet >= 2, Date().timeIntervalSince(started) >= minimum { return }
+        }
+    }
+
+    /// La suma del uso de procesador de los procesos de la app de Claude, según `ps`. `nil` si no se pudo leer.
+    private static func claudeProcessorLoad() async -> Double? {
+        guard let bundle = NSWorkspace.shared.urlForApplication(withBundleIdentifier: claudeBundleID)?.path,
+            let result = await ProcessRunner().run("/bin/ps", arguments: ["-axo", "pcpu=,comm="], timeout: 5),
+            result.status == 0
+        else { return nil }
+        return ClaudeAppLoad.total(psOutput: result.output, bundlePath: bundle)
     }
 
     /// ¿Tiene la app de Claude una ventana normal a la vista? Solo mira que exista (no su contenido).

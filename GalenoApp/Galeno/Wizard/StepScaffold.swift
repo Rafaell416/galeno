@@ -38,7 +38,7 @@ struct StepScaffold<Content: View, Trailing: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
-                    StepTitle(text: Text(step.heading), mark: step.headingMark)
+                    StepTitle(text: heading, mark: step.headingMark)
                         // El sello de sección cuelga en el margen, como el ornamento de un impreso: el
                         // título sigue alineado con el contenido.
                         .overlay(alignment: .leading) {
@@ -65,6 +65,14 @@ struct StepScaffold<Content: View, Trailing: View>: View {
             .padding(.bottom, Space.s16)
         }
         .scrollBounceBehavior(.basedOnSize)
+    }
+
+    /// El título de la página. «Contexto» nombra al agente.
+    private var heading: Text {
+        switch step {
+        case .context: Text("step.context.heading \(agentName)")
+        default: Text(step.heading)
+        }
     }
 
     /// La línea de qué se hace en el paso. «Reglas» habla del agente por su nombre; «Skills» se arma aparte, sin esta línea.

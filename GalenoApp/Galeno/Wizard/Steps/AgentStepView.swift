@@ -2,7 +2,7 @@ import GalenoCore
 import SwiftUI
 
 /// Paso 3: el nombre, y nada más (rediseño «Activación»). El rol ya se eligió en el paso 1, y la descripción
-/// del proyecto y los archivos de contexto salieron de aquí: son opcionales y se dan después, desde el agente.
+/// del proyecto y los archivos de contexto salieron de aquí: son opcionales y van en la pantalla siguiente (`ContextStepView`).
 /// A la derecha, su ex libris, que se va llenando con lo que se escribe.
 struct AgentStepView: View {
     @EnvironmentObject private var wizard: WizardState

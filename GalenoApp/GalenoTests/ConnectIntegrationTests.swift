@@ -41,7 +41,7 @@ final class ConnectIntegrationTests: XCTestCase {
         XCTAssertTrue(state.hidesNavigation, "la celebración lleva su propio «Continuar»")
         XCTAssertTrue(state.canGoForward, "y ese botón ya puede avanzar")
         state.next()
-        XCTAssertEqual(state.step, .rules, "crear un agente no pasa por «Skills»: las trae el rol")
+        XCTAssertEqual(state.step, .skills)
         XCTAssertFalse(state.hidesNavigation)
     }
 

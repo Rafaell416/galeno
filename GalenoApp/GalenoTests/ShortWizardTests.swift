@@ -33,11 +33,11 @@ final class ShortWizardTests: XCTestCase {
 
     func testThereIsNoWelcomeNorDetectionAndNothingToConnectSkipsThatStep() {
         let state = makeShort(connected: [.whatsapp])
-        XCTAssertEqual(state.stepOrder, [.role, .agent, .tools, .rules, .review, .generating, .done])
-        XCTAssertEqual(state.stepCount, 5, "rol, nombre, herramientas, reglas y creación")
+        XCTAssertEqual(state.stepOrder, [.role, .agent, .context, .tools, .skills, .rules, .review, .generating, .done])
+        XCTAssertEqual(state.stepCount, 6, "rol, nombre, herramientas, skills, reglas y creación")
         XCTAssertEqual(state.stepNumber, 1)
         XCTAssertTrue(state.isFirstStep)
-        XCTAssertEqual(state.progress, 1.0 / 5.0, accuracy: 0.0001)
+        XCTAssertEqual(state.progress, 1.0 / 6.0, accuracy: 0.0001)
     }
 
     func testThereIsNoBackAtTheFirstStep() {
@@ -52,9 +52,11 @@ final class ShortWizardTests: XCTestCase {
         state.next()
         state.agentName = "Aurora"
         state.next()
+        XCTAssertEqual(state.step, .context)
+        state.next()
         XCTAssertEqual(state.step, .tools)
         state.next()
-        XCTAssertEqual(state.step, .rules, "no hay nada que conectar")
+        XCTAssertEqual(state.step, .skills, "no hay nada que conectar")
         state.back()
         XCTAssertEqual(state.step, .tools, "y al volver tampoco pasa por conectar")
     }
@@ -65,11 +67,12 @@ final class ShortWizardTests: XCTestCase {
         state.toggle(.notion)
         XCTAssertEqual(state.toConnect, [.notion])
         XCTAssertTrue(state.hasToConnect)
-        XCTAssertEqual(state.stepOrder, [.role, .agent, .tools, .connect, .rules, .review, .generating, .done])
+        XCTAssertEqual(state.stepOrder, [.role, .agent, .context, .tools, .connect, .skills, .rules, .review, .generating, .done])
 
         state.next()
         state.agentName = "Aurora"
-        state.next()
+        state.next()  // contexto
+        state.next()  // herramientas
         state.next()
         XCTAssertEqual(state.step, .connect)
     }
@@ -80,13 +83,14 @@ final class ShortWizardTests: XCTestCase {
         state.toggle(.notion)
         state.next()
         state.agentName = "Aurora"
-        state.next()
+        state.next()  // contexto
+        state.next()  // herramientas
         state.next()
         XCTAssertEqual(state.step, .connect)
 
         state.setConnectionStatus(.notion, .connected)
         XCTAssertFalse(state.hasToConnect)
-        XCTAssertEqual(state.stepOrder, [.role, .agent, .tools, .connect, .rules, .review, .generating, .done])
+        XCTAssertEqual(state.stepOrder, [.role, .agent, .context, .tools, .connect, .skills, .rules, .review, .generating, .done])
         XCTAssertEqual(state.stepNumber, 3, "conectar sigue siendo el paso de las herramientas")
     }
 
@@ -116,12 +120,12 @@ final class ShortWizardTests: XCTestCase {
         XCTAssertNil(state.pendingDraft)
     }
 
-    /// El completo: seis pasos a la vista, con el rol primero y la cuenta de Claude después. Sin «Skills».
-    func testTheFullWizardShowsSixSteps() {
+    /// El completo: siete pasos a la vista, con el rol primero y la cuenta de Claude después.
+    func testTheFullWizardShowsSevenSteps() {
         let state = WizardState(preferredLanguages: ["es"])
         XCTAssertEqual(state.mode, .full)
-        XCTAssertEqual(state.stepOrder, WizardStep.allCases.filter { $0 != .skills })
-        XCTAssertEqual(state.stepCount, 6)
+        XCTAssertEqual(state.stepOrder, WizardStep.allCases)
+        XCTAssertEqual(state.stepCount, 7)
         XCTAssertEqual(state.stepNumber, 1)
     }
 }

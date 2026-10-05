@@ -7,7 +7,7 @@ import GalenoCore
 /// reglas, el `client_id` público). Se borra al terminar.
 struct WizardDraft: Codable, Equatable {
     /// La 2 es la del asistente de seis pasos: un borrador de la 1 (diez pasos, sin rol) se ignora.
-    static let currentVersion = 2
+    static let currentVersion = 3
 
     var version = WizardDraft.currentVersion
     var step: Int

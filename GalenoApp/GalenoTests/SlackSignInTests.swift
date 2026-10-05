@@ -292,6 +292,56 @@ final class SlackSignInWebViewTests: XCTestCase {
         XCTAssertEqual(model.host, "api.slack.com")
     }
 
+    /// La página de verdad tarda en ponerle su acción al botón: un clic que llega antes se pierde. Galeno lo
+    /// repite en vez de quedarse esperando a que el usuario lo pulse (prueba de arranque limpio, 5 oct 2026).
+    func testAClickThatCameTooEarlyIsRepeated() async {
+        let model = makeModel()
+        let late = replica(reveal: .field).replacingOccurrences(
+            of: "if (gen) gen.onclick = function () { dlg.showModal(); };",
+            with: "window.genClicks = 0; gen.addEventListener('click', function () { window.genClicks++; });"
+                + " setTimeout(function () { gen.onclick = function () { dlg.showModal(); }; }, 1200);")
+        XCTAssertTrue(late.contains("genClicks"), "la réplica cambió: revisar la sustitución")
+        load(late, into: model)
+
+        let done = await waitForCapture()
+
+        XCTAssertTrue(done, "etapa: \(model.stage)")
+        XCTAssertEqual(capturedValue, fakeToken())
+        let clicks = try? await model.webView.evaluateJavaScript("window.genClicks") as? Int
+        XCTAssertEqual(clicks, 2, "uno perdido y uno que abrió el diálogo; ni uno más")
+    }
+
+    /// Justo después de iniciar sesión, Slack a veces pinta la página sin la sección de tokens. Galeno la vuelve
+    /// a cargar en vez de pedirle al usuario un botón que no está (prueba del 5 oct 2026).
+    func testATokensPageWithoutItsControlsIsReloadedInsteadOfWaitingForTheUser() async {
+        let model = makeModel()
+        model.reloadDelay = .milliseconds(400)
+        load(replica(hasGenerateButton: false), into: model)
+
+        let reloaded = await waitUntil(timeout: 10) { self.navigations == [SlackCapture.tokensURL] }
+        XCTAssertTrue(reloaded, "navegó a: \(navigations)")
+        XCTAssertTrue(captured.isEmpty)
+
+        // La recarga sí trae el botón: sigue sola hasta el token.
+        load(replica(reveal: .field), into: model)
+        let done = await waitForCapture()
+        XCTAssertTrue(done, "etapa: \(model.stage)")
+        XCTAssertEqual(navigations.count, 1, "con los controles a la vista no se recarga más")
+    }
+
+    func testItReloadsATokensPageWithoutControlsAtMostTwice() async throws {
+        let model = makeModel()
+        model.reloadDelay = .milliseconds(300)
+        for expected in 1...SlackSignInModel.maxReloadsForControls {
+            load(replica(hasGenerateButton: false), into: model)
+            let reloaded = await waitUntil(timeout: 10) { self.navigations.count == expected }
+            XCTAssertTrue(reloaded, "recarga \(expected)")
+        }
+        load(replica(hasGenerateButton: false), into: model)
+        try await Task.sleep(for: .seconds(2))
+        XCTAssertEqual(navigations.count, SlackSignInModel.maxReloadsForControls, "después, le toca al usuario")
+    }
+
     func testCapturesATokenThatOnlyLivesInAnAttribute() async {
         let model = makeModel()
         load(replica(reveal: .attribute), into: model)

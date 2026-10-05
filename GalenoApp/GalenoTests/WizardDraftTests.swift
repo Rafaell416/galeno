@@ -29,7 +29,7 @@ final class WizardDraftTests: XCTestCase {
         state.toggle(.notion)
         state.toggle(.slack)
         state.setOAuthClientID(.slack, "1234567890123.1234567890123")
-        state.next(); state.next(); state.next(); state.next()  // hasta «Conectar»
+        for _ in 0..<5 { state.next() }  // hasta «Conectar»
         state.saveDraft()
 
         let draft = try XCTUnwrap(store.draft)
@@ -49,7 +49,7 @@ final class WizardDraftTests: XCTestCase {
         first.projectDescription = "App de citas"
         first.toggle(.notion)
         first.setConnectionStatus(.notion, .connected)
-        first.next(); first.next(); first.next(); first.next()
+        for _ in 0..<5 { first.next() }  // hasta «Conectar»
         first.saveDraft()
 
         let second = WizardState(preferredLanguages: ["en"], draftStore: store)
@@ -114,7 +114,7 @@ final class WizardDraftTests: XCTestCase {
     func testGoToOnlyReachesVisitedSteps() {
         let state = makeState(MemoryDraftStore())
         state.toggle(.notion)
-        state.next(); state.next(); state.next()  // herramientas
+        for _ in 0..<4 { state.next() }  // herramientas
         XCTAssertEqual(state.step, .tools)
 
         state.goTo(.skills)

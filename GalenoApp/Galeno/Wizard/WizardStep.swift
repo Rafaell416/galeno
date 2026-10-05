@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// Los pasos del asistente (rediseño «Activación», `docs/03` §3). El usuario ve **seis**: rol, cuenta de
-/// Claude, nombre, herramientas, reglas y creación (`phase`); varios de aquí son momentos de un mismo paso
-/// («Tus herramientas» y «Conectar»; «Revisión», «Creando» y «Listo»). «Skills» ya no está en el camino de
-/// crear un agente (las fija el rol): solo en «Gestionar».
+/// Los pasos del asistente (rediseño «Activación», `docs/03` §3). El usuario ve **siete**: rol, cuenta de
+/// Claude, nombre, herramientas, skills, reglas y creación (`phase`); varios de aquí son momentos de un mismo
+/// paso («Tus herramientas» y «Conectar»; «Revisión», «Creando» y «Listo»). «Skills» llega con las del rol
+/// ya marcadas. «Contexto» es la segunda mitad de «Tu agente»:
+/// opcional, después del nombre y antes de las herramientas (decisión de Rafa, 5 oct 2026).
 enum WizardStep: Int, CaseIterable, Identifiable {
     case role
     case detection
     case agent
+    case context
     case tools
     case connect
     case skills
@@ -21,7 +23,7 @@ enum WizardStep: Int, CaseIterable, Identifiable {
         switch self {
         case .role: 0
         case .detection: 1
-        case .agent: 2
+        case .agent, .context: 2
         case .tools, .connect: 3
         case .skills: 4
         case .rules: 5
@@ -46,6 +48,8 @@ enum WizardStep: Int, CaseIterable, Identifiable {
     var headingKey: String {
         switch self {
         case .role, .agent, .tools: "step.\(slug).heading"
+        // Habla del agente por su nombre: la clave lleva un argumento.
+        case .context: "step.context.heading %@"
         default: titleKey
         }
     }
@@ -67,6 +71,7 @@ enum WizardStep: Int, CaseIterable, Identifiable {
         case .role: "role"
         case .detection: "detection"
         case .agent: "agent"
+        case .context: "context"
         case .tools: "tools"
         case .connect: "connect"
         case .skills: "skills"

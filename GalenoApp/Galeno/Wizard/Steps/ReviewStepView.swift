@@ -78,16 +78,11 @@ struct ReviewStepView: View {
             if case .loaded(let catalog) = wizard.skillCatalog { return catalog.cards.count }
             return names.count
         }()
-        // Al crear un agente las skills las trae el rol: se cambia el rol, no la lista. En «Gestionar» sí se editan.
-        let creating = wizard.mode != .edit
         let title =
-            creating
-            ? Localized.string("review.role", locale: locale) + " · " + wizard.role.title(in: wizard.language) + " · "
-                + Localized.string("review.role.skills %lld", names.count, locale: locale)
-            : Localized.string("review.skills", locale: locale) + " · "
-                + Localized.string("skills.ours.count %lld %lld", names.count, total, locale: locale)
+            Localized.string("review.skills", locale: locale) + " · "
+            + Localized.string("skills.ours.count %lld %lld", names.count, total, locale: locale)
         return ReviewCard(title: title, accent: false) {
-            wizard.jump(to: creating ? .role : .skills)
+            wizard.jump(to: .skills)
         } content: {
             Text(verbatim: names.prefix(6).joined(separator: " · ") + (names.count > 6 ? " …" : ""))
                 .font(Typo.list)

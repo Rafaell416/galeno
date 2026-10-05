@@ -214,6 +214,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   más lento para todos los usuarios: se cambia solo con una medición que lo justifique.
 - `ConnectServices.installer` no tiene valor por defecto: escribe en `~/Galeno` y en `installation.json`.
   Las pruebas usan `AgentInstaller.sandboxed()`; ninguna debe tocar el disco real.
+- A la app de Claude recién arrancada no se le manda un enlace hasta que **dejó de cargar** (`waitUntilClaudeSettles`): uno que llega
+  antes pierde su carpeta y la conversación cae en la última que la app usó. No volver a una espera fija.
 - Abrir el agente usa los enlaces que documenta Anthropic (`claude://code/new`,
   `claude-cli://open`) y, de respaldo, un `.command` en `$TMPDIR`. **Única excepción, decidida por Rafa (4 oct 2026):**
   desde el home, «Abrir» en la app de Claude vuelve a la última conversación de la carpeta con
@@ -287,10 +289,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   reapareció) o «Quitar el agente» (el diálogo de Eliminar).
 - La vista previa del `AGENTS.md` (`AgentPreview`) es solo lectura: devuelve texto y no escribe nada.
 - El asistente sigue el rediseño «Activación» (`docs/03` §3; archivo `Galeno B1 Activación.dc.html` de Claude Design): **manda en estructura y
-  textos, no en estilo**, que sigue siendo el de B1 (decisión de Rafa, 5 oct 2026). Seis pasos a la vista (`WizardStep.phase`); antes, tres
+  textos, no en estilo**, que sigue siendo el de B1 (decisión de Rafa, 5 oct 2026). Siete pasos a la vista (`WizardStep.phase`); antes, tres
   pantallas que se ven una sola vez (`OnboardingView`, `Prefs.onboardingSeen`). El **rol** (`AgentRole`: producto, marketing, comercial) fija las
-  skills (`SkillCatalog.defaultSelection(for:)`) y el orden de las herramientas (`AgentRole.toolOrder`); al crear un agente no hay paso
-  «Skills», solo en «Gestionar». La preselección de herramientas del rol nunca pisa lo que el usuario marcó. Una pantalla nueva no promete lo
+  skills que vienen marcadas (`SkillCatalog.defaultSelection(for:)`) y el orden de las herramientas (`AgentRole.toolOrder`); el paso
+  «Skills» sigue al crear un agente (el boceto lo quitaba; Rafa lo pidió de vuelta). La preselección de herramientas del rol nunca pisa lo que el usuario marcó. «Darle contexto» va
+  después del nombre y antes de las herramientas, y es opcional. Una espera larga usa `WaitingTicker`, no una rueda sola: sus frases
+  dicen cosas ciertas pase lo que pase y **nunca fingen un avance que Galeno no conoce**. El agente se «crea», no se «escribe». Una pantalla nueva no promete lo
   que la app todavía no hace (p. ej. «se cambia después» para el rol).
 - Tres sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló y el sello al llegar a «Listo». Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, botones, copiar ni cambios de paso. Suenan igual al conectar en el asistente, al «Reconectar»
   o «Re-vincular» desde Salud, y sea cual sea la autorización (hoja del sistema, navegador o ventana de Slack); mirar el estado o cancelar no suena.
