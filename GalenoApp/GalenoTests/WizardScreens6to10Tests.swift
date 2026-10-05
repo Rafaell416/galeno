@@ -42,8 +42,8 @@ final class WizardScreens6to10Tests: XCTestCase {
                 """
         }
         let catalog = """
-            {"schemaVersion":1,"groups":[{"id":"g","name":{"es":"G","en":"G"}}],
-             "galeno":[\(skill("prd", "g")),\(skill("acta", "g", needs: ["fireflies"])),\(skill("informe-slack", "g", needs: ["slack"]))],
+            {"schemaVersion":1,"groups":[{"id":"documents","name":{"es":"G","en":"G"}}],
+             "galeno":[\(skill("prd", "documents")),\(skill("acta", "documents", needs: ["fireflies"])),\(skill("informe-slack", "documents", needs: ["slack"]))],
              "curated":[
                {"id":"c-ready","name":{"es":"C","en":"C"},"summary":{"es":"s","en":"s"},"author":"someone","repository":"https://github.com/someone/x","path":"skills/c","license":"MIT","available":true},
                {"id":"c-soon","name":{"es":"C","en":"C"},"summary":{"es":"s","en":"s"},"author":"someone","repository":"https://github.com/someone/x","path":"skills/d","license":"MIT","available":false}]}

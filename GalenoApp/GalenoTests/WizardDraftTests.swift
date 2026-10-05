@@ -56,7 +56,7 @@ final class WizardDraftTests: XCTestCase {
         let pending = try XCTUnwrap(second.pendingDraft)
         XCTAssertEqual(pending.agentName, "Hera")
         XCTAssertEqual(second.language, .spanish, "la pantalla de reanudar habla el idioma de la sesión")
-        XCTAssertEqual(second.step, .welcome, "hasta decidir, no se mueve nada")
+        XCTAssertEqual(second.step, .role, "hasta decidir, no se mueve nada")
 
         second.resumeDraft()
 
@@ -81,7 +81,7 @@ final class WizardDraftTests: XCTestCase {
 
         XCTAssertNil(second.pendingDraft)
         XCTAssertNil(store.draft)
-        XCTAssertEqual(second.step, .welcome)
+        XCTAssertEqual(second.step, .role)
         XCTAssertEqual(second.agentName, "")
     }
 

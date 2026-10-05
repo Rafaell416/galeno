@@ -6,10 +6,14 @@ import GalenoCore
 /// Claude Code, y aquí solo hay lo mismo que lleva un `AgentConfig` (nombres, herramientas, skills,
 /// reglas, el `client_id` público). Se borra al terminar.
 struct WizardDraft: Codable, Equatable {
-    var version = 1
+    /// La 2 es la del asistente de seis pasos: un borrador de la 1 (diez pasos, sin rol) se ignora.
+    static let currentVersion = 2
+
+    var version = WizardDraft.currentVersion
     var step: Int
     var furthestStep: Int
     var language: Language
+    var role: AgentRole = .productManager
     var agentName: String
     var projectDescription: String
     var connections: [ToolConnection]
@@ -40,7 +44,7 @@ final class FileDraftStore: DraftStoring {
     func load() -> WizardDraft? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         // Un borrador ilegible o de otra versión se ignora: no vale la pena fallar por él.
-        guard let draft = try? JSONDecoder().decode(WizardDraft.self, from: data), draft.version == 1 else {
+        guard let draft = try? JSONDecoder().decode(WizardDraft.self, from: data), draft.version == WizardDraft.currentVersion else {
             return nil
         }
         return draft

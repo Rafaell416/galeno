@@ -63,6 +63,25 @@ enum AgentsFileRenderer {
             .filter { seen.insert($0).inserted }
     }
 
+    /// Qué es y qué hace el agente, según su rol. Es lo único del `AGENTS.md` que cambia con el rol (además de
+    /// sus skills): las reglas, los permisos y los subagentes son los mismos.
+    static func identity(_ role: AgentRole, _ language: Language) -> String {
+        switch (role, language) {
+        case (.productManager, .spanish):
+            "es el asistente de producto de este espacio de trabajo y trabaja como Product Manager. Lee lo que pasa en las herramientas del equipo, arma resúmenes, informes y documentos de producto, y crea tareas."
+        case (.productManager, .english):
+            "is the product assistant for this workspace and works as a Product Manager. It reads what happens across the team's tools, writes summaries, reports and product documents, and creates tasks."
+        case (.marketing, .spanish):
+            "es el asistente de marketing de este espacio de trabajo. Lee lo que pasa en las herramientas del equipo, prepara planes de campaña, contenido y reportes de resultados, y cuida la voz de la marca."
+        case (.marketing, .english):
+            "is the marketing assistant for this workspace. It reads what happens across the team's tools, prepares campaign plans, content and performance reports, and looks after the brand voice."
+        case (.sales, .spanish):
+            "es el asistente comercial de este espacio de trabajo. Lee lo que pasa en las herramientas del equipo, prepara las reuniones con clientes, resume llamadas, redacta seguimientos y ordena cuentas y oportunidades."
+        case (.sales, .english):
+            "is the sales assistant for this workspace. It reads what happens across the team's tools, prepares customer meetings, summarizes calls, drafts follow-ups and keeps accounts and deals in order."
+        }
+    }
+
     // MARK: - Español
 
     private static func renderSpanish(_ config: AgentConfig) -> String {
@@ -73,9 +92,7 @@ enum AgentsFileRenderer {
         lines.append("")
         lines.append(
             """
-            \(name) es el asistente de producto de este espacio de trabajo y trabaja como \
-            Product Manager. Lee lo que pasa en las herramientas del equipo, arma resúmenes, \
-            informes y documentos de producto, y crea tareas. No ejecuta código y solo escribe notas en su memoria.
+            \(name) \(identity(config.role, .spanish)) No ejecuta código y solo escribe notas en su memoria.
             """
         )
         lines.append("")
@@ -331,9 +348,7 @@ enum AgentsFileRenderer {
         lines.append("")
         lines.append(
             """
-            \(name) is the product assistant for this workspace and works as a Product \
-            Manager. It reads what happens across the team's tools, writes summaries, reports \
-            and product documents, and creates tasks. It does not run code and only writes notes to its own memory.
+            \(name) \(identity(config.role, .english)) It does not run code and only writes notes to its own memory.
             """
         )
         lines.append("")

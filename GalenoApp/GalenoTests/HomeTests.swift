@@ -406,7 +406,7 @@ final class HomeTests: XCTestCase {
         source.agentName = "Aurora"
         source.next(); source.next(); source.next()
         let draft = try XCTUnwrap(source.makeDraft())
-        XCTAssertGreaterThan(draft.step, WizardStep.welcome.rawValue)
+        XCTAssertGreaterThan(draft.step, WizardStep.role.rawValue)
 
         let app = makeApp(draft: draft)
         XCTAssertEqual(app.screen, .wizard)
@@ -421,7 +421,7 @@ final class HomeTests: XCTestCase {
         XCTAssertEqual(app.screen, .wizard)
         XCTAssertFalse(app.wizard === before)
         XCTAssertEqual(app.wizard.mode, .short)
-        XCTAssertEqual(app.wizard.step, .agent)
+        XCTAssertEqual(app.wizard.step, .role, "cada agente elige su rol")
         XCTAssertEqual(app.wizard.language, .english)
         XCTAssertEqual(app.language, .english)
         XCTAssertEqual(app.wizard.selectedTools, [.whatsapp, .notion], "parte de lo ya conectado")

@@ -6,7 +6,7 @@ Fuente de verdad: `docs/03-especificacion-v0.0.1.md`. Si algo aquí la contradic
 ## Qué es
 
 App nativa de Mac que, con un wizard, crea y configura un agente en Claude Code para
-Product Managers. La app orquesta procesos locales: genera la config, lanza un binario Go
+gente de producto, marketing y comercial (tres roles; decisión de Rafa, 5 oct 2026). La app orquesta procesos locales: genera la config, lanza un binario Go
 para WhatsApp (solo lectura) y registra MCP hospedados con `claude mcp add`.
 
 ## Stack
@@ -286,6 +286,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - Una carpeta de agente borrada a mano nunca tumba el home: se ofrece «Regenerar la carpeta» (misma ruta, tras confirmar, sin pisar si
   reapareció) o «Quitar el agente» (el diálogo de Eliminar).
 - La vista previa del `AGENTS.md` (`AgentPreview`) es solo lectura: devuelve texto y no escribe nada.
+- El asistente sigue el rediseño «Activación» (`docs/03` §3; archivo `Galeno B1 Activación.dc.html` de Claude Design): **manda en estructura y
+  textos, no en estilo**, que sigue siendo el de B1 (decisión de Rafa, 5 oct 2026). Seis pasos a la vista (`WizardStep.phase`); antes, tres
+  pantallas que se ven una sola vez (`OnboardingView`, `Prefs.onboardingSeen`). El **rol** (`AgentRole`: producto, marketing, comercial) fija las
+  skills (`SkillCatalog.defaultSelection(for:)`) y el orden de las herramientas (`AgentRole.toolOrder`); al crear un agente no hay paso
+  «Skills», solo en «Gestionar». La preselección de herramientas del rol nunca pisa lo que el usuario marcó. Una pantalla nueva no promete lo
+  que la app todavía no hace (p. ej. «se cambia después» para el rol).
 - Tres sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló y el sello al llegar a «Listo». Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, botones, copiar ni cambios de paso. Suenan igual al conectar en el asistente, al «Reconectar»
   o «Re-vincular» desde Salud, y sea cual sea la autorización (hoja del sistema, navegador o ventana de Slack); mirar el estado o cancelar no suena.
 - El paso «Skills» (y «Gestionar» → Skills) se construye desde el archivo **`Galeno B1 Skills.dc.html`** del proyecto de Claude Design: cards
@@ -338,11 +344,11 @@ Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezc
 5. Dar a los subagentes generados Bash o edición de código, o dejar que el agente
    generado escriba archivos fuera de `memoria/`.
 6. Abrir una puerta a código no revisado ("trae tu skill", plugins de terceros sin revisar).
-7. Reabrir una decisión cerrada: nombre, precio, solo PM, solo Mac, Swift, Go para
-   WhatsApp, solo Claude Code.
+7. Reabrir una decisión cerrada: nombre, precio, los tres roles (producto, marketing, comercial;
+   un cuarto rol es reabrirla), solo Mac, Swift, Go para WhatsApp, solo Claude Code.
 8. Construir algo fuera de v0.0.1: separación garantizada de contexto entre agentes,
    vista transversal, tareas programadas, ver
-   actividad, otras plantillas, Windows, soporte para Codex/Cursor/Grok, marketplace, CLI
+   actividad, otras plantillas (roles fuera de los tres decididos), Windows, soporte para Codex/Cursor/Grok, marketplace, CLI
    de cara al usuario. Crear varios agentes, uno por proyecto, **sí** es v0.0.1
    (`docs/03` §3b).
 9. Prometer en la UI o en el sitio que WhatsApp es "seguro" u "oficial", o que hay

@@ -38,7 +38,7 @@ struct StepScaffold<Content: View, Trailing: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
-                    StepTitle(text: Text(step.title))
+                    StepTitle(text: Text(step.heading), mark: step.headingMark)
                         // El sello de sección cuelga en el margen, como el ornamento de un impreso: el
                         // título sigue alineado con el contenido.
                         .overlay(alignment: .leading) {
@@ -81,6 +81,8 @@ struct StepScaffold<Content: View, Trailing: View>: View {
 struct StepTitle: View {
     let text: Text
     var size: CGFloat = 32
+    /// El signo final, en lacre.
+    var mark = "."
 
     @Environment(\.galenoReduceMotion) private var reduceMotion
     @State private var dotShown = false
@@ -89,7 +91,7 @@ struct StepTitle: View {
     var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: 0) {
             text.foregroundStyle(Color.ink900)
-            Text(verbatim: ".")
+            Text(verbatim: mark)
                 .foregroundStyle(Color.seal700)
                 .opacity(dotShown ? 1 : 0)
         }

@@ -51,16 +51,6 @@ final class RedesignFlowTests: XCTestCase {
         XCTAssertFalse(jira.sources.readsEverything, "lo que no se conectó no cambia")
     }
 
-    func testTheTimeLeftShrinksAsTheWizardAdvances() {
-        let state = makeState()
-        state.toggle(.whatsapp)  // 3 min
-        state.toggle(.notion)  // 1 min
-        XCTAssertEqual(state.estimatedMinutesLeft, 4 + 9, "lo que falta conectar más un minuto por paso restante")
-
-        state.next()
-        XCTAssertEqual(state.estimatedMinutesLeft, 4 + 8)
-    }
-
     /// Tras un éxito, «Continuar» pasa a la siguiente sin esperar a que la pantalla avance sola.
     func testContinueAfterASuccessMovesOnRightAway() async {
         let frozen: ConnectFlow.Sleeper = { _ in try? await Task.sleep(for: .seconds(120)) }
