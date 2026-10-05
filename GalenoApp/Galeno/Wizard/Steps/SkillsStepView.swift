@@ -1,18 +1,21 @@
 import GalenoCore
 import SwiftUI
 
-/// Paso 6: dos niveles en una sola pantalla (`docs/03` §3): las skills nuestras, todas marcadas de
-/// fábrica, y las curadas de la comunidad, cada una con crédito a su autor y enlace a su GitHub.
-/// "Trae la tuya" no existe en v0.0.1: no hay ninguna puerta por la que entre código sin revisar.
+/// Paso 6 (y «Gestionar» → Skills): las skills como cards, en una lista por grupos que se desplaza (`docs/03` §3;
+/// diseño «Galeno B1 Skills», variante «scroll»). Se elige de un catálogo común **para este agente**: todas las nuestras vienen marcadas. Al pasar el cursor
+/// por una card aparece «Vista previa», que abre una hoja con cómo pedirla, un ejemplo y qué necesita.
+/// «Trae la tuya» no existe en v0.0.1: no hay ninguna puerta por la que entre código sin revisar.
 struct SkillsStepView: View {
     @EnvironmentObject private var wizard: WizardState
 
     var body: some View {
-        StepScaffold(step: .skills, summarySize: 15, titleGap: 6, contentGap: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             switch wizard.skillCatalog {
             case .notLoaded:
-                InkSpinner(size: 16)
+                header(catalog: nil)
+                InkSpinner(size: 16).padding(.top, 16)
             case .failed:
+                header(catalog: nil)
                 NoticePanel(kind: .seal) {
                     Text("skills.failed")
                         .font(Typo.display(20))
@@ -21,96 +24,69 @@ struct SkillsStepView: View {
                         .buttonStyle(.inkInline)
                         .padding(.top, 4)
                 }
+                .padding(.top, 16)
             case .loaded(let catalog):
-                SkillsContent(catalog: catalog)
+                SkillsContent(catalog: catalog) { header(catalog: catalog) }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, Space.s48)
+        .padding(.top, 22)
         .onAppear { if wizard.skillCatalog == .notLoaded { wizard.loadSkillCatalog() } }
+        .onDisappear {
+            wizard.previewedSkill = nil
+            wizard.skillCardHasFocus = false
+        }
+    }
+
+    /// El título con su punto de lacre —el único de la pantalla— y, a la derecha, lo que vale para todo el
+    /// catálogo: cuántas hay marcadas, «Todas» y «Ninguna». Sin catálogo todavía, solo el título.
+    @ViewBuilder
+    private func header(catalog: SkillCatalog?) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            StepTitle(text: Text(WizardStep.skills.title))
+                .overlay(alignment: .leading) {
+                    if let glyph = WizardStep.skills.glyph {
+                        GlyphView(glyph: glyph, size: 22, color: .ink500).offset(x: -33, y: 2)
+                    }
+                }
+            Spacer(minLength: Space.s16)
+            if let catalog { SkillsTotals(catalog: catalog) }
+        }
     }
 }
 
-private struct SkillsContent: View {
+/// «17 de 17 · Todas · Ninguna»: lo que vale para todo el catálogo.
+private struct SkillsTotals: View {
     @EnvironmentObject private var wizard: WizardState
     let catalog: SkillCatalog
     @Environment(\.galenoReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
     /// La cascada en curso: pulsar otra vez la reemplaza, nada espera a que termine.
     @State private var cascade: Task<Void, Never>?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ours
-            if !catalog.curated.isEmpty { curated }
-        }
-    }
-
-    // MARK: Las nuestras
-
-    private var ours: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 14) {
-                (Text("skills.ours.title").font(Typo.display(20)).foregroundColor(Color.ink900)
-                    + Text(verbatim: "  ")
-                    + Text("skills.ours.count \(selectedCount) \(catalog.galeno.count)")
-                    .font(Typo.text(14)).foregroundColor(Color.ink500))
-                    // El contador cuenta mientras los checks van cayendo.
-                    .contentTransition(.numericText())
-                    .animation(.easeOut(duration: Motion.micro), value: selectedCount)
-                Spacer()
-                Button("skills.all") { setAll(true) }
-                Button("skills.none") { setAll(false) }
-            }
-            .buttonStyle(LinkTextStyle())
-            .padding(.bottom, 4)
-            .overlay(alignment: .bottom) { Rectangle().fill(Color.parchment300).frame(height: 1) }
-            .padding(.bottom, 8)
-
-            // Tres columnas, como en el diseño. Si hay más de tres grupos, los que sobran van debajo
-            // del que deja la columna más corta. La descripción de cada skill va como ayuda al
-            // pasar el puntero.
-            HStack(alignment: .top, spacing: 20) {
-                ForEach(Array(columns.enumerated()), id: \.offset) { _, groups in
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(groups) { group in
-                            VStack(alignment: .leading, spacing: 0) {
-                                SmallCapsText(string: group.name.text(in: wizard.language), size: 12, tracking: 0.12)
-                                    .foregroundStyle(Color.ink500)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(.bottom, 4)
-                                ForEach(catalog.skills(in: group)) { skill in
-                                    OurSkillRow(skill: skill)
-                                }
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
-            }
-        }
-    }
-
-    /// Los grupos repartidos en tres columnas, en orden: cada uno va a la columna con menos skills.
-    private var columns: [[SkillGroup]] {
-        var columns: [[SkillGroup]] = [[], [], []]
-        var heights = [0, 0, 0]
-        for group in catalog.groups {
-            let count = catalog.skills(in: group).count
-            guard count > 0 else { continue }
-            let target = heights.enumerated().min { $0.element < $1.element }?.offset ?? 0
-            columns[target].append(group)
-            heights[target] += count + 1
-        }
-        return columns
-    }
 
     private var selectedCount: Int {
         catalog.galeno.filter { wizard.isSkillSelected($0.id, source: .galeno) }.count
     }
 
-    /// Marca o desmarca todas en cascada de 30 ms, en el orden en que se ven (columna a columna).
-    /// Con «Reducir movimiento» cambian todas a la vez.
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
+            Text(verbatim: Localized.string("skills.count %lld %lld", selectedCount, catalog.galeno.count, locale: locale))
+                .font(Typo.text(14))
+                .foregroundStyle(Color.ink700)
+                // El contador cuenta mientras los checks van cayendo.
+                .contentTransition(.numericText())
+                .animation(.easeOut(duration: Motion.micro), value: selectedCount)
+            Button("skills.all") { setAll(true) }
+            Button("skills.none") { setAll(false) }
+        }
+        .buttonStyle(InkLinkStyle(size: 14))
+    }
+
+    /// Marca o desmarca todas en cascada de 30 ms, en el orden del catálogo. Con «Reducir movimiento» cambian
+    /// todas a la vez.
     private func setAll(_ on: Bool) {
-        let ordered = columns.flatMap { $0 }.flatMap { catalog.skills(in: $0) }
-        let pending = ordered.filter { wizard.isSkillSelected($0.id, source: .galeno) != on }
+        let pending = catalog.galeno.filter { wizard.isSkillSelected($0.id, source: .galeno) != on }
         cascade?.cancel()
         if reduceMotion || pending.count < 2 {
             for skill in pending { wizard.toggleSkill(skill.id, source: .galeno) }
@@ -124,34 +100,238 @@ private struct SkillsContent: View {
             }
         }
     }
+}
 
-    // MARK: Las curadas
+private struct SkillsContent<Header: View>: View {
+    @EnvironmentObject private var wizard: WizardState
+    let catalog: SkillCatalog
+    @ViewBuilder var header: Header
+    @Environment(\.galenoReduceMotion) private var reduceMotion
 
-    private var curated: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("skills.curated.title")
-                    .font(Typo.display(18))
-                    .foregroundStyle(Color.ink900)
-                Text("skills.curated.hint")
-                    .font(Typo.text(12.5))
-                    .foregroundStyle(Color.ink500)
-                    .fixedSize(horizontal: false, vertical: true)
+    /// El foco del teclado: el id de una skill.
+    @FocusState private var focused: String?
+    private static var columns: Int { 3 }
+
+    /// Los grupos que tienen alguna skill, en el orden del catálogo.
+    private var groups: [SkillGroup] { catalog.groups.filter { !catalog.skills(in: $0).isEmpty } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            // Todo el catálogo en una sola lista (variante «scroll» del diseño, la que eligió Rafa): el rótulo de
+            // cada grupo se queda arriba mientras se desplazan sus cards.
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        ForEach(groups) { group in
+                            Section {
+                                grid(for: group)
+                                    .padding(.bottom, 14)
+                            } header: {
+                                groupHeader(group)
+                                    .padding(.bottom, 8)
+                            }
+                        }
+                    }
+                    .padding(.trailing, 10)  // sitio para la barra de desplazamiento
+                    .padding(.bottom, 12)
+                }
+                .onChange(of: focused) { _, now in
+                    wizard.skillCardHasFocus = now != nil
+                    // La card con el foco siempre queda a la vista.
+                    guard let now else { return }
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: Motion.micro)) { proxy.scrollTo(now) }
+                }
             }
-            .frame(width: 200, alignment: .leading)
+            .padding(.top, 8)
+        }
+        .onMoveCommand(perform: move)
+    }
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 16, alignment: .top), count: 2),
-                alignment: .leading, spacing: 4
-            ) {
-                ForEach(catalog.curated) { skill in
-                    CuratedSkillRow(skill: skill)
+    /// El rótulo de un grupo, fijo arriba: su nombre en versalitas y su «marcadas/total».
+    private func groupHeader(_ group: SkillGroup) -> some View {
+        let skills = catalog.skills(in: group)
+        let on = skills.filter { wizard.isSkillSelected($0.id, source: .galeno) }.count
+        return HStack(alignment: .firstTextBaseline) {
+            SmallCapsText(string: group.name.text(in: wizard.language), size: 12, tracking: 0.12)
+                .foregroundStyle(Color.ink500)
+            Spacer(minLength: 8)
+            Text(verbatim: "\(on)/\(skills.count)")
+                .font(Typo.text(12))
+                .foregroundStyle(Color.ink500)
+        }
+        .padding(.top, 6)
+        .padding(.bottom, 4)
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.parchment300).frame(height: 1) }
+        // Opaco: las cards pasan por debajo al desplazarse.
+        .background(Color.parchment50)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private func grid(for group: SkillGroup) -> some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: Self.columns),
+            alignment: .leading, spacing: 8
+        ) {
+            ForEach(catalog.skills(in: group)) { skill in
+                SkillCard(
+                    skill: skill, isFocused: focused == skill.id,
+                    toggle: { wizard.toggleSkill(skill.id, source: .galeno) },
+                    preview: { wizard.previewedSkill = skill }
+                )
+                .id(skill.id)
+                .focusable()
+                .focused($focused, equals: skill.id)
+                .onKeyPress(.space) {
+                    wizard.toggleSkill(skill.id, source: .galeno)
+                    return .handled
+                }
+                .onKeyPress(.return) {
+                    wizard.previewedSkill = skill
+                    return .handled
                 }
             }
         }
-        .padding(.top, 8)
-        .overlay(alignment: .top) { Rectangle().fill(Color.parchment300).frame(height: 1) }
-        .padding(.top, 10)
+    }
+
+    /// Las flechas recorren la rejilla como se ve: ←/→ dentro de la fila; ↑/↓ a la fila de arriba o de abajo, también
+    /// de un grupo a otro, en la misma columna (o en la última card si esa fila es más corta).
+    private func move(_ direction: MoveCommandDirection) {
+        let rows = SkillGrid.rows(groups.map { catalog.skills(in: $0).map(\.id) }, columns: Self.columns)
+        guard let current = focused else {
+            focused = rows.first?.first
+            return
+        }
+        if let target = SkillGrid.neighbor(of: current, direction, in: rows) { focused = target }
+    }
+}
+
+/// La rejilla de cards como filas, para mover el foco con las flechas. Es lógica pura (se prueba sin vistas).
+enum SkillGrid {
+    /// Los ids de cada grupo partidos en filas de `columns`; las filas de todos los grupos, una tras otra.
+    static func rows(_ groups: [[String]], columns: Int) -> [[String]] {
+        groups.flatMap { ids in
+            stride(from: 0, to: ids.count, by: columns).map { Array(ids[$0..<min($0 + columns, ids.count)]) }
+        }
+    }
+
+    /// La card a la que salta el foco desde `id`, o `nil` si en esa dirección no hay ninguna.
+    static func neighbor(of id: String, _ direction: MoveCommandDirection, in rows: [[String]]) -> String? {
+        guard let row = rows.firstIndex(where: { $0.contains(id) }), let column = rows[row].firstIndex(of: id) else {
+            return nil
+        }
+        switch direction {
+        case .left: return column > 0 ? rows[row][column - 1] : nil
+        case .right: return column < rows[row].count - 1 ? rows[row][column + 1] : nil
+        case .up: return row > 0 ? rows[row - 1][min(column, rows[row - 1].count - 1)] : nil
+        case .down: return row < rows.count - 1 ? rows[row + 1][min(column, rows[row + 1].count - 1)] : nil
+        @unknown default: return nil
+        }
+    }
+}
+
+/// Una card: icono, «Vista previa» (solo con el cursor o el foco encima), casilla, nombre, comando, qué hace.
+/// Si todavía no le sirve al usuario (le falta una herramienta conectada) se ve apagada y dice qué falta, pero
+/// se puede marcar igual. Alto fijo de 112 pt para que las filas alineen.
+struct SkillCard: View {
+    @EnvironmentObject private var wizard: WizardState
+    let skill: CatalogSkill
+    var isFocused = false
+    let toggle: () -> Void
+    let preview: () -> Void
+    /// Para la hoja de estados y las pruebas de imagen: fuerza el estado «con el cursor encima».
+    var forcedHover = false
+    @State private var hovering = false
+    @Environment(\.locale) private var locale
+
+    private var isOn: Bool { wizard.isSkillSelected(skill.id, source: .galeno) }
+    private var isMissing: Bool { !skill.isUseful(with: wizard.connectedTools) }
+    private var isHot: Bool { hovering || forcedHover }
+    private var showsPreview: Bool { isHot || isFocused }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                SkillIcon(id: skill.id, size: 20).opacity(isMissing ? 0.45 : 1)
+                Spacer(minLength: 0)
+                Button("skills.preview", action: preview)
+                    .buttonStyle(InkLinkStyle(size: 12.5))
+                    .opacity(showsPreview ? 1 : 0)
+                    .allowsHitTesting(showsPreview)
+                    .accessibilityHidden(true)  // la acción va en la card entera, abajo
+                checkbox
+            }
+            .frame(height: 20)
+            Text(verbatim: skill.name.text(in: wizard.language))
+                .font(Typo.text(15, .medium))
+                .foregroundStyle(isMissing ? Color.ink700 : Color.ink900)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.top, 5)
+            Text(verbatim: skill.command)
+                .font(.system(size: 11.5, design: .monospaced))
+                .foregroundStyle(Color.ink500)
+                .lineLimit(1)
+                .frame(height: 14)
+                .padding(.top, 1)
+            Text(verbatim: skill.summary.text(in: wizard.language))
+                .font(Typo.text(12.5))
+                .foregroundStyle(isMissing ? Color.ink500 : Color.ink700)
+                .lineLimit(isMissing ? 1 : 2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 3)
+            if isMissing {
+                Text(verbatim: SkillPresentation.missingLabel(for: skill, language: wizard.language, locale: locale))
+                    .font(Typo.text(12))
+                    .foregroundStyle(Color.ochre700)
+                    .lineLimit(1)
+                    .padding(.top, 1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(height: 112)
+        .background(isOn || isHot ? Color.parchment100 : Color.clear)
+        .overlay(Rectangle().strokeBorder(isOn ? Color.ink900 : Color.parchment400, lineWidth: 1.5))
+        // El anillo de foco: 1,5 pt de tinta, a 2 pt de la card.
+        .overlay { if isFocused { Rectangle().strokeBorder(Color.ink900, lineWidth: 1.5).padding(-3.5) } }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: toggle)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: Motion.micro), value: isOn)
+        .animation(.easeOut(duration: Motion.micro), value: showsPreview)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: accessibilityText))
+        .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : [.isButton])
+        .accessibilityAction { toggle() }
+        .accessibilityAction(named: Text("skills.preview")) { preview() }
+    }
+
+    /// La casilla de 14 pt: filete de 1,5 en `ink-700`; marcada, rellena de tinta con su palomita.
+    private var checkbox: some View {
+        Rectangle()
+            .strokeBorder(Color.ink700, lineWidth: 1.5)
+            .background(Rectangle().fill(isOn ? Color.ink900 : Color.clear))
+            .overlay {
+                if isOn {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 8, weight: .heavy))
+                        .foregroundStyle(Color.onInk)
+                }
+            }
+            .frame(width: 14, height: 14)
+            .accessibilityHidden(true)
+    }
+
+    private var accessibilityText: String {
+        var parts = [skill.name.text(in: wizard.language), skill.summary.text(in: wizard.language)]
+        if isMissing {
+            parts.append(SkillPresentation.missingLabel(for: skill, language: wizard.language, locale: locale))
+        }
+        return parts.joined(separator: ". ")
     }
 }
 
@@ -166,92 +346,6 @@ struct LinkTextStyle: ButtonStyle {
             .underline()
             .opacity(configuration.isPressed ? 0.6 : 1)
             .contentShape(Rectangle())
-    }
-}
-
-private struct OurSkillRow: View {
-    @EnvironmentObject private var wizard: WizardState
-    let skill: CatalogSkill
-    @State private var hovering = false
-
-    var body: some View {
-        let useful = skill.isUseful(with: wizard.connectedTools)
-        Toggle(isOn: Binding(
-            get: { wizard.isSkillSelected(skill.id, source: .galeno) },
-            set: { _ in wizard.toggleSkill(skill.id, source: .galeno) })
-        ) {
-            VStack(alignment: .leading, spacing: 0) {
-                (Text(verbatim: skill.name.text(in: wizard.language))
-                    .font(Typo.text(13.5, .medium)).foregroundColor(Color.ink900)
-                    + Text(verbatim: " /" + skill.id)
-                    .font(.system(size: 11, design: .monospaced)).foregroundColor(hovering ? Color.ink900 : Color.ink500))
-                    .fixedSize(horizontal: false, vertical: true)
-                if !useful {
-                    let names = skill.needsAny.map { $0.displayName(in: wizard.language) }.joined(separator: " / ")
-                    Text("skills.needs \(names)")
-                        .font(Typo.text(12))
-                        .foregroundStyle(Color.ochre700)
-                        // Al pasar el puntero se subraya lo que falta, sin tooltip del sistema.
-                        .underline(hovering, color: Color.ochre700)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-        .toggleStyle(.inkCheckbox)
-        .padding(.horizontal, 2)
-        .padding(.vertical, 4)
-        .onHover { hovering = $0 }
-        .animation(.easeOut(duration: Motion.micro), value: hovering)
-        .help(useful ? skill.summary.text(in: wizard.language) : "")
-        .opacity(useful ? 1 : 0.5)
-    }
-}
-
-/// Una skill de la comunidad: siempre con crédito y enlace a su autor. Sin su contenido todavía
-/// (`available` en falso) se muestra con «Próximamente» y no se puede marcar.
-private struct CuratedSkillRow: View {
-    @EnvironmentObject private var wizard: WizardState
-    let skill: CuratedSkill
-    @State private var hovering = false
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            if skill.available {
-                Toggle(isOn: Binding(
-                    get: { wizard.isSkillSelected(skill.id, source: .curated) },
-                    set: { _ in wizard.toggleSkill(skill.id, source: .curated) })
-                ) { EmptyView() }
-                .toggleStyle(.inkCheckbox)
-                .fixedSize()
-                .accessibilityLabel(Text(verbatim: skill.name.text(in: wizard.language)))
-            }
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(verbatim: skill.name.text(in: wizard.language))
-                        .font(Typo.text(13, .medium))
-                        .foregroundStyle(Color.ink900)
-                    if !skill.available {
-                        SmallCapsLabel("skills.curated.soon", size: 11, tracking: 0.08)
-                            .foregroundStyle(Color.ink500)
-                            .padding(.horizontal, 5)
-                            .overlay(Rectangle().strokeBorder(Color.parchment400, lineWidth: 1))
-                    }
-                }
-                // El crédito es también el enlace al repositorio del autor.
-                Link(destination: skill.sourceURL) {
-                    Text("skills.curated.credit \(skill.author) \(skill.license)")
-                        .font(Typo.text(12, italic: true))
-                        // Al pasar el puntero el crédito pasa a `ink-700` y se subraya con firmeza.
-                        .foregroundStyle(hovering ? Color.ink700 : Color.ink500)
-                        .underline(true, color: hovering ? Color.ink700 : Color.parchment400)
-                }
-                .help(Text("skills.curated.view"))
-            }
-        }
-        .onHover { hovering = $0 }
-        .animation(.easeOut(duration: Motion.micro), value: hovering)
-        .help(skill.summary.text(in: wizard.language))
     }
 }
 

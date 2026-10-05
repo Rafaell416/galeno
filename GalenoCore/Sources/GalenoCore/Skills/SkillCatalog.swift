@@ -18,10 +18,45 @@ public struct LocalizedText: Codable, Hashable, Sendable {
     }
 }
 
-/// Un grupo de skills en la pantalla 7 ("Producir documentos de producto"…).
+/// Varias líneas de texto en los dos idiomas (lo que «sale» en el ejemplo de una skill).
+public struct LocalizedLines: Codable, Hashable, Sendable {
+    public var es: [String]
+    public var en: [String]
+
+    public init(es: [String], en: [String]) {
+        self.es = es
+        self.en = en
+    }
+
+    public func lines(in language: Language) -> [String] {
+        switch language {
+        case .spanish: es
+        case .english: en
+        }
+    }
+}
+
+/// Un grupo de skills en el paso «Skills» ("Producir documentos de producto"…).
 public struct SkillGroup: Codable, Hashable, Sendable, Identifiable {
     public var id: String
     public var name: LocalizedText
+}
+
+/// El ejemplo de la vista previa de una skill: la app lo muestra como una conversación (se escribe la pregunta,
+/// el agente lee y aparece el resultado). **Es ilustrativo**: se escribe a mano, no sale de ejecutar nada, y la
+/// pantalla lo dice.
+public struct SkillExample: Codable, Hashable, Sendable {
+    /// De qué parte el agente, como complemento de «Hera lee …»: «la transcripción de la reunión de ayer».
+    public var input: LocalizedText
+    /// El resultado, con la forma de lo que esa skill entrega. Cada línea es un bloque, según cómo empieza:
+    /// `# ` título · `## ` sección · `- ` viñeta · `> ` mensaje en borrador · `| a | b |` fila de tabla (la
+    /// primera fila es el encabezado) · cualquier otra cosa, un párrafo.
+    public var output: LocalizedLines
+
+    public init(input: LocalizedText, output: LocalizedLines) {
+        self.input = input
+        self.output = output
+    }
 }
 
 /// Una skill nuestra, tal como la lista el catálogo. El contenido está en
@@ -36,6 +71,36 @@ public struct CatalogSkill: Codable, Hashable, Sendable, Identifiable {
     /// Si está vacío, la skill sirve con lo que sea. Si no, necesita **alguna** de estas
     /// herramientas conectadas: sin ninguna, la pantalla avisa que todavía no le serviría.
     public var needsAny: [Tool]
+    /// Cómo pedirla con palabras propias («Hazme el acta de la reunión de ayer»). Opcional: un
+    /// catálogo anterior no lo trae.
+    public var ask: LocalizedText?
+    /// El ejemplo de su vista previa.
+    public var example: SkillExample?
+    /// Una garantía propia de esta skill, para la vista previa («No crea ninguna tarea sin tu "sí"»).
+    public var guarantee: LocalizedText?
+
+    public init(
+        id: String, group: String, name: LocalizedText, summary: LocalizedText, writes: [Tool] = [],
+        needsAny: [Tool] = [], ask: LocalizedText? = nil, example: SkillExample? = nil,
+        guarantee: LocalizedText? = nil
+    ) {
+        self.id = id
+        self.group = group
+        self.name = name
+        self.summary = summary
+        self.writes = writes
+        self.needsAny = needsAny
+        self.ask = ask
+        self.example = example
+        self.guarantee = guarantee
+    }
+
+    /// El comando con el que se invoca.
+    public var command: String { "/" + id }
+
+    /// ¿Puede terminar enviando algo a otras personas? Hoy, las que escriben en Slack. La vista
+    /// previa lo dice: «Siempre te pide aprobación antes de enviar».
+    public var sendsToOthers: Bool { writes.contains { $0.externalSend != nil } }
 
     /// ¿Le serviría con estas herramientas conectadas?
     public func isUseful(with connected: [Tool]) -> Bool {

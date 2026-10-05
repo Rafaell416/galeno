@@ -63,6 +63,12 @@ final class WizardState: ObservableObject {
     }
     /// El catálogo de la pantalla 7.
     @Published private(set) var skillCatalog: SkillCatalogState = .notLoaded
+    /// Paso «Skills»: la skill cuya vista previa está abierta (la hoja va sobre toda la ventana).
+    @Published var previewedSkill: CatalogSkill?
+    /// Paso «Skills»: una card tiene el foco del teclado. Ahí ↩ abre su vista previa en vez de avanzar.
+    @Published var skillCardHasFocus = false
+    /// ¿↩ es del paso y no de «Siguiente»? Con una card enfocada o la vista previa abierta, avanzar es ⌘↩.
+    var returnBelongsToStep: Bool { step == .skills && (skillCardHasFocus || previewedSkill != nil) }
     private var skillsInitialized = false
 
     /// La generación de la pantalla 9, y el agente que dejó (para la 10 y para regenerar sin crear otro).

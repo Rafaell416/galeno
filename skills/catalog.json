@@ -46,7 +46,37 @@
         "notion",
         "google-workspace"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Hazme el PRD de la idea que hablamos ayer",
+        "en": "Write the PRD for the idea we discussed yesterday"
+      },
+      "example": {
+        "input": {
+          "es": "tus notas de la idea de reagendar",
+          "en": "your notes on the rescheduling idea"
+        },
+        "output": {
+          "es": [
+            "# PRD: Reagendar sin llamar",
+            "## Problema",
+            "Reagendar una cita exige llamar a la clínica.",
+            "## Métrica",
+            "- Reagendamientos sin llamada · línea base: pendiente",
+            "## Fuera de alcance",
+            "- Cancelaciones y pagos"
+          ],
+          "en": [
+            "# PRD: Reschedule without calling",
+            "## Problem",
+            "Rescheduling an appointment means calling the clinic.",
+            "## Metric",
+            "- Reschedules without a call · baseline: pending",
+            "## Out of scope",
+            "- Cancellations and payments"
+          ]
+        }
+      }
     },
     {
       "id": "user-stories",
@@ -63,7 +93,37 @@
         "notion",
         "jira"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Saca las historias de usuario del PRD de pagos",
+        "en": "Derive the user stories from the payments PRD"
+      },
+      "example": {
+        "input": {
+          "es": "el PRD de reagendamiento",
+          "en": "the rescheduling PRD"
+        },
+        "output": {
+          "es": [
+            "# Historia 1 · cubre R2",
+            "Como paciente, quiero cambiar la hora de mi cita para no perderla.",
+            "## Criterios de aceptación",
+            "- Dado que faltan más de 24 h, cuando elijo otro horario, entonces la cita se mueve.",
+            "- Dado que faltan menos de 24 h, entonces veo por qué no puedo."
+          ],
+          "en": [
+            "# Story 1 · covers R2",
+            "As a patient, I want to change my appointment time so I don’t miss it.",
+            "## Acceptance criteria",
+            "- Given more than 24 h remain, when I pick another slot, then the appointment moves.",
+            "- Given less than 24 h remain, then I see why I can’t."
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No crea nada sin tu «sí».",
+        "en": "It creates nothing without your \"yes\"."
+      }
     },
     {
       "id": "roadmap",
@@ -80,7 +140,35 @@
         "notion",
         "google-workspace"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Actualiza el roadmap del próximo trimestre",
+        "en": "Update next quarter’s roadmap"
+      },
+      "example": {
+        "input": {
+          "es": "las épicas del proyecto",
+          "en": "the project’s epics"
+        },
+        "output": {
+          "es": [
+            "# Roadmap · próximos trimestres",
+            "| Épica | Trimestre | Confianza |",
+            "| Reagendar | T4 | Comprometido |",
+            "| Recordatorios | T4 | Planeado |",
+            "| Pagos en línea | Después | Explorando |",
+            "- Recordatorios depende de Reagendar."
+          ],
+          "en": [
+            "# Roadmap · next quarters",
+            "| Epic | Quarter | Confidence |",
+            "| Rescheduling | Q4 | Committed |",
+            "| Reminders | Q4 | Planned |",
+            "| Online payments | Later | Exploring |",
+            "- Reminders depends on Rescheduling."
+          ]
+        }
+      }
     },
     {
       "id": "release-notes",
@@ -100,7 +188,35 @@
       ],
       "needsAny": [
         "jira"
-      ]
+      ],
+      "ask": {
+        "es": "Redacta las notas de versión de este sprint",
+        "en": "Write this sprint’s release notes"
+      },
+      "example": {
+        "input": {
+          "es": "los tickets cerrados del sprint 14",
+          "en": "the tickets closed in sprint 14"
+        },
+        "output": {
+          "es": [
+            "# Novedades de octubre",
+            "## Nuevo",
+            "- Encuentra una cita más rápido en listados largos.",
+            "## Corregido",
+            "- Los recordatorios ya no llegan duplicados.",
+            "Dejé fuera 3 tickets internos; te digo cuáles."
+          ],
+          "en": [
+            "# What’s new in October",
+            "## New",
+            "- Find an appointment faster in long lists.",
+            "## Fixed",
+            "- Reminders no longer arrive twice.",
+            "I left out 3 internal tickets; I’ll tell you which."
+          ]
+        }
+      }
     },
     {
       "id": "epics",
@@ -117,7 +233,37 @@
         "jira",
         "notion"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Crea las épicas del PRD de onboarding",
+        "en": "Create the epics from the onboarding PRD"
+      },
+      "example": {
+        "input": {
+          "es": "el PRD de reagendamiento, requisitos R1 a R6",
+          "en": "the rescheduling PRD, requirements R1 to R6"
+        },
+        "output": {
+          "es": [
+            "| Épica | Cubre | Tamaño |",
+            "| Los pacientes reagendan solos | R1–R3 | M |",
+            "| La clínica ve los cambios al instante | R4–R5 | S |",
+            "- Sin cubrir: R6, pendiente de decidir.",
+            "¿Las creo en Jira o en Notion?"
+          ],
+          "en": [
+            "| Epic | Covers | Size |",
+            "| Patients reschedule on their own | R1–R3 | M |",
+            "| The clinic sees changes instantly | R4–R5 | S |",
+            "- Not covered: R6, pending a decision.",
+            "Shall I create them in Jira or in Notion?"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No crea nada sin tu «sí».",
+        "en": "It creates nothing without your \"yes\"."
+      }
     },
     {
       "id": "tickets",
@@ -134,7 +280,37 @@
         "jira",
         "notion"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Crea los tickets de la épica de login",
+        "en": "Create the tickets for the login epic"
+      },
+      "example": {
+        "input": {
+          "es": "la épica «Los pacientes reagendan solos»",
+          "en": "the epic “Patients reschedule on their own”"
+        },
+        "output": {
+          "es": [
+            "| Ticket | Estimación | Prioridad |",
+            "| Mostrar los horarios disponibles | 3 pts (sugerido) | Alta |",
+            "| Confirmar el cambio por mensaje | 2 pts (sugerido) | Media |",
+            "- Quedan como propuestos, sin asignar ni meter en un sprint.",
+            "¿Los creo así?"
+          ],
+          "en": [
+            "| Ticket | Estimate | Priority |",
+            "| Show the available slots | 3 pts (suggested) | High |",
+            "| Confirm the change by message | 2 pts (suggested) | Medium |",
+            "- They stay as proposed, unassigned and outside any sprint.",
+            "Shall I create them like this?"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No crea nada sin tu «sí».",
+        "en": "It creates nothing without your \"yes\"."
+      }
     },
     {
       "id": "tareas-recurrentes",
@@ -151,7 +327,39 @@
         "jira",
         "notion"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Crea las tareas recurrentes de esta semana",
+        "en": "Create this week’s recurring tasks"
+      },
+      "example": {
+        "input": {
+          "es": "las tareas del sprint 13",
+          "en": "the tasks from sprint 13"
+        },
+        "output": {
+          "es": [
+            "# Sprint 14 · las de siempre",
+            "| Tarea | Día | Estado |",
+            "| Planning | Lunes | Ya existe |",
+            "| Reporte semanal | Viernes | Se crea |",
+            "| Retro | Viernes | Se crea |",
+            "¿Creo las dos que faltan?"
+          ],
+          "en": [
+            "# Sprint 14 · the usual ones",
+            "| Task | Day | Status |",
+            "| Planning | Monday | Already exists |",
+            "| Weekly report | Friday | To create |",
+            "| Retro | Friday | To create |",
+            "Shall I create the two that are missing?"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No se programa sola: la pides tú cada semana o sprint. No crea nada sin tu «sí».",
+        "en": "It does not run by itself: you ask for it each week or sprint. It creates nothing without your \"yes\"."
+      }
     },
     {
       "id": "groom",
@@ -165,10 +373,41 @@
         "en": "Reviews the backlog: duplicates, tickets without criteria, orphans with no epic. Report only."
       },
       "writes": [
-        "jira",
         "notion"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Revisa el backlog y dime qué está mal",
+        "en": "Review the backlog and tell me what’s wrong"
+      },
+      "example": {
+        "input": {
+          "es": "el backlog del proyecto GAL",
+          "en": "the backlog of the GAL project"
+        },
+        "output": {
+          "es": [
+            "# Backlog GAL · 86 tickets revisados",
+            "- 19 con algún problema",
+            "## Posibles duplicados",
+            "- GAL-88 y GAL-141",
+            "## Les falta algo",
+            "- Sin criterios: 7 · sin épica: 4 · sin tocar hace 90 días: 6"
+          ],
+          "en": [
+            "# GAL backlog · 86 tickets reviewed",
+            "- 19 with a problem",
+            "## Possible duplicates",
+            "- GAL-88 and GAL-141",
+            "## Something is missing",
+            "- No criteria: 7 · no epic: 4 · untouched for 90 days: 6"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Solo reporta: no cambia ningún ticket.",
+        "en": "Report only: it changes no ticket."
+      }
     },
     {
       "id": "sprint-log",
@@ -184,7 +423,37 @@
       "writes": [
         "notion"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Abre el doc del sprint que empieza el lunes",
+        "en": "Open the doc for the sprint starting Monday"
+      },
+      "example": {
+        "input": {
+          "es": "el sprint 14 en Jira",
+          "en": "sprint 14 in Jira"
+        },
+        "output": {
+          "es": [
+            "# Sprint 14 · 13 al 24 de octubre",
+            "## Objetivo",
+            "Los pacientes reagendan sin llamar.",
+            "## Se entrega",
+            "- 4 tickets comprometidos y 2 si alcanza",
+            "## Arrastre",
+            "- 1 ticket del sprint 13"
+          ],
+          "en": [
+            "# Sprint 14 · October 13 to 24",
+            "## Goal",
+            "Patients reschedule without calling.",
+            "## Shipping",
+            "- 4 committed tickets and 2 stretch",
+            "## Carry-over",
+            "- 1 ticket from sprint 13"
+          ]
+        }
+      }
     },
     {
       "id": "resumen-proyecto",
@@ -201,7 +470,37 @@
         "notion",
         "slack"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Resume lo que pasó esta semana",
+        "en": "Summarize what happened this week"
+      },
+      "example": {
+        "input": {
+          "es": "Slack, WhatsApp, Jira y las reuniones de la semana",
+          "en": "Slack, WhatsApp, Jira and this week’s meetings"
+        },
+        "output": {
+          "es": [
+            "# Esta semana",
+            "## Decisiones",
+            "- El login se pospone a noviembre (reunión del martes).",
+            "## Avance",
+            "- 5 tickets cerrados; el reagendamiento entró a pruebas.",
+            "## Bloqueos",
+            "- Falta el acceso a la pasarela de pagos. Sin responsable."
+          ],
+          "en": [
+            "# This week",
+            "## Decisions",
+            "- The login is postponed to November (Tuesday’s meeting).",
+            "## Progress",
+            "- 5 tickets closed; rescheduling went into testing.",
+            "## Blockers",
+            "- Access to the payment gateway is missing. No owner."
+          ]
+        }
+      }
     },
     {
       "id": "seguimiento",
@@ -218,7 +517,33 @@
         "notion",
         "slack"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Qué pendientes siguen abiertos",
+        "en": "Which open items are still pending"
+      },
+      "example": {
+        "input": {
+          "es": "los pendientes en Jira, Notion y las últimas reuniones",
+          "en": "the open items in Jira, Notion and the latest meetings"
+        },
+        "output": {
+          "es": [
+            "| Quién | Pendiente | Estado |",
+            "| Laura | Propuesta al cliente | Vencido hace 3 días |",
+            "| Andrés | Acceso a la pasarela | Sin fecha |",
+            "## Borrador para Laura",
+            "> Hola, Laura. ¿Cómo va la propuesta? Si te ayuda, la reviso contigo."
+          ],
+          "en": [
+            "| Who | Open item | Status |",
+            "| Laura | Proposal to the client | 3 days overdue |",
+            "| Andrés | Gateway access | No date |",
+            "## Draft for Laura",
+            "> Hi Laura, how is the proposal going? Happy to review it with you if that helps."
+          ]
+        }
+      }
     },
     {
       "id": "informe-slack",
@@ -236,7 +561,33 @@
       ],
       "needsAny": [
         "slack"
-      ]
+      ],
+      "ask": {
+        "es": "Prepara el informe semanal para el canal",
+        "en": "Prepare the weekly report for the channel"
+      },
+      "example": {
+        "input": {
+          "es": "lo que cambió esta semana en el proyecto",
+          "en": "what changed in the project this week"
+        },
+        "output": {
+          "es": [
+            "## Borrador para #proyecto-clinica",
+            "> Esta semana: el reagendamiento entró a pruebas.",
+            "> Riesgo: falta el acceso a la pasarela de pagos.",
+            "> Siguiente: abrir la beta el lunes.",
+            "¿Lo envío así? No sale nada sin tu «sí»."
+          ],
+          "en": [
+            "## Draft for #clinic-project",
+            "> This week: rescheduling went into testing.",
+            "> Risk: access to the payment gateway is missing.",
+            "> Next: open the beta on Monday.",
+            "Shall I send it like this? Nothing goes out without your \"yes\"."
+          ]
+        }
+      }
     },
     {
       "id": "reporte-excel",
@@ -252,7 +603,37 @@
       "writes": [
         "google-workspace"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Genera el reporte de métricas del mes",
+        "en": "Generate this month’s metrics report"
+      },
+      "example": {
+        "input": {
+          "es": "los tickets cerrados en octubre",
+          "en": "the tickets closed in October"
+        },
+        "output": {
+          "es": [
+            "# Hoja «Tickets cerrados · octubre»",
+            "| Semana | Cerrados | Fuente |",
+            "| 6–10 oct | 7 | Jira |",
+            "| 13–17 oct | 9 | Jira |",
+            "- Los totales son fórmulas; las notas dicen de dónde sale cada cifra."
+          ],
+          "en": [
+            "# Sheet “Closed tickets · October”",
+            "| Week | Closed | Source |",
+            "| Oct 6–10 | 7 | Jira |",
+            "| Oct 13–17 | 9 | Jira |",
+            "- Totals are formulas; the notes say where each figure comes from."
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Trabaja en Google Sheets; no crea archivos de Excel.",
+        "en": "It works in Google Sheets; it does not create Excel files."
+      }
     },
     {
       "id": "reporte-dia",
@@ -268,7 +649,33 @@
       "writes": [
         "slack"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Hazme el reporte de hoy",
+        "en": "Write today’s report"
+      },
+      "example": {
+        "input": {
+          "es": "lo que moviste hoy en Jira y Notion",
+          "en": "what you moved today in Jira and Notion"
+        },
+        "output": {
+          "es": [
+            "## Borrador para #proyecto-clinica",
+            "> Hecho: revisé el PRD de pagos y cerré GAL-231.",
+            "> Mañana: historias de usuario del reagendamiento.",
+            "> Bloqueado: nada.",
+            "¿Lo publico?"
+          ],
+          "en": [
+            "## Draft for #clinic-project",
+            "> Done: reviewed the payments PRD and closed GAL-231.",
+            "> Tomorrow: user stories for rescheduling.",
+            "> Blocked: nothing.",
+            "Shall I post it?"
+          ]
+        }
+      }
     },
     {
       "id": "acta",
@@ -290,7 +697,41 @@
         "granola",
         "fathom",
         "google-workspace"
-      ]
+      ],
+      "ask": {
+        "es": "Hazme el acta de la reunión de ayer con el cliente",
+        "en": "Write the minutes of yesterday’s meeting with the client"
+      },
+      "example": {
+        "input": {
+          "es": "la transcripción de la reunión de ayer",
+          "en": "yesterday’s meeting transcript"
+        },
+        "output": {
+          "es": [
+            "# Acta · reunión con el cliente",
+            "## Decisiones",
+            "- Se pospone el rediseño del login.",
+            "## Acciones",
+            "- Laura envía la propuesta · viernes",
+            "## Preguntas abiertas",
+            "- ¿Quién revisa el presupuesto? Sin responsable."
+          ],
+          "en": [
+            "# Minutes · meeting with the client",
+            "## Decisions",
+            "- The login redesign is postponed.",
+            "## Actions",
+            "- Laura sends the proposal · Friday",
+            "## Open questions",
+            "- Who reviews the budget? No owner."
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "No crea ninguna tarea sin tu «sí».",
+        "en": "It creates no task without your \"yes\"."
+      }
     },
     {
       "id": "sintesis-research",
@@ -312,7 +753,35 @@
         "granola",
         "fathom",
         "google-workspace"
-      ]
+      ],
+      "ask": {
+        "es": "Sintetiza las entrevistas de la semana pasada",
+        "en": "Synthesize last week’s interviews"
+      },
+      "example": {
+        "input": {
+          "es": "las 6 entrevistas con recepcionistas",
+          "en": "the 6 interviews with receptionists"
+        },
+        "output": {
+          "es": [
+            "# Síntesis · 6 entrevistas",
+            "## Tema fuerte · 5 de 6",
+            "Reagendar por teléfono les quita la mañana.",
+            "> «Paso más tiempo moviendo citas que atendiendo» (P3, recepción)",
+            "## Contradicción",
+            "- 2 prefieren seguir llamando a los pacientes mayores."
+          ],
+          "en": [
+            "# Synthesis · 6 interviews",
+            "## Strong theme · 5 of 6",
+            "Rescheduling by phone eats their morning.",
+            "> “I spend more time moving appointments than helping people” (P3, front desk)",
+            "## Contradiction",
+            "- 2 prefer to keep calling older patients."
+          ]
+        }
+      }
     },
     {
       "id": "priorizar",
@@ -329,7 +798,33 @@
         "google-workspace",
         "notion"
       ],
-      "needsAny": []
+      "needsAny": [],
+      "ask": {
+        "es": "Prioriza estas ideas con RICE",
+        "en": "Prioritize these ideas with RICE"
+      },
+      "example": {
+        "input": {
+          "es": "las tres ideas y sus datos de alcance",
+          "en": "the three ideas and their reach data"
+        },
+        "output": {
+          "es": [
+            "| Idea | RICE | Nota |",
+            "| Recordatorios | 42 | Alcance medido |",
+            "| Reagendar | 38 | Esfuerzo por confirmar |",
+            "| Pagos en línea | 12 | Depende de un supuesto |",
+            "- Es un insumo para decidir, no la decisión."
+          ],
+          "en": [
+            "| Idea | RICE | Note |",
+            "| Reminders | 42 | Measured reach |",
+            "| Rescheduling | 38 | Effort to confirm |",
+            "| Online payments | 12 | Rests on an assumption |",
+            "- It is an input for the decision, not the decision."
+          ]
+        }
+      }
     }
   ],
   "curated": [

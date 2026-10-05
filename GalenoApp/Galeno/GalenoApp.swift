@@ -2,10 +2,11 @@ import AppKit
 import GalenoCore
 import SwiftUI
 
-/// La ventana del wizard: fija, 720×560.
+/// La ventana de Galeno: fija, 800×620 (decisión de Rafa, 5 oct 2026; antes 720×560, y así siguen
+/// dibujados los archivos de Claude Design: mandan en disposición y proporciones, no en el tamaño exacto).
 enum WindowMetrics {
-    static let width: CGFloat = 720
-    static let height: CGFloat = 560
+    static let width: CGFloat = 800
+    static let height: CGFloat = 620
 }
 
 @main

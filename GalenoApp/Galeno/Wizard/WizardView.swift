@@ -32,9 +32,22 @@ struct WizardView: View {
             splashShown = true
         }
         .overlay { GrainOverlay() }
+        // La vista previa de una skill cae desde la barra de título, sobre toda la ventana.
+        .overlay {
+            if wizard.step == .skills, wizard.pendingDraft == nil, let skill = wizard.previewedSkill {
+                SkillPreviewSheet(skill: skill)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 4)))
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: wizard.previewedSkill)
         .animation(reduceMotion ? nil : .pageTurn, value: wizard.step)
         // Esc vuelve un paso, salvo donde el paso lleva su propia salida.
         .onExitCommand {
+            // Con la vista previa abierta, Esc la cierra y nada más.
+            if wizard.previewedSkill != nil {
+                wizard.previewedSkill = nil
+                return
+            }
             switch wizard.step {
             case .welcome, .connect, .generating: break
             default:
@@ -180,7 +193,8 @@ private struct NavigationBar: View {
                 primaryLabel
             }
             .buttonStyle(InkButtonStyle(.primary, padding: 26))
-            .keyboardShortcut(.defaultAction)
+            // En «Skills», con una card enfocada o su vista previa abierta, ↩ es de la card: avanzar es ⌘↩.
+            .keyboardShortcut(wizard.returnBelongsToStep ? KeyboardShortcut(.return, modifiers: .command) : .defaultAction)
             .disabled(!wizard.canGoForward && !wizard.isLastStep)
         }
         .padding(.horizontal, Space.s48)
