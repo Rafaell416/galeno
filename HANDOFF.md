@@ -684,5 +684,6 @@ notarización. Hasta entonces los demos van con el DMG sin notarizar y su `LÉEM
 | `docs/02-perfil-pm.md` | Perfil del PM multi-proyecto, leer vs. enviar | Vigente; indica qué es v0.0.1 y qué es v0.2 |
 | `docs/03-especificacion-v0.0.1.md` | Especificación del MVP | **Fuente de verdad** |
 | `docs/04-design-system.md` | Sistema de diseño | Vigente para app y sitio |
+| `docs/QA.md` | Matriz de pruebas de la v0.0.1: cada paso del asistente (caso feliz y errores), «Mac limpio», después del asistente (§3b), resistencia, seguridad y el registro de corridas | Escrita el 5 oct 2026 (Fase 6, paso 1). **Sin recorrer todavía en un usuario limpio** (paso 2) y con la actualización de la app bloqueada hasta Sparkle (Fase 8) |
 | `docs/DEV.md` | Cómo usar `galeno-gen`, la herramienta de desarrollo del motor | Vigente |
 | `AGENTS.md` | Guía operativa para el agente en este repo | Vigente |
