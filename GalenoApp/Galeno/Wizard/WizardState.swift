@@ -45,6 +45,9 @@ final class WizardState: ObservableObject {
 
     /// Lo que la pantalla 2 encontró. No va en el `AgentConfig`: es del Mac.
     @Published private(set) var claudeStatus: ClaudeCodeStatus
+    /// Lo que Galeno está haciendo por el usuario en el paso 2 (instalar, actualizar, iniciar sesión).
+    @Published private(set) var claudeSetup: ClaudeSetupPhase = .idle
+    private var claudeSetupTask: Task<Void, Never>?
 
     private let claudeDetector: ClaudeCodeDetector
     private let connectServices: ConnectServices
@@ -81,6 +84,7 @@ final class WizardState: ObservableObject {
     /// herramientas elegidas.
     @Published private(set) var connectFlow: ConnectFlow?
     private var connectFlowTools: [Tool] = []
+    private var connectFlowClaudePath = ""
     private var connectFlowObserver: AnyCancellable?
 
     /// Mientras el texto está fundido a cero durante el cambio de idioma (G8).
@@ -300,7 +304,7 @@ final class WizardState: ObservableObject {
     /// todavía no se construyen no piden nada.
     var isCurrentStepComplete: Bool {
         switch step {
-        case .detection: claudeStatus.isFound
+        case .detection: claudeStatus.isReady && claudeSetup == .idle
         case .agent: agentNameIssue == nil
         case .tools: !connections.isEmpty
         // Se sale del sub-wizard cuando llega a la celebración: todas conectadas o saltadas.
@@ -373,6 +377,70 @@ final class WizardState: ObservableObject {
         let elapsed = ContinuousClock.now - started
         if elapsed < .milliseconds(600) { await connectServices.sleep(.milliseconds(600) - elapsed) }
         claudeStatus = result
+    }
+
+    /// «Instalar» y «Actualizar»: Galeno corre el instalador oficial y vuelve a mirar. Si al terminar sigue
+    /// sin haber un Claude Code que sirva, es un fallo aunque el instalador dijera que todo fue bien.
+    func installClaudeCode() {
+        guard !claudeSetup.isWorking else { return }
+        claudeSetup = .installing
+        claudeSetupTask = Task { [weak self] in
+            guard let self else { return }
+            let outcome = await connectServices.claudeSetup.install()
+            if Task.isCancelled { return }
+            switch outcome {
+            case .done:
+                let status = await claudeDetector.detect()
+                if Task.isCancelled { return }
+                claudeStatus = status
+                claudeSetup = status.isFound ? .idle : .failed(.installFailed(detail: ""))
+            case .offline: claudeSetup = .failed(.offline)
+            case .timedOut: claudeSetup = .failed(.installTimedOut)
+            case .cancelled: claudeSetup = .idle
+            case .failed(let detail): claudeSetup = .failed(.installFailed(detail: detail))
+            }
+        }
+    }
+
+    /// «Iniciar sesión»: `claude auth login` abre el navegador; al terminar se vuelve a mirar.
+    func signInToClaude() {
+        guard !claudeSetup.isWorking, let path = claudeStatus.path else { return }
+        claudeSetup = .signingIn
+        claudeSetupTask = Task { [weak self] in
+            guard let self else { return }
+            let outcome = await connectServices.claudeSetup.signIn(claudePath: path)
+            if Task.isCancelled { return }
+            connectServices.returnToApp()
+            switch outcome {
+            case .done:
+                let status = await claudeDetector.detect()
+                if Task.isCancelled { return }
+                claudeStatus = status
+                claudeSetup = status.isReady ? .idle : .failed(.signInFailed(detail: ""))
+            case .offline, .timedOut: claudeSetup = .failed(.signInTimedOut)
+            case .cancelled: claudeSetup = .idle
+            case .failed(let detail): claudeSetup = .failed(.signInFailed(detail: detail))
+            }
+        }
+    }
+
+    /// «Ya inicié sesión, comprobar»: se mira ya, sin esperar a que `claude auth login` se entere. Si hay
+    /// sesión, se sigue; si no, la espera continúa como estaba.
+    func confirmClaudeSignIn() async {
+        guard claudeSetup == .signingIn else { return }
+        let status = await claudeDetector.detect()
+        guard claudeSetup == .signingIn, status.isReady else { return }
+        claudeSetupTask?.cancel()
+        claudeSetupTask = nil
+        claudeStatus = status
+        claudeSetup = .idle
+    }
+
+    /// «Cancelar» mientras se espera el navegador, y «Entendido» tras un fallo.
+    func cancelClaudeSetup() {
+        claudeSetupTask?.cancel()
+        claudeSetupTask = nil
+        claudeSetup = .idle
     }
 
     // MARK: Paso 3: contexto que el usuario trae
@@ -480,12 +548,14 @@ final class WizardState: ObservableObject {
     func beginConnecting() {
         let pending = connections.filter { mode == .full || $0.status != .connected }.map(\.tool)
         let tools = ConnectTarget.connectionTools(from: pending)
-        if connectFlow != nil, connectFlowTools == tools { return }
+        let claudePath = claudeStatus.path ?? "claude"
+        // Si entre tanto se instaló o actualizó Claude Code, el sub-wizard viejo apunta a otro `claude`.
+        let samePath = claudeStatus.path == nil || connectFlowClaudePath == claudePath
+        if connectFlow != nil, connectFlowTools == tools, samePath { return }
 
         connectFlow?.cancelAll()
         connectFlowTools = tools
-        let claudePath: String
-        if case .found(_, let path, _) = claudeStatus { claudePath = path } else { claudePath = "claude" }
+        connectFlowClaudePath = claudePath
 
         let flow = ConnectFlow(
             tools: pending,
@@ -566,7 +636,7 @@ final class WizardState: ObservableObject {
         if sourcesFlow == nil || key != sourcesFlowKey {
             sourcesFlow?.cancelAll()
             let claudePath: String
-            if case .found(_, let path, _) = claudeStatus { claudePath = path } else { claudePath = "claude" }
+            claudePath = claudeStatus.path ?? "claude"
             let flow = SourcesFlow(connections: connected, lister: connectServices.makeLister(claudePath))
             sourcesFlow = flow
             sourcesFlowKey = key
@@ -715,10 +785,7 @@ final class WizardState: ObservableObject {
     var opener: any AgentOpening { connectServices.opener }
 
     /// La ruta de `claude` que encontró el paso 2.
-    var claudePath: String {
-        if case .found(_, let path, _) = claudeStatus { return path }
-        return "claude"
-    }
+    var claudePath: String { claudeStatus.path ?? "claude" }
 
     /// Se llama al cerrar la app.
     func stopWorking() {

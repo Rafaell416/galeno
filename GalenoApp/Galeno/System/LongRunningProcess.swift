@@ -274,9 +274,12 @@ nonisolated final class ManagedProcess: @unchecked Sendable {
         // OSC: ESC ] … (BEL | ESC \)
         result = result.replacingOccurrences(
             of: "\u{1B}\\][^\u{07}\u{1B}]*(\u{07}|\u{1B}\\\\)", with: "", options: .regularExpression)
-        // CSI: ESC [ … letra
+        // CSI: ESC [ … letra (con los parámetros privados `<`, `>`, `=` que usan los programas de pantalla completa)
         result = result.replacingOccurrences(
-            of: "\u{1B}\\[[0-9;?]*[A-Za-z]", with: "", options: .regularExpression)
+            of: "\u{1B}\\[[0-9;?<>=]*[A-Za-z]", with: "", options: .regularExpression)
+        // Juego de caracteres (ESC ( B) y guardar/restaurar cursor o teclado (ESC 7, ESC 8, ESC =, ESC >)
+        result = result.replacingOccurrences(
+            of: "\u{1B}([()][A-Za-z0-9]|[78=>])", with: "", options: .regularExpression)
         return result.replacingOccurrences(of: "\r", with: "")
     }
 }

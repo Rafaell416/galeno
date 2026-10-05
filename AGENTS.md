@@ -24,7 +24,9 @@ para WhatsApp (solo lectura) y registra MCP hospedados con `claude mcp add`.
   que da por conectado uno al que le falta la autorización.
   El sondeo arranca sin la caché de descubrimiento y esperando a que los servidores conecten (`ClaudeSessionProbe.environment`):
   sin eso, un conector que el usuario ya tenía conectado sale `pending` o ni aparece. Un arranque sin ningún `claude.ai …` se
-  vuelve a mirar antes de decir «no está en la cuenta», y `pending` nunca se trata como «falta autorizar».
+  vuelve a mirar antes de decir «no está en la cuenta», y `pending` nunca se trata como «falta autorizar» **ni como
+  «conectado»**: solo cuenta un `connected` de verdad, o que el usuario pulse «Ya lo conecté, comprobar» (`confirmConnector`).
+  El paso del tiempo nunca marca un conector (demo de Aquiles, 5 oct 2026).
   En la app de Claude (escritorio) los conectores se encienden por conversación y nada del proyecto los enciende:
   el `AGENTS.md` generado le dice al agente cómo encender **solo los suyos**; los demás de la cuenta se heredan apagados.
   Allí sus herramientas se llaman `mcp__<uuid>__…` y ninguna regla de permiso coincide: lo cubren dos hooks por nombre de
@@ -234,7 +236,18 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
   (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
   lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no
-  ejecuta scripts remotos** (`curl … | bash`): muestra el comando y lo corre el usuario.
+  ejecuta scripts remotos**, con **una excepción decidida por Rafa (5 oct 2026):** el instalador oficial de Claude Code
+  (`ClaudeCodeSetup`), que sirve para instalarlo y para actualizarlo. Sus límites no se relajan sin preguntar: la dirección
+  (`https://claude.ai/install.sh`) está fija en el código, solo `https`, sin `sudo`, y solo tras el clic del usuario en
+  «Instalar» o «Actualizar». Nada se instala al abrir la app, y ninguna otra cosa se descarga y ejecuta.
+- **Claude Code lo deja listo Galeno** (paso 2 y la puerta «Antes de conectar» del wizard corto y de «Gestionar»): instalar,
+  actualizar (versión mínima `ClaudeCodeDetector.minimumVersion`; se usa el `claude` más nuevo del Mac) e iniciar sesión
+  (`claude auth login`, en el navegador del usuario). El usuario no ve comandos ni la Terminal, y no se sigue hasta que esté
+  listo. Nunca mostrar ni guardar lo que imprime `claude auth login`. `ConnectServices.claudeSetup` no hace nada por defecto
+  (`NoClaudeCodeSetup`): el de verdad solo lo pone `live()`, para que ninguna prueba instale nada.
+- Un error dice su causa real cuando se conoce (`MCPConnectError.claudeOutdated`, sin internet…), no una genérica que mande
+  a buscar donde no es. En «Conectar», los iconos de la tira llevan a cada conexión (`ConnectFlow.jump`): la que se deja a
+  medias no queda saltada y se vuelve a ella antes de terminar.
 - El bridge se usa desde su copia estable en `~/Library/Application Support/Galeno/bin/`, no
   desde dentro de `Galeno.app` ni de DerivedData (`BridgeInstaller`). Compilarlo antes que la
   app: `make -C whatsapp-bridge universal` (una fase de Run Script lo copia a `Resources`). Los textos de

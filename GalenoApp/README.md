@@ -61,8 +61,11 @@ O abrir `Galeno.xcodeproj` en Xcode y ⌘R con destino **My Mac**.
   escribe Rafa: están marcados `TODO(dopamina)` (`grep -rn "TODO(dopamina)" GalenoApp`).
 - El idioma cambia en caliente con `\.locale`: no usar `String(localized:)`.
 - En Debug, argumentos de arranque: `-galeno-claude-missing` finge que `claude` no está
-  instalado; `-galeno-fake-connect` pone conectores con guion en el paso 5 (éxito, dato tardío,
-  un fallo en Fathom, QR que rota, sincronización) sin tocar cuentas; con él,
+  instalado (**sin `-galeno-fake-connect`, «Instalar» corre el instalador de verdad**);
+  `-galeno-fake-connect` pone conectores con guion en el paso 5 (éxito, dato tardío,
+  un fallo en Fathom, QR que rota, sincronización) sin tocar cuentas, y un Mac de mentira en el paso 2:
+  con él, `-galeno-claude-missing`, `-galeno-claude-outdated` o `-galeno-claude-signedout` dejan ver
+  «Instalar», «Actualizar» e «Iniciar sesión» sin instalar ni abrir nada; con él también,
   `-galeno-fake-name-clash` deja `notion` y `slack` ocupados por otro servidor del usuario para ver
   la pregunta de qué hacer; `-galeno-bridge-path <ruta>` usa otro binario del bridge; `-galeno-skills-path <ruta>` (o `GALENO_SKILLS_PATH`)
   usa otra carpeta de skills. Con `-galeno-fake-connect`, generar el agente escribe en una carpeta temporal

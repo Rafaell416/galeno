@@ -74,6 +74,8 @@ final class HealthModel: ObservableObject {
         case stillNotConnected
         /// Otro servidor del usuario usa ese nombre: Galeno no lo toca.
         case nameTaken
+        /// El `claude` de este Mac es demasiado viejo para autorizar herramientas.
+        case claudeOutdated
         case failed
     }
 
@@ -400,6 +402,7 @@ final class HealthModel: ObservableObject {
             switch error {
             case .loginTimedOut: return .timedOut
             case .notConnectedAfterLogin: return .stillNotConnected
+            case .claudeOutdated: return .claudeOutdated
             default: return .failed
             }
         } catch {
@@ -415,31 +418,39 @@ final class HealthModel: ObservableObject {
     }
 
     /// Los conectores de la cuenta de Claude (Gmail, Drive…): `needs-auth` → `claude mcp login`, que abre la
-    /// página de permiso y termina; no está en la cuenta → se abre el directorio. Después se espera a verlo vivo.
+    /// página de permiso y termina; si no está en la cuenta o no se sabe cómo está → se abre su página en Claude.
+    /// Después se espera a verlo **conectado de verdad**: `pending` no cuenta, ni antes ni después de abrir el
+    /// navegador (así se marcó uno sin estarlo en el demo de Aquiles, 5 oct 2026).
     private func reconnectConnectors(_ target: ConnectTarget, mcp: any MCPConnecting) async -> ReconnectIssue? {
         for connector in target.connectors {
             var current = await mcp.connectorStatus(connector.serverName)
             if Task.isCancelled { return nil }
-            if current == .connected || current == .pending { continue }
+            // Un conector lento sale «pendiente» al arrancar: se le dan unas miradas antes de abrir nada.
+            var looks = 0
+            while current == .pending, looks < timing.pendingLooks {
+                await sleep(.seconds(timing.connectorPoll))
+                current = await mcp.freshConnectorStatus(connector.serverName)
+                if Task.isCancelled { return nil }
+                looks += 1
+            }
+            if current == .connected { continue }
 
-            if current == .notRegistered {
-                openURL(connector.directoryURL)
+            if current == .needsAuthentication {
+                do { try await mcp.authorizeConnector(connector.serverName) } catch {
+                    return (error as? MCPConnectError) == .claudeOutdated ? .claudeOutdated : .failed
+                }
             } else {
-                do { try await mcp.authorizeConnector(connector.serverName) } catch { return .failed }
+                openURL(connector.directoryURL)
             }
 
             var waited = 0.0
-            var pendingInARow = 0
-            current = .needsAuthentication
-            while waited < timing.connectorMax {
+            while waited < timing.connectorMax, current != .connected {
                 await sleep(.seconds(timing.connectorPoll))
                 waited += timing.connectorPoll
                 if Task.isCancelled { return nil }
                 current = await mcp.connectorStatus(connector.serverName)
-                pendingInARow = current == .pending ? pendingInARow + 1 : 0
-                if current == .connected || pendingInARow >= timing.pendingLooks { break }
             }
-            if current != .connected && current != .pending { return .timedOut }
+            if current != .connected { return .timedOut }
             returnToApp()
         }
         return nil

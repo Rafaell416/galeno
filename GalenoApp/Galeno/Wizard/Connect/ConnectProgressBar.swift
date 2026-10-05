@@ -28,12 +28,28 @@ struct ConnectProgressBar: View {
             .padding(.trailing, Space.s8)
 
             ForEach(flow.tools) { tool in
-                chip(for: tool)
+                // Cada icono lleva a su conexión (demo de Aquiles, 5 oct 2026: quiso pasar de una a otra
+                // pulsándolos). La que ya está conectada y la de ahora no hacen nada.
+                Button { flow.jump(to: tool) } label: { chip(for: tool) }
+                    .buttonStyle(.plain)
+                    .disabled(!flow.canJump(to: tool))
+                    .pointingHandOnHover(flow.canJump(to: tool))
+                    .help(Text(verbatim: tool.displayName(in: wizard.language)))
+                    .accessibilityLabel(Text(verbatim: tool.displayName(in: wizard.language)))
+                    .accessibilityValue(statusLabel(for: tool))
             }
             Spacer(minLength: 0)
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("connect.progress \(flow.connectedCount) \(flow.total)"))
+    }
+
+    private func statusLabel(for tool: Tool) -> Text {
+        switch flow.statuses[tool] ?? .selected {
+        case .connected: Text("tools.connected")
+        case .skipped: Text("connect.chip.skipped")
+        default: tool == currentTool ? Text("connect.chip.current") : Text("connect.chip.pending")
+        }
     }
 
     private func chip(for tool: Tool) -> some View {
@@ -74,9 +90,39 @@ struct ConnectProgressBar: View {
                     .offset(x: 5, y: 7)
             }
         }
+        .contentShape(Rectangle())
         .opacity(status == .skipped ? 0.35 : status == .connected || isCurrent ? 1 : 0.55)
         // «Encender»: el logo conectado pasa a tinta plena en 200 ms.
         .animation(.easeOut(duration: 0.2), value: status)
         .animation(.easeOut(duration: Motion.micro), value: isCurrent)
     }
+}
+
+/// El cursor de mano sobre algo que se puede pulsar y no parece un botón. Lo que pone, lo quita.
+private struct PointingHand: ViewModifier {
+    let enabled: Bool
+    @State private var pushed = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { inside in
+                if inside, enabled, !pushed {
+                    NSCursor.pointingHand.push()
+                    pushed = true
+                } else if !inside, pushed {
+                    NSCursor.pop()
+                    pushed = false
+                }
+            }
+            .onDisappear {
+                if pushed {
+                    NSCursor.pop()
+                    pushed = false
+                }
+            }
+    }
+}
+
+extension View {
+    func pointingHandOnHover(_ enabled: Bool = true) -> some View { modifier(PointingHand(enabled: enabled)) }
 }

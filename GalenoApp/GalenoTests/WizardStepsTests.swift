@@ -30,10 +30,28 @@ final class WizardStepsTests: XCTestCase {
         XCTAssertFalse(state.canGoForward)
     }
 
-    func testAMissingSessionDoesNotBlock() {
+    /// Sin sesión no se sigue: las conexiones fallarían una por una (demo de Aquiles, 5 oct 2026).
+    func testAMissingSessionBlocksUntilSignedIn() {
         let state = WizardState(
             preferredLanguages: ["es"],
-            claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: false))
+            claudeStatus: .found(version: "2.1.289", path: "/ruta/claude", loggedIn: false))
+        advance(state, to: .detection)
+
+        XCTAssertFalse(state.canGoForward)
+    }
+
+    func testAnOutdatedClaudeBlocks() {
+        let state = WizardState(
+            preferredLanguages: ["es"], claudeStatus: .outdated(version: "2.1.150", path: "/ruta/claude"))
+        advance(state, to: .detection)
+
+        XCTAssertFalse(state.canGoForward)
+    }
+
+    func testASessionThatCannotBeReadDoesNotBlock() {
+        let state = WizardState(
+            preferredLanguages: ["es"],
+            claudeStatus: .found(version: "2.1.289", path: "/ruta/claude", loggedIn: nil))
         advance(state, to: .detection)
 
         XCTAssertTrue(state.canGoForward)
@@ -42,14 +60,14 @@ final class WizardStepsTests: XCTestCase {
     func testDetectingClaudeUpdatesTheStatus() async {
         let path = "/opt/homebrew/bin/claude"
         let found = ClaudeCodeDetector(
-            runner: StubRunner(version: "2.1.277 (Claude Code)"),
+            runner: StubRunner(version: "2.1.289 (Claude Code)"),
             homeDirectory: "/Users/prueba",
             isExecutable: { $0 == path })
         let state = WizardState(preferredLanguages: ["es"], claudeStatus: .notFound, claudeDetector: found)
 
         await state.detectClaudeCode()
 
-        XCTAssertEqual(state.claudeStatus, .found(version: "2.1.277", path: path, loggedIn: nil))
+        XCTAssertEqual(state.claudeStatus, .found(version: "2.1.289", path: path, loggedIn: nil))
     }
 
     // MARK: - Paso 3: el agente

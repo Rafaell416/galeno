@@ -49,6 +49,9 @@ final class FakeMCP: MCPConnecting, @unchecked Sendable {
 
     var calls: [String] { lock.withLock { recorded } }
 
+    /// Cambia el estado de un servidor a mitad de una prueba (el usuario hizo algo en el navegador).
+    func setStatus(_ server: String, _ status: MCPStatus) { lock.withLock { statuses[server] = status } }
+
     /// Cómo se registró cada servidor con su app OAuth propia (sin el secreto: solo si lo hubo).
     private var registrations: [String: (clientID: String, port: Int?, hadSecret: Bool, secretValue: String?)] = [:]
     func registration(of server: String) -> (clientID: String, port: Int?, hadSecret: Bool, secretValue: String?)? {

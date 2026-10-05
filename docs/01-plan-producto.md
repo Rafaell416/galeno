@@ -20,7 +20,7 @@ Mucha gente ya tiene Claude Code instalado, pero montar un agente *útil y segur
 ## 2. La solución
 
 Una app de escritorio para Mac que, con un flujo tipo wizard:
-1. Detecta que el usuario tiene Claude Code instalado (y si no, lo guía para instalarlo).
+1. Detecta que el usuario tiene Claude Code instalado, al día y con sesión (y si no, lo instala, lo actualiza o inicia la sesión por él, con un botón).
 2. Le pregunta por *su* agente: cómo se llama y qué rol tiene. En v0.0.1 el único rol es **Product Manager**; a futuro, el rol elige una **plantilla** por industria (§4).
 3. Conecta sus herramientas una por una: OAuth para Slack, Notion, Google, Jira y las de transcripción; QR para WhatsApp.
 4. Genera toda la configuración de Claude Code (AGENTS.md, .claude/settings.json, hooks, skills, subagentes, .mcp.json) con los **guardrails de ese perfil ya puestos**.

@@ -255,21 +255,21 @@ final class ConnectFlowTests: XCTestCase {
         XCTAssertEqual(returnsToApp, 0)
     }
 
-    /// El demo de Simon: los conectores ya estaban conectados, pero al arrancar la sesión salían «pendientes».
-    /// Antes se abría una página que decía «ya conectado» y la espera giraba cinco minutos. Ahora no se abre nada.
-    func testAConnectorStillPendingAtStartupIsTreatedAsConnectedWithoutOpeningAnything() async {
-        let mcp = FakeMCP(statuses: [
-            "claude.ai Google Drive": .pending, "claude.ai Google Docs": .pending,
-            "claude.ai Google Sheets": .pending,
-        ])
-        let flow = makeFlow([.googleWorkspace, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess)
+    /// «Pendiente» nunca se da por conectado solo, ni antes ni después de abrir el navegador: en el demo de
+    /// Aquiles (5 oct 2026) un conector quedó marcado mientras él seguía eligiendo cuenta. Si tras unas
+    /// miradas sigue así, se abre su página en Claude (que dice cómo está de verdad) y se espera.
+    func testAConnectorThatStaysPendingIsNeverMarkedConnectedByItself() async {
+        let mcp = FakeMCP(statuses: ["claude.ai Gmail": .pending])
+        let flow = makeFlow(
+            [.gmail, .jira], mcp: mcp, fetchRealData: false, sleep: .holdingSuccess,
+            timing: ConnectFlow.Timing(connectorPoll: 1, connectorMax: 5))
         defer { flow.cancelAll() }
         flow.connect()
-        let done = await waitUntil { flow.phase == .succeeded(alreadyConnected: true) }
-        XCTAssertTrue(done, "\(flow.phase)")
-        XCTAssertTrue(openedURLs.isEmpty, "no abre la página del directorio")
-        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("authorize") }, "ni el permiso")
-        XCTAssertEqual(returnsToApp, 0)
+        let failed = await waitUntil { flow.phase == .failed(.notAuthorizedInTime) }
+        XCTAssertTrue(failed, "\(flow.phase)")
+        XCTAssertEqual(openedURLs.map(\.absoluteString), ["https://claude.ai/directory/gmail-gmailmcp"])
+        XCTAssertNotEqual(flow.statuses[.gmail], .connected)
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("authorize") }, "pendiente no es «falta autorizar»")
     }
 
     /// Pendiente al arrancar y conectado a la siguiente mirada: es solo lento.

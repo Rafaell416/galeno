@@ -9,13 +9,45 @@ struct ConnectStepView: View {
 
     var body: some View {
         Group {
-            if let flow = wizard.connectFlow {
+            if !wizard.claudeStatus.isReady || wizard.claudeSetup != .idle {
+                // El wizard corto y «Gestionar» no pasan por el paso 2: si Claude Code falta, está viejo o
+                // sin sesión, se arregla aquí antes de conectar nada, en vez de fallar en cada herramienta.
+                ClaudeSetupGate()
+            } else if let flow = wizard.connectFlow {
                 ConnectFlowView(flow: flow)
             } else {
                 InkSpinner(size: 20)
             }
         }
-        .onAppear { wizard.beginConnecting() }
+        .onAppear { beginIfReady() }
+        .onChange(of: wizard.claudeStatus) { _, _ in beginIfReady() }
+        .onChange(of: wizard.claudeSetup) { _, _ in beginIfReady() }
+    }
+
+    private func beginIfReady() {
+        if wizard.claudeStatus.isReady, wizard.claudeSetup == .idle { wizard.beginConnecting() }
+    }
+}
+
+/// «Antes de conectar»: lo mismo que el paso 2, a pantalla completa y con una salida hacia atrás (aquí no
+/// hay barra de navegación).
+private struct ClaudeSetupGate: View {
+    @EnvironmentObject private var wizard: WizardState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            StepTitle(text: Text("connect.claude.title"))
+            ClaudeSetupContent()
+            Spacer(minLength: 0)
+            if !wizard.claudeSetup.isWorking {
+                Button("connect.backToTools") { wizard.back() }
+                    .buttonStyle(.inkTertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, Space.s48)
+        .padding(.top, 28)
+        .padding(.bottom, Space.s16)
     }
 }
 

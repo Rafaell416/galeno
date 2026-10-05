@@ -130,6 +130,8 @@ final class ConnectFlow: ObservableObject {
         /// Autorizó, pero Slack dice que la app no tiene activado el servidor MCP. El detalle es la
         /// página donde se activa (`api.slack.com/apps/<id>/app-assistant`).
         case slackMCPNotEnabled
+        /// El `claude` de este Mac no tiene `claude mcp login`: es anterior a la versión mínima.
+        case claudeOutdated
     }
 
     enum Phase: Equatable {
@@ -259,6 +261,24 @@ final class ConnectFlow: ObservableObject {
     @Published private(set) var slackAppID: String?
     /// El conector de la cuenta de Claude que se está conectando ahora (`nil` fuera de ese proceso).
     @Published private(set) var connectorProgress: ConnectorProgress?
+    /// Qué pasó con el último «Ya lo conecté, comprobar» de un conector de la cuenta de Claude.
+    enum ConnectorCheck: Equatable {
+        /// Se espera a que el usuario termine en el navegador.
+        case waiting
+        /// Pulsó «comprobar» y se está mirando.
+        case checking
+        /// Se miró y todavía no aparece conectado: la espera sigue.
+        case notYet
+    }
+
+    @Published private(set) var connectorCheck: ConnectorCheck = .waiting
+    /// El conector cuya página está abierta en el navegador, para poder abrirla otra vez.
+    private var openConnector: ConnectTarget.Connector?
+    /// El usuario dijo «ya lo conecté»: la próxima mirada es inmediata y con una lectura nueva.
+    private var connectorConfirmRequested = false
+    /// Lo que se conectó o se saltó en esta pasada: al avanzar no se vuelve a enseñar.
+    private var resolvedHere: Set<Tool> = []
+    private var seenDopamine: Set<Dopamine> = []
     /// Las herramientas que se registran con el nombre alternativo (`galeno-slack`).
     private var namePrefixes: [Tool: String]
 
@@ -370,7 +390,8 @@ final class ConnectFlow: ObservableObject {
             } else {
                 phase = .ready
             }
-        case .dopamine:
+        case .dopamine(let kind):
+            seenDopamine.insert(kind)
             phase = .ready
             scheduleAdvance(after: timing.dopamineHold, waitingFor: nil)
         case .celebration:
@@ -380,7 +401,52 @@ final class ConnectFlow: ObservableObject {
 
     func advance() {
         guard position < screens.count - 1 else { return }
-        position += 1
+        let last = screens.count - 1
+        var next = position + 1
+        // Con la tira se puede ir de una conexión a otra en cualquier orden: lo que ya se resolvió en esta
+        // pasada (y la pausa que ya se vio) no se vuelve a enseñar…
+        while next < last, isBehindUs(screens[next]) { next += 1 }
+        // …y antes de celebrar se vuelve por lo que quedó sin resolver.
+        if next == last, let pending = screens.firstIndex(where: isUnresolved) { next = pending }
+        position = next
+        enter(screen)
+    }
+
+    private func isBehindUs(_ screen: Screen) -> Bool {
+        switch screen {
+        case .connection(let tool): resolvedHere.contains(tool)
+        case .dopamine(let kind): seenDopamine.contains(kind)
+        case .celebration: false
+        }
+    }
+
+    private func isUnresolved(_ screen: Screen) -> Bool {
+        if case .connection(let tool) = screen { return (statuses[tool] ?? .selected) == .selected }
+        return false
+    }
+
+    /// ¿Se puede ir a esa conexión pulsando su icono en la tira? A cualquiera que no esté ya conectada,
+    /// desde los mismos momentos en que se puede «Conectar después» (demo de Aquiles, 5 oct 2026: quiso
+    /// pasar de una a otra pulsando los iconos).
+    func canJump(to tool: Tool) -> Bool {
+        guard case .connection(let current) = screen, current != tool, tools.contains(tool),
+            statuses[tool] != .connected
+        else { return false }
+        switch phase {
+        case .ready, .working, .qr, .slackToken, .failed, .needsOwnApp, .nameConflict: return true
+        case .syncing, .succeeded, .confirmingRemoval: return false
+        }
+    }
+
+    /// Va a la conexión de esa herramienta. La que se deja a medias no se marca como saltada: sigue por
+    /// conectar, y se vuelve a ella antes de terminar.
+    func jump(to tool: Tool) {
+        guard canJump(to: tool), let index = screens.firstIndex(of: .connection(tool)) else { return }
+        cancelWork()
+        authorizer?.dismissAuthorization()
+        systemAuthorizer?.dismiss()
+        webSession.reset()
+        position = index
         enter(screen)
     }
 
@@ -454,75 +520,86 @@ final class ConnectFlow: ObservableObject {
     ///
     /// 1. Ya está conectado: no hay nada que hacer.
     /// 2. Está en su cuenta pero sin autorizar: `claude mcp login` abre la página de permiso.
-    /// 3. No está en su cuenta: se abre la página del conector en Claude, y el usuario pulsa «Conectar» y
-    ///    «Permitir».
+    /// 3. No está en su cuenta, o no se pudo saber cómo está: se abre la página del conector en Claude, que
+    ///    dice su estado de verdad, y el usuario pulsa «Conectar» y «Permitir».
     ///
     /// El estado se lee de una sesión real (`connectorStatus`): `claude mcp get` da por conectado un
     /// conector al que le falta la autorización. En 2 y 3 Claude Code no avisa cuando el usuario termina:
     /// se vuelve a mirar cada pocos segundos. Galeno vuelve al frente al terminar **cada** conector.
+    ///
+    /// **Solo cuenta un «conectado» de verdad.** El tiempo que pase nunca marca nada: en el demo de Aquiles
+    /// (5 oct 2026) un conector se dio por conectado mientras él seguía eligiendo cuenta de Google, porque
+    /// tres lecturas `pending` seguidas contaban. La única otra salida la da el usuario: «Ya lo conecté,
+    /// comprobar» (`confirmConnector`), y ahí `pending` sí vale, porque es él quien lo afirma.
     private func connectClaudeConnectors(_ target: ConnectTarget) async {
-        defer { connectorProgress = nil }
+        defer {
+            connectorProgress = nil
+            openConnector = nil
+        }
         var usedBrowser = false
 
         for (index, connector) in target.connectors.enumerated() {
             connectorProgress = ConnectorProgress(name: connector.name, index: index + 1, total: target.connectors.count)
+            connectorConfirmRequested = false
+            connectorCheck = .waiting
             update(.working(.checking))
             var current = await mcp.connectorStatus(connector.serverName)
             if Task.isCancelled { return }
-            // «Pendiente» no es «falta autorizar»: el conector está en la cuenta y no pidió nada, solo tardaba en
-            // conectarse al arrancar la sesión (en un Mac nuevo es lo normal). Se le dan unas miradas más; si
-            // sigue así, se da por conectado en vez de abrir una página que dirá «ya conectado» y dejar
-            // la espera girando cinco minutos (así se pegó en el demo de Simon, 4 oct 2026).
+            // «Pendiente» es que el conector aún se estaba conectando al arrancar la sesión: se le dan unas
+            // miradas más antes de abrir nada (así un conector lento que ya estaba bien no abre el navegador).
             var looks = 0
-            while current == .pending, looks < timing.connectorPendingLooks {
+            while current == .pending || current == .failed, looks < timing.connectorPendingLooks {
                 await sleep(.seconds(timing.connectorPoll))
                 current = await mcp.connectorStatus(connector.serverName)
                 if Task.isCancelled { return }
                 looks += 1
             }
-            if current == .pending { current = .connected }
-            if current == .failed {
-                // No respondió: se mira una vez más antes de decidir.
-                await sleep(.seconds(timing.connectorPoll))
-                current = await mcp.connectorStatus(connector.serverName)
-                if Task.isCancelled { return }
-            }
             if current == .connected { continue }
 
             usedBrowser = true
-            if current == .notRegistered {
-                update(.working(.addingConnector))
-                openURL(connector.directoryURL)
-            } else {
+            openConnector = connector
+            if current == .needsAuthentication {
                 update(.working(.waitingForBrowser))
                 do {
                     try await mcp.authorizeConnector(connector.serverName)
                 } catch {
                     if Task.isCancelled { return }
-                    if let error = error as? MCPConnectError, case .loginFailed(let detail) = error {
-                        failureDetail = detail
+                    if let error = error as? MCPConnectError {
+                        if error == .claudeOutdated { return fail(.claudeOutdated) }
+                        if case .loginFailed(let detail) = error { failureDetail = detail }
                     }
                     fail(.loginFailed)
                     return
                 }
+            } else {
+                // No está en la cuenta, o sigue sin saberse: su página en Claude lo dice y tiene el botón.
+                update(.working(.addingConnector))
+                openURL(connector.directoryURL)
             }
 
             var connected = false
             var waited = 0.0
-            var pendingInARow = 0
             while waited < timing.connectorMax {
-                await sleep(.seconds(timing.connectorPoll))
-                waited += timing.connectorPoll
+                waited += await waitForNextLook()
                 if Task.isCancelled { return }
-                let status = await mcp.connectorStatus(connector.serverName)
-                // Tras autorizar, «pendiente» (ya no pide autorización) varias veces seguidas también es conectado.
-                pendingInARow = status == .pending ? pendingInARow + 1 : 0
-                if status == .connected || pendingInARow >= timing.connectorPendingLooks {
+                let confirmed = connectorConfirmRequested
+                let status =
+                    confirmed
+                    ? await mcp.freshConnectorStatus(connector.serverName)
+                    : await mcp.connectorStatus(connector.serverName)
+                if Task.isCancelled { return }
+                if status == .connected || (confirmed && status == .pending) {
                     connected = true
                     break
                 }
+                if confirmed {
+                    connectorConfirmRequested = false
+                    connectorCheck = .notYet
+                }
             }
             if Task.isCancelled { return }
+            openConnector = nil
+            connectorCheck = .waiting
             guard connected else {
                 fail(.notAuthorizedInTime)
                 return
@@ -539,6 +616,37 @@ final class ConnectFlow: ObservableObject {
         }
 
         finishHosted(target, alreadyConnected: !usedBrowser)
+    }
+
+    /// Espera hasta la próxima mirada, en tramos cortos: si el usuario pulsa «Ya lo conecté», no espera más.
+    /// Devuelve lo que esperó.
+    private func waitForNextLook() async -> Double {
+        let slice = 0.5
+        var waited = 0.0
+        while waited < timing.connectorPoll, !connectorConfirmRequested, !Task.isCancelled {
+            await sleep(.seconds(slice))
+            waited += slice
+        }
+        return waited
+    }
+
+    /// ¿Se está esperando a que el usuario termine un conector en el navegador?
+    var isWaitingForConnector: Bool {
+        guard openConnector != nil else { return false }
+        return phase == .working(.addingConnector) || phase == .working(.waitingForBrowser)
+    }
+
+    /// «Ya lo conecté, comprobar»: se mira ahora mismo, con una lectura nueva.
+    func confirmConnector() {
+        guard isWaitingForConnector, connectorCheck != .checking else { return }
+        connectorCheck = .checking
+        connectorConfirmRequested = true
+    }
+
+    /// «Abrir la página otra vez»: la del conector en Claude, por si se cerró o nunca se abrió.
+    func reopenConnectorPage() {
+        guard isWaitingForConnector, let openConnector else { return }
+        openURL(openConnector.directoryURL)
     }
 
     // MARK: - Servidores MCP hospedados
@@ -624,6 +732,7 @@ final class ConnectFlow: ObservableObject {
             switch error {
             case .loginTimedOut: fail(.notAuthorizedInTime)
             case .notConnectedAfterLogin: fail(.stillNotConnected)
+            case .claudeOutdated: fail(.claudeOutdated)
             case .loginFailed(let detail):
                 failureDetail = detail
                 fail(.loginFailed)
@@ -1035,6 +1144,7 @@ final class ConnectFlow: ObservableObject {
 
     private func setStatus(_ tool: Tool, _ status: ConnectionStatus) {
         statuses[tool] = status
+        if status == .selected { resolvedHere.remove(tool) } else { resolvedHere.insert(tool) }
         onStatus(tool, status)
     }
 
@@ -1061,6 +1171,9 @@ final class ConnectFlow: ObservableObject {
     /// Cancela lo que esté corriendo en la pantalla actual. El dato real de una
     /// herramienta ya conectada **no** se cancela: sigue y suma a los totales.
     private func cancelWork() {
+        connectorConfirmRequested = false
+        connectorCheck = .waiting
+        openConnector = nil
         workTask?.cancel()
         workTask = nil
         advanceTask?.cancel()
