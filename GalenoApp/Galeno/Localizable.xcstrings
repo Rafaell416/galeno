@@ -46,13 +46,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Up to 60 characters. Examples: Hera, Ariadne, Lucius, Nomad."
+            "value" : "A short name. Examples: Hera, Ariadne, Lucius."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hasta 60 caracteres. Ejemplos: Hera, Ariadna, Lucio, Nómada."
+            "value" : "Un nombre corto. Ejemplos: Hera, Ariadna, Lucio."
           }
         }
       }
@@ -97,132 +97,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This is how you will talk to it: “%@, summarize what happened this week.”"
+            "value" : "This is how you will talk to it: “%@, summarize the week.”"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Así vas a hablarle: «%@, resume lo que pasó esta semana»."
-          }
-        }
-      }
-    },
-    "agent.project.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Optional. One line is enough: your agent fills in the rest in its first session."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Opcional. Una línea basta: tu agente completa el resto en su primera sesión."
-          }
-        }
-      }
-    },
-    "agent.project.hint %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Optional. One line is enough: %@ fills in the rest in its first session."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Opcional. Una línea basta: %@ completa el resto en su primera sesión."
-          }
-        }
-      }
-    },
-    "agent.project.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What project does it work on?"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¿En qué proyecto trabaja?"
-          }
-        }
-      }
-    },
-    "agent.project.placeholder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appointments app for clinic X, launching in November"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "App de citas para la clínica X, lanzamos en noviembre"
-          }
-        }
-      }
-    },
-    "agent.role.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The only role in this version."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "En esta versión, el único rol."
-          }
-        }
-      }
-    },
-    "agent.role.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Role"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rol"
-          }
-        }
-      }
-    },
-    "agent.role.productManager" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Product Manager"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Product Manager"
+            "value" : "Así le hablarás: «%@, resume la semana»."
           }
         }
       }
@@ -4362,23 +4243,6 @@
         }
       }
     },
-    "dopamine.welcome" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You decide what it reads and what it may do. Nothing goes out without your say."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tú decides qué lee y qué puede hacer. Nada sale sin tu permiso."
-          }
-        }
-      }
-    },
     "Galeno" : {
       "comment" : "The name of the app.",
       "isCommentAutoGenerated" : true
@@ -5851,13 +5715,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It is the only role in this version. More will come later."
+            "value" : "Yes, up to 60 characters. A short one is quicker to type."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Es el único rol de esta versión. Más adelante habrá otros."
+            "value" : "Sí, hasta 60 caracteres. Uno corto se escribe más rápido."
           }
         }
       }
@@ -5868,13 +5732,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Why only Product Manager?"
+            "value" : "Can I use any name?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Por qué solo Product Manager?"
+            "value" : "¿Puedo usar cualquier nombre?"
           }
         }
       }
@@ -5885,13 +5749,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "One line is enough: your agent fills in the rest in its first session, by reading your tools."
+            "value" : "No need to here. Your agent learns it in its first session, by reading your tools."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Una línea basta: tu agente completa el resto en su primera sesión, leyendo tus herramientas."
+            "value" : "Aquí no hace falta. Tu agente lo aprende en su primera sesión, leyendo tus herramientas."
           }
         }
       }
@@ -5902,13 +5766,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "What do I write for the project?"
+            "value" : "Where do I tell it about my project?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Qué escribo en el proyecto?"
+            "value" : "¿Dónde le cuento de mi proyecto?"
           }
         }
       }
@@ -6072,13 +5936,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Because installing programs is your call. Galeno only shows you the official command and you paste it into Terminal."
+            "value" : "Yes, when you ask it to. It uses Anthropic’s official installer and does not ask for your Mac password."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Porque instalar programas es decisión tuya. Galeno solo te muestra el comando oficial y lo pegas tú en Terminal."
+            "value" : "Sí, cuando tú lo pides. Usa el instalador oficial de Anthropic y no pide la contraseña de tu Mac."
           }
         }
       }
@@ -6089,13 +5953,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Why doesn’t Galeno install it?"
+            "value" : "Does Galeno install it for me?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Por qué Galeno no lo instala?"
+            "value" : "¿Galeno lo instala por mí?"
           }
         }
       }
@@ -6106,13 +5970,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "To use your agent, yes. You can continue without it for now, but you will need to sign in before asking it anything."
+            "value" : "Yes. Galeno opens the page so you can sign in with your Claude account; your password never goes through Galeno."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Para usar a tu agente, sí. Puedes continuar sin ella ahora, pero tendrás que entrar antes de pedirle algo."
+            "value" : "Sí. Galeno abre la página para que entres con tu cuenta de Claude; tu contraseña no pasa por Galeno."
           }
         }
       }
@@ -6565,13 +6429,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No, only the ones you use. Each one is connected separately in the next step."
+            "value" : "No, only the ones you use. They are connected one by one, in the order you see."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No, solo las que usas. Cada una se conecta por separado en el paso siguiente."
+            "value" : "No, solo las que usas. Se conectan una por una, en el orden que ves."
           }
         }
       }
@@ -6599,13 +6463,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Because its recordings live in Google Drive: reading them takes Drive."
+            "value" : "They are the ones most used in your role. Untick the ones you do not use and tick the ones you do."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Porque sus grabaciones viven en Google Drive: para leerlas hace falta Drive."
+            "value" : "Son las que más se usan en tu rol. Desmarca las que no uses y marca las que sí."
           }
         }
       }
@@ -6616,13 +6480,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Why is Google Meet ticked automatically?"
+            "value" : "Why are three already ticked?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Por qué Google Meet se marca solo?"
+            "value" : "¿Por qué vienen tres marcadas?"
           }
         }
       }
@@ -6661,104 +6525,104 @@
         }
       }
     },
-    "help.welcome.1.a" : {
+    "help.role.1.q" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Between 10 and 15 minutes; most of it is connecting your tools. You can close the app and carry on later: what you chose is saved on this Mac."
+            "value" : "What is the role for?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entre 10 y 15 minutos; casi todo es conectar tus herramientas. Puedes cerrar la app y seguir después: lo que elegiste queda guardado en este Mac."
+            "value" : "¿Para qué sirve el rol?"
           }
         }
       }
     },
-    "help.welcome.1.q" : {
+    "help.role.1.a" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "How long does it take?"
+            "value" : "It decides which skills your agent comes with and which tools it suggests first."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Cuánto tarda?"
+            "value" : "Decide qué skills trae tu agente y qué herramientas te propone primero."
           }
         }
       }
     },
-    "help.welcome.2.a" : {
+    "help.role.2.q" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No. Everything happens on this Mac. Claude Code makes the connections and it, not Galeno, keeps the access."
+            "value" : "Can I have agents with different roles?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No. Todo ocurre en este Mac. Las conexiones las hace Claude Code y los accesos los guarda él, no Galeno."
+            "value" : "¿Puedo tener agentes de roles distintos?"
           }
         }
       }
     },
-    "help.welcome.2.q" : {
+    "help.role.2.a" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Does Galeno store my data on a server?"
+            "value" : "Yes. Each agent has its own role; you can create another one later from the home screen."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Galeno guarda mis datos en algún servidor?"
+            "value" : "Sí. Cada agente tiene su rol; puedes crear otro después desde el inicio."
           }
         }
       }
     },
-    "help.welcome.3.a" : {
+    "help.role.3.q" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Yes, while you go through the setup. Your agent is written in whichever language you have chosen at the end."
+            "value" : "What if I do a bit of everything?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sí, mientras sigues el asistente. Tu agente se escribe en el idioma que tengas elegido al final."
+            "value" : "¿Y si hago un poco de todo?"
           }
         }
       }
     },
-    "help.welcome.3.q" : {
+    "help.role.3.a" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Can I change the language later?"
+            "value" : "Pick the one closest to your day. All three summarize meetings and prepare reports."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Puedo cambiar el idioma después?"
+            "value" : "Elige el que más se parezca a tu día. Los tres resumen reuniones y preparan reportes."
           }
         }
       }
@@ -8123,6 +7987,40 @@
         }
       }
     },
+    "review.role" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Role"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rol"
+          }
+        }
+      }
+    },
+    "review.role.skills %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld skills"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld skills"
+          }
+        }
+      }
+    },
     "rules.allowNote %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9251,13 +9149,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Give it a name. You will read it on every screen and in every reply."
+            "value" : "You will read it on every screen and in every reply."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ponle nombre. Lo vas a leer en cada pantalla y en cada respuesta."
+            "value" : "Lo vas a leer en cada pantalla y en cada respuesta."
           }
         }
       }
@@ -9557,13 +9455,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tick only the ones you use. You connect them one by one in the next step."
+            "value" : "We connect them one by one, in this order. You can skip any of them."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Marca solo las que usas. En el paso siguiente las conectas una por una."
+            "value" : "Las conectamos una por una, en este orden. Puedes saltar cualquiera."
           }
         }
       }
@@ -9585,53 +9483,87 @@
         }
       }
     },
-    "step.welcome.heading" : {
+    "step.role.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Galeno builds your agent."
+            "value" : "Your role"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Galeno te crea tu agente."
+            "value" : "Tu rol"
           }
         }
       }
     },
-    "step.welcome.summary" : {
+    "step.role.heading" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In 10 to 15 minutes you will have your own agent in Claude Code: named, connected to your tools, with clear rules about what it may do."
+            "value" : "What do you work on"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "En 10 a 15 minutos vas a tener tu propio agente en Claude Code: con nombre, conectado a tus herramientas y con reglas claras de lo que puede hacer."
+            "value" : "¿En qué trabajas"
           }
         }
       }
     },
-    "step.welcome.title" : {
+    "step.role.summary" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welcome"
+            "value" : "It decides what your agent will know how to do."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bienvenida"
+            "value" : "Decide qué sabrá hacer tu agente."
+          }
+        }
+      }
+    },
+    "step.agent.heading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name your agent"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponle nombre a tu agente"
+          }
+        }
+      }
+    },
+    "step.tools.heading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick your tools"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige tus herramientas"
           }
         }
       }
@@ -9687,179 +9619,19 @@
         }
       }
     },
-    "tools.group.docs" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Documents and email"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Documentos y correo"
-          }
-        }
-      }
-    },
-    "tools.group.meetings" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Meetings"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reuniones"
-          }
-        }
-      }
-    },
-    "tools.group.messaging" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Messaging"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mensajería"
-          }
-        }
-      }
-    },
-    "tools.group.work" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Work"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trabajo"
-          }
-        }
-      }
-    },
     "tools.primary %lld" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Connect 1 tool"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Connect %lld tools"
-                }
-              }
-            }
-          }
-        },
-        "es" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Conectar 1 herramienta"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Conectar %lld herramientas"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "tools.summary.none" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pick at least one tool to continue."
+            "value" : "Connect %lld"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elige al menos una herramienta para continuar."
-          }
-        }
-      }
-    },
-    "tools.summary.one %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You’ll connect 1 tool · ~%lld min"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vas a conectar 1 herramienta · ~%lld min"
-          }
-        }
-      }
-    },
-    "tools.summary.other %lld %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You’ll connect %1$lld tools · ~%2$lld min"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vas a conectar %1$lld herramientas · ~%2$lld min"
-          }
-        }
-      }
-    },
-    "tools.summary.ready" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Everything you chose is already connected"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todo lo que elegiste ya está conectado"
+            "value" : "Conectar %lld"
           }
         }
       }
@@ -9911,142 +9683,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tu agente busca en la web sin pedir permiso. Para abrir una página concreta sí te lo pide."
-          }
-        }
-      }
-    },
-    "welcome.does.body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sets everything up on this Mac. It creates no accounts and stores nothing on our servers."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Configura todo en este Mac. No crea cuentas ni guarda nada en servidores nuestros."
-          }
-        }
-      }
-    },
-    "welcome.does.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What Galeno does"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Qué hace Galeno"
-          }
-        }
-      }
-    },
-    "welcome.language.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Language"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Idioma"
-          }
-        }
-      }
-    },
-    "welcome.need.body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your accounts (Slack, Notion, Jira…) and your phone nearby if you connect WhatsApp."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tus cuentas (Slack, Notion, Jira…) y el teléfono a mano si conectas WhatsApp."
-          }
-        }
-      }
-    },
-    "welcome.need.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What you will need"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Qué vas a necesitar"
-          }
-        }
-      }
-    },
-    "welcome.never.body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your agent sends no message or email without your approval. WhatsApp is read-only."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu agente no envía mensajes ni correos sin que tú los apruebes. WhatsApp es de solo lectura."
-          }
-        }
-      }
-    },
-    "welcome.never.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What never happens"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Qué nunca pasa"
-          }
-        }
-      }
-    },
-    "welcome.time" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "~10–15 min"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "~10–15 min"
           }
         }
       }
@@ -10108,13 +9744,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Next"
+            "value" : "Continue"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Siguiente"
+            "value" : "Seguir"
           }
         }
       }
@@ -10153,24 +9789,92 @@
         }
       }
     },
-    "wizard.progress.timeLeft %lld" : {
+    "role.product.summary" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "~%lld min"
+            "value" : "Writes PRDs, summarizes meetings and tracks to-dos."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "~%lld min"
+            "value" : "Escribe PRDs, resume reuniones y sigue pendientes."
           }
         }
       }
     },
-    "wizard.start" : {
+    "role.marketing.summary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepares briefs, content calendars and campaign reports."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepara briefs, calendarios de contenido y reportes de campaña."
+          }
+        }
+      }
+    },
+    "role.sales.summary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summarizes accounts, drafts follow-ups and prepares meetings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume cuentas, redacta seguimientos y prepara reuniones."
+          }
+        }
+      }
+    },
+    "onboarding.skip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saltar"
+          }
+        }
+      }
+    },
+    "onboarding.next" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir"
+          }
+        }
+      }
+    },
+    "onboarding.start" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -10183,6 +9887,261 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Empezar"
+          }
+        }
+      }
+    },
+    "onboarding.page %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Screen %1$lld of %2$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pantalla %1$lld de %2$lld"
+          }
+        }
+      }
+    },
+    "onboarding.what.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An agent that reads your work tools"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un agente que lee tus herramientas de trabajo"
+          }
+        }
+      }
+    },
+    "onboarding.what.summary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "And prepares documents, summaries and follow-ups for you."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Y te prepara documentos, resúmenes y seguimientos."
+          }
+        }
+      }
+    },
+    "onboarding.what.documents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Documents"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Documentos"
+          }
+        }
+      }
+    },
+    "onboarding.what.summaries" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summaries"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resúmenes"
+          }
+        }
+      }
+    },
+    "onboarding.what.followups" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow-ups"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguimientos"
+          }
+        }
+      }
+    },
+    "onboarding.steps.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Three steps, about ten minutes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tres pasos, unos diez minutos"
+          }
+        }
+      }
+    },
+    "onboarding.steps.role" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick your role"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige tu rol"
+          }
+        }
+      }
+    },
+    "onboarding.steps.connect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect your tools"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conecta tus herramientas"
+          }
+        }
+      }
+    },
+    "onboarding.steps.ask" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask it something"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pregúntale"
+          }
+        }
+      }
+    },
+    "onboarding.need.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Have two things at hand"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ten a mano dos cosas"
+          }
+        }
+      }
+    },
+    "onboarding.need.claude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Claude account"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu cuenta de Claude"
+          }
+        }
+      }
+    },
+    "onboarding.need.claude.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email and password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correo y contraseña"
+          }
+        }
+      }
+    },
+    "onboarding.need.tool" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your tool’s account"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cuenta de tu herramienta"
+          }
+        }
+      }
+    },
+    "onboarding.need.tool.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The one you use for work"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La que uses para trabajar"
           }
         }
       }

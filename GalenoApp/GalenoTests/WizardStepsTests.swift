@@ -116,8 +116,8 @@ final class WizardStepsTests: XCTestCase {
 
     func testTheToolsStepNeedsAtLeastOneTool() {
         let state = readyState()
-        state.toggle(.notion)  // desmarca la que trae el estado listo
         advance(state, to: .tools)
+        for tool in state.selectedTools { state.toggle(tool) }  // desmarca todo
 
         XCTAssertTrue(state.connections.isEmpty)
         XCTAssertFalse(state.canGoForward)
@@ -138,6 +138,7 @@ final class WizardStepsTests: XCTestCase {
         XCTAssertTrue(state.connections.isEmpty)
     }
 
+    /// El orden de la grilla es el del rol: en producto, Notion va antes que Fathom y WhatsApp al final.
     func testSelectedToolsFollowTheOrderOfTheGridNotTheOrderOfTheClicks() {
         let state = WizardState(preferredLanguages: ["es"])
 
@@ -145,7 +146,47 @@ final class WizardStepsTests: XCTestCase {
         state.toggle(.whatsapp)
         state.toggle(.notion)
 
-        XCTAssertEqual(state.selectedTools, [.whatsapp, .notion, .fathom])
+        XCTAssertEqual(state.selectedTools, [.notion, .fathom, .whatsapp])
+
+        state.role = .sales
+        state.toggle(.slack)
+        XCTAssertEqual(state.selectedTools, [.whatsapp, .slack, .notion, .fathom], "y en comercial, WhatsApp primero")
+    }
+
+    // MARK: - Paso 1: el rol
+
+    func testLeavingTheRoleStepTicksItsFirstThreeTools() {
+        let state = WizardState(
+            preferredLanguages: ["es"], claudeStatus: .found(version: "2.1.289", path: "/ruta/claude", loggedIn: true))
+        XCTAssertEqual(state.step, .role)
+        XCTAssertTrue(state.canGoForward, "el rol viene elegido: producto")
+
+        state.next()
+        XCTAssertEqual(state.selectedTools, [.jira, .notion, .slack])
+    }
+
+    func testChangingTheRoleBeforeTouchingTheToolsChangesTheProposal() {
+        let state = WizardState(
+            preferredLanguages: ["es"], claudeStatus: .found(version: "2.1.289", path: "/ruta/claude", loggedIn: true))
+        state.next()
+        state.back()
+        state.role = .sales
+        state.next()
+        XCTAssertEqual(state.selectedTools, [.whatsapp, .gmail, .googleWorkspace])
+        XCTAssertEqual(state.makeConfig().role, .sales)
+    }
+
+    func testAChoiceTheUserMadeIsNotReplacedByTheRole() {
+        let state = WizardState(
+            preferredLanguages: ["es"], claudeStatus: .found(version: "2.1.289", path: "/ruta/claude", loggedIn: true))
+        state.next()
+        state.toggle(.fathom)
+        state.back()
+        state.role = .marketing
+        state.next()
+        XCTAssertTrue(state.isSelected(.fathom), "lo que el usuario marcó se queda")
+        XCTAssertEqual(Set(state.selectedTools), [.jira, .notion, .slack, .fathom])
+        XCTAssertEqual(state.selectedTools.first, .slack, "pero en el orden del rol nuevo")
     }
 
     func testMeetBringsGoogleWorkspaceAlong() {
@@ -199,7 +240,7 @@ final class WizardStepsTests: XCTestCase {
 
         let config = state.makeConfig()
 
-        XCTAssertEqual(config.connections.map(\.tool), [.slack, .notion])
+        XCTAssertEqual(config.connections.map(\.tool), [.notion, .slack])
         XCTAssertTrue(config.connections.allSatisfy { $0.status == .selected })
     }
 

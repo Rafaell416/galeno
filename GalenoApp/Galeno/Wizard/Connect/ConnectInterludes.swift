@@ -152,7 +152,8 @@ struct CelebrationScreen: View {
             if flow.statuses[.slack] == .connected {
                 // «Ponle cara a tu app»: entra 400 ms después de la lista y no compite con la celebración.
                 SlackAppDetailsCard(
-                    appID: flow.slackAppID, agentName: wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    appID: flow.slackAppID, agentName: wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines),
+                    role: wizard.role
                 )
                 .appearing(after: 0.4 + 0.3 + Double(min(connectedTools.count, 6)) * Motion.stagger)
             }
@@ -191,6 +192,7 @@ struct CelebrationScreen: View {
 struct SlackAppDetailsCard: View {
     let appID: String?
     var agentName = ""
+    var role: AgentRole = .productManager
     @Environment(\.locale) private var locale
 
     /// La página de la app en Slack si se conoce su identificador; si no, la lista de apps.
@@ -211,7 +213,7 @@ struct SlackAppDetailsCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .trailing, spacing: 4) {
                 Button("connect.slackDetails.saveIcon") {
-                    SealIcon.saveWithPanel(for: agentName, locale: locale)
+                    SealIcon.saveWithPanel(for: agentName, role: role, locale: locale)
                 }
                 Button("connect.slackDetails.open") { NSWorkspace.shared.open(Self.pageURL(appID: appID)) }
             }

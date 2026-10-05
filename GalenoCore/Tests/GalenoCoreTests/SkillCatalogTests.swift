@@ -326,6 +326,60 @@ final class SkillCatalogTests: XCTestCase {
         XCTAssertTrue(people.contains("title not found"))
     }
 
+    // MARK: Roles
+
+    /// Cada rol trae marcadas las skills de sus grupos. Producto sigue con las 17 nuestras, ni una más.
+    func testEachRoleBringsItsOwnSkills() throws {
+        let value = try SkillCatalog.load(from: repoSkills)
+        let product = value.defaultSelection(for: .productManager)
+        XCTAssertEqual(Set(product.map(\.id)), Set(value.galeno.map(\.id)))
+        XCTAssertEqual(product.count, 17)
+
+        let marketing = Set(value.defaultSelection(for: .marketing).map(\.id))
+        XCTAssertTrue(marketing.isSuperset(of: ["campaign-plan", "brand-review", "discover-brand", "acta", "reporte-dia"]))
+        XCTAssertFalse(marketing.contains("prd"), "los documentos de producto no son de marketing")
+        XCTAssertFalse(marketing.contains("call-prep"))
+        XCTAssertEqual(marketing.count, 18, "10 de marketing, 5 de reportes y 3 de reuniones")
+
+        let sales = value.defaultSelection(for: .sales)
+        XCTAssertTrue(Set(sales.map(\.id)).isSuperset(of: ["call-summary", "lead-triage", "acta", "seguimiento"]))
+        XCTAssertFalse(sales.contains { $0.id == "campaign-plan" || $0.id == "tickets" })
+        XCTAssertEqual(sales.count, 24, "16 de comercial, 5 de reportes y 3 de reuniones")
+        // Cada una se instala desde su carpeta: las de terceros, desde `curated/`.
+        XCTAssertEqual(sales.first { $0.id == "call-summary" }?.source, .curated)
+        XCTAssertEqual(sales.first { $0.id == "acta" }?.source, .galeno)
+        // Y todos los grupos que un rol nombra existen en el catálogo.
+        for role in AgentRole.allCases {
+            XCTAssertTrue(Set(role.skillGroups).isSubset(of: Set(value.groups.map(\.id))), "\(role)")
+        }
+    }
+
+    func testEachRoleOrdersTheToolsItsOwnWay() {
+        XCTAssertEqual(AgentRole.productManager.preselectedTools, [.jira, .notion, .slack])
+        XCTAssertEqual(AgentRole.marketing.preselectedTools, [.whatsapp, .googleWorkspace, .slack])
+        XCTAssertEqual(AgentRole.sales.preselectedTools, [.whatsapp, .gmail, .googleWorkspace])
+        let all = Tool.allCases
+        for role in AgentRole.allCases {
+            let ordered = role.ordered(all)
+            XCTAssertEqual(Set(ordered), Set(all), "ninguna se pierde al ordenar")
+            XCTAssertEqual(ordered.count, all.count)
+            XCTAssertEqual(Array(ordered.prefix(role.toolOrder.count)), role.toolOrder)
+        }
+    }
+
+    func testTheAgentIntroducesItselfByItsRole() {
+        var config = GeneratorFixtures.spanishThreeTools
+        config.role = .marketing
+        XCTAssertTrue(AgentsFileRenderer.render(config).contains("es el asistente de marketing de este espacio de trabajo"))
+        config.role = .sales
+        XCTAssertTrue(AgentsFileRenderer.render(config).contains("es el asistente comercial de este espacio de trabajo"))
+        var english = GeneratorFixtures.englishEightTools
+        english.role = .sales
+        XCTAssertTrue(AgentsFileRenderer.render(english).contains("is the sales assistant for this workspace"))
+        // Un agente guardado antes de que hubiera roles sigue siendo de producto.
+        XCTAssertEqual(AgentRole(rawValue: "product-manager"), .productManager)
+    }
+
     func testABroughtInSkillHasACardAndIsNotTickedByDefault() throws {
         let value = try SkillCatalog.load(from: repoSkills)
         let marketing = try XCTUnwrap(value.groups.first { $0.id == "marketing" })

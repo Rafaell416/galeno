@@ -41,7 +41,7 @@ final class ConnectIntegrationTests: XCTestCase {
         XCTAssertTrue(state.hidesNavigation, "la celebración lleva su propio «Continuar»")
         XCTAssertTrue(state.canGoForward, "y ese botón ya puede avanzar")
         state.next()
-        XCTAssertEqual(state.step, .skills)
+        XCTAssertEqual(state.step, .rules, "crear un agente no pasa por «Skills»: las trae el rol")
         XCTAssertFalse(state.hidesNavigation)
     }
 
@@ -77,7 +77,7 @@ final class ConnectIntegrationTests: XCTestCase {
         state.beginConnecting()
 
         XCTAssertFalse(state.connectFlow === first)
-        XCTAssertEqual(state.connectFlow?.tools, [.notion, .jira, .fathom])
+        XCTAssertEqual(state.connectFlow?.tools, [.jira, .notion, .fathom], "en el orden del rol")
         XCTAssertEqual(state.connectFlow?.statuses[.notion], .connected)
         XCTAssertEqual(state.connectFlow?.screen, .connection(.jira), "sigue por la primera sin resolver")
     }
@@ -89,12 +89,12 @@ final class ConnectIntegrationTests: XCTestCase {
         advance(state, to: .connect)
         state.beginConnecting()
 
-        state.connectFlow?.skip()  // notion → skipped
-        state.setConnectionStatus(.jira, .connected)
+        state.connectFlow?.skip()  // jira, la primera de producto → skipped
+        state.setConnectionStatus(.notion, .connected)
 
         let statuses = Dictionary(uniqueKeysWithValues: state.makeConfig().connections.map { ($0.tool, $0.status) })
-        XCTAssertEqual(statuses[.notion], .skipped)
-        XCTAssertEqual(statuses[.jira], .connected)
+        XCTAssertEqual(statuses[.jira], .skipped)
+        XCTAssertEqual(statuses[.notion], .connected)
     }
 
     func testGoogleMeetFollowsGoogleWorkspace() {

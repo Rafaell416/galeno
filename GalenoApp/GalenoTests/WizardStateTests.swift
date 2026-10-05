@@ -16,7 +16,8 @@ final class WizardStateTests: XCTestCase {
             preferredLanguages: ["es-CO"],
             claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
             connectServices: ConnectServices(
-                makeMCP: { _ in FakeMCP() }, whatsapp: FakeWhatsApp(), installer: .sandboxed(),
+                // Las skills las trae el rol, del catálogo de la app: el instalador de prueba copia de ahí mismo.
+                makeMCP: { _ in FakeMCP() }, whatsapp: FakeWhatsApp(), installer: .sandboxed(skills: SkillsLocation.bundled()),
                 fetchRealData: false, sleep: SleepLog().sleeper))
         state.agentName = "Aurora"
         state.toggle(.notion)
@@ -49,10 +50,11 @@ final class WizardStateTests: XCTestCase {
         XCTAssertEqual(
             WizardStep.allCases,
             [
-                .welcome, .detection, .agent, .tools, .connect,
+                .role, .detection, .agent, .tools, .connect,
                 .skills, .rules, .review, .generating, .done,
             ])
-        XCTAssertEqual(WizardStep.allCases.map(\.number), Array(1...10))
+        // El usuario ve seis: «Conectar» es parte de las herramientas, y «Revisión», «Creando» y «Listo» son el último.
+        XCTAssertEqual(WizardStep.allCases.map(\.phase), [0, 1, 2, 3, 3, 4, 5, 6, 6, 6])
     }
 
     /// Cada título y cada línea de resumen existen en español y en inglés: una
@@ -66,7 +68,7 @@ final class WizardStateTests: XCTestCase {
             let bundle = try XCTUnwrap(Bundle(path: path))
 
             for step in WizardStep.allCases {
-                for key in [step.titleKey, step.summaryKey] {
+                for key in [step.titleKey, step.headingKey, step.summaryKey] {
                     let text = bundle.localizedString(forKey: key, value: "⟂", table: nil)
                     XCTAssertNotEqual(text, "⟂", "\(key) no está en \(language)")
                     XCTAssertFalse(text.isEmpty, "\(key) está vacío en \(language)")
@@ -140,7 +142,7 @@ final class WizardStateTests: XCTestCase {
     func testTheDopamineTextsAreWrittenInBothLanguages() throws {
         let app = Bundle(for: WizardState.self)
         let keys = [
-            "dopamine.welcome", "dopamine.detection", "dopamine.agent", "dopamine.tools %@",
+            "dopamine.detection", "dopamine.agent", "dopamine.tools %@",
             "dopamine.connect.first %@", "dopamine.connect.half", "dopamine.connect.last %@",
             "dopamine.generating", "dopamine.done",
         ]
@@ -157,11 +159,38 @@ final class WizardStateTests: XCTestCase {
         }
     }
 
+    /// Lo nuevo del rediseño «Activación»: las tres pantallas de antes del asistente y los tres roles.
+    func testTheOnboardingAndTheRolesAreWrittenInBothLanguages() throws {
+        let app = Bundle(for: WizardState.self)
+        let keys =
+            [
+                "onboarding.skip", "onboarding.next", "onboarding.start", "onboarding.what.title", "onboarding.what.summary",
+                "onboarding.what.documents", "onboarding.what.summaries", "onboarding.what.followups",
+                "onboarding.steps.title", "onboarding.steps.role", "onboarding.steps.connect", "onboarding.steps.ask",
+                "onboarding.need.title", "onboarding.need.claude", "onboarding.need.claude.note", "onboarding.need.tool",
+                "onboarding.need.tool.note", "role.product.summary", "role.marketing.summary", "role.sales.summary",
+                "review.role",
+            ] + (1...3).flatMap { ["help.role.\($0).q", "help.role.\($0).a"] }
+        for language in ["es", "en"] {
+            let bundle = try XCTUnwrap(
+                Bundle(path: try XCTUnwrap(app.path(forResource: language, ofType: "lproj"))))
+            for key in keys {
+                let text = bundle.localizedString(forKey: key, value: "⟂", table: nil)
+                XCTAssertNotEqual(text, "⟂", "\(key) no está en \(language)")
+                XCTAssertFalse(text.contains("!"), "\(key): sin exclamaciones (copy v2)")
+            }
+        }
+        // Cada rol tiene su dibujo.
+        for role in AgentRole.allCases {
+            XCTAssertNotNil(NSImage(named: "act-" + role.drawing), "\(role)")
+        }
+    }
+
     // MARK: - La navegación
 
     func testStartsAtTheWelcomeStep() {
         let state = makeState()
-        XCTAssertEqual(state.step, .welcome)
+        XCTAssertEqual(state.step, .role)
         XCTAssertTrue(state.isFirstStep)
         XCTAssertFalse(state.isLastStep)
     }
@@ -169,11 +198,14 @@ final class WizardStateTests: XCTestCase {
     func testNextWalksEveryStepInOrderAndBackWalksThemBack() {
         let state = makeReadyState()
 
-        for expected in WizardStep.allCases.dropFirst() {
+        // «Skills» no está en el camino de crear un agente.
+        XCTAssertFalse(state.stepOrder.contains(.skills))
+        for expected in state.stepOrder.dropFirst() {
             stepForward(state)
             XCTAssertEqual(state.step, expected)
         }
         XCTAssertTrue(state.isLastStep)
+        XCTAssertEqual(state.generatedAgent?.config.skills.count, 17, "las del rol de producto")
 
         // Desde «Listo» se vuelve a la revisión, no a «Escribiendo» (que no se puede deshacer):
         // al avanzar otra vez se regenera el mismo agente.
@@ -195,7 +227,7 @@ final class WizardStateTests: XCTestCase {
 
         state.back()
 
-        XCTAssertEqual(state.step, .welcome)
+        XCTAssertEqual(state.step, .role)
     }
 
     func testThereIsNoGoingBackFromGenerating() {
@@ -209,21 +241,25 @@ final class WizardStateTests: XCTestCase {
     }
 
     func testEveryOtherStepAllowsGoingBack() {
-        for step in WizardStep.allCases where step != .welcome && step != .generating {
+        for step in WizardStep.allCases where step != .role && step != .generating {
             XCTAssertTrue(step.allowsGoingBack, "\(step)")
         }
     }
 
-    func testProgressGoesFromOneTenthToOne() {
+    /// Seis pasos a la vista: la barra no retrocede, y solo avanza cuando cambia el paso que el usuario ve.
+    func testProgressGoesFromOneSixthToOne() {
         let state = makeReadyState()
-        XCTAssertEqual(state.progress, 0.1, accuracy: 0.0001)
+        XCTAssertEqual(state.progress, 1.0 / 6.0, accuracy: 0.0001)
 
         var previous = state.progress
+        var numbers = [state.stepNumber]
         for _ in 0..<20 where !state.isLastStep {
             stepForward(state)
-            XCTAssertGreaterThan(state.progress, previous)
+            XCTAssertGreaterThanOrEqual(state.progress, previous)
             previous = state.progress
+            numbers.append(state.stepNumber)
         }
+        XCTAssertEqual(numbers, [1, 2, 3, 4, 4, 5, 6, 6, 6])
         XCTAssertEqual(state.progress, 1.0, accuracy: 0.0001)
     }
 

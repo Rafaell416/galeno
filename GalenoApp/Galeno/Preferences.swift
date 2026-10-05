@@ -8,6 +8,8 @@ enum Prefs {
     /// Los tres sonidos (`Sounds`). Sin valor guardado cuentan como encendidos.
     static let sounds = "GalenoSoundsEnabled"
     static let splashShown = "GalenoSplashShown"
+    /// Las tres pantallas de antes del asistente ya se vieron (o se saltaron): no vuelven.
+    static let onboardingSeen = "GalenoOnboardingSeen"
     /// Dónde abre el home un agente: la app de Claude o Terminal (la última elección).
     static let openTarget = "GalenoOpenTarget"
     /// Cuándo cambió «Gestionar» las herramientas de cada agente (id → segundos Unix). Una conversación que la

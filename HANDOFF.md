@@ -26,7 +26,8 @@ Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 ## 1. Qué es y para quién
 
 **Galeno** es una app de escritorio nativa para Mac que, con un wizard, crea y configura
-un agente en Claude Code para **Product Managers**. El usuario ya tiene (o instala) Claude
+un agente en Claude Code para **gente de producto, marketing y comercial** (tres roles desde el 5 oct 2026; nació solo para
+Product Managers). El usuario ya tiene (o instala) Claude
 Code; Galeno le conecta sus herramientas y escribe toda la configuración (reglas,
 subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 
@@ -56,7 +57,7 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 | Dueño de la config | **Galeno**: regenera los archivos completos al cambiar algo; nunca toca `memoria/` |
 | Proactividad | El agente solo trabaja cuando se lo piden. Sin tareas programadas en v0.0.1 |
 | Actualizaciones | **De por vida, gratis**, sin renovación. Tres capas independientes: app (Sparkle), bridge de WhatsApp (viaja en la app, con versión propia) y skills (remotas, sin reinstalar). Sparkle va desde el primer build. Detalle: `docs/03` §4f |
-| Perfil | **Solo Product Managers** |
+| Perfil | **Tres roles: producto, marketing y comercial** (decisión de Rafa, 5 oct 2026; antes solo Product Managers). Un cuarto rol es reabrir la decisión |
 | Plataforma | **Solo Mac** (firme; no portabilidad a Windows) |
 | App | **Swift + SwiftUI nativa**. Es la única interfaz del usuario |
 | Motor | **Interno**: librería que genera la config; el usuario nunca lo ve. Solo genera config de **Claude Code**. Se construye en paralelo a la app, no antes |
@@ -80,7 +81,7 @@ y `docs/02` conservan, marcado como *Descartado*, lo que el plan original propon
 |---|---|
 | Carcasa en Tauri | Swift + SwiftUI |
 | Motor CLI primero, y venderlo o validarlo como CLI | Motor interno, en paralelo a la app; se valida con la app |
-| Freemium o suscripción; tres plantillas de entrada | Pago único USD 200, solo PM |
+| Freemium o suscripción | Pago único USD 200 |
 | WhatsApp sin lectura, solo salida por Business API | WhatsApp solo lectura (no oficial, con advertencia); sin envío |
 | Transcripciones vía export a Notion/Docs | MCP oficial de cada proveedor |
 | Skills adaptadas al español | Skills en inglés + instrucción de idioma |
@@ -165,6 +166,11 @@ Galeno.app  (Swift / SwiftUI)
 ---
 
 ## 4. El wizard (10 pasos)
+
+> **Rediseño «Activación» (5 oct 2026):** el usuario ve **seis pasos** —rol, cuenta de Claude, nombre, herramientas, reglas y
+> creación— y antes, una sola vez, tres pantallas de presentación. El rol fija las skills (ya no hay paso «Skills» al crear) y el
+> orden de las herramientas; la descripción y el contexto salen del asistente. El detalle y lo que falta por construir está en
+> `docs/03` §3, que manda sobre la lista de abajo.
 
 1. **Idioma y bienvenida** — español o inglés. Define el idioma del wizard y el que el
    motor inyecta en la config. Qué es, qué configura, cuánto tarda.
@@ -538,7 +544,17 @@ Fallos (causa leída en el código; **ninguno reproducido en su Mac**):
 *Sigue pendiente:* el fallo 1 (el `LÉEME.md` del DMG ya trae el comando de Terminal, pero la solución es notarizar);
 Salud no ofrece actualizar Claude Code ni iniciar su sesión (solo lo dice); y todo lo de abajo, que espera el diseño de
 Claude Design («Galeno B1 Activación») y la base de skills por rol que consigue Rafa. Decidido por Rafa el 5 oct 2026:
-**tres roles (producto, marketing, comercial)**, lo que reabre «solo PM» y «otras plantillas»; se documenta al construirlo.
+**tres roles (producto, marketing, comercial)**, lo que reabre «solo PM» y «otras plantillas»; documentado en `docs/03` §1 y §3.
+
+*Rediseño «Activación», fase 1 (rama `feat/activacion-roles`, 5 oct 2026):* construido desde `Galeno B1 Activación.dc.html`, que
+manda en estructura y textos pero no en estilo (pedido de Rafa: que siga viéndose como Galeno). Hecho: las tres pantallas
+previas (una vez, se saltan), el paso del rol, el nombre solo, la grilla de herramientas en el orden del rol con las tres primeras
+marcadas, la cabecera «Paso N de 6» y las skills por rol. **Decisiones tomadas al construir, por confirmar con Rafa:** «Reportes» y
+«Reuniones» son comunes a los tres roles (producto 17 skills, marketing 18, comercial 24); se ofrecen todas las herramientas de
+hoy, no solo las seis del boceto; la pantalla del rol no dice «se cambia después» porque «Gestionar» no cambia el rol; el idioma
+se cambia con un enlace al pie de las pantallas previas; y **la descripción del proyecto y los archivos de contexto no tienen
+dónde darse** hasta que exista «Darle contexto» (fase 4). Un borrador del asistente anterior se descarta (versión 2). Faltan las
+fases 2 a 4 (`docs/03` §3). Sin probar a mano en la app real.
 Y **las demás conexiones quedan en pausa** (Fireflies, Granola) hasta que lo que hay quede sólido.
 
 *Skills por rol (rama `feat/skills-marketing`, 5 oct 2026):* **marketing completo, diez skills** adaptadas y con su licencia

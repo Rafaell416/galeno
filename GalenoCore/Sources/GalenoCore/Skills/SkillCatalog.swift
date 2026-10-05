@@ -303,6 +303,13 @@ public struct SkillCatalog: Codable, Hashable, Sendable {
         galeno.map { SelectedSkill(id: $0.id, source: .galeno) }
     }
 
+    /// Lo que trae marcado un agente de ese rol: todas las skills con tarjeta de sus grupos
+    /// (`AgentRole.skillGroups`), nuestras o de terceros. Para producto son las 17 nuestras.
+    public func defaultSelection(for role: AgentRole) -> [SelectedSkill] {
+        let groups = Set(role.skillGroups)
+        return cards.filter { groups.contains($0.group) }.map { SelectedSkill(id: $0.id, source: $0.source) }
+    }
+
     /// Las curadas que ya se pueden instalar.
     public var availableCurated: [CuratedSkill] { curated.filter(\.available) }
 

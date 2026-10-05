@@ -47,7 +47,7 @@ final class PreferencesAndSealTests: XCTestCase {
         XCTAssertEqual(WizardStep.skills.glyph, .pluma)
         XCTAssertEqual(WizardStep.rules.glyph, .baston)
         XCTAssertEqual(WizardStep.review.glyph, .lente)
-        for step in [WizardStep.welcome, .detection, .agent, .connect, .generating, .done] {
+        for step in [WizardStep.role, .detection, .agent, .connect, .generating, .done] {
             XCTAssertNil(step.glyph, "\(step)")
         }
     }

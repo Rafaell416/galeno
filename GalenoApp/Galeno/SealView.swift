@@ -1,4 +1,5 @@
 import AppKit
+import GalenoCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -9,6 +10,8 @@ import UniformTypeIdentifiers
 /// Mientras no hay nombre se ve tenue. `fixedLight` lo dibuja siempre en papel claro, para exportarlo.
 struct SealView: View {
     let name: String
+    /// El oficio que va bajo el nombre.
+    var role: AgentRole = .productManager
     var fixedLight = false
     @Environment(\.locale) private var locale
 
@@ -49,7 +52,7 @@ struct SealView: View {
                 .font(Typo.text(10))
                 .kerning(4)
                 .foregroundStyle(seal)
-            Text("agent.role.productManager")
+            Text(verbatim: role.title(in: Language(rawValue: locale.language.languageCode?.identifier ?? "") ?? .english))
                 .font(Typo.text(10))
                 .foregroundStyle(ink700)
                 .lineLimit(1)
@@ -75,11 +78,11 @@ struct SealView: View {
 enum SealIcon {
     static let pixels: CGFloat = 1024
 
-    static func png(for name: String, locale: Locale) -> Data? {
+    static func png(for name: String, role: AgentRole = .productManager, locale: Locale) -> Data? {
         let side: CGFloat = 200
         let view = ZStack {
             Color(red: 0xF3 / 255, green: 0xEE / 255, blue: 0xE2 / 255)
-            SealView(name: name, fixedLight: true).scaleEffect(1.15)
+            SealView(name: name, role: role, fixedLight: true).scaleEffect(1.15)
         }
         .frame(width: side, height: side)
         .environment(\.locale, locale)
@@ -93,8 +96,8 @@ enum SealIcon {
 
     /// Pregunta dónde guardarlo (con el nombre ya puesto) y lo escribe. Devuelve si se guardó.
     @discardableResult
-    static func saveWithPanel(for name: String, locale: Locale) -> Bool {
-        guard let data = png(for: name, locale: locale) else { return false }
+    static func saveWithPanel(for name: String, role: AgentRole = .productManager, locale: Locale) -> Bool {
+        guard let data = png(for: name, role: role, locale: locale) else { return false }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue = "\(name.isEmpty ? "Galeno" : name)-ex-libris.png"

@@ -12,15 +12,24 @@ struct WizardView: View {
     /// La portada de la primera vez: el retrato y el nombre, un momento. Después, nunca más.
     @AppStorage(Prefs.splashShown) private var splashShown = false
     @State private var splashVisible = true
+    /// Las tres pantallas de antes del asistente: una sola vez, y solo al crear el primer agente.
+    @AppStorage(Prefs.onboardingSeen) private var onboardingSeen = false
+
+    private var showsOnboarding: Bool { wizard.mode == .full && !onboardingSeen }
 
     var body: some View {
         Group {
             if let draft = wizard.pendingDraft {
                 ResumeView(draft: draft)
+            } else if showsOnboarding {
+                OnboardingView { onboardingSeen = true }
+                    .transition(reduceMotion ? .opacity : .pageTurn)
             } else {
                 content
+                    .transition(reduceMotion ? .opacity : .pageTurn)
             }
         }
+        .animation(reduceMotion ? nil : .pageTurn, value: onboardingSeen)
         .background(Color.parchment50)
         .overlay {
             if !splashShown && splashVisible { SplashView() }
@@ -48,8 +57,10 @@ struct WizardView: View {
                 wizard.previewedSkill = nil
                 return
             }
+            // Las pantallas de antes del asistente llevan su propio Esc.
+            guard !showsOnboarding, wizard.pendingDraft == nil else { return }
             switch wizard.step {
-            case .welcome, .connect, .generating: break
+            case .connect, .generating: break
             default:
                 if wizard.isFirstStep { cancelWizard?() } else { wizard.back() }
             }
@@ -76,7 +87,7 @@ struct WizardView: View {
     @ViewBuilder
     private var stepScreen: some View {
         switch wizard.step {
-        case .welcome: WelcomeStepView()
+        case .role: RoleStepView()
         case .detection: DetectionStepView()
         case .agent: AgentStepView()
         case .tools: ToolsStepView()
@@ -90,16 +101,21 @@ struct WizardView: View {
     }
 }
 
-/// La cabecera de B1: «Paso 3 de 10 · ~12 min» en versalitas a la izquierda, el nombre del paso en
-/// cursiva a la derecha, y debajo el filete de 1 pt con el trazo de 3 pt que avanza.
+/// La cabecera: «Paso 3 de 6» en versalitas a la izquierda; a la derecha, en cursiva, el nombre del paso y,
+/// desde que el agente tiene nombre, su nombre. Debajo, el filete de 1 pt con el trazo de 3 pt que avanza.
 private struct ProgressHeader: View {
     @EnvironmentObject private var wizard: WizardState
     @Environment(\.locale) private var locale
 
     private var label: String {
         Localized.string("wizard.progress.step %lld %lld", wizard.stepNumber, wizard.stepCount, locale: locale)
-            + " · "
-            + Localized.string("wizard.progress.timeLeft %lld", wizard.estimatedMinutesLeft, locale: locale)
+    }
+
+    private var agentName: String { wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// El nombre del agente sustituye al del paso en cuanto se pasa de ponérselo.
+    private var showsAgentName: Bool {
+        !agentName.isEmpty && (wizard.mode == .edit || wizard.step.rawValue > WizardStep.agent.rawValue)
     }
 
     var body: some View {
@@ -109,11 +125,14 @@ private struct ProgressHeader: View {
                     .foregroundStyle(Color.ink700)
                     .lineLimit(1)
                 Spacer()
-                Text(wizard.stepTitle)
-                    .font(Typo.display(15, italic: true))
-                    .foregroundStyle(Color.ink500)
+                Group {
+                    if showsAgentName { Text(verbatim: agentName) } else { Text(wizard.stepTitle) }
+                }
+                .font(Typo.display(15, italic: true))
+                .foregroundStyle(showsAgentName ? Color.ink700 : Color.ink500)
+                .lineLimit(1)
                 if wizard.step.rawValue >= WizardStep.agent.rawValue, wizard.step != .generating, wizard.step != .done,
-                    !wizard.agentName.trimmingCharacters(in: .whitespaces).isEmpty
+                    !agentName.isEmpty
                 {
                     PreviewButton()
                 }
@@ -138,7 +157,6 @@ private struct NavigationBar: View {
     /// La frase junto al botón: solo cuando el paso ya está completo. «Listo» la lleva en la página.
     private var dopamine: LocalizedStringKey? {
         switch wizard.step {
-        case .welcome: return "dopamine.welcome"
         case .detection: return wizard.claudeStatus.isReady ? "dopamine.detection" : nil
         case .agent: return wizard.agentNameIssue == nil ? "dopamine.agent" : nil
         case .tools: return wizard.connections.isEmpty ? nil : "dopamine.tools \(agentName)"
@@ -146,10 +164,9 @@ private struct NavigationBar: View {
         }
     }
 
-    /// El primario dice qué hace: «Empezar», «Conectar 5 herramientas», «Escribir a Hera», «Terminar».
+    /// El primario dice qué hace: «Seguir», «Conectar 3», «Crear a Hera», «Terminar».
     private var primaryLabel: Text {
         switch wizard.step {
-        case .welcome: Text("wizard.start")
         // «Conectar 5 herramientas»: solo las que faltan por conectar. Si ya están todas, «Siguiente».
         case .tools where wizard.hasToConnect: Text("tools.primary \(wizard.toConnect.count)")
         case .review: wizard.mode == .edit ? Text("review.primary.edit") : Text("review.primary \(agentName)")
@@ -208,7 +225,7 @@ private struct ResumeView: View {
     @EnvironmentObject private var wizard: WizardState
     let draft: WizardDraft
 
-    private var stepNumber: Int { draft.step + 1 }
+    private var stepNumber: Int { wizard.stepNumber(of: WizardStep(rawValue: draft.step) ?? .role) }
     private var connected: Int { draft.connections.filter { $0.status == .connected }.count }
     private var name: String { draft.agentName.trimmingCharacters(in: .whitespacesAndNewlines) }
 

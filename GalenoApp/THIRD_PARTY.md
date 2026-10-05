@@ -97,3 +97,7 @@ Galeno, y lleva al lado el `LICENSE` de su origen. Cómo se adapta una: `docs/03
 
 Sus iconos (`Assets.xcassets/SkillIcons/skill-<id>`) son dibujos propios de Galeno, de línea a 1,5 pt, como los de
 las skills nuestras.
+
+Los dibujos del asistente (`Assets.xcassets/ActIcons/act-<nombre>`: los tres roles, cuenta, navegador, pregunta, llave y candado) son
+también propios: salen del archivo `Galeno B1 Activación.dc.html` de nuestro proyecto de Claude Design, de línea a 1,5 pt y sin
+metadatos incrustados; el de «pregunta» se redibujó a mano. No son de terceros.

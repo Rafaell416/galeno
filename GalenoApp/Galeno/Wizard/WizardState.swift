@@ -10,11 +10,11 @@ import SwiftUI
 /// navegación también. No contiene credenciales (igual que `AgentConfig`).
 @MainActor
 final class WizardState: ObservableObject {
-    @Published private(set) var step: WizardStep = .welcome {
+    @Published private(set) var step: WizardStep = .role {
         didSet { if step.rawValue > furthestStep.rawValue { furthestStep = step } }
     }
     /// El paso más lejano al que se ha llegado: ⌘1…⌘0 solo salta a pasos ya visitados.
-    private(set) var furthestStep: WizardStep = .welcome
+    private(set) var furthestStep: WizardStep = .role
 
     /// El wizard completo (la primera vez) o el corto de «Nuevo agente» (`docs/03` §3b): sin idioma, detección ni
     /// conexiones ya hechas; parte de las herramientas que la instalación ya tiene conectadas.
@@ -37,6 +37,12 @@ final class WizardState: ObservableObject {
     // MARK: Lo que captura el wizard
 
     @Published var language: Language
+    /// El rol del agente (paso 1): decide sus skills y el orden en que se ofrecen las herramientas.
+    @Published var role: AgentRole = .productManager {
+        didSet { if role != oldValue { applyRoleDefaults() } }
+    }
+    /// Las herramientas que el asistente marcó por el rol (y el usuario todavía no cambió).
+    private var rolePreselection: [Tool] = []
     @Published var agentName = ""
     @Published var projectDescription = ""
     @Published var connections: [ToolConnection] = []
@@ -159,6 +165,7 @@ final class WizardState: ObservableObject {
                     if connection.status == .skipped { connection.status = .selected }
                     return connection
                 }
+            role = config.role
             skills = config.skills
             skillsInitialized = true  // lo que tiene el agente manda, no la selección de fábrica
             sendingRules = config.sendingRules
@@ -174,14 +181,14 @@ final class WizardState: ObservableObject {
             language = installation.language
             connections = installation.startingPoint(agentName: "").connections
             knownConnections = Dictionary(uniqueKeysWithValues: installation.connections.map { ($0.tool, $0) })
-            step = .agent
-            furthestStep = .agent
+            step = .role
+            furthestStep = .role
             // Conectar una herramienta nueva necesita saber dónde está `claude`; el paso 2 no existe aquí.
             if !claudeStatus.isFound { Task { await detectClaudeCode() } }
             return
         }
         mode = .full
-        if let draft = draftStore?.load(), draft.step > WizardStep.welcome.rawValue {
+        if let draft = draftStore?.load(), draft.step > WizardStep.role.rawValue {
             pendingDraft = draft
             language = draft.language  // la pantalla de «¿Seguimos?» habla en su idioma
         }
@@ -195,11 +202,11 @@ final class WizardState: ObservableObject {
     /// El estado de ahora como borrador. Nada si no hay nada que guardar (primer paso sin tocar,
     /// o ya terminó).
     func makeDraft() -> WizardDraft? {
-        guard step != .done, step.rawValue > WizardStep.welcome.rawValue || !agentName.isEmpty else { return nil }
+        guard step != .done, step.rawValue > WizardStep.role.rawValue || !agentName.isEmpty else { return nil }
         let resumeStep: WizardStep = (step == .generating) ? .review : step
         return WizardDraft(
             step: resumeStep.rawValue, furthestStep: min(furthestStep.rawValue, WizardStep.review.rawValue),
-            language: language, agentName: agentName, projectDescription: projectDescription,
+            language: language, role: role, agentName: agentName, projectDescription: projectDescription,
             connections: connections, skills: skills, skillsInitialized: skillsInitialized,
             sendingRules: sendingRules)
     }
@@ -214,14 +221,17 @@ final class WizardState: ObservableObject {
     func resumeDraft() {
         guard let draft = pendingDraft else { return }
         language = draft.language
+        role = draft.role
         agentName = draft.agentName
         projectDescription = draft.projectDescription
         connections = draft.connections
         skills = draft.skills
         skillsInitialized = draft.skillsInitialized
         sendingRules = draft.sendingRules
-        furthestStep = WizardStep(rawValue: draft.furthestStep) ?? .welcome
-        step = WizardStep(rawValue: draft.step) ?? .welcome
+        furthestStep = WizardStep(rawValue: draft.furthestStep) ?? .role
+        let resumed = WizardStep(rawValue: draft.step) ?? .role
+        // Un paso que este asistente no tiene (p. ej. «Skills») no se reanuda: se va al siguiente que sí.
+        step = stepOrder.contains(resumed) ? resumed : (stepOrder.first { $0.rawValue > resumed.rawValue } ?? .role)
         pendingDraft = nil
         // Pasar de largo el paso 2 no debe dejar el estado de Claude Code en «buscando».
         if !claudeStatus.isFound { Task { await detectClaudeCode() } }
@@ -242,16 +252,18 @@ final class WizardState: ObservableObject {
 
     // MARK: Navegación
 
-    /// Los pasos de este wizard, en orden. El corto no tiene bienvenida ni detección, y solo tiene «Conectar» si
-    /// alguna herramienta elegida todavía no está conectada.
+    /// Los pasos de este asistente, en orden. Crear un agente no pasa por «Skills» (las fija el rol); el corto
+    /// («Nuevo agente») no tiene el paso de Claude Code, y solo tiene «Conectar» si alguna herramienta elegida
+    /// todavía no está conectada. «Gestionar» sí pasa por «Skills»: es donde se editan.
     var stepOrder: [WizardStep] {
         switch mode {
-        case .full: return WizardStep.allCases
+        case .full:
+            return [.role, .detection, .agent, .tools, .connect, .rules, .review, .generating, .done]
         case .short:
             let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
-            return [.agent, .tools] + (connecting ? [.connect] : []) + [.skills, .rules, .review, .generating, .done]
+            return [.role, .agent, .tools] + (connecting ? [.connect] : []) + [.rules, .review, .generating, .done]
         case .edit:
-            // Sin nombre (renombrar es otra cosa) ni «Listo»: al guardar se vuelve al home.
+            // Sin rol ni nombre (cambiarlos es otra cosa) ni «Listo»: al guardar se vuelve al home.
             let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
             return [.tools] + (connecting ? [.connect] : []) + [.skills, .rules, .review, .generating]
         }
@@ -266,10 +278,21 @@ final class WizardState: ObservableObject {
         mode == .edit && step == .generating ? "step.generating.title.edit" : step.title
     }
 
-    var stepCount: Int { stepOrder.count }
+    /// Los pasos que el usuario ve, sin repetir los que son momentos de uno mismo (`WizardStep.phase`).
+    private var phases: [Int] {
+        var seen: [Int] = []
+        for phase in stepOrder.map(\.phase) where !seen.contains(phase) { seen.append(phase) }
+        return seen
+    }
 
-    /// 1 en el primer paso del wizard (no el número fijo del paso: el corto tiene menos).
-    var stepNumber: Int { (stepOrder.firstIndex(of: step) ?? 0) + 1 }
+    /// «Paso N de 6»: seis en el asistente completo, cinco en «Nuevo agente», cuatro en «Gestionar».
+    var stepCount: Int { phases.count }
+
+    /// 1 en el primer paso del asistente (no el número fijo del paso: el corto tiene menos).
+    var stepNumber: Int { stepNumber(of: step) }
+
+    /// El número que el usuario ve para un paso cualquiera («Ibas por el paso 4»).
+    func stepNumber(of step: WizardStep) -> Int { (phases.firstIndex(of: step.phase) ?? 0) + 1 }
 
     /// De 1/N en el primer paso a 1 en el último: la barra se ve desde el
     /// principio y se llena del todo en "Listo".
@@ -310,13 +333,15 @@ final class WizardState: ObservableObject {
         // Se sale del sub-wizard cuando llega a la celebración: todas conectadas o saltadas.
         case .connect: connectFlow?.isFinished == true
         case .generating: generation?.phase == .succeeded
-        case .welcome, .skills, .rules, .review, .done: true
+        case .role, .skills, .rules, .review, .done: true
         }
     }
 
     func next() {
         if mode != .full, step == .tools { connectStepLocked = hasToConnect }
         guard canGoForward, let following = step(after: step) else { return }
+        // Al salir del rol ya se sabe qué skills trae y qué herramientas se le proponen primero.
+        if step == .role { applyRoleDefaults() }
         // Cada vez que se entra a «Generando» es una generación nueva: la de antes ya no cuenta.
         if following == .generating {
             generation?.cancel()
@@ -345,24 +370,6 @@ final class WizardState: ObservableObject {
     func jump(to target: WizardStep) {
         guard canGoBack, target.rawValue < step.rawValue else { return }
         step = target
-    }
-
-    /// Los minutos que faltan, para el «~17 min» de la cabecera: lo que queda por conectar más un
-    /// minuto por cada paso restante. Es una estimación, como la del paso 4.
-    var estimatedMinutesLeft: Int {
-        let pending: Int
-        switch step {
-        case .welcome, .detection, .agent, .tools:
-            pending = selectedTools.isEmpty ? 1 : estimatedSetupMinutes
-        case .connect:
-            let remaining = connectFlow.map { flow in
-                flow.tools.filter { (flow.statuses[$0] ?? .selected) == .selected }
-            } ?? selectedTools
-            pending = remaining.reduce(0) { $0 + $1.estimatedSetupMinutes }
-        default:
-            pending = 0
-        }
-        return max(1, pending + max(0, stepCount - stepNumber))
     }
 
     // MARK: Paso 2: Claude Code
@@ -510,6 +517,32 @@ final class WizardState: ObservableObject {
         selectedTools.contains { $0.requires.contains(tool) }
     }
 
+    /// Lo que el rol trae de fábrica: sus skills y, si el usuario todavía no eligió herramientas por su cuenta,
+    /// las tres primeras de su orden. Al crear un agente; en «Gestionar» manda lo que el agente ya tiene.
+    private func applyRoleDefaults() {
+        guard mode != .edit else { return }
+        if case .loaded(let catalog) = skillCatalog {
+            skills = catalog.defaultSelection(for: role)
+            skillsInitialized = true
+        } else {
+            loadSkillCatalog()
+        }
+        let chosen = connections.map(\.tool)
+        guard chosen.isEmpty || Set(chosen) == Set(rolePreselection) else {
+            // Lo que el usuario ya eligió se queda; solo cambia el orden, que es el del rol.
+            let order = toolsInRoleOrder
+            connections.sort { order.firstIndex(of: $0.tool)! < order.firstIndex(of: $1.tool)! }
+            return
+        }
+        let preselected = role.preselectedTools.filter { !$0.isComingSoon }
+        connections = []
+        for tool in preselected where !isSelected(tool) { toggle(tool) }
+        rolePreselection = connections.map(\.tool)
+    }
+
+    /// Las herramientas que se ofrecen, en el orden del rol: es también el orden en que se conectan.
+    var toolsInRoleOrder: [Tool] { role.ordered(Tool.allCases) }
+
     /// Marca o desmarca. Al marcar una herramienta se marcan también las que
     /// necesita; las que otra necesita no se desmarcan.
     func toggle(_ tool: Tool) {
@@ -528,8 +561,8 @@ final class WizardState: ObservableObject {
                     connections.append(ToolConnection(tool: needed))
                 }
             }
-            // El orden de la grilla, no el de los clics: es el de las conexiones del paso 5.
-            let order = Tool.allCases
+            // El orden de la grilla (el del rol), no el de los clics: es el de las conexiones del paso 4.
+            let order = toolsInRoleOrder
             connections.sort { order.firstIndex(of: $0.tool)! < order.firstIndex(of: $1.tool)! }
         }
     }
@@ -699,7 +732,7 @@ final class WizardState: ObservableObject {
             skillCatalog = .loaded(catalog)
             if !skillsInitialized {
                 skillsInitialized = true
-                skills = catalog.defaultSelection
+                skills = catalog.defaultSelection(for: role)
             }
         } catch {
             skillCatalog = .failed(String(describing: error))
@@ -801,7 +834,7 @@ final class WizardState: ObservableObject {
         AgentConfig(
             agentName: agentName.trimmingCharacters(in: .whitespacesAndNewlines),
             language: language,
-            role: .productManager,
+            role: role,
             projectDescription: projectDescription.trimmingCharacters(in: .whitespacesAndNewlines),
             // Ya no hay pantalla para elegir el foco: lo conectado se lee entero. Sin esto el
             // `AGENTS.md` diría que no se eligió ninguna fuente.
