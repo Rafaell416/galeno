@@ -51,6 +51,36 @@ final class MCPServerCatalogTests: XCTestCase {
         }
     }
 
+    /// Las 12 de Fathom salen de una cuenta real (4 oct 2026) y todas leen: no tiene escrituras.
+    func testTheFathomToolsAreTwelveAndAllReadOnly() throws {
+        let fathom = try XCTUnwrap(definitions(for: .fathom).first)
+        XCTAssertEqual(fathom.readOnlyTools.count, 12)
+        XCTAssertEqual(Set(fathom.readOnlyTools).count, 12)
+        XCTAssertTrue(fathom.writeTools.isEmpty)
+        XCTAssertTrue(fathom.alwaysAskTools.isEmpty)
+        for tool in fathom.readOnlyTools {
+            for verb in ["create", "update", "delete", "share", "send", "add", "remove", "edit"] {
+                XCTAssertFalse(tool.contains(verb), "\(tool) contiene «\(verb)»")
+            }
+        }
+    }
+
+    /// Las listas de Jira salen de una cuenta real (4 oct 2026): 12 que leen, 7 que escriben con la regla del
+    /// usuario y 2 que siempre preguntan. Ninguna repetida, y entre las que leen no hay nada que cree, cambie,
+    /// borre ni ejecute escrituras.
+    func testTheJiraToolListsAreDisjointAndTheReadOnesOnlyRead() throws {
+        let jira = try XCTUnwrap(definitions(for: .jira).first)
+        let all = jira.readOnlyTools + jira.writeTools + jira.alwaysAskTools
+        XCTAssertEqual(all.count, 21)
+        XCTAssertEqual(Set(all).count, 21)
+        XCTAssertEqual(Set(jira.alwaysAskTools), ["executeDestructive", "executeWrite"])
+        for tool in jira.readOnlyTools {
+            for verb in ["create", "update", "edit", "add", "transition", "delete", "Write", "Destructive"] {
+                XCTAssertFalse(tool.contains(verb), "\(tool) contiene «\(verb)»")
+            }
+        }
+    }
+
     /// Las listas del conector de Drive salen de una cuenta real: 6 que leen, 3 que escriben con la
     /// regla del usuario y 2 que siempre preguntan. Ninguna repetida, y entre las que leen no hay
     /// nada que cree, cambie, comparta o borre.

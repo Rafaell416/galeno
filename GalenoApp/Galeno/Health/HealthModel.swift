@@ -151,10 +151,14 @@ final class HealthModel: ObservableObject {
     private let openURL: @MainActor (URL) -> Void
     private let returnToApp: @MainActor () -> Void
     private let authorizer: (any SlackAuthorizationPresenting)?
+    /// La hoja de autenticación del sistema para las herramientas que se autorizan en el navegador (`ConnectFlow`).
+    private let systemAuthorizer: (any SystemAuthorizationPresenting)?
     private let webSession = SlackWebSession()
     private let language: @MainActor () -> Language
     private let sleep: @Sendable (Duration) async -> Void
     private let timing: Timing
+    /// Los dos sonidos de siempre (`Sounds`): una conexión lograda y algo que falló. Las pruebas lo reemplazan.
+    private let playSound: @MainActor (Sounds.Cue) -> Void
 
     struct Timing {
         /// Cada cuánto se mira si el usuario ya autorizó el conector, y hasta cuándo (en segundos).
@@ -177,18 +181,22 @@ final class HealthModel: ObservableObject {
         whatsapp: any WhatsAppLinking = WhatsAppBridge.live(),
         skillUpdater: any SkillUpdating = SkillUpdaterNotAvailable(),
         authorizer: (any SlackAuthorizationPresenting)? = SlackAuthorizeWindowPresenter(),
+        systemAuthorizer: (any SystemAuthorizationPresenting)? = SystemAuthorizationSheet(),
         language: @escaping @MainActor () -> Language = { .spanish },
         openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) },
         returnToApp: @escaping @MainActor () -> Void = { AppFocus.bringToFront() },
         sleep: @escaping @Sendable (Duration) async -> Void = { _ = try? await Task.sleep(for: $0) },
-        timing: Timing = Timing()
+        timing: Timing = Timing(),
+        playSound: @escaping @MainActor (Sounds.Cue) -> Void = { Sounds.play($0) }
     ) {
+        self.playSound = playSound
         self.store = store
         self.claudePath = locateClaude()
         self.makeMCP = makeMCP
         self.whatsappBridge = whatsapp
         self.skillUpdater = skillUpdater
         self.authorizer = authorizer
+        self.systemAuthorizer = systemAuthorizer
         self.language = language
         self.openURL = openURL
         self.returnToApp = returnToApp
@@ -282,6 +290,9 @@ final class HealthModel: ObservableObject {
             whatsapp = nil
             return
         }
+        // La copia instalada puede ser de una versión anterior a `status --json` (0.2.x): antes de preguntarle se
+        // deja al día con la que trae la app. Si no se puede, se pregunta igual y la vista dice que no contestó.
+        try? await whatsappBridge.prepare()
         async let status = whatsappBridge.status()
         async let sync = whatsappBridge.syncState()
         let (found, state) = await (status, sync)
@@ -303,8 +314,15 @@ final class HealthModel: ObservableObject {
             guard !Task.isCancelled else { return }
             if let issue { self.reconnectIssues[tool] = issue }
             self.authorizer?.dismissAuthorization()
+            self.systemAuthorizer?.dismiss()
             self.reconnecting = nil
             await self.recheck(tool, mcp: mcp)
+            guard !Task.isCancelled else { return }
+            // Suena al terminar: lograda (quedó viva) o fallida (no pudo, o sigue sin responder). Si el usuario
+            // cancela no suena nada. Es igual para la hoja de autenticación, el navegador y la ventana de Slack.
+            let alive = self.connections.first { $0.tool == tool }?.state
+            let worked = issue == nil && (alive == .connected || alive == .pending)
+            self.playSound(worked ? .connected : .failed)
         }
     }
 
@@ -313,6 +331,7 @@ final class HealthModel: ObservableObject {
         reconnectTask?.cancel()
         reconnectTask = nil
         authorizer?.dismissAuthorization()
+        systemAuthorizer?.dismiss()
         if let tool = reconnecting {
             reconnecting = nil
             Task { [weak self] in
@@ -361,10 +380,19 @@ final class HealthModel: ObservableObject {
             return await mcp.status(of: server.name, expectingURL: server.url) == .connected ? nil : .stillNotConnected
         }
 
-        // Con la app propia de Slack, la autorización se muestra en la ventana de Galeno (como al conectarla).
-        let opener: AuthorizationOpener? =
-            (target.requiresOwnOAuthApp && authorizer != nil)
-            ? { @MainActor [weak self] url in self?.showAuthorization(url) ?? false } : nil
+        // Como al conectarla: Slack, con su app propia, en la ventana de Galeno; las demás, en la hoja de
+        // autenticación del sistema (y si no se puede mostrar, en el navegador).
+        let usesOwnWindow = target.requiresOwnOAuthApp && authorizer != nil
+        let opener: AuthorizationOpener?
+        if usesOwnWindow {
+            opener = { @MainActor [weak self] url in self?.showAuthorization(url) ?? false }
+        } else if let systemAuthorizer {
+            opener = { @MainActor [weak self] url in
+                systemAuthorizer.present(url: url) { self?.cancelReconnect() }
+            }
+        } else {
+            opener = nil
+        }
         do {
             try await mcp.login(server: server.name, openAuthorization: opener)
         } catch let error as MCPConnectError {
@@ -378,7 +406,10 @@ final class HealthModel: ObservableObject {
             return .failed
         }
         if Task.isCancelled { return nil }
-        if opener == nil { returnToApp() }
+        if !usesOwnWindow {
+            systemAuthorizer?.dismiss()
+            returnToApp()
+        }
         let after = await mcp.status(of: server.name, expectingURL: server.url)
         return after == .connected ? nil : .stillNotConnected
     }

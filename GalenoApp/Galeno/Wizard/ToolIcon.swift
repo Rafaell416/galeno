@@ -20,7 +20,8 @@ extension Tool {
         case .googleWorkspace: .asset("tool-googledrive")
         case .gmail: .asset("tool-gmail")
         case .jira: .asset("tool-jira")
-        case .googleMeet: .asset("tool-googlemeet")
+        // Ya no se ofrece en la grilla; un agente viejo que lo tuviera lo lee por Drive.
+        case .googleMeet: .asset("tool-googledrive")
         case .fathom: .asset("tool-fathom")
         case .slack: .asset("tool-slack")
         case .fireflies: .symbol("waveform")

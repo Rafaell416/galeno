@@ -258,6 +258,97 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertTrue(permissions.allow.contains(drive + "read_file_content"), "leer sigue sin preguntar")
     }
 
+    /// Jira (el servidor de Atlassian). Leer nunca pregunta. Crear y editar siguen la regla de Jira. Borrar
+    /// (`executeDestructive`) y la vía genérica de escritura (`executeWrite`, por la que se puede compartir o
+    /// publicar) preguntan siempre, diga lo que diga la regla.
+    func testJiraReadsFreelyWritesByRuleAndAlwaysAsksToDeleteOrRunOtherWrites() throws {
+        let jira = "mcp__jira__"
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [ToolConnection(tool: .jira, status: .connected, sources: .everything)]
+        config.sendingRules.setPolicy(.allow, for: .jira)
+        try generate(config)
+        var permissions = try decodedPermissions()
+
+        for tool in ["getJiraIssue", "searchJiraIssuesUsingJql", "executeRead", "discover", "getConfluenceContent"] {
+            XCTAssertTrue(permissions.allow.contains(jira + tool), tool)
+        }
+        for tool in ["createJiraIssue", "editJiraIssue", "transitionJiraIssue", "addOrEditJiraIssueComment"] {
+            XCTAssertTrue(permissions.allow.contains(jira + tool), "con «Sin preguntar», \(tool) no pregunta")
+        }
+        for tool in ["executeDestructive", "executeWrite"] {
+            XCTAssertTrue(permissions.ask.contains(jira + tool), "\(tool) pregunta siempre")
+            XCTAssertFalse(permissions.allow.contains(jira + tool), tool)
+        }
+        XCTAssertFalse((permissions.allow + permissions.ask).contains(jira + "*"), "ninguna regla cubre el servidor entero")
+
+        config.sendingRules.setPolicy(.ask, for: .jira)
+        try generate(config)
+        permissions = try decodedPermissions()
+        for tool in ["createJiraIssue", "editJiraIssue", "updateConfluenceContent"] {
+            XCTAssertTrue(permissions.ask.contains(jira + tool), tool)
+            XCTAssertFalse(permissions.allow.contains(jira + tool), tool)
+        }
+        XCTAssertTrue(permissions.allow.contains(jira + "getJiraIssue"), "leer sigue sin preguntar")
+        XCTAssertTrue(permissions.ask.contains(jira + "executeDestructive"))
+    }
+
+    /// El hook detiene en Jira lo que borra, la vía genérica de escritura y cualquier herramienta que Atlassian
+    /// añada después. Y ningún subagente recibe esas dos.
+    func testTheApprovalHookCoversDeletingAndGenericWritesInJira() throws {
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [ToolConnection(tool: .jira, status: .connected, sources: .everything)]
+        try generate(config)
+
+        let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
+        let regex = try NSRegularExpression(pattern: try XCTUnwrap(hooks.first?["matcher"] as? String))
+        func fires(_ tool: String) -> Bool {
+            regex.firstMatch(in: tool, range: NSRange(tool.startIndex..., in: tool)) != nil
+        }
+        let jira = "mcp__jira__"
+        XCTAssertTrue(fires(jira + "executeDestructive"))
+        XCTAssertTrue(fires(jira + "executeWrite"))
+        XCTAssertTrue(fires(jira + "somethingNew"), "una herramienta nueva pregunta hasta que se revise")
+        for tool in ["getJiraIssue", "executeRead", "createJiraIssue", "editJiraIssue"] {
+            XCTAssertFalse(fires(jira + tool), tool)
+        }
+        XCTAssertTrue(exists(SettingsRenderer.hookPath))
+        for name in Self.subagentNames {
+            let tools = try decodedSubagent(name).tools
+            XCTAssertFalse(tools.contains("mcp__jira"), "\(name) no recibe el servidor entero")
+            XCTAssertFalse(tools.contains { $0.hasSuffix("executeDestructive") || $0.hasSuffix("executeWrite") }, name)
+        }
+    }
+
+    /// Fathom solo lee: sus 12 herramientas pasan sin preguntar, por nombre. Ninguna regla cubre el servidor
+    /// entero, así que una herramienta que Fathom añada después la detiene el hook hasta que se revise.
+    func testFathomReadsFreelyByNameAndAnythingNewAsks() throws {
+        let fathom = "mcp__fathom__"
+        var config = AgentConfig(agentName: "Galena", language: .spanish)
+        config.connections = [ToolConnection(tool: .fathom, status: .connected, sources: .everything)]
+        try generate(config)
+        let permissions = try decodedPermissions()
+
+        for tool in MCPServerCatalog.fathomReadOnlyTools {
+            XCTAssertTrue(permissions.allow.contains(fathom + tool), tool)
+        }
+        XCTAssertFalse((permissions.allow + permissions.ask).contains(fathom + "*"), "ninguna regla cubre el servidor entero")
+        XCTAssertFalse(permissions.ask.contains { $0.hasPrefix(fathom) }, "no tiene nada que pregunte hoy")
+
+        let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
+        let regex = try NSRegularExpression(pattern: try XCTUnwrap(hooks.first?["matcher"] as? String))
+        func fires(_ tool: String) -> Bool {
+            regex.firstMatch(in: tool, range: NSRange(tool.startIndex..., in: tool)) != nil
+        }
+        XCTAssertTrue(fires(fathom + "share_recording"), "una herramienta nueva pregunta hasta que se revise")
+        XCTAssertFalse(fires(fathom + "get_meeting_transcript"))
+        XCTAssertFalse(fires(fathom + "list_meetings"))
+        XCTAssertEqual(SettingsRenderer.toolsReadingWithoutAsking(in: config), [.fathom])
+    }
+
     /// El hook de aprobación alcanza a Google Drive: compartir, la papelera y cualquier herramienta
     /// que el conector añada después. Leer y las escrituras que siguen la regla no pasan por él.
     func testTheApprovalHookCoversSharingAndTrashingInGoogleDrive() throws {
@@ -356,6 +447,21 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertTrue(servers.filter { $0.contains("google") || $0.contains("gmail") }.isEmpty, "\(servers)")
         // Pero sí se le cuenta al agente de dónde salen sus transcripciones.
         XCTAssertTrue(try contents(of: "AGENTS.md").contains("Google Meet"))
+    }
+
+    /// Meet ya no se elige en el asistente: con Drive conectado basta para que el agente sepa dónde
+    /// están sus transcripciones; sin Drive no se le promete nada.
+    func testDriveAloneTellsTheAgentWhereMeetTranscriptsLive() {
+        func agentsFile(_ tools: [Tool], _ language: Language) -> String {
+            AgentsFileRenderer.render(
+                AgentConfig(
+                    agentName: "Hera", language: language, projectDescription: "Proyecto",
+                    connections: tools.map { ToolConnection(tool: $0, status: .connected, sources: .everything) }))
+        }
+
+        XCTAssertTrue(agentsFile([.googleWorkspace], .spanish).contains("Las transcripciones de Google Meet"))
+        XCTAssertTrue(agentsFile([.googleWorkspace], .english).contains("Google Meet transcripts"))
+        XCTAssertFalse(agentsFile([.notion], .spanish).contains("Google Meet"))
     }
 
     /// Lo que el usuario saltó o aún no conectó no se configura.
@@ -742,8 +848,8 @@ final class ConfigGeneratorTests: GeneratorTestCase {
                     "mcp__claude_ai_Google_Sheets__copy_sheet_to_another_spreadsheet",
                     "mcp__claude_ai_Google_Sheets__insert_dimension", "mcp__claude_ai_Google_Sheets__update_formulas",
                     "mcp__claude_ai_Google_Sheets__update_spreadsheet", "mcp__claude_ai_Google_Sheets__update_values",
-                    "mcp__jira", "mcp__fireflies",
-                ])
+                    ] + (MCPServerCatalog.jiraReadOnlyTools + MCPServerCatalog.jiraWriteTools).map { "mcp__jira__" + $0 }
+                    + ["mcp__fireflies"])
         }
     }
 

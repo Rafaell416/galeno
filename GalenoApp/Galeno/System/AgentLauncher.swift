@@ -142,19 +142,39 @@ enum AgentOpenPolicy {
         return attributes?[.modificationDate] as? Date ?? Date()
     }
 
-    static func needsClaudeRestart(tools: [Tool], folder: URL, opener: any AgentOpening) -> Bool {
-        usesConnectors(tools) && opener.claudeAppNeedsRestart(since: readySince(folder))
+    /// Por qué abrir un agente en la app de Claude la va a cerrar y reabrir.
+    enum RestartReason: Equatable {
+        /// Usa conectores de la cuenta de Claude y la app lleva abierta desde antes de que el agente estuviera listo.
+        case connectors
+        /// «Gestionar» le cambió las herramientas y la app lleva abierta desde antes: la conversación a la que se
+        /// vuelve arrancó con las de antes y no ve las nuevas (decisión de Rafa, 4 oct 2026).
+        case toolsChanged
+    }
+
+    /// `toolsChangedAt`: cuándo cambió «Gestionar» las herramientas de este agente, si lo hizo.
+    static func restartReason(
+        tools: [Tool], folder: URL, toolsChangedAt: Date? = nil, opener: any AgentOpening
+    ) -> RestartReason? {
+        if usesConnectors(tools), opener.claudeAppNeedsRestart(since: readySince(folder)) { return .connectors }
+        if let toolsChangedAt, opener.claudeAppNeedsRestart(since: toolsChangedAt) { return .toolsChanged }
+        return nil
+    }
+
+    static func needsClaudeRestart(
+        tools: [Tool], folder: URL, toolsChangedAt: Date? = nil, opener: any AgentOpening
+    ) -> Bool {
+        restartReason(tools: tools, folder: folder, toolsChangedAt: toolsChangedAt, opener: opener) != nil
     }
 
     /// Abre el agente donde el usuario eligió. En la app de Claude, y solo si hace falta, la cierra y la
     /// vuelve a abrir en el agente. Devuelve si pudo abrirlo.
     @discardableResult
     static func open(
-        folder: URL, tools: [Tool], inApp: Bool, prompt: String?, resume: Bool = false, opener: any AgentOpening,
-        claudePath: String
+        folder: URL, tools: [Tool], inApp: Bool, prompt: String?, resume: Bool = false, toolsChangedAt: Date? = nil,
+        opener: any AgentOpening, claudePath: String
     ) async -> AgentOpenOutcome {
         if inApp {
-            if needsClaudeRestart(tools: tools, folder: folder, opener: opener) {
+            if needsClaudeRestart(tools: tools, folder: folder, toolsChangedAt: toolsChangedAt, opener: opener) {
                 return await opener.restartClaudeAppAndOpen(folder: folder, prompt: prompt, resume: resume)
             }
             await opener.prepareClaudeApp()

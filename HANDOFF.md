@@ -549,8 +549,15 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
 - La instalación sin Terminal, por Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente».
   El puente de WhatsApp arrancó: macOS no bloqueó su copia.
 - El reinicio de Claude desde «Listo»: se cierra, se reabre en el agente y ve los conectores.
-- Las cinco herramientas en «Próximamente» (Jira, Fireflies, Granola, Fathom, Google Meet;
-  `Tool.isComingSoon`) se quedan así hasta probarlas de punta a punta.
+- Las herramientas en «Próximamente» (`Tool.isComingSoon`) se quedan así hasta probarlas de punta a punta.
+  Eran cinco; desde el 4 oct 2026 (rama `feat/herramientas-pendientes`): **Google Meet salió de la grilla**
+  (se lee por Drive), **Jira y Fathom están desbloqueadas para probarlas** con las cuentas de Rafa, y quedan
+  Fireflies y Granola. **Jira:** Rafa la conectó desde Galeno; ya tiene sus listas reales de herramientas y sus
+  permisos (`docs/03` §4e); falta que la pruebe con una pregunta real. **Fathom:** conectada por Rafa; sus 12 herramientas (todas de lectura) ya están
+  en el catálogo por nombre; falta su prueba con una pregunta real. El reinicio de Claude tras cambiar herramientas
+  en «Gestionar» funcionó con Jira (prueba de Rafa). En la misma rama: el logo de Fathom se redibujó desde la imagen que
+  aportó Rafa (el anterior era de Fathom Analytics, otra empresa), y las herramientas con OAuth en el navegador se autorizan
+  ahora en la hoja de autenticación del sistema (`SystemAuthorizationSheet`), **sin probar aún con una autorización real**.
 
 **Sigue sin verificar:**
 

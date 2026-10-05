@@ -345,8 +345,9 @@ private struct AgentCard: View {
             Text(problem == .claudeDidNotQuit ? "done.open.claudeStillOpen" : "done.open.failed")
                 .font(Typo.text(13)).foregroundStyle(Color.ink700)
                 .fixedSize(horizontal: false, vertical: true)
-        } else if model.effectiveTarget == .app, model.willRestartClaude(for: agent) {
-            Text("done.open.restart").font(Typo.text(13)).foregroundStyle(Color.ink500)
+        } else if model.effectiveTarget == .app, let reason = model.restartReason(for: agent) {
+            Text(reason == .connectors ? "done.open.restart" : "home.restart.toolsChanged")
+                .font(Typo.text(13)).foregroundStyle(Color.ink500)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

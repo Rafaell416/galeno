@@ -499,6 +499,7 @@ final class WizardState: ObservableObject {
                 }),
             onNamePrefix: { [weak self] tool, prefix in self?.setServerNamePrefix(tool, prefix) },
             authorizer: connectServices.authorizer,
+            systemAuthorizer: connectServices.systemAuthorizer,
             language: { [weak self] in self?.language ?? .spanish },
             returnToApp: connectServices.returnToApp,
             openURL: connectServices.openURL)

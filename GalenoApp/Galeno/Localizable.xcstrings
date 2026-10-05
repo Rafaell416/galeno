@@ -7710,23 +7710,6 @@
         }
       }
     },
-    "tools.meetNote" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Google Meet is read through Google Drive, so we ticked it for you."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Google Meet se lee con Google Drive, así que lo marcamos por ti."
-          }
-        }
-      }
-    },
     "tools.primary %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9332,6 +9315,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bridge %@"
+          }
+        }
+      }
+    },
+    "home.restart.toolsChanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambiaste sus herramientas: Claude se cerrará y volverá a abrirse para cargarlas. Si tiene algo en curso, se interrumpe."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You changed its tools: Claude will quit and reopen to load them. Anything it has in progress will be interrupted."
           }
         }
       }

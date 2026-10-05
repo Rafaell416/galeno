@@ -191,6 +191,13 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   portapapeles; el dominio está a la vista; el inicio de sesión de Google se bloquea (no se
   esquiva su política); y no se aceptan cookies ni términos por el usuario. Añadir otra vista
   web, o relajar cualquiera de estas condiciones, exige preguntar antes.
+- Las demás herramientas con OAuth en el navegador (Notion, Jira, Fathom, Fireflies, Granola) se autorizan en la **hoja de
+  autenticación del sistema** (`SystemAuthorizationSheet`, `ASWebAuthenticationSession`; decisión de Rafa, 4 oct 2026). **No es una
+  vista web de Galeno**: es el navegador del usuario, con su sesión y con Google permitido, y Galeno no ve ni toca lo que pasa dentro.
+  Sesión **no** efímera (para eso se usa), solo direcciones `https`, y la vuelta de OAuth sigue yendo a `claude mcp login` en
+  `localhost`: Galeno cierra la hoja cuando ese proceso termina. Si la hoja no se puede mostrar, se abre el navegador como siempre.
+  No convertirla en una `WKWebView` ni leer nada de ella. Slack sigue en su ventana propia; los conectores de la cuenta de Claude,
+  en el navegador.
 - Un agente de navegador con un modelo (Claude con `--chrome`) **nunca ve un secreto**; para
   Slack se probó y se descartó (`docs/03` §4e).
 - La pantalla del foco salió del wizard en el rediseño B1 (`docs/03` §3): lo conectado se lee entero.
@@ -219,7 +226,11 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   Único caso en que Galeno cierra otra app: si el agente usa conectores de la cuenta de Claude y la app de Claude lleva
   abierta desde antes, «Abrir en la app de Claude» le pide salir (como Cmd+Q, nunca matarla) y la reabre en el agente,
   avisándolo antes en la pantalla (`docs/03` §4e). Si no sale, **no se abre el agente en la app que quedó**: se le dice al
-  usuario que la cierre (`AgentOpenOutcome.claudeDidNotQuit`). No extenderlo a otras apps ni a otros momentos.
+  usuario que la cierre (`AgentOpenOutcome.claudeDidNotQuit`). **Segundo momento, decidido por Rafa (4 oct 2026):** si «Gestionar»
+  le cambió las herramientas a un agente y la app de Claude lleva abierta desde antes, «Abrir» desde el home hace lo mismo
+  (salir, reabrir y volver a su conversación), porque la conversación abierta arrancó con las herramientas de antes; el aviso de
+  la tarjeta dice ese motivo (`AgentOpenPolicy.RestartReason.toolsChanged`, anotado en `Prefs.toolsChangedAt`). Guardar sin
+  cambiar las herramientas no reinicia nada, y en Terminal nunca. No extenderlo a otras apps ni a otros momentos.
 - Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
   (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
   lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no
@@ -260,7 +271,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - Una carpeta de agente borrada a mano nunca tumba el home: se ofrece «Regenerar la carpeta» (misma ruta, tras confirmar, sin pisar si
   reapareció) o «Quitar el agente» (el diálogo de Eliminar).
 - La vista previa del `AGENTS.md` (`AgentPreview`) es solo lectura: devuelve texto y no escribe nada.
-- Tres sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló y el sello al llegar a «Listo». Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, botones, copiar ni cambios de paso.
+- Tres sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló y el sello al llegar a «Listo». Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, botones, copiar ni cambios de paso. Suenan igual al conectar en el asistente, al «Reconectar»
+  o «Re-vincular» desde Salud, y sea cual sea la autorización (hoja del sistema, navegador o ventana de Slack); mirar el estado o cancelar no suena.
 - Los glifos de sección (`Glyphs.swift`) son dibujos propios de línea a 1,5 pt; cuelgan en el margen junto al título de algunos pasos y nunca van en la misma fila que un SF Symbol.
 - El movimiento lee `\.galenoReduceMotion` (sistema **o** «Menos movimiento» de Ajustes), no
   `\.accessibilityReduceMotion`. Cada ventana lleva `.motionPreference()` en su raíz.

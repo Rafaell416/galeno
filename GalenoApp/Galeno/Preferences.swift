@@ -10,6 +10,9 @@ enum Prefs {
     static let splashShown = "GalenoSplashShown"
     /// Dónde abre el home un agente: la app de Claude o Terminal (la última elección).
     static let openTarget = "GalenoOpenTarget"
+    /// Cuándo cambió «Gestionar» las herramientas de cada agente (id → segundos Unix). Una conversación que la
+    /// app de Claude tenga abierta desde antes no las ve: al abrir ese agente, Claude se reinicia.
+    static let toolsChangedAt = "GalenoAgentToolsChangedAt"
 }
 
 /// Cómo se ve la app: la del sistema, siempre clara o siempre oscura.

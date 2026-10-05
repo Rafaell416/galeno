@@ -127,7 +127,9 @@ enum AgentsFileRenderer {
                     """
                 )
             }
-            if connections.contains(where: { $0.tool == .googleMeet }) {
+            // Meet no tiene servidor propio ni se elige en el asistente: con Drive conectado, el agente
+            // sabe dónde buscar sus transcripciones.
+            if connections.contains(where: { $0.tool == .googleWorkspace || $0.tool == .googleMeet }) {
                 lines.append("")
                 lines.append(
                     """
@@ -157,10 +159,19 @@ enum AgentsFileRenderer {
                 } else {
                     detail = "puedes escribir sin preguntar"
                 }
-                // Google Drive: compartir le llega a otra persona y la papelera quita un archivo.
+                // Lo que pide aprobación diga lo que diga la regla. Google Drive: compartir le llega a otra
+                // persona y la papelera quita un archivo. Jira: borrar es para siempre, y las acciones fuera
+                // de lo habitual pueden publicar o compartir.
                 let alwaysAsks = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
                     .contains { !$0.alwaysAskTools.isEmpty }
-                let extra = alwaysAsks ? "; compartir un archivo o mandarlo a la papelera siempre pide aprobación" : ""
+                let extra: String
+                if !alwaysAsks {
+                    extra = ""
+                } else if tool == .jira {
+                    extra = "; borrar algo, y cualquier acción que no sea crear o editar tickets, comentarios o páginas, siempre pide aprobación"
+                } else {
+                    extra = "; compartir un archivo o mandarlo a la papelera siempre pide aprobación"
+                }
                 lines.append("- **\(tool.displayName(in: .spanish))** — \(detail)\(extra)")
             }
         }
@@ -364,7 +375,7 @@ enum AgentsFileRenderer {
                     """
                 )
             }
-            if connections.contains(where: { $0.tool == .googleMeet }) {
+            if connections.contains(where: { $0.tool == .googleWorkspace || $0.tool == .googleMeet }) {
                 lines.append("")
                 lines.append(
                     """
@@ -394,10 +405,17 @@ enum AgentsFileRenderer {
                 } else {
                     detail = "you may write without asking"
                 }
-                // Google Drive: sharing reaches someone else and the trash removes a file.
+                // What needs approval whatever the rule says (see the Spanish version above).
                 let alwaysAsks = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
                     .contains { !$0.alwaysAskTools.isEmpty }
-                let extra = alwaysAsks ? "; sharing a file or moving it to the trash always needs approval" : ""
+                let extra: String
+                if !alwaysAsks {
+                    extra = ""
+                } else if tool == .jira {
+                    extra = "; deleting anything, and any action other than creating or editing issues, comments or pages, always needs approval"
+                } else {
+                    extra = "; sharing a file or moving it to the trash always needs approval"
+                }
                 lines.append("- **\(tool.displayName(in: .english))** — \(detail)\(extra)")
             }
         }

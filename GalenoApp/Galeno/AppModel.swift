@@ -82,7 +82,15 @@ final class AppModel: ObservableObject {
         guard let installation = home.loadInstallation(), installation.agent(id: id) != nil else { return }
         wizard.stopWorking()
         let fresh = makeEditWizard(installation, id)
-        fresh.onSaved = { [weak self] in self?.finishWizard() }
+        // Si al guardar cambian sus herramientas, se anota: una conversación abierta desde antes no las ve, y el
+        // home reinicia Claude al abrir el agente (`AgentOpenPolicy.RestartReason.toolsChanged`).
+        let toolsBefore = Set(home.agents.first { $0.id == id }?.tools ?? [])
+        fresh.onSaved = { [weak self] in
+            guard let self else { return }
+            finishWizard()
+            let toolsAfter = Set(home.agents.first { $0.id == id }?.tools ?? [])
+            if toolsAfter != toolsBefore { home.noteToolsChanged(id) }
+        }
         wizard = fresh
         observe(fresh)
         language = fresh.language

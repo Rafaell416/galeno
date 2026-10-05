@@ -91,13 +91,13 @@ final class EditAgentTests: XCTestCase {
     func testAToolThatIsComingSoonAndWasNeverConnectedDoesNotComeBack() throws {
         var installation = try installation()
         var stale = try XCTUnwrap(installation.agent(id: record.id))
-        stale.config.connections.append(ToolConnection(tool: .jira, status: .skipped))
+        stale.config.connections.append(ToolConnection(tool: .fireflies, status: .skipped))
         try installation.setConfig(stale.config, for: record.id)
         let state = WizardState(
             preferredLanguages: ["es"],
             claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
             startingFrom: installation, editing: record.id)
-        XCTAssertNil(state.connection(for: .jira))
+        XCTAssertNil(state.connection(for: .fireflies))
         XCTAssertEqual(state.toConnect, [.gmail])
     }
 
@@ -167,9 +167,9 @@ final class EditAgentTests: XCTestCase {
 
     // MARK: - Desde el home
 
-    private func makeApp(opener: AgentOpening? = nil) throws -> AppModel {
+    private func makeApp(opener: AgentOpening? = nil, defaults: UserDefaults? = nil) throws -> AppModel {
         let home = HomeModel(
-            store: installer.store, defaults: UserDefaults(suiteName: "edit-\(UUID().uuidString)")!,
+            store: installer.store, defaults: defaults ?? UserDefaults(suiteName: "edit-\(UUID().uuidString)")!,
             claudePath: "/ruta/claude", settle: {})
         return AppModel(
             home: home,
@@ -194,6 +194,25 @@ final class EditAgentTests: XCTestCase {
         app.manageAgent(record.id)
         app.wizard.onSaved?()
         XCTAssertEqual(app.screen, .home)
+    }
+
+    /// Guardar con otras herramientas deja anotado el cambio (el home reinicia Claude al abrir el agente); guardar
+    /// sin tocar las herramientas, no.
+    func testSavingWithDifferentToolsIsNotedAndSavingTheSameToolsIsNot() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "edit-\(UUID().uuidString)"))
+        let app = try makeApp(defaults: defaults)
+        func noted() -> Bool { defaults.dictionary(forKey: Prefs.toolsChangedAt)?[record.id.uuidString] != nil }
+
+        app.manageAgent(record.id)
+        app.wizard.onSaved?()
+        XCTAssertFalse(noted(), "las mismas herramientas: nada que recargar")
+
+        app.manageAgent(record.id)
+        var config = try XCTUnwrap(try installation().resolvedConfig(for: record.id))
+        config.connections.append(ToolConnection(tool: .jira, status: .connected, sources: .everything))
+        _ = try installer.install(config, existingAgentID: record.id)
+        app.wizard.onSaved?()
+        XCTAssertTrue(noted())
     }
 
     func testManagingAnAgentThatIsNotInTheInstallationDoesNothing() throws {
