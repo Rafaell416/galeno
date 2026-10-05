@@ -154,6 +154,16 @@ extension GalenoInstallation {
         agents[index].config = config
     }
 
+    /// Saca un agente de la lista. **No toca nada en disco**: su carpeta, su memoria y las conexiones compartidas
+    /// (que otros agentes usan) quedan como estaban; quien llama decide qué hacer con la carpeta.
+    @discardableResult
+    public mutating func removeAgent(id agentID: UUID) throws -> AgentRecord {
+        guard let index = agents.firstIndex(where: { $0.id == agentID }) else {
+            throw InstallationError.unknownAgent(agentID)
+        }
+        return agents.remove(at: index)
+    }
+
     /// La config del agente lista para el generador: el estado y el `client_id`
     /// de cada herramienta se toman de las conexiones compartidas.
     ///

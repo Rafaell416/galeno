@@ -180,6 +180,25 @@ final class InstallationTests: XCTestCase {
         ) { XCTAssertEqual($0 as? InstallationError, .unknownAgent(id)) }
     }
 
+    func testRemovingAnAgentOnlyLeavesTheListAndTouchesNothingElse() throws {
+        var value = installation()
+        value.setConnection(SharedConnection(tool: .notion, status: .connected))
+        let hera = value.addAgent(value.startingPoint(agentName: "Hera"), agentsRoot: agentsRoot)
+        let aurora = value.addAgent(value.startingPoint(agentName: "Aurora"), agentsRoot: agentsRoot)
+
+        let removed = try value.removeAgent(id: hera.id)
+
+        XCTAssertEqual(removed, hera, "devuelve el registro, para que quien llama sepa su carpeta")
+        XCTAssertEqual(value.agents.map(\.id), [aurora.id])
+        XCTAssertEqual(value.connection(for: .notion)?.status, .connected, "las conexiones son de todos")
+    }
+
+    func testRemovingAnUnknownAgentFails() {
+        var value = installation()
+        let id = UUID()
+        XCTAssertThrowsError(try value.removeAgent(id: id)) { XCTAssertEqual($0 as? InstallationError, .unknownAgent(id)) }
+    }
+
     // MARK: - Una sola fuente de verdad
 
     func testTheResolvedConfigTakesStatusAndClientIDFromTheSharedConnections() throws {
