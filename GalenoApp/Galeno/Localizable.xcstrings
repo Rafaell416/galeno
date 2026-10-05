@@ -3868,6 +3868,23 @@
         }
       }
     },
+    "dopamine.generating.edit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se está actualizando tu agente. Su memoria se queda como está."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your agent is being updated. Its memory stays as it is."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "dopamine.tools %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3953,6 +3970,23 @@
         }
       }
     },
+    "generating.failed.edit %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pude terminar de actualizar a %@. No quedó nada a medias."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I couldn’t finish updating %@. Nothing was left half-done."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "generating.headline %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3969,6 +4003,23 @@
           }
         }
       }
+    },
+    "generating.headline.edit %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizando a %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating %@"
+          }
+        }
+      },
+      "extractionState" : "manual"
     },
     "generating.line.approval" : {
       "extractionState" : "manual",
@@ -4123,6 +4174,23 @@
         }
       }
     },
+    "generating.step.rules.edit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizando sus reglas"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating its rules"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "generating.step.saving %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4156,6 +4224,23 @@
           }
         }
       }
+    },
+    "generating.step.skills.edit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizando sus skills"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating its skills"
+          }
+        }
+      },
+      "extractionState" : "manual"
     },
     "generating.step.tools" : {
       "extractionState" : "manual",
@@ -5126,6 +5211,227 @@
         }
       }
     },
+    "home.delete.close" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si tienes una conversación de este agente abierta en la app de Claude, ciérrala antes."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If you have a conversation with this agent open in the Claude app, close it first."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.confirm" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.conversations.one" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 conversación en Claude Code."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 conversation in Claude Code."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.conversations.other %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld conversaciones en Claude Code."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld conversations in Claude Code."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.desktop.one" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 conversación en la app de Claude."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 conversation in the Claude app."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.desktop.other %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld conversaciones en la app de Claude."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld conversations in the Claude app."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.failed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pude mandar la carpeta a la Papelera. No quité nada."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I couldn’t send the folder to the Trash. I removed nothing."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.folder %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su carpeta, %@, con su memoria."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Its folder, %@, with its memory."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.kept" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus conexiones (WhatsApp, Slack, Google…) y la app de Slack que se creó no se tocan."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your connections (WhatsApp, Slack, Google…) and the Slack app that was created are not touched."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.lead" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto se manda a la Papelera, y puedes recuperarlo desde ahí:"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This goes to the Trash, and you can get it back from there:"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.nothing" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su carpeta ya no está donde Galeno la dejó, así que solo se quita de Galeno."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Its folder is no longer where Galeno left it, so it is only removed from Galeno."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.partial %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se eliminó el agente, pero %lld cosas de Claude no se pudieron mandar a la Papelera. Puedes quitarlas desde la app de Claude."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent was deleted, but %lld Claude items could not be sent to the Trash. You can remove them from the Claude app."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.delete.title %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar a %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete %@"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "home.error.body" : {
       "localizations" : {
         "es" : {
@@ -5194,6 +5500,91 @@
       },
       "extractionState" : "manual"
     },
+    "home.manage" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestionar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.manage.delete" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete…"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.manage.delete.hint" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A la Papelera, tras confirmar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To the Trash, after confirming"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.manage.edit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herramientas, skills y reglas"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools, skills and rules"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.manage.rename" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renombrar…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename…"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "home.menu.restart" : {
       "localizations" : {
         "es" : {
@@ -5223,6 +5614,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New agent"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.notice.close" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss"
           }
         }
       },
@@ -5308,6 +5716,125 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reads %lld tools"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.rename.body %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambia solo el nombre. Galeno vuelve a escribir los archivos de %@ con el nombre nuevo (lo que hayas editado a mano se pierde); su carpeta y su memoria no se mueven ni se tocan. La app de Slack que ya se creó conserva su nombre."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the name changes. Galeno rewrites the files of %@ with the new name (anything you edited by hand is lost); its folder and memory are neither moved nor touched. The Slack app that was already created keeps its name."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.rename.failed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No pude guardar el nombre. No cambió nada."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I couldn’t save the name. Nothing changed."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.rename.field" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre nuevo"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New name"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.rename.issue.empty" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe un nombre."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a name."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.rename.issue.long" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máximo 60 caracteres."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "60 characters at most."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.rename.save" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renombrar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "home.rename.title %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renombrar a %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename %@"
           }
         }
       },
@@ -5738,6 +6265,23 @@
         }
       }
     },
+    "review.edit.warning %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al guardar, Galeno vuelve a escribir todos los archivos de %@ a partir de lo que ves aquí. Lo que hayas editado a mano en ellos se pierde. Su carpeta memoria/ no se toca."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When you save, Galeno rewrites every file of %@ from what you see here. Anything you edited by hand in them is lost. Its memoria/ folder is never touched."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "review.later %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5788,6 +6332,23 @@
           }
         }
       }
+    },
+    "review.primary.edit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar cambios"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save changes"
+          }
+        }
+      },
+      "extractionState" : "manual"
     },
     "review.rules" : {
       "extractionState" : "manual",
@@ -6809,6 +7370,23 @@
         }
       }
     },
+    "step.generating.title.edit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizando"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "step.review.summary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6825,6 +7403,23 @@
           }
         }
       }
+    },
+    "step.review.summary.edit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo que cambiaste, en una página. Revísalo ahora; después se guarda."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What you changed, on one page. Check it now; then it gets saved."
+          }
+        }
+      },
+      "extractionState" : "manual"
     },
     "step.review.title" : {
       "extractionState" : "manual",

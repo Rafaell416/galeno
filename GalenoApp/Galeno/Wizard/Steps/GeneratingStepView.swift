@@ -27,6 +27,8 @@ private struct Progress: View {
     @Environment(\.galenoReduceMotion) private var reduceMotion
 
     private var agentName: String { wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines) }
+    /// Gestionando un agente que ya existe: se actualiza, no se escribe de cero.
+    private var updating: Bool { wizard.mode == .edit }
 
     /// Las líneas reales del `AGENTS.md` que el motor va a escribir (el mismo texto que el paso
     /// «Revisar», sin escribir nada). Lo que se ve es dato verdadero, no una animación inventada.
@@ -64,7 +66,7 @@ private struct Progress: View {
                 .padding(.bottom, 10)
                 .transition(.opacity)
             }
-            Text("generating.headline \(agentName)")
+            Text(updating ? "generating.headline.edit \(agentName)" : "generating.headline \(agentName)")
                 .font(Typo.stepTitle)
                 .foregroundStyle(Color.ink900)
                 .padding(.bottom, 4)
@@ -112,7 +114,7 @@ private struct Progress: View {
 
             if case .failed(let detail) = generation.phase {
                 NoticePanel(kind: .seal) {
-                    Text("generating.failed \(agentName)")
+                    Text(updating ? "generating.failed.edit \(agentName)" : "generating.failed \(agentName)")
                         .font(Typo.list)
                         .foregroundStyle(Color.ink900)
                     Text("generating.detail \(detail)")
@@ -132,7 +134,7 @@ private struct Progress: View {
                 .padding(.top, 14)
                 .transition(.opacity)
             } else {
-                Text("dopamine.generating")
+                Text(updating ? "dopamine.generating.edit" : "dopamine.generating")
                     .font(Typo.display(18, italic: true))
                     .foregroundStyle(Color.ink500)
                     .padding(.top, 26)
@@ -211,9 +213,9 @@ private struct StepRow: View {
 
     private var title: Text {
         switch step {
-        case .rules: Text("generating.step.rules")
+        case .rules: Text(wizard.mode == .edit ? "generating.step.rules.edit" : "generating.step.rules")
         case .tools: Text("generating.step.tools")
-        case .skills: Text("generating.step.skills")
+        case .skills: Text(wizard.mode == .edit ? "generating.step.skills.edit" : "generating.step.skills")
         case .saving: Text("generating.step.saving \(wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines))")
         }
     }

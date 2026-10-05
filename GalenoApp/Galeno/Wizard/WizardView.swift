@@ -96,7 +96,7 @@ private struct ProgressHeader: View {
                     .foregroundStyle(Color.ink700)
                     .lineLimit(1)
                 Spacer()
-                Text(wizard.step.title)
+                Text(wizard.stepTitle)
                     .font(Typo.display(15, italic: true))
                     .foregroundStyle(Color.ink500)
                 if wizard.step.rawValue >= WizardStep.agent.rawValue, wizard.step != .generating, wizard.step != .done,
@@ -139,7 +139,7 @@ private struct NavigationBar: View {
         case .welcome: Text("wizard.start")
         // «Conectar 5 herramientas»: solo las que faltan por conectar. Si ya están todas, «Siguiente».
         case .tools where wizard.hasToConnect: Text("tools.primary \(wizard.toConnect.count)")
-        case .review: Text("review.primary \(agentName)")
+        case .review: wizard.mode == .edit ? Text("review.primary.edit") : Text("review.primary \(agentName)")
         case .done: Text("wizard.finish")
         default: Text("wizard.next")
         }
@@ -150,7 +150,7 @@ private struct NavigationBar: View {
             if wizard.canGoBack {
                 Button("wizard.back") { wizard.back() }
                     .buttonStyle(InkButtonStyle(.secondary, padding: 20))
-            } else if wizard.mode == .short, wizard.isFirstStep, let cancelWizard {
+            } else if wizard.mode != .full, wizard.isFirstStep, let cancelWizard {
                 // El wizard corto no tiene «Atrás» en su primer paso: se cancela y se vuelve al home.
                 Button("wizard.cancel") { cancelWizard() }
                     .buttonStyle(InkButtonStyle(.secondary, padding: 20))

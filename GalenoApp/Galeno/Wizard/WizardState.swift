@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import GalenoCore
+import SwiftUI
 
 /// Todo lo que el wizard va capturando. Al final, `makeConfig()` lo convierte
 /// en el `AgentConfig` que se le pasa al motor.
@@ -17,8 +18,21 @@ final class WizardState: ObservableObject {
 
     /// El wizard completo (la primera vez) o el corto de «Nuevo agente» (`docs/03` §3b): sin idioma, detección ni
     /// conexiones ya hechas; parte de las herramientas que la instalación ya tiene conectadas.
-    enum Mode: Equatable { case full, short }
+    ///
+    /// `.edit` es «Gestionar» un agente que ya existe (`docs/03` §3b): las mismas pantallas, ya con lo que el agente tiene,
+    /// sin nombre ni bienvenida; al guardar se regenera **su** carpeta (no se crea otra) y `memoria/` no se toca.
+    enum Mode: Equatable { case full, short, edit }
     let mode: Mode
+
+    /// El agente que se está gestionando (solo en `.edit`).
+    private(set) var editingAgent: AgentRecord?
+
+    /// Lo que se hace al guardar los cambios de un agente: volver al home. El wizard de edición no pasa por «Listo».
+    var onSaved: (@MainActor () -> Void)?
+
+    /// Las conexiones que la instalación ya conoce (`.short` y `.edit`): una herramienta que se vuelve a marcar y ya
+    /// estaba conectada entra conectada, con su `client_id`, en vez de pasar otra vez por «Conectar».
+    private var knownConnections: [Tool: SharedConnection] = [:]
 
     // MARK: Lo que captura el wizard
 
@@ -105,7 +119,8 @@ final class WizardState: ObservableObject {
         claudeDetector: ClaudeCodeDetector = .live,
         connectServices: ConnectServices = .live(),
         draftStore: (any DraftStoring)? = nil,
-        startingFrom installation: GalenoInstallation? = nil
+        startingFrom installation: GalenoInstallation? = nil,
+        editing agentID: UUID? = nil
     ) {
         language = Self.defaultLanguage(from: preferredLanguages)
         self.claudeStatus = claudeStatus
@@ -113,12 +128,42 @@ final class WizardState: ObservableObject {
         self.connectServices = connectServices
         // El corto se hace de una vez: nunca guarda ni pisa el borrador del wizard completo.
         self.draftStore = installation == nil ? draftStore : nil
+        if let installation, let agentID, let record = installation.agent(id: agentID),
+            let config = installation.resolvedConfig(for: agentID)
+        {
+            // «Gestionar»: el agente tal como está guardado. Lo que se saltó (`skipped`) vuelve a estar por conectar:
+            // si no, «Conectar» lo daría por resuelto y no habría forma de recuperarlo.
+            mode = .edit
+            editingAgent = record
+            generatedAgent = record
+            knownConnections = Dictionary(uniqueKeysWithValues: installation.connections.map { ($0.tool, $0) })
+            language = installation.language
+            agentName = config.agentName
+            projectDescription = config.projectDescription
+            // Lo que no se puede conectar hoy («Próximamente») y no estaba conectado no entra: no se podría ni
+            // quitar de la lista ni conectar, y contaría como pendiente para siempre.
+            connections = config.connections
+                .filter { !$0.tool.isComingSoon || $0.status == .connected }
+                .map { connection in
+                    var connection = connection
+                    if connection.status == .skipped { connection.status = .selected }
+                    return connection
+                }
+            skills = config.skills
+            skillsInitialized = true  // lo que tiene el agente manda, no la selección de fábrica
+            sendingRules = config.sendingRules
+            step = .tools
+            furthestStep = .tools
+            if !claudeStatus.isFound { Task { await detectClaudeCode() } }
+            return
+        }
         if let installation {
             // «Nuevo agente»: el idioma y las conexiones ya hechas son los de la instalación (la función de
             // la Fase 3b), y se empieza en el nombre. No hay borrador: es corto y se hace de una vez.
             mode = .short
             language = installation.language
             connections = installation.startingPoint(agentName: "").connections
+            knownConnections = Dictionary(uniqueKeysWithValues: installation.connections.map { ($0.tool, $0) })
             step = .agent
             furthestStep = .agent
             // Conectar una herramienta nueva necesita saber dónde está `claude`; el paso 2 no existe aquí.
@@ -195,12 +240,21 @@ final class WizardState: ObservableObject {
         case .short:
             let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
             return [.agent, .tools] + (connecting ? [.connect] : []) + [.skills, .rules, .review, .generating, .done]
+        case .edit:
+            // Sin nombre (renombrar es otra cosa) ni «Listo»: al guardar se vuelve al home.
+            let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
+            return [.tools] + (connecting ? [.connect] : []) + [.skills, .rules, .review, .generating]
         }
     }
 
     /// Si «Conectar» entra en el wizard corto, decidido al salir de «Tus herramientas»: mientras se conecta,
     /// las herramientas pasan a conectadas y el paso no puede desaparecer a mitad de camino.
     private var connectStepLocked = false
+
+    /// El título del paso. «Escribiendo» al crear un agente es «Actualizando» al gestionar uno que ya existe.
+    var stepTitle: LocalizedStringKey {
+        mode == .edit && step == .generating ? "step.generating.title.edit" : step.title
+    }
 
     var stepCount: Int { stepOrder.count }
 
@@ -251,7 +305,7 @@ final class WizardState: ObservableObject {
     }
 
     func next() {
-        if mode == .short, step == .tools { connectStepLocked = hasToConnect }
+        if mode != .full, step == .tools { connectStepLocked = hasToConnect }
         guard canGoForward, let following = step(after: step) else { return }
         // Cada vez que se entra a «Generando» es una generación nueva: la de antes ya no cuenta.
         if following == .generating {
@@ -390,7 +444,15 @@ final class WizardState: ObservableObject {
             connections.removeAll { $0.tool == tool }
         } else {
             for needed in tool.requires + [tool] where !isSelected(needed) {
-                connections.append(ToolConnection(tool: needed))
+                if let known = knownConnections[needed], known.status == .connected {
+                    connections.append(
+                        ToolConnection(
+                            tool: needed, status: .connected,
+                            sources: needed.selectableSourceKinds.isEmpty ? .everything : .nothing,
+                            oauthClientID: known.oauthClientID, serverNamePrefix: known.serverNamePrefix))
+                } else {
+                    connections.append(ToolConnection(tool: needed))
+                }
             }
             // El orden de la grilla, no el de los clics: es el de las conexiones del paso 5.
             let order = Tool.allCases
@@ -625,9 +687,12 @@ final class WizardState: ObservableObject {
 
     /// Terminó bien: se pasa a «Listo». El borrador ya no hace falta.
     func finishGeneration() {
-        guard step == .generating, generation?.phase == .succeeded,
-            let following = step(after: step)
-        else { return }
+        guard step == .generating, generation?.phase == .succeeded else { return }
+        guard let following = step(after: step) else {
+            // «Gestionar»: no hay «Listo»; se guardó y se vuelve al home.
+            onSaved?()
+            return
+        }
         step = following
         draftStore?.clear()
     }
