@@ -111,7 +111,9 @@ enum AgentsFileRenderer {
         } else {
             for connection in connections {
                 let summary = sourceSummary(connection, language: .spanish)
-                let note = connection.tool == .whatsapp ? " · **solo lectura, nunca envías**" : ""
+                let note = connection.tool == .whatsapp
+                    ? " · **solo lectura, nunca envías**; lees el texto de los chats, pero todavía no puedes abrir sus archivos adjuntos"
+                    : ""
                 lines.append("- **\(connection.tool.displayName(in: .spanish))** — \(summary)\(note)")
             }
             if connections.contains(where: { $0.tool == .claudeDesign }) {
@@ -182,6 +184,11 @@ enum AgentsFileRenderer {
             6. **Primero la respuesta.** Lee solo lo que la pregunta necesita: si te piden los \
             tres chats más recientes, lee esos tres y no más. Lo demás —un resumen más amplio, \
             conocer mejor el proyecto— se ofrece después, en una línea.
+            7. **Tono cordial por defecto.** Lo que redactes para otras personas —un correo, un \
+            mensaje, un seguimiento— va en tono profesional y amable. Nada de amenazas, ultimátums \
+            ni escalamiento legal (denuncias, demandas, entes de control) salvo que el usuario lo \
+            pida expresamente. Si crees que el caso lo amerita, dilo aparte como una opción; no lo \
+            metas en el borrador.
             """
         )
         lines.append("")
@@ -341,7 +348,9 @@ enum AgentsFileRenderer {
         } else {
             for connection in connections {
                 let summary = sourceSummary(connection, language: .english)
-                let note = connection.tool == .whatsapp ? " · **read-only, you never send**" : ""
+                let note = connection.tool == .whatsapp
+                    ? " · **read-only, you never send**; you read the text of the chats, but you cannot open their attachments yet"
+                    : ""
                 lines.append("- **\(connection.tool.displayName(in: .english))** — \(summary)\(note)")
             }
             if connections.contains(where: { $0.tool == .claudeDesign }) {
@@ -413,6 +422,10 @@ enum AgentsFileRenderer {
             6. **The answer comes first.** Read only what the question needs: if you are asked \
             for the three most recent chats, read those three and no more. Anything else —a \
             broader summary, getting to know the project better— is offered afterwards, in one line.
+            7. **Cordial by default.** Anything you draft for other people —an email, a message, a \
+            follow-up— is professional and friendly. No threats, ultimatums or legal escalation \
+            (complaints to regulators, lawsuits) unless the user explicitly asks for it. If you \
+            think the case calls for it, say so separately as an option; don't put it in the draft.
             """
         )
         lines.append("")
