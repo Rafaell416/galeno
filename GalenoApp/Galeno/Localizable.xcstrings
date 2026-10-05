@@ -6707,6 +6707,23 @@
         }
       }
     },
+    "tools.comingSoon" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Próximamente"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coming soon"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
     "tools.designNote" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -44,7 +44,7 @@ struct ToolsStepView: View {
                                     tool: tool, isFocused: focused == tool,
                                     lightDelay: autoTicked.contains(tool) && !reduceMotion ? 0.1 : 0
                                 ) { toggle(tool) }
-                                    .focusable()
+                                    .focusable(!tool.isComingSoon)
                                     .focused($focused, equals: tool)
                                     .onKeyPress(.space) {
                                         toggle(tool)
@@ -79,6 +79,7 @@ struct ToolsStepView: View {
     }
 
     private func toggle(_ tool: Tool) {
+        guard !tool.isComingSoon else { return }
         let wasSelected = wizard.isSelected(tool)
         let needed = tool.requires.filter { !wizard.isSelected($0) }
         wizard.toggle(tool)
@@ -146,29 +147,39 @@ private struct ToolCard: View {
     var body: some View {
         let selected = wizard.isSelected(tool)
         let name = tool.displayName(in: wizard.language)
+        let soon = tool.isComingSoon
 
         Button(action: action) {
-            VStack(spacing: 5) {
+            VStack(spacing: soon ? 2 : 5) {
                 // El logo se enciende: de `ink-500` a `ink-900` (200 ms).
-                ToolIcon(tool: tool, size: 24, color: selected ? .ink900 : .ink500)
+                ToolIcon(tool: tool, size: soon ? 20 : 24, color: selected ? .ink900 : .ink500)
+                    .opacity(soon ? 0.55 : 1)
                 Text(verbatim: name)
                     .font(Typo.text(13.5, .medium))
-                    .foregroundStyle(Color.ink900)
+                    .foregroundStyle(soon ? Color.ink500 : Color.ink900)
                     .multilineTextAlignment(.center)
                     .lineSpacing(-2)
-                    .lineLimit(2)
+                    .lineLimit(soon ? 1 : 2)
                     .minimumScaleFactor(0.85)
+                if soon {
+                    // Todavía no se ha probado de punta a punta: se ve, pero no se puede marcar.
+                    SmallCapsLabel("tools.comingSoon", size: 10)
+                        .foregroundStyle(Color.ink500)
+                }
             }
             .padding(.horizontal, 4)
             .frame(maxWidth: .infinity)
             .frame(height: 68)
             .background(
-                selected || hovering ? Color.parchment100 : Color.clear, in: RoundedRectangle(cornerRadius: Radius.b1))
+                selected || (hovering && !soon) ? Color.parchment100 : Color.clear, in: RoundedRectangle(cornerRadius: Radius.b1))
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.b1)
-                    .strokeBorder(selected ? Color.ink900 : Color.parchment400, lineWidth: 1.5)
+                    .strokeBorder(
+                        selected ? Color.ink900 : Color.parchment400,
+                        style: StrokeStyle(lineWidth: soon ? 1 : 1.5, dash: soon ? [3, 3] : []))
             )
             .overlay(alignment: .topTrailing) {
+                if !soon {
                 Rectangle()
                     .strokeBorder(selected ? Color.ink900 : Color.parchment400, lineWidth: 1.5)
                     .background(Rectangle().fill(selected ? Color.ink900 : Color.clear))
@@ -182,6 +193,7 @@ private struct ToolCard: View {
                     .frame(width: 14, height: 14)
                     .padding(4)
                     .accessibilityHidden(true)
+                }
             }
             .overlay {
                 // El foco del teclado: un filete de tinta, no el lacre (que se reserva para un acento por pantalla).
@@ -190,15 +202,29 @@ private struct ToolCard: View {
             .contentShape(RoundedRectangle(cornerRadius: Radius.b1))
         }
         .buttonStyle(.plain)
+        .disabled(soon)
         .onHover { inside in
+            guard !soon else { return }
             hovering = inside
             if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
         .onDisappear { if hovering { NSCursor.pop(); hovering = false } }
-        .accessibilityLabel(Text(verbatim: name))
+        .accessibilityLabel(soon ? Text(verbatim: name + ", ") + Text("tools.comingSoon") : Text(verbatim: name))
         .accessibilityAddTraits(selected ? .isSelected : [])
         .animation(.easeOut(duration: 0.2).delay(lightDelay), value: selected)
         .animation(.easeOut(duration: Motion.micro), value: hovering)
+    }
+}
+
+extension Tool {
+    /// Las que todavía no se han probado de punta a punta con una cuenta real (4 oct 2026): se muestran
+    /// en el paso 4 como «Próximamente» y no se pueden marcar. El motor las sigue sabiendo generar;
+    /// para abrir una, basta quitarla de aquí después de probarla.
+    var isComingSoon: Bool {
+        switch self {
+        case .jira, .fireflies, .granola, .fathom, .googleMeet: true
+        case .whatsapp, .slack, .notion, .gmail, .googleWorkspace, .googleCalendar, .claudeDesign: false
+        }
     }
 }
 
