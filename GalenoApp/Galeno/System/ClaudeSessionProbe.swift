@@ -17,6 +17,23 @@ nonisolated protocol SessionProbing: Sendable {
 nonisolated struct ClaudeSessionProbe: SessionProbing {
     var timeout: TimeInterval = 45
 
+    /// Lo que se le pide a Claude Code para que el estado del arranque sea **el de verdad** (variables
+    /// documentadas en code.claude.com/docs/en/env-vars):
+    ///
+    /// - `MCP_DISCOVERY_CACHE=0`: sin la caché de descubrimiento. Con ella, un servidor remoto que ya se usó
+    ///   no se conecta al arrancar («connects on first use») y sale `pending` en **todas** las sesiones: un
+    ///   conector que el usuario ya tenía conectado nunca se vería `connected`. La caché se enciende por
+    ///   cuenta (despliegue gradual), así que pasa en unos Mac y en otros no: fue el demo de Felipe.
+    /// - `MCP_CONNECTION_NONBLOCKING=0`: el arranque espera a que los servidores conecten antes de dar su
+    ///   estado, en vez de dejarlos «conectándose» de fondo.
+    /// - `MCP_CONNECT_TIMEOUT_MS`: hasta cuándo espera. Un conector lento de la cuenta (uno cualquiera, no
+    ///   solo los de Galeno) lo agota, así que no puede ser largo.
+    static let environment = [
+        "MCP_DISCOVERY_CACHE": "0",
+        "MCP_CONNECTION_NONBLOCKING": "0",
+        "MCP_CONNECT_TIMEOUT_MS": "8000",
+    ]
+
     func serverStatuses(claudePath: String) async -> [String: String]? {
         let timeout = self.timeout
         return await withCheckedContinuation { continuation in
@@ -35,6 +52,7 @@ nonisolated struct ClaudeSessionProbe: SessionProbing {
         ]
         // Un directorio neutro: sin `CLAUDE.md` ni ajustes de proyecto de por medio.
         process.currentDirectoryURL = FileManager.default.temporaryDirectory
+        process.environment = ProcessInfo.processInfo.environment.merging(environment) { _, ours in ours }
         process.standardInput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         let pipe = Pipe()

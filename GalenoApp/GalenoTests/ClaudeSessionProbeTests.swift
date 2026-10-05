@@ -23,12 +23,14 @@ final class ClaudeSessionProbeTests: XCTestCase {
     }
 
     /// `needs-auth` no es «conectado», que es justo lo que `claude mcp get` confunde. Lo que no aparece no
-    /// está en la cuenta; `pending` es «todavía no se sabe».
+    /// está en la cuenta; `pending` es «todavía se conectaba» (no es un fallo ni pide autorización).
     func testTheStatusMapsToWhatTheFlowNeeds() throws {
         let statuses = try XCTUnwrap(ClaudeSessionProbe.parseInit(initEvent))
         XCTAssertEqual(ClaudeMCPClient.connectorStatus(of: "claude.ai Google Drive", in: statuses), .needsAuthentication)
         XCTAssertEqual(ClaudeMCPClient.connectorStatus(of: "claude.ai Notion", in: statuses), .connected)
         XCTAssertEqual(ClaudeMCPClient.connectorStatus(of: "claude.ai Gmail", in: statuses), .notRegistered)
-        XCTAssertEqual(ClaudeMCPClient.connectorStatus(of: "claude.ai Lovable", in: statuses), .failed)
+        XCTAssertEqual(ClaudeMCPClient.connectorStatus(of: "claude.ai Lovable", in: statuses), .pending)
+        XCTAssertEqual(ClaudeMCPClient.connectorStatus(of: "x", in: ["x": "failed"]), .failed)
+        XCTAssertEqual(ClaudeMCPClient.connectorStatus(of: "x", in: ["x": "algo-nuevo"]), .failed, "lo desconocido no es conectado")
     }
 }
