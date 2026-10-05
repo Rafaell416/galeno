@@ -113,6 +113,17 @@ nonisolated enum FirstCommand {
 
 // MARK: - Abrir
 
+/// Cómo terminó el intento de abrir un agente.
+enum AgentOpenOutcome: Equatable, Sendable {
+    case opened
+    /// No se pudo abrir (falta el manejador del enlace, o la app que lo abre).
+    case failed
+    /// Había que reiniciar la app de Claude para que viera los conectores del agente y no salió al pedírselo
+    /// (un aviso suyo, una tarea a medias). **No se abre el agente en esa app**: no vería sus herramientas, y
+    /// el usuario no sabría por qué. Se le dice que la cierre él.
+    case claudeDidNotQuit
+}
+
 /// Cuándo abrir un agente obliga a reiniciar la app de Claude, y cómo se abre. Lo comparten «Listo» y el home.
 ///
 /// La app de Claude carga los conectores de la cuenta (Gmail, Drive…) al arrancar y no los actualiza
@@ -141,14 +152,15 @@ enum AgentOpenPolicy {
     static func open(
         folder: URL, tools: [Tool], inApp: Bool, prompt: String?, resume: Bool = false, opener: any AgentOpening,
         claudePath: String
-    ) async -> Bool {
+    ) async -> AgentOpenOutcome {
         if inApp {
             if needsClaudeRestart(tools: tools, folder: folder, opener: opener) {
                 return await opener.restartClaudeAppAndOpen(folder: folder, prompt: prompt, resume: resume)
             }
-            return resume ? opener.continueInClaudeApp(folder: folder) : opener.openInClaudeApp(folder: folder, prompt: prompt)
+            let opened = resume ? opener.continueInClaudeApp(folder: folder) : opener.openInClaudeApp(folder: folder, prompt: prompt)
+            return opened ? .opened : .failed
         }
-        return opener.openInTerminal(folder: folder, prompt: prompt, claudePath: claudePath)
+        return opener.openInTerminal(folder: folder, prompt: prompt, claudePath: claudePath) ? .opened : .failed
     }
 }
 
@@ -166,7 +178,7 @@ protocol AgentOpening {
     func claudeAppNeedsRestart(since date: Date) -> Bool
     /// Cierra la app de Claude, espera a que termine y la vuelve a abrir en el agente.
     /// `resume`: al reabrir, volver a la última conversación de la carpeta en vez de abrir una nueva.
-    @discardableResult func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> Bool
+    @discardableResult func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> AgentOpenOutcome
     @discardableResult func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool
     func reveal(_ folder: URL)
 }
@@ -174,7 +186,7 @@ protocol AgentOpening {
 extension AgentOpening {
     /// «Listo»: una conversación nueva, con la primera pregunta escrita.
     @discardableResult
-    func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> Bool {
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?) async -> AgentOpenOutcome {
         await restartClaudeAppAndOpen(folder: folder, prompt: prompt, resume: false)
     }
 }
@@ -216,18 +228,22 @@ struct SystemAgentOpener: AgentOpening {
         runningClaudeApps.contains { ($0.launchDate ?? .distantPast) < date }
     }
 
-    /// Se le pide salir como lo haría Cmd+Q (nunca se la mata) y se espera hasta 15 s. Si no salió
-    /// —un diálogo suyo de «¿salir?»—, el agente se abre igual en la app que quedó.
-    func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> Bool {
+    /// Se le pide salir como lo haría Cmd+Q (nunca se la mata) y se espera hasta 15 s. Si no salió —un aviso
+    /// suyo de «¿salir?», una tarea a medias—, **no se abre el agente**: en la app que quedó no vería sus
+    /// conectores y nadie sabría por qué (así pasó en un demo). Se devuelve `.claudeDidNotQuit` y la pantalla
+    /// le pide al usuario que la cierre.
+    func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> AgentOpenOutcome {
         let apps = runningClaudeApps
         for app in apps { app.terminate() }
         for _ in 0..<150 {
             if apps.allSatisfy(\.isTerminated) { break }
             try? await Task.sleep(for: .milliseconds(100))
         }
+        guard apps.allSatisfy(\.isTerminated) else { return .claudeDidNotQuit }
         // Un respiro para que el sistema dé por cerrada la app antes de volver a lanzarla.
         try? await Task.sleep(for: .milliseconds(600))
-        return resume ? continueInClaudeApp(folder: folder) : openInClaudeApp(folder: folder, prompt: prompt)
+        let opened = resume ? continueInClaudeApp(folder: folder) : openInClaudeApp(folder: folder, prompt: prompt)
+        return opened ? .opened : .failed
     }
 
     func openInTerminal(folder: URL, prompt: String?, claudePath: String) -> Bool {

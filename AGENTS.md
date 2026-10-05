@@ -124,6 +124,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 
 ### WhatsApp
 
+- El bridge todavía **no descarga adjuntos** (`download_media` solo mira lo que ya está en disco). Su mensaje y el `AGENTS.md`
+  generado lo dicen tal cual; no volver a un texto que mande a «reintentar».
 - Nunca añadir herramientas de envío al bridge. Ni detrás de un flag, ni desactivadas,
   ni "para pruebas". El solo lectura es estructural: el código de envío no existe.
 - Al sincronizar con upstream, revisar que no reentren `send_message`, `send_file` ni
@@ -213,7 +215,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   carpeta del agente y nada se ejecuta con datos que no sean la ruta (citada) y el texto sugerido.
   Único caso en que Galeno cierra otra app: si el agente usa conectores de la cuenta de Claude y la app de Claude lleva
   abierta desde antes, «Abrir en la app de Claude» le pide salir (como Cmd+Q, nunca matarla) y la reabre en el agente,
-  avisándolo antes en la pantalla (`docs/03` §4e). No extenderlo a otras apps ni a otros momentos.
+  avisándolo antes en la pantalla (`docs/03` §4e). Si no sale, **no se abre el agente en la app que quedó**: se le dice al
+  usuario que la cierre (`AgentOpenOutcome.claudeDidNotQuit`). No extenderlo a otras apps ni a otros momentos.
 - Procesos hijo (`claude`, el bridge): un secreto va **solo** por el entorno del `Process`
   (`MCP_CLIENT_SECRET`), nunca en argumentos, logs ni archivos. Los hijos de larga duración se
   lanzan con `ManagedProcess` (queda en `ProcessRegistry` y muere con la app). La app **no

@@ -475,7 +475,8 @@ Instalación sin Terminal OK. Falló lo de Google, que es lo que más pesa:
    sección del `AGENTS.md` sobre conectores. No era un fallo del reinicio (con Simon funcionó).
    - Hueco que queda: un agente al que se le saltó una herramienta no puede recuperarla (falta «Gestionar la config»). Hoy la
      salida es crear otro con «Nuevo agente».
-   - Hueco menor: si Claude no sale al pedírselo, `restartClaudeAppAndOpen` abre igual sin avisar.
+   - Resuelto (rama `fix/feedback-demos`): si Claude no sale al pedírselo, ya no se abre el agente en silencio; la pantalla
+     pide cerrarlo con Cmd+Q y volver a pulsar «Abrir».
 3. **Slack**: el mensaje salió con el nombre y la foto de Felipe (token de usuario). Identidad de bot: v0.0.2. La app de
    Slack ya se llama como el agente, sin «· Galeno» (abajo).
 
@@ -511,18 +512,17 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
 
 - **WhatsApp no descarga adjuntos.** `download_media` solo mira la caché local y nadie llama a
   `downloadMedia` (`whatsapp-bridge/media.go`): `sync` recibe y guarda, pero no baja archivos. El
-  agente encontró 5 documentos y no pudo abrirlos. Dos pasos: (1) corregir el mensaje de la
-  herramienta, que hoy manda a «asegurarse de que el servicio corre y reintentar» y hace que el
-  agente dé un consejo que no sirve; (2) descargar de verdad, por el servicio de fondo (el único con
-  conexión viva; `serve` no puede abrir otra). Los archivos viejos pueden pedir que el teléfono los
-  vuelva a subir. Sigue siendo solo lectura. Sube la versión del bridge.
+  agente encontró 5 documentos y no pudo abrirlos. **(1) Hecho** (bridge 0.2.2, rama `fix/feedback-demos`):
+  el mensaje de la herramienta y el `AGENTS.md` generado dicen la verdad —todavía no se pueden abrir
+  adjuntos, reintentar no sirve, el usuario los abre en WhatsApp—. **(2) Pendiente:** descargar de verdad,
+  por el servicio de fondo (el único con conexión viva; `serve` no puede abrir otra). Los archivos viejos
+  pueden pedir que el teléfono los vuelva a subir. Sigue siendo solo lectura.
 - **Chats sin nombre.** Un chat salió como `106712858140679` en vez del nombre del contacto: es un
   identificador interno de WhatsApp (`@lid`) que el puente no cruza con la agenda.
 - **Tono de lo que redacta.** Al pedirle cómo hacer seguimiento a un correo, propuso un texto
-  agresivo (amenazar con denunciar ante la SIC). Falta una regla en el `AGENTS.md` generado: tono
-  profesional y cordial por defecto; nada de amenazas, ultimátums ni escalamiento legal salvo que
-  el usuario lo pida expresamente; si el caso lo amerita, ofrecerlo como opción aparte, no como
-  borrador principal.
+  agresivo (amenazar con denunciar ante la SIC). **Hecho** (rama `fix/feedback-demos`): regla 7 del
+  `AGENTS.md` generado, «Tono cordial por defecto»: nada de amenazas, ultimátums ni escalamiento legal
+  salvo que el usuario lo pida; si el caso lo amerita, se dice aparte como opción, no en el borrador.
 
 **Peticiones del usuario (necesitan decisión de Rafa: tocan líneas rojas):**
 

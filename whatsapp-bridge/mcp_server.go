@@ -70,7 +70,7 @@ func newMCPServer(store *MessageStore) *mcp.Server {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "download_media",
-		Description: "Download media from a WhatsApp message and get the local file path.",
+		Description: "Get the local file path of a WhatsApp attachment that is already on this computer. This bridge does not fetch attachments from WhatsApp yet, so most return success=false: the text of the chat is still readable, and the user can open the file in WhatsApp.",
 	}, handleDownloadMedia(store))
 
 	return server
@@ -301,6 +301,15 @@ type DownloadMediaOutput struct {
 	FilePath string `json:"file_path,omitempty"`
 }
 
+// mediaNotAvailableMessage es lo que se le dice al agente cuando el adjunto
+// no está en disco. Hoy nadie lo descarga ("sync" recibe y guarda, pero no
+// baja archivos: ver downloadMedia en media.go), así que reintentar no sirve.
+// El mensaje anterior ("make sure the sync service is running, then try
+// again") hacía que el agente le aconsejara al usuario algo que no funciona
+// (primer demo con un usuario externo, 4 oct 2026). Tiene que decir la verdad
+// y qué sí se puede hacer.
+const mediaNotAvailableMessage = "This attachment is not available: Galeno cannot open WhatsApp attachments (documents, images, audio) yet. Retrying will not help. Tell the user plainly that you can read the text of the chat but not this file, and that they can open it themselves in WhatsApp."
+
 // handleDownloadMedia solo mira la caché local (cachedMediaPath, en
 // media.go): "serve" no sostiene su propia conexión a WhatsApp —la sostiene
 // "sync", de fondo—, así que nunca intenta descargar en vivo. Si el archivo
@@ -315,7 +324,7 @@ func handleDownloadMedia(store *MessageStore) func(context.Context, *mcp.CallToo
 			if errors.As(err, &notCached) {
 				return nil, DownloadMediaOutput{
 					Success: false,
-					Message: "Media not downloaded yet. Make sure the galeno-whatsapp sync service is running, then try again shortly.",
+					Message: mediaNotAvailableMessage,
 				}, nil
 			}
 			// Como en whatsapp.py: un fallo de descarga es un resultado

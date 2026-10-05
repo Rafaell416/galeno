@@ -586,6 +586,27 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertFalse(try contents(of: "AGENTS.md").contains("## The project"))
     }
 
+    /// En el primer demo el agente propuso un seguimiento agresivo a un correo (amenazar con una denuncia).
+    /// Lo que redacta para otros va cordial por defecto; escalar solo si el usuario lo pide.
+    func testAgentsFileKeepsDraftsCordialAndNeverThreatensOnItsOwn() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        let spanish = try contents(of: "AGENTS.md")
+        XCTAssertTrue(spanish.contains("7. **Tono cordial por defecto.**"))
+        XCTAssertTrue(spanish.contains("Nada de amenazas, ultimátums ni escalamiento legal"))
+        XCTAssertTrue(spanish.contains("salvo que el usuario lo pida expresamente"))
+
+        try generate(GeneratorFixtures.englishEightTools)
+        let english = try contents(of: "AGENTS.md")
+        XCTAssertTrue(english.contains("7. **Cordial by default.**"))
+        XCTAssertTrue(english.contains("unless the user explicitly asks for it"))
+    }
+
+    /// El puente todavía no descarga adjuntos: el agente lo sabe de entrada y no promete abrirlos.
+    func testAgentsFileSaysWhatsAppAttachmentsCannotBeOpenedYet() throws {
+        try generate(GeneratorFixtures.spanishThreeTools)
+        XCTAssertTrue(try contents(of: "AGENTS.md").contains("todavía no puedes abrir sus archivos adjuntos"))
+    }
+
     /// En la app de Claude los conectores de la cuenta se encienden por conversación: el agente sabe
     /// que los suyos ya están conectados y cómo encenderlos, y solo nombra los que Galeno conectó.
     func testAgentsFileSaysHowToTurnOnItsConnectorsInTheClaudeApp() throws {
