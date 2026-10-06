@@ -12,8 +12,11 @@ protocol SystemAuthorizationPresenting: AnyObject {
     func dismiss()
 }
 
-/// La hoja de autenticación de macOS (`ASWebAuthenticationSession`), decidida por Rafa el 4 de octubre de 2026 para las
-/// herramientas que se autorizan con OAuth en el navegador. **No es una vista web de Galeno**: es una ventana del
+/// La hoja de autenticación de macOS (`ASWebAuthenticationSession`). **Retirada el 5 de octubre de 2026** (decisión de
+/// Rafa, demo con Aquiles): la hoja usa la sesión de **Safari**, y si las cuentas del usuario viven en otro navegador
+/// sale con las cuentas equivocadas (Jira se conectó al workspace que no era). En producción ya no se inyecta
+/// (`ConnectServices.live` y `HealthModel` pasan `nil` y la autorización va al navegador predeterminado); la clase se
+/// conserva por si vuelve como opción. Decidida originalmente el 4 de octubre de 2026. **No es una vista web de Galeno**: es una ventana del
 /// navegador del usuario, con su sesión, sus contraseñas y el inicio con Google permitido, y Galeno no ve nada de lo
 /// que pasa dentro. Lo que se gana frente a abrir una pestaña es que se cierra sola al terminar y el usuario no pierde
 /// de vista a Galeno.

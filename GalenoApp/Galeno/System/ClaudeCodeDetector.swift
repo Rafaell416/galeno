@@ -7,6 +7,14 @@ nonisolated enum ClaudeCodeStatus: Equatable, Sendable {
     /// Instalado. `loggedIn` es `nil` si no se pudo saber (una versión sin
     /// `claude auth status`): en ese caso no se avisa de nada.
     case found(version: String, path: String, loggedIn: Bool?)
+
+    /// La versión encontrada, si la hay.
+    var version: String? {
+        switch self {
+        case .found(let version, _, _), .outdated(let version, _): version
+        default: nil
+        }
+    }
     /// Instalado, pero es una versión anterior a la mínima con la que Galeno sabe conectar
     /// (`ClaudeCodeDetector.minimumVersion`). No se sigue con ella: se actualiza.
     case outdated(version: String, path: String)

@@ -65,13 +65,16 @@ private struct SkillsTotals: View {
     /// La cascada en curso: pulsar otra vez la reemplaza, nada espera a que termine.
     @State private var cascade: Task<Void, Never>?
 
+    /// Solo lo que esta pantalla enseña: las skills de los grupos del rol.
+    private var visible: [CatalogSkill] { wizard.visibleSkills(in: catalog) }
+
     private var selectedCount: Int {
-        catalog.cards.filter { wizard.isSkillSelected($0.id, source: $0.source) }.count
+        visible.filter { wizard.isSkillSelected($0.id, source: $0.source) }.count
     }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Text(verbatim: Localized.string("skills.count %lld %lld", selectedCount, catalog.cards.count, locale: locale))
+            Text(verbatim: Localized.string("skills.count %lld %lld", selectedCount, visible.count, locale: locale))
                 .font(Typo.text(14))
                 .foregroundStyle(Color.ink700)
                 // El contador cuenta mientras los checks van cayendo.
@@ -86,7 +89,7 @@ private struct SkillsTotals: View {
     /// Marca o desmarca todas en cascada de 30 ms, en el orden del catálogo. Con «Reducir movimiento» cambian
     /// todas a la vez.
     private func setAll(_ on: Bool) {
-        let pending = catalog.cards.filter { wizard.isSkillSelected($0.id, source: $0.source) != on }
+        let pending = visible.filter { wizard.isSkillSelected($0.id, source: $0.source) != on }
         cascade?.cancel()
         if reduceMotion || pending.count < 2 {
             for skill in pending { wizard.toggleSkill(skill.id, source: skill.source) }
@@ -112,8 +115,10 @@ private struct SkillsContent<Header: View>: View {
     @FocusState private var focused: String?
     private static var columns: Int { 3 }
 
-    /// Los grupos que tienen alguna skill, en el orden del catálogo.
-    private var groups: [SkillGroup] { catalog.groups.filter { !catalog.skills(in: $0).isEmpty } }
+    /// Los grupos de este agente (los de su rol, más cualquiera con una skill ya marcada), con alguna skill.
+    private var groups: [SkillGroup] {
+        wizard.visibleSkillGroups(in: catalog).filter { !catalog.skills(in: $0).isEmpty }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

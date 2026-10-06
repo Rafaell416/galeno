@@ -105,15 +105,17 @@ private struct RoleCard: View {
             .background(isSelected || hovering ? Color.parchment100 : Color.clear)
             .overlay(Rectangle().strokeBorder(isSelected ? Color.ink900 : Color.parchment400, lineWidth: 1.5))
             .overlay(alignment: .topTrailing) {
-                Rectangle()
+                // Un radio, no una casilla: el rol es uno solo (feedback de Aquiles, 5 oct 2026: la casilla
+                // le hizo pensar que podía marcar varios).
+                Circle()
                     .strokeBorder(isSelected ? Color.ink900 : Color.parchment400, lineWidth: 1.5)
-                    .background(Rectangle().fill(isSelected ? Color.ink900 : Color.clear))
                     .overlay {
                         if isSelected {
-                            TracedShape(shape: CheckMark(), lineWidth: 1.5, color: .onInk, duration: 0.18).padding(1)
+                            Circle().fill(Color.ink900).padding(3.5)
+                                .transition(.scale.combined(with: .opacity))
                         }
                     }
-                    .frame(width: 14, height: 14)
+                    .frame(width: 16, height: 16)
                     .padding(8)
                     .accessibilityHidden(true)
             }

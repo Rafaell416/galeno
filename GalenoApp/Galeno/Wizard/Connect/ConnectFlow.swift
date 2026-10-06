@@ -707,9 +707,11 @@ final class ConnectFlow: ObservableObject {
 
         update(.working(.waitingForBrowser))
         // Con la app propia de Slack, la autorización se muestra en la ventana de Galeno (con la
-        // sesión que ya tiene) y se cierra sola. Las demás herramientas usan la hoja de autenticación del
-        // sistema: el navegador del usuario, con su sesión, en una ventana que Galeno cierra al terminar.
-        // Si la hoja no se puede mostrar, la dirección se abre en el navegador como siempre.
+        // sesión que ya tiene) y se cierra sola. Las demás herramientas van al **navegador predeterminado**
+        // del usuario (decisión de Rafa, 5 oct 2026: la hoja del sistema usa la sesión de Safari y las
+        // cuentas de verdad pueden vivir en otro navegador; a Aquiles lo conectó al workspace equivocado).
+        // `systemAuthorizer` queda como gancho para las pruebas; en producción llega `nil` y `claude mcp
+        // login` abre el navegador él mismo. La pestaña queda abierta; Galeno vuelve al frente al terminar.
         let usesOwnWindow = target.requiresOwnOAuthApp && authorizer != nil
         let opener: AuthorizationOpener?
         if usesOwnWindow {

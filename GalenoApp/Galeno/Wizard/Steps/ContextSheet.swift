@@ -33,14 +33,30 @@ struct ContextSheet: View {
                 .padding(.bottom, 16)
 
             NumberedLine(number: 1) {
-                HStack(alignment: .firstTextBaseline, spacing: Space.s12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("context.step1").font(Typo.list).foregroundStyle(Color.ink900)
                         .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    Button { copyPrompt() } label: {
-                        CopyLabel(copied: copiedPrompt, idle: "context.copyPrompt", done: "detection.copied")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // El mensaje completo, a la vista, con el icono de copiar en su esquina: el usuario
+                    // quiere leer qué le va a pegar a Claude antes de copiarlo (feedback de Aquiles, 5 oct 2026).
+                    ScrollView {
+                        Text(verbatim: Localized.string("context.prompt", locale: locale))
+                            .font(Typo.text(12.5))
+                            .lineSpacing(1.5)
+                            .foregroundStyle(Color.ink700)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            // Que el texto no quede debajo del icono.
+                            .padding(.trailing, 24)
                     }
-                    .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 14))
+                    .frame(height: 88)
+                    .background(Color.parchment100)
+                    .overlay(Rectangle().strokeBorder(Color.parchment300, lineWidth: 1))
+                    .overlay(alignment: .topTrailing) {
+                        CopyIconButton(copied: copiedPrompt, label: "context.copyPrompt") { copyPrompt() }
+                            .padding(6)
+                    }
                 }
             }
             .padding(.bottom, 12)
@@ -121,7 +137,7 @@ struct ContextSheet: View {
                     .allowsHitTesting(false)
             }
         }
-        .frame(height: 96)
+        .frame(height: 76)
         .background(Color.parchment100)
         .overlay(Rectangle().strokeBorder(Color.parchment400, lineWidth: 1))
     }
@@ -153,7 +169,7 @@ struct ContextSheet: View {
             }
             .animation(.easeOut(duration: Motion.micro), value: wizard.contextItems.count)
         }
-        .frame(maxHeight: 120)
+        .frame(maxHeight: 100)
     }
 
     // MARK: Acciones

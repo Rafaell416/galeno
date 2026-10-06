@@ -43,6 +43,8 @@ final class WizardState: ObservableObject {
     }
     /// Las herramientas que el asistente marcó por el rol (y el usuario todavía no cambió).
     private var rolePreselection: [Tool] = []
+    /// La versión que acaba de dejar el instalador, para decir «quedó instalado» antes de pedir la sesión.
+    @Published private(set) var claudeJustInstalledVersion: String?
     /// El rol cuyas skills de fábrica están puestas.
     private var skillsRole: AgentRole?
     @Published var agentName = ""
@@ -408,6 +410,7 @@ final class WizardState: ObservableObject {
     /// sin haber un Claude Code que sirva, es un fallo aunque el instalador dijera que todo fue bien.
     func installClaudeCode() {
         guard !claudeSetup.isWorking else { return }
+        claudeJustInstalledVersion = nil
         claudeSetup = .installing
         claudeSetupTask = Task { [weak self] in
             guard let self else { return }
@@ -419,6 +422,9 @@ final class WizardState: ObservableObject {
                 if Task.isCancelled { return }
                 claudeStatus = status
                 claudeSetup = status.isFound ? .idle : .failed(.installFailed(detail: ""))
+                // Que se vea que la instalación salió bien, sobre todo si lo siguiente es pedir la sesión
+                // (feedback de Aquiles, 5 oct 2026: pasó a «inicia sesión» sin decir que ya quedó instalado).
+                if status.isFound { claudeJustInstalledVersion = status.version ?? "" }
             case .offline: claudeSetup = .failed(.offline)
             case .timedOut: claudeSetup = .failed(.installTimedOut)
             case .cancelled: claudeSetup = .idle
@@ -768,6 +774,21 @@ final class WizardState: ObservableObject {
         } catch {
             skillCatalog = .failed(String(describing: error))
         }
+    }
+
+    /// Los grupos de skills que ve este agente: los de su rol (feedback de Aquiles, 5 oct 2026: eligió
+    /// producto y la pantalla le enseñó también marketing y ventas) y, por si acaso, cualquier grupo con
+    /// una skill ya marcada (un agente editado puede traerlas de antes).
+    func visibleSkillGroups(in catalog: SkillCatalog) -> [SkillGroup] {
+        catalog.groups.filter { group in
+            role.skillGroups.contains(group.id)
+                || catalog.skills(in: group).contains { isSkillSelected($0.id, source: $0.source) }
+        }
+    }
+
+    /// Las cards de esos grupos, en el orden del catálogo.
+    func visibleSkills(in catalog: SkillCatalog) -> [CatalogSkill] {
+        visibleSkillGroups(in: catalog).flatMap { catalog.skills(in: $0) }
     }
 
     func isSkillSelected(_ id: String, source: SkillSource) -> Bool {

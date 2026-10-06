@@ -135,6 +135,20 @@ private struct SetupPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // La instalación salió bien y ahora toca la sesión: primero se dice lo logrado (feedback de
+            // Aquiles, 5 oct 2026: pasó a «inicia sesión» sin confirmar que ya quedó instalado).
+            if need == .signIn, let version = wizard.claudeJustInstalledVersion, !version.isEmpty {
+                HStack(spacing: 10) {
+                    TracedShape(shape: CheckMark(), lineWidth: 1.5, color: .moss700, duration: 0.25)
+                        .frame(width: 14, height: 14)
+                        .accessibilityHidden(true)
+                    Text("detection.justInstalled \(version)")
+                        .font(Typo.list)
+                        .foregroundStyle(Color.ink700)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .appearing(after: 0, duration: Motion.enter)
+            }
             HStack(alignment: .top, spacing: 14) {
                 TracedShape(shape: Circle().inset(by: 0.75), lineWidth: 1.5, color: .ochre700, duration: 0.3)
                     .frame(width: 26, height: 26)

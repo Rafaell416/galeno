@@ -183,7 +183,8 @@ final class HealthModel: ObservableObject {
         whatsapp: any WhatsAppLinking = WhatsAppBridge.live(),
         skillUpdater: any SkillUpdating = SkillUpdaterNotAvailable(),
         authorizer: (any SlackAuthorizationPresenting)? = SlackAuthorizeWindowPresenter(),
-        systemAuthorizer: (any SystemAuthorizationPresenting)? = SystemAuthorizationSheet(),
+        // Navegador predeterminado, no la hoja del sistema (decisión de Rafa, 5 oct 2026; ver ConnectServices).
+        systemAuthorizer: (any SystemAuthorizationPresenting)? = nil,
         language: @escaping @MainActor () -> Language = { .spanish },
         openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) },
         returnToApp: @escaping @MainActor () -> Void = { AppFocus.bringToFront() },

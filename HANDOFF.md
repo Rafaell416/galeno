@@ -625,6 +625,31 @@ hilo y aborta. No se vio en el Mac de desarrollo (macOS 26). Arreglo: `nonisolat
 fuera del hilo principal (se comprobó que antes del arreglo tira el proceso de pruebas). **Falta probarlo en un Mac con macOS 15**, y revisar si
 hay otros cierres para AppKit/SwiftUI con el mismo problema (por ahora el único es este). Convendría una máquina o una VM con macOS 15 para el QA.
 
+### Segundo demo con Aquiles (5 oct 2026, noche): se activó, con nueve puntos de feedback
+
+Con el DMG `-c` (arreglo del crash de macOS 15 incluido) Aquiles **se activó de punta a punta**. Su feedback, y qué se hizo
+(rama `fix/feedback-aquiles-demo2`):
+
+1. «Por qué:» sonaba raro dando una explicación → la línea del paso 2 ahora dice «Porque sin Claude Code…». **Hecho.**
+2. Quería leer el mensaje que va a pegarle a Claude al traer contexto → la hoja muestra el mensaje completo junto a «Copiar». **Hecho.**
+3. **Jira quedó conectado al workspace equivocado**: la hoja del sistema usa la sesión de **Safari** y sus cuentas de verdad estaban
+   en otro navegador; y no había cómo cambiarlo desde Galeno. Decisión de Rafa: la autorización va al **navegador predeterminado**
+   (la pestaña queda abierta: no se puede cerrar una pestaña ajena; Galeno vuelve al frente). **Hecho** (docs/03 §3 pantalla 5,
+   `AGENTS.md`). Desconectar/cambiar una conexión desde la app sigue pendiente de la hoja «Herramientas» (rediseño, fase 4).
+4. Tras instalar Claude Code pasó a «inicia sesión» sin confirmar que quedó instalado → línea «Claude Code quedó instalado
+   (versión X)» antes de pedir la sesión. **Hecho.**
+5. No vio Calendar porque quedaba lejos de Drive → las tres de Google van juntas en el orden de cada rol (la preselección por rol
+   no cambia: ahora es lista propia, no «las tres primeras»). **Hecho.**
+6. **Su organización de Claude no permite conectar Google Docs**: Galeno no puede saberlo ni arreglarlo (la política vive en
+   claude.ai); el conector se salta y el administrador tendría que permitirlo. **Documentado** (QA E-10b); sin cambio de código.
+7. Eligió producto y la pantalla de skills le enseñó también marketing y ventas → ahora enseña **solo los grupos del rol** (más
+   cualquier grupo con una skill ya marcada, para agentes editados); los contadores y «Todas/Ninguna» cuentan solo lo visible. **Hecho.**
+8. Las casillas del rol parecían de selección múltiple → radios, y el resumen dice «Elige uno». **Hecho.**
+9. Las reglas nombraban Slack sin estar conectado → el texto fijo ya no nombra herramientas («Nada que vaya a otra persona…»);
+   las listas («Aplica a: …») ya eran dinámicas. **Hecho.**
+
+Sin probar en su Mac todavía; las pruebas de la app cubren 5, 7 y el aviso de instalado.
+
 *Slack: «tu navegador no es compatible» (5 oct 2026, noche, demo con Aquiles, macOS 15.6.1, Safari 18.6):* **la causa no era la lectura de la versión de
 Safari** (la hipótesis inicial; el Safari de esa Mac sí se lee, 18.6). Se comprobó pidiéndole a `slack.com/signin` con distintos identificadores: **responde
 403 a todo Safari anterior al 26** (probados 15.6 a 25.6), y también a un Chrome 130 y un Firefox 130; con 26.0 o más, 200. Slack rechaza navegadores de

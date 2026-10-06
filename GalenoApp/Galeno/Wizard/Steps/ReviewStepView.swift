@@ -75,7 +75,7 @@ struct ReviewStepView: View {
     private var skillsCard: some View {
         let names = selectedSkillNames
         let total: Int = {
-            if case .loaded(let catalog) = wizard.skillCatalog { return catalog.cards.count }
+            if case .loaded(let catalog) = wizard.skillCatalog { return wizard.visibleSkills(in: catalog).count }
             return names.count
         }()
         let title =
