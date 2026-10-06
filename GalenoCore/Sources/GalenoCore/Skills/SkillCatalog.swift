@@ -106,13 +106,17 @@ public struct CatalogSkill: Codable, Hashable, Sendable, Identifiable {
     public var guarantee: LocalizedText?
     /// De quién es, si no es nuestra. `nil` = la escribimos nosotros.
     public var credit: SkillCredit?
+    /// De dónde se instala, cuando no se deduce del crédito: la tarjeta de una skill propia del usuario
+    /// (``OwnSkills``) lleva `.own`. El catálogo no lo trae.
+    public var origin: SkillSource?
 
     public init(
         id: String, group: String, name: LocalizedText, summary: LocalizedText, writes: [Tool] = [],
         needsAny: [Tool] = [], ask: LocalizedText? = nil, example: SkillExample? = nil,
-        guarantee: LocalizedText? = nil, credit: SkillCredit? = nil
+        guarantee: LocalizedText? = nil, credit: SkillCredit? = nil, origin: SkillSource? = nil
     ) {
         self.credit = credit
+        self.origin = origin
         self.id = id
         self.group = group
         self.name = name
@@ -127,8 +131,9 @@ public struct CatalogSkill: Codable, Hashable, Sendable, Identifiable {
     /// El comando con el que se invoca.
     public var command: String { "/" + id }
 
-    /// De qué carpeta se instala: las nuestras de `galeno/`, las de terceros de `curated/`.
-    public var source: SkillSource { credit == nil ? .galeno : .curated }
+    /// De qué carpeta se instala: las nuestras de `galeno/`, las de terceros de `curated/`, las propias del
+    /// usuario de `skills-propias/` en su agente.
+    public var source: SkillSource { origin ?? (credit == nil ? .galeno : .curated) }
 
     /// ¿Puede terminar enviando algo a otras personas? Hoy, las que escriben en Slack. La vista
     /// previa lo dice: «Siempre te pide aprobación antes de enviar».

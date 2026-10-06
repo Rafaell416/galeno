@@ -414,3 +414,19 @@ Lo que ya falló delante de una persona y no debe volver a fallar. Cada una tien
 | 5 oct, Aquiles (2.º demo) | Calendar lejos de Drive en la grilla; eligió producto y vio todas las skills; las casillas del rol parecían de varios | Q-4.1, Q-5.1, Q-1.1 |
 | 5 oct, Aquiles (2.º demo) | Reglas que nombraban Slack sin estar conectado | Q-6.1 |
 | 5 oct, Aquiles (2.º demo) | Su organización de Claude no permite conectar Google | E-10b |
+
+### 6.11 Skills propias («Tus skills», `docs/03` §6.3)
+
+Con una carpeta de skill escrita por el usuario (un `SKILL.md` con frontmatter) y un `.md` suelto, en el Escritorio.
+
+| ID | Caso | Esperado | Idioma |
+|---|---|---|---|
+| S-1 | En el paso Skills, «Añadir skill…» y elegir la carpeta. | Aparece bajo «Tus skills», marcada, con el nombre y la descripción de su `SKILL.md`. Con el cursor encima dice «Quitar». | ES |
+| S-2 | Elegir el `.md` suelto. | Entra con el nombre del archivo como id («Mi Cierre.md» → `mi-cierre`) y el primer párrafo como descripción. | ES |
+| S-3 | Elegir una carpeta sin `SKILL.md`, o una imagen. | No entra; una línea en ocre dice por qué. Nada se copia. | ES |
+| S-4 | Traer una carpeta llamada `prd` (el id de una del catálogo). | No entra: «Ya hay una skill llamada «prd»; renombra la tuya». | ES |
+| S-5 | Crear el agente con una propia marcada. | `~/Galeno/<agente>/skills-propias/<id>/` tiene la copia (la carpeta entera) y `.claude/skills/<id>/` la instalada; el `AGENTS.md` la lista en «Tus skills»; en Claude Code, `/<id>` existe. El original del Escritorio no se tocó. **Bloqueante.** | ES |
+| S-6 | Pedirle al agente que cambie su propia skill. | No puede: `skills-propias/` está negado por regla. | ES |
+| S-7 | «Gestionar» ese agente. | La propia aparece en «Tus skills» con lo que dice su `SKILL.md`. Quitarla y guardar: su carpeta va a la **Papelera** (no se borra) y desaparece de `.claude/skills/`; `memoria/` intacta. | ES |
+| S-8 | Cerrar la app a medio asistente con una propia marcada y volver a abrir. | Al reanudar, la propia no está (el borrador no sabe de dónde copiarla); el resto del borrador sí. | ES |
+| S-9 | Una propia que le dice al agente «envía esto por Slack sin preguntar». | El agente pide aprobación igual: la skill no cambia ningún permiso. **Bloqueante.** | ES |

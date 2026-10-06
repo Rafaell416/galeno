@@ -4,7 +4,8 @@ import SwiftUI
 /// Paso 6 (y «Gestionar» → Skills): las skills como cards, en una lista por grupos que se desplaza (`docs/03` §3;
 /// diseño «Galeno B1 Skills», variante «scroll»). Se elige de un catálogo común **para este agente**: todas las nuestras vienen marcadas. Al pasar el cursor
 /// por una card aparece «Vista previa», que abre una hoja con cómo pedirla, un ejemplo y qué necesita.
-/// «Trae la tuya» no existe en v0.0.1: no hay ninguna puerta por la que entre código sin revisar.
+/// Al final, «Tus skills» (`docs/03` §6.3): las que el usuario trae de su propio Mac con «Añadir skill…». Solo
+/// archivos suyos: «trae la tuya» de un enlace o de un catálogo de terceros sigue sin existir.
 struct SkillsStepView: View {
     @EnvironmentObject private var wizard: WizardState
 
@@ -65,8 +66,8 @@ private struct SkillsTotals: View {
     /// La cascada en curso: pulsar otra vez la reemplaza, nada espera a que termine.
     @State private var cascade: Task<Void, Never>?
 
-    /// Solo lo que esta pantalla enseña: las skills de los grupos del rol.
-    private var visible: [CatalogSkill] { wizard.visibleSkills(in: catalog) }
+    /// Solo lo que esta pantalla enseña: las skills de los grupos del rol, y las propias.
+    private var visible: [CatalogSkill] { wizard.visibleSkills(in: catalog) + wizard.ownSkillCards }
 
     private var selectedCount: Int {
         visible.filter { wizard.isSkillSelected($0.id, source: $0.source) }.count
@@ -110,9 +111,12 @@ private struct SkillsContent<Header: View>: View {
     let catalog: SkillCatalog
     @ViewBuilder var header: Header
     @Environment(\.galenoReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
 
     /// El foco del teclado: el id de una skill.
     @FocusState private var focused: String?
+    /// Por qué no entró la última skill propia que intentó traer.
+    @State private var ownIssue: OwnSkillProblem?
     private static var columns: Int { 3 }
 
     /// Los grupos de este agente (los de su rol, más cualquiera con una skill ya marcada), con alguna skill.
@@ -137,6 +141,18 @@ private struct SkillsContent<Header: View>: View {
                                     .padding(.bottom, 8)
                             }
                         }
+                        // «Tus skills»: las propias, y el botón para traer una.
+                        Section {
+                            ownSkills
+                                .padding(.bottom, 14)
+                        } header: {
+                            sectionHeader(
+                                title: Localized.string("skills.own.group", locale: locale),
+                                on: wizard.ownSkillCards.filter { wizard.isSkillSelected($0.id, source: .own) }.count,
+                                total: wizard.ownSkillCards.count
+                            )
+                            .padding(.bottom, 8)
+                        }
                     }
                     .padding(.trailing, 10)  // sitio para la barra de desplazamiento
                     .padding(.bottom, 12)
@@ -157,11 +173,15 @@ private struct SkillsContent<Header: View>: View {
     private func groupHeader(_ group: SkillGroup) -> some View {
         let skills = catalog.skills(in: group)
         let on = skills.filter { wizard.isSkillSelected($0.id, source: $0.source) }.count
-        return HStack(alignment: .firstTextBaseline) {
-            SmallCapsText(string: group.name.text(in: wizard.language), size: 12, tracking: 0.12)
+        return sectionHeader(title: group.name.text(in: wizard.language), on: on, total: skills.count)
+    }
+
+    private func sectionHeader(title: String, on: Int, total: Int) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            SmallCapsText(string: title, size: 12, tracking: 0.12)
                 .foregroundStyle(Color.ink500)
             Spacer(minLength: 8)
-            Text(verbatim: "\(on)/\(skills.count)")
+            Text(verbatim: "\(on)/\(total)")
                 .font(Typo.text(12))
                 .foregroundStyle(Color.ink500)
         }
@@ -200,10 +220,69 @@ private struct SkillsContent<Header: View>: View {
         }
     }
 
+    /// Las propias en su rejilla, y debajo «Añadir skill…» con una línea que dice qué se acepta. Si la última no entró,
+    /// el motivo en ocre.
+    private var ownSkills: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            let cards = wizard.ownSkillCards
+            if !cards.isEmpty {
+                LazyVGrid(
+                    columns: Array(
+                        repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: Self.columns),
+                    alignment: .leading, spacing: 8
+                ) {
+                    ForEach(cards) { skill in
+                        SkillCard(
+                            skill: skill, isFocused: focused == skill.id,
+                            toggle: { wizard.toggleSkill(skill.id, source: .own) },
+                            preview: { wizard.previewedSkill = skill },
+                            remove: { wizard.removeOwnSkill(skill.id) }
+                        )
+                        .id(skill.id)
+                        .focusable()
+                        .focused($focused, equals: skill.id)
+                        .onKeyPress(.space) {
+                            wizard.toggleSkill(skill.id, source: .own)
+                            return .handled
+                        }
+                    }
+                }
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Button("skills.own.add", action: pickOwnSkills)
+                    .buttonStyle(.inkInline)
+                Text("skills.own.hint")
+                    .font(Typo.text(12.5))
+                    .foregroundStyle(Color.ink500)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let ownIssue {
+                Text(verbatim: ownIssue.message(locale: locale))
+                    .font(Typo.text(12.5))
+                    .foregroundStyle(Color.ochre700)
+            }
+        }
+    }
+
+    /// El selector: carpetas con `SKILL.md` o archivos `.md`, varias de una vez. La primera que no entra se explica.
+    private func pickOwnSkills() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = OwnSkillImporter.allowedTypes
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        guard panel.runModal() == .OK else { return }
+        ownIssue = nil
+        for url in panel.urls {
+            if let problem = wizard.addOwnSkill(from: url), ownIssue == nil { ownIssue = problem }
+        }
+    }
+
     /// Las flechas recorren la rejilla como se ve: ←/→ dentro de la fila; ↑/↓ a la fila de arriba o de abajo, también
     /// de un grupo a otro, en la misma columna (o en la última card si esa fila es más corta).
     private func move(_ direction: MoveCommandDirection) {
-        let rows = SkillGrid.rows(groups.map { catalog.skills(in: $0).map(\.id) }, columns: Self.columns)
+        let rows = SkillGrid.rows(
+            groups.map { catalog.skills(in: $0).map(\.id) } + [wizard.ownSkillCards.map(\.id)], columns: Self.columns)
         guard let current = focused else {
             focused = rows.first?.first
             return
@@ -245,6 +324,8 @@ struct SkillCard: View {
     var isFocused = false
     let toggle: () -> Void
     let preview: () -> Void
+    /// Una propia del usuario: con el cursor encima, en vez de «Vista previa» sale «Quitar».
+    var remove: (() -> Void)? = nil
     /// Para la hoja de estados y las pruebas de imagen: fuerza el estado «con el cursor encima».
     var forcedHover = false
     @State private var hovering = false
@@ -260,11 +341,19 @@ struct SkillCard: View {
             HStack(spacing: 10) {
                 SkillIcon(id: skill.id, size: 20).opacity(isMissing ? 0.45 : 1)
                 Spacer(minLength: 0)
-                Button("skills.preview", action: preview)
-                    .buttonStyle(InkLinkStyle(size: 12.5))
-                    .opacity(showsPreview ? 1 : 0)
-                    .allowsHitTesting(showsPreview)
-                    .accessibilityHidden(true)  // la acción va en la card entera, abajo
+                if let remove {
+                    Button("skills.own.remove", action: remove)
+                        .buttonStyle(InkLinkStyle(size: 12.5))
+                        .opacity(showsPreview ? 1 : 0)
+                        .allowsHitTesting(showsPreview)
+                        .accessibilityHidden(true)  // la acción va en la card entera, abajo
+                } else {
+                    Button("skills.preview", action: preview)
+                        .buttonStyle(InkLinkStyle(size: 12.5))
+                        .opacity(showsPreview ? 1 : 0)
+                        .allowsHitTesting(showsPreview)
+                        .accessibilityHidden(true)  // la acción va en la card entera, abajo
+                }
                 checkbox
             }
             .frame(height: 20)
@@ -313,6 +402,7 @@ struct SkillCard: View {
         .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : [.isButton])
         .accessibilityAction { toggle() }
         .accessibilityAction(named: Text("skills.preview")) { preview() }
+        .accessibilityAction(named: Text("skills.own.remove")) { remove?() }
     }
 
     /// La casilla de 14 pt: filete de 1,5 en `ink-700`; marcada, rellena de tinta con su palomita.

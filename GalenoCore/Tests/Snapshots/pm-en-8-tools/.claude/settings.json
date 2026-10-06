@@ -150,7 +150,8 @@
       "Edit(/AGENTS.md)",
       "Edit(/CLAUDE.md)",
       "Edit(/.mcp.json)",
-      "Edit(/.claude/**)"
+      "Edit(/.claude/**)",
+      "Edit(/skills-propias/**)"
     ]
   }
 }

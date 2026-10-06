@@ -596,6 +596,72 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         }
     }
 
+    // MARK: Skills propias (docs/03 §6.3)
+
+    /// Una propia del usuario se instala desde `skills-propias/<id>/` de su agente, y esa carpeta es suya: al
+    /// regenerar sin ella marcada desaparece de `.claude/skills/`, pero `skills-propias/` queda intacta. Y el
+    /// agente no puede editarla.
+    func testAnOwnSkillInstallsFromTheAgentFolderAndThatFolderIsNeverTouched() throws {
+        let own = destination.appending(path: "skills-propias/mi-cierre", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: own, withIntermediateDirectories: true)
+        try "---\nname: mi-cierre\ndescription: \"Cierra la semana a mi manera.\"\n---\n\nHaz esto.\n"
+            .write(to: own.appending(path: "SKILL.md"), atomically: true, encoding: .utf8)
+        try "plantilla".write(to: own.appending(path: "plantilla.md"), atomically: true, encoding: .utf8)
+
+        var config = GeneratorFixtures.spanishThreeTools
+        config.skills.append(SelectedSkill(id: "mi-cierre", source: .own))
+        let result = try generate(config)
+
+        XCTAssertTrue(exists(".claude/skills/mi-cierre/SKILL.md"))
+        XCTAssertTrue(exists(".claude/skills/mi-cierre/plantilla.md"), "la carpeta entera")
+        XCTAssertTrue(result.writtenFiles.contains(".claude/skills/mi-cierre/SKILL.md"))
+        XCTAssertFalse(result.writtenFiles.contains { $0.hasPrefix("skills-propias/") }, "el motor no escribe ahí")
+        XCTAssertTrue(try contents(of: "AGENTS.md").contains("- `/mi-cierre`"), "sale en «Tus skills»")
+        let deny = try decodedPermissions().deny
+        XCTAssertTrue(Self.isDeniedForEditing("skills-propias/mi-cierre/SKILL.md", by: deny))
+        XCTAssertTrue(Self.isDeniedForEditing(".claude/skills/mi-cierre/SKILL.md", by: deny))
+
+        // Regenerar sin ella: se va de `.claude/skills/`, no de `skills-propias/`.
+        config.skills.removeAll { $0.source == .own }
+        let again = try generate(config)
+        XCTAssertFalse(exists(".claude/skills/mi-cierre/SKILL.md"))
+        XCTAssertTrue(again.removedFiles.contains(".claude/skills/mi-cierre/SKILL.md"))
+        XCTAssertTrue(exists("skills-propias/mi-cierre/SKILL.md"))
+        XCTAssertTrue(exists("skills-propias/mi-cierre/plantilla.md"))
+    }
+
+    func testAnOwnSkillThatIsNotInTheAgentFolderFailsLoudly() throws {
+        var config = GeneratorFixtures.spanishThreeTools
+        config.skills.append(SelectedSkill(id: "fantasma", source: .own))
+
+        XCTAssertThrowsError(try generate(config)) { error in
+            guard case let GenerationError.missingSkill(id, source, expectedAt) = error else {
+                return XCTFail("se esperaba missingSkill, llegó \(error)")
+            }
+            XCTAssertEqual(id, "fantasma")
+            XCTAssertEqual(source, .own)
+            XCTAssertTrue(expectedAt.hasSuffix("/skills-propias/fantasma/SKILL.md"), expectedAt)
+        }
+    }
+
+    /// Una propia con el id de una del catálogo iría a la misma carpeta: se rechaza antes de escribir nada.
+    func testTwoSkillsWithTheSameIdAreRejected() throws {
+        let own = destination.appending(path: "skills-propias/prd", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: own, withIntermediateDirectories: true)
+        try "Mi PRD".write(to: own.appending(path: "SKILL.md"), atomically: true, encoding: .utf8)
+        var config = GeneratorFixtures.spanishThreeTools
+        XCTAssertTrue(config.skills.contains { $0.id == "prd" })
+        config.skills.append(SelectedSkill(id: "prd", source: .own))
+
+        XCTAssertThrowsError(try generate(config)) { error in
+            guard case let GenerationError.duplicateSkill(id) = error else {
+                return XCTFail("se esperaba duplicateSkill, llegó \(error)")
+            }
+            XCTAssertEqual(id, "prd")
+        }
+        XCTAssertFalse(exists("AGENTS.md"), "no se escribió nada")
+    }
+
     // MARK: - Descripción y memoria del proyecto
 
     private static let memoryFile = "memoria/proyecto.md"

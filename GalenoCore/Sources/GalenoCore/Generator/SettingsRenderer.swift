@@ -34,7 +34,11 @@ enum SettingsRenderer {
     /// Lo que el motor escribe fuera de `memoria/`, relativo a la raíz del
     /// proyecto. Si el generador empieza a escribir otro archivo, tiene que
     /// entrar aquí: un test lo comprueba.
-    static let protectedPaths = ["/AGENTS.md", "/CLAUDE.md", "/.mcp.json", "/.claude/**"]
+    static let protectedPaths = [
+        "/AGENTS.md", "/CLAUDE.md", "/.mcp.json", "/.claude/**",
+        // Las skills propias del usuario: le dicen al agente cómo comportarse, y solo el usuario las cambia.
+        "/\(OwnSkills.directoryName)/**",
+    ]
 
     /// La única ruta donde el agente escribe sin que nadie lo apruebe.
     static let memoryAllowRule = "Edit(/\(MemoryRenderer.directory)/**)"

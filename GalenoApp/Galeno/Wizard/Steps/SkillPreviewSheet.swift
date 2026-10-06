@@ -118,6 +118,9 @@ struct SkillPreviewSheet: View {
                     .foregroundStyle(Color.ink700)
                     .underline()
             }
+        } else if skill.source == .own {
+            SmallCapsLabel("skills.from.own", size: 12, tracking: 0.1)
+                .foregroundStyle(Color.ink500)
         } else {
             SmallCapsLabel("skills.from.galeno", size: 12, tracking: 0.1)
                 .foregroundStyle(Color.ink500)

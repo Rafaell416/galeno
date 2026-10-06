@@ -168,6 +168,9 @@ final class SkillsStepTests: XCTestCase {
             "skills.credit.original", "skills.preview.how",
             "skills.preview.needs", "skills.preview.illustrative", "skills.demo.reads %@ %@",
             "skills.demo.placeholder %@", "skills.demo.replay", "skills.demo.agent",
+            "skills.own.group", "skills.own.add", "skills.own.hint", "skills.own.remove", "skills.from.own",
+            "skills.own.error.noSkillFile", "skills.own.error.invalidName", "skills.own.error.unreadable",
+            "skills.own.error.duplicate %@",
         ]
         for locale in [es, en] {
             for key in keys {
