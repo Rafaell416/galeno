@@ -864,8 +864,8 @@ final class ConnectFlow: ObservableObject {
     /// `galeno-<nombre>` y el motor genera todo con ese nombre.
     func useAlternateName() {
         guard case .connection(let tool) = screen, case .nameConflict = phase else { return }
-        namePrefixes[tool] = MCPServerCatalog.alternateNamePrefix
-        onNamePrefix(tool, MCPServerCatalog.alternateNamePrefix)
+        namePrefixes[tool] = MCPServerCatalog.ownedNamePrefix
+        onNamePrefix(tool, MCPServerCatalog.ownedNamePrefix)
         restartCurrentConnection(tool)
     }
 

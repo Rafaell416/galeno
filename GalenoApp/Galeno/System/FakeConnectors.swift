@@ -274,7 +274,7 @@ extension ConnectServices {
             makeMCP: { _ in
                 ScriptedMCP(
                     occupiedByOthers: ProcessInfo.processInfo.arguments.contains("-galeno-fake-name-clash")
-                        ? ["notion", "slack"] : [])
+                        ? ["galeno-notion", "galeno-slack"] : [])
             }, whatsapp: ScriptedWhatsApp(), slack: ScriptedSlackSetup(),
             makeLister: { _ in ScriptedSourceLister() },
             installer: AgentInstaller(

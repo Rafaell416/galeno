@@ -184,7 +184,7 @@ final class WizardStepsTests: XCTestCase {
 
         state.toggle(.slack)
         XCTAssertTrue(state.isSelected(.slack))
-        XCTAssertEqual(state.connections, [ToolConnection(tool: .slack, status: .selected)])
+        XCTAssertEqual(state.connections, [ToolConnection(tool: .slack, status: .selected, serverNamePrefix: "galeno-")])
 
         state.toggle(.slack)
         XCTAssertFalse(state.isSelected(.slack))
@@ -240,6 +240,23 @@ final class WizardStepsTests: XCTestCase {
         XCTAssertTrue(state.isSelected(.fathom), "lo que el usuario marcó se queda")
         XCTAssertEqual(Set(state.selectedTools), [.jira, .notion, .slack, .fathom])
         XCTAssertEqual(state.selectedTools.first, .slack, "pero en el orden del rol nuevo")
+    }
+
+    /// Una conexión nueva se registra con el nombre propio de Galeno: lo que Galeno cierra o quita nunca es de otro
+    /// proyecto del usuario. Lo que Galeno no registra en Claude Code no lleva prefijo.
+    func testNewConnectionsAreRegisteredWithGalenosOwnName() {
+        let state = WizardState(preferredLanguages: ["es"])
+        for tool in [Tool.notion, .jira, .slack, .fathom, .claudeDesign, .whatsapp, .gmail, .googleWorkspace] {
+            state.toggle(tool)
+        }
+        let prefixes = Dictionary(uniqueKeysWithValues: state.connections.map { ($0.tool, $0.serverNamePrefix) })
+        for tool in [Tool.notion, .jira, .slack, .fathom, .claudeDesign] {
+            XCTAssertEqual(prefixes[tool] ?? nil, "galeno-", "\(tool)")
+        }
+        for tool in [Tool.whatsapp, .gmail, .googleWorkspace] {
+            XCTAssertNil(prefixes[tool] ?? nil, "\(tool): no se registra en Claude Code")
+        }
+        XCTAssertTrue(state.connections.first { $0.tool == .notion }?.galenoOwnsServers == true)
     }
 
     func testMeetBringsGoogleWorkspaceAlong() {

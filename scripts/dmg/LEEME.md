@@ -24,9 +24,11 @@ Tarda unos cinco minutos. Solo vas a hacer una cosa en la Terminal, y te digo ex
 
 **6. Lee la lista y responde.** Si ya tenías Galeno, te muestra lo que va a quitar. Escribe `si` y pulsa Intro. Si no tenías nada, sigue solo.
 
-**7. Espera un minuto.** Verás líneas con una marca ✓ a medida que avanza. Si macOS pregunta si «Terminal» puede acceder a datos de otras apps o a Finder, pulsa «Permitir».
+**7. Una pregunta más, solo si te la hace.** Si Claude Code tiene conexiones a Notion, Jira, Slack u otras herramientas con su nombre normal (no las de Galeno), te pregunta aparte si quieres quitarlas. Pueden estar usándolas otros proyectos tuyos con Claude: si dudas, escribe `no`. Escribe `si` solo si Rafa te lo dijo.
 
-**8. Listo.** Cuando diga «Listo», Galeno se abre sola. Ya puedes cerrar la Terminal.
+**8. Espera un minuto.** Verás líneas con una marca ✓ a medida que avanza. Si macOS pregunta si «Terminal» puede acceder a datos de otras apps o a Finder, pulsa «Permitir».
+
+**9. Listo.** Cuando diga «Listo», Galeno se abre sola. Ya puedes cerrar la Terminal.
 
 A partir de ahora Galeno se abre con doble clic desde la carpeta Aplicaciones, como cualquier otra app.
 

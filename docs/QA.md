@@ -54,7 +54,7 @@ Cada corrida «de primera vez» empieza sin rastro de la anterior. Lo que deja G
 - `~/Library/Application Support/Galeno/` (`installation.json`, `draft.json`, `bin/galeno-whatsapp`, `whatsapp/` con la sesión y los mensajes).
 - Un LaunchAgent: `~/Library/LaunchAgents/com.galeno.whatsapp-bridge.plist`.
 - Preferencias: `defaults read com.galeno.Galeno` (portada y pantallas previas vistas, destino de «Abrir»).
-- Servidores registrados en Claude Code (`claude mcp list`, alcance de usuario) y, aparte, los **conectores de la cuenta de Claude** (Gmail, Drive, Docs, Sheets, Calendar), que se desconectan en claude.ai → Ajustes → Conectores.
+- Servidores registrados en Claude Code con el nombre propio de Galeno (`galeno-notion`, `galeno-jira`…; `claude mcp list`, alcance de usuario). **Los que tengan el nombre genérico (`notion`) no son de Galeno: déjalos**, que otros proyectos del Mac pueden usarlos. Y, aparte, los **conectores de la cuenta de Claude** (Gmail, Drive, Docs, Sheets, Calendar), que se desconectan en claude.ai → Ajustes → Conectores.
 - Conversaciones de Claude Code (`~/.claude/projects/-Users-<usuario>-Galeno-<agente>`) y de la app de Claude.
 - En el teléfono: el dispositivo vinculado de WhatsApp (cerrar la sesión desde ahí).
 - Del lado de cada proveedor: la autorización de Notion, Atlassian, Fathom y la app de Slack creada en `api.slack.com/apps`.
@@ -69,7 +69,7 @@ Para ver una pantalla de error sin esperar a que ocurra, la compilación **Debug
 |---|---|
 | `-galeno-fake-connect` | Conectores falsos: el agente se genera en una carpeta temporal y «abrir» no lanza nada. Ni `~/Galeno` ni `installation.json` se tocan. |
 | `-galeno-claude-missing` / `-galeno-claude-outdated` / `-galeno-claude-signedout` | Con la anterior: sin Claude Code, uno viejo, o sin sesión. |
-| `-galeno-fake-name-clash` | Con la primera: Notion y Slack ya existen como servidores de otra persona (pregunta de «usar otro nombre»). |
+| `-galeno-fake-name-clash` | Con la primera: `galeno-notion` y `galeno-slack` ya existen como servidores de otra persona (el error de «nombre ocupado»). |
 | `-galeno-skills-path <ruta>` · `GALENO_SKILLS_PATH` | Otra carpeta de skills. |
 | `-galeno-bridge-path <ruta>` · `GALENO_BRIDGE_PATH` | Otro binario del bridge. |
 
@@ -151,6 +151,7 @@ Cada herramienta se conecta una por una, en el orden de la grilla. **Todas** se 
 | Q-4.10 | Celebración final. | Cuenta lo conectado y lo saltado; la barra Atrás/Siguiente vuelve; «Continuar» sigue. | ES+EN |
 | Q-4.11 | **Slack, sin ser administrador del workspace.** | Si Slack no deja crear la app, dice que casi seguro hace falta la aprobación de un administrador (la spec prevé además un mensaje listo para copiar: anotar si está). Se puede saltar. | ES+EN |
 | Q-4.12 | Slack: la página de tokens sin la sección de tokens tras iniciar sesión. | Galeno la vuelve a cargar sola a los ~5 s (hasta dos veces); no queda esperando un botón que no está. (Regresión del 5 oct: 37 s parado.) | ES |
+| Q-4.12b | **Slack en un Mac con Safari anterior al 26** (macOS 15 sin actualizar). | La ventana dice «Slack no acepta la versión de Safari de este Mac (18.x)…» con qué hacer (actualizar macOS) en vez de dejar solo la página de Slack con «tu navegador no es compatible». «Cancelar» y «Saltar por ahora» funcionan. Tras actualizar, entra. **Prueba en un Mac con macOS 15.** (Aquiles, 5 oct 2026.) | ES+EN |
 | Q-4.13 | Slack: workspace con varios. | Si no sabe cuál, **pregunta**; nunca elige el equivocado en silencio. | ES |
 | Q-4.14 | Slack: tiempo total. | Del clic en «Conectar» al token, con sesión iniciada, en pocos segundos; anotar el tiempo. | ES |
 | Q-4.15 | Slack: inicio de sesión **con Google**. | La ventana de Galeno **no** lo abre (Google no lo permite en ventanas de apps); dice cómo entrar con el código por correo. | ES+EN |
@@ -202,8 +203,8 @@ Cada fila se prueba en **el paso donde aplica** y se anota en cuál. «Reintenta
 | E-2 | **OAuth cancelado** | Notion, Jira o Fathom: cerrar la hoja o el navegador sin autorizar. Slack: cerrar la ventana de autorización. Google: no pulsar «Permitir». | «La autorización no se completó» o «no llegó a tiempo», con qué hacer; «Reintentar» funciona; «Saltar por ahora» deja la herramienta como saltada y la barra sigue. No queda un servidor registrado a medias que luego diga «conectado». | ES+EN |
 | E-3 | **Claude Code no instalado / desactualizado / sin sesión** | Ver Q-2.1 a Q-2.7. Y: llegar a «Conectar» en «Nuevo agente» o «Gestionar» (que no tienen el paso 2) con uno de los tres. | Aparece la puerta «Antes de conectar» con el mismo botón, antes de la primera conexión. Un `claude` sin `mcp login` da el error «Claude Code está desactualizado», no «unknown command 'login'». (Regresión del 5 oct.) | ES+EN |
 | E-4 | **QR de WhatsApp vencido** | No escanear el QR durante ~3 min. | «El código QR venció antes de que lo escanearas», con «Reintentar» (que genera uno nuevo) y «Saltar por ahora». No queda un `pair` huérfano corriendo (`ps`). | ES+EN |
-| E-5 | **Herramienta ya conectada antes** | Con Notion/Jira/etc. ya registrado en Claude Code y autorizado. | «Ya estaba conectada»: éxito inmediato, sin abrir el navegador. Con el registro hecho pero sin autorizar: solo el paso de autorizar. Nunca se hace `claude mcp remove` por su cuenta. | ES |
-| E-6 | **Otro servidor con ese nombre** | Registrar a mano, antes, un servidor `notion` con otra dirección (o usar `-galeno-fake-name-clash`). | Pregunta; lo predeterminado es «Usar otro nombre» (`galeno-notion`) y todo lo generado lo usa. Borrar el existente es una opción aparte con una segunda confirmación y «Mejor no» por defecto. Si también `galeno-notion` existe, falla mostrando el nombre. | ES+EN |
+| E-5 | **Herramienta ya conectada antes** | (a) Con `galeno-notion` ya registrado y autorizado (una corrida anterior). (b) Con un `notion` **del usuario** ya conectado, de otro proyecto. | (a) «Ya estaba conectada»: éxito inmediato, sin abrir el navegador; con el registro hecho pero sin autorizar, solo el paso de autorizar. (b) Galeno registra y autoriza su `galeno-notion` (hay que autorizar otra vez) y **no toca el `notion` del usuario**: ni lo mira, ni lo autoriza, ni lo desconecta (`claude mcp get notion` sigue igual). Nunca se hace `claude mcp remove` por su cuenta. **Bloqueante.** | ES |
+| E-6 | **El nombre propio ya existe con otra dirección** | Registrar a mano, antes, un servidor `galeno-notion` con otra dirección (o usar `-galeno-fake-name-clash`). | No se pisa ni se borra: la conexión falla diciendo el nombre («ya hay otro servidor con ese nombre en Claude Code»), con «Reintentar» y «Saltar por ahora». Al renombrarlo desde Claude Code y reintentar, conecta. | ES+EN |
 | E-7 | **Conector de Google ya conectado en claude.ai** | Con Drive, Gmail o Calendar conectados en la cuenta. | Se salta, sin pedir nada. Si el arranque de la sesión no logra ver el conector, **no** dice «no está en la cuenta» a la primera: lo vuelve a mirar. | ES |
 | E-8 | **WhatsApp ya vinculado** | Con una sesión de una corrida anterior. | Muestra la advertencia, se salta el QR y `install-launchd` se ejecuta igual (es idempotente). | ES |
 | E-9 | **Cerrar la app a mitad de una conexión** | Cerrar Galeno (⌘Q) con un `login`, un `pair` o la ventana de Slack abiertos. | Se matan los procesos hijo (nada de `pair` ni `claude mcp login` huérfanos en `ps`). Al volver a abrir, lo ya conectado se reconoce solo («ya estaba conectada»). | ES |
@@ -292,7 +293,7 @@ Se abre el agente y se le pide, en la conversación. Antes se anota `shasum` de 
 | ID | Caso | Esperado | Idioma |
 |---|---|---|---|
 | V-1 | Abrir «Salud». | Cada herramienta con su estado: Conectada · Conectando · Falta autorizar · No responde · No está registrada · **Sin saber**. Un conector de la cuenta de Claude **nunca** sale «Conectada» sin haberlo comprobado con el arranque de una sesión. | ES+EN |
-| V-2 | Desconectar a propósito una herramienta (`claude mcp remove <nombre> -s user`) y abrir Salud. | La muestra como «No está registrada». «Reconectar» vuelve a autorizar **esa** herramienta. No pisa un servidor ajeno con el mismo nombre. | ES+EN |
+| V-2 | Desconectar a propósito una herramienta de Galeno (`claude mcp remove galeno-<nombre> -s user`) y abrir Salud. | La muestra como «No está registrada». «Reconectar» vuelve a autorizar **esa** herramienta. No pisa un servidor ajeno con el mismo nombre. **Y** una conexión con el nombre genérico del usuario (`notion`) ni se lee ni se toca desde Salud. | ES+EN |
 | V-3 | Reconectar Slack con su app ya borrada en `api.slack.com`. | Dice que Slack ya no la reconoce y que se rehace desde «Gestionar». | ES |
 | V-4 | Sección WhatsApp. | Sesión vinculada (número), `sync` corriendo o no, días desde la vinculación, versión del bridge. Desde los **18 días** vinculado avisa que WhatsApp *puede* cerrar la sesión hacia los ~20. Sin fecha leída, no avisa. | ES |
 | V-5 | **«Re-vincular»**. | Muestra primero la advertencia de siempre (el mismo texto). Detiene `sync`, cierra la sesión anterior (`unlink`), muestra el QR en pantalla, y al escanear reinstala `sync`. | ES+EN |

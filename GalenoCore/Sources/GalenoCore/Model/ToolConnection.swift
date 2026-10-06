@@ -15,12 +15,18 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
     /// `client_secret` nunca entra a este modelo.
     public var oauthClientID: String?
 
-    /// Prefijo con el que esta herramienta quedó registrada en Claude Code,
-    /// cuando el nombre normal ya lo ocupaba otro servidor del usuario (p. ej.
-    /// `galeno-` → `galeno-slack`). `nil` es lo normal: el nombre del catálogo.
-    /// Se guarda para que `.mcp.json`, los permisos y los subagentes usen el
-    /// mismo nombre con el que de verdad se registró.
+    /// Prefijo con el que esta herramienta quedó registrada en Claude Code (`galeno-` → `galeno-slack`).
+    /// Las conexiones nuevas lo llevan siempre (`MCPServerCatalog.defaultNamePrefix`). `nil` es el nombre del
+    /// catálogo (`slack`): una conexión hecha antes de que Galeno tuviera nombres propios, que puede ser también
+    /// del usuario. Se guarda para que `.mcp.json`, los permisos y los subagentes usen el mismo nombre con el que
+    /// de verdad se registró.
     public var serverNamePrefix: String?
+
+    /// ¿Registró Galeno este servidor con su nombre propio? Solo de esos puede cerrar la sesión o quitarlos:
+    /// un servidor con el nombre genérico (`notion`) pudo ponerlo el usuario y lo usan sus otros proyectos.
+    public var galenoOwnsServers: Bool {
+        serverNamePrefix?.hasPrefix(MCPServerCatalog.ownedNamePrefix) == true
+    }
 
     public var id: Tool { tool }
 

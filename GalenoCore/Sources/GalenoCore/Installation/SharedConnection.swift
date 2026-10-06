@@ -17,6 +17,11 @@ public struct SharedConnection: Codable, Hashable, Sendable, Identifiable {
     /// Ver `ToolConnection.serverNamePrefix`.
     public var serverNamePrefix: String?
 
+    /// Ver `ToolConnection.galenoOwnsServers`.
+    public var galenoOwnsServers: Bool {
+        serverNamePrefix?.hasPrefix(MCPServerCatalog.ownedNamePrefix) == true
+    }
+
     public var id: Tool { tool }
 
     public init(
