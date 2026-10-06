@@ -53,7 +53,7 @@ Un usuario con Claude Code instalado abre la app, responde un wizard, y queda co
 **NO hace en v0.0.1:**
 - Enviar por WhatsApp
 - Garantizar la separación de contexto entre agentes. Se pueden crear varios agentes, uno por proyecto (§3b), pero salvo en WhatsApp la separación es por instrucción, no por estructura (ver §5)
-- Trabajar por su cuenta: el agente solo actúa dentro de una sesión que abre el usuario. Sin tareas programadas
+- Trabajar por su cuenta sin aprobación humana para lo que sale: las tareas programadas entran con alcance acotado (decisión de Rafa, 5 oct 2026; ver §3b «Tareas programadas») y **ningún envío desatendido**: lo que vaya a otra persona queda como borrador hasta que alguien lo apruebe
 - Generar config para otros agentes que no sean Claude Code
 
 ---
@@ -236,7 +236,7 @@ El wizard termina, pero el producto no. Un agente de Galeno es **una carpeta** (
 
 **Regenerar.** Aplicar el generador sobre una carpeta que ya tiene config la deja **exactamente igual que una carpeta nueva** con la misma config: se quitan las skills desmarcadas (también una puesta a mano, porque `.claude/` es de Galeno) y el hook de aprobación si ya no hay a qué aplicarlo, y `memoria/` no se toca. Todo se calcula antes de escribir: si algo falla, la carpeta queda como estaba.
 
-**Solo cuando se lo piden.** El agente trabaja dentro de una sesión que abre el usuario. Una skill como `/reporte-dia` se corre a mano. Las tareas programadas quedan para después (§5).
+**Tareas programadas, con alcance acotado (decisión de Rafa, 5 oct 2026; reabre la línea roja 8 solo en esto).** La pidió el primer usuario externo (Simon, demo del 4 oct: «todos los días a las 8 am, un resumen de mis grupos de WhatsApp»). Una tarea desatendida puede: **leer** las herramientas conectadas (WhatsApp ya tiene los mensajes frescos: `sync` corre solo), **escribir en `memoria/`** (p. ej. `memoria/informes/2026-10-06-whatsapp.md`) y hacer las **escrituras internas** que las reglas del usuario ya permiten sin preguntar (Notion, Jira, Google Docs/Sheets). Todo lo que vaya **a otra persona** (correo, Slack, evento con invitados) lo deja **preparado como borrador**, y el usuario lo aprueba con un clic cuando abre su agente: la regla `ask`, el hook de aprobación y la línea roja 3 quedan intactos, y WhatsApp sigue sin enviar jamás. **No se construye todavía**: va después de las fases 2–4 del rediseño «Activación», y antes hay que verificar qué hace una tarea desatendida al chocar con una regla `ask` (tiene que quedarse detenida esperando, nunca saltarse la pregunta; si el mecanismo de Claude Code no lo garantiza, no se abre). El envío desatendido de verdad —sin nadie que apruebe— sigue fuera: es la cola de aprobaciones de v0.2 (§5). Mientras no esté construido, una skill como `/reporte-dia` se corre a mano.
 
 ## 4. WhatsApp — reglas de producto (innegociables)
 
@@ -410,7 +410,8 @@ Al diseñar la Fase 4 se verificó contra las fuentes oficiales y varias suposic
 | Vista transversal ("¿qué tengo pendiente en todos mis proyectos?") | v0.2 | Depende de resolver primero la separación |
 | Slack con identidad de bot propia: el agente envía con su nombre y su foto, no con los del usuario | v0.0.2 | El MCP de Slack solo acepta tokens de **usuario** (`docs/ai/slack-mcp-server`), así que hoy todo sale como la persona que autorizó la app, con la etiqueta «Sent using <agente>» como única huella (visto en el demo de Felipe, 4 oct 2026; la app de Slack se llama como el agente, sin «· Galeno»). Rafa ya lo tiene armado a mano para su agente de MediClub (product engineer). Exige un camino de envío propio con token de bot: **línea roja 3**, así que cada envío sigue pasando por aprobación, y el token de bot vive en la máquina del usuario (nunca en infraestructura nuestra). |
 | Ver actividad (qué hizo el agente, qué envió) | v0.0.2 | Exige leer el historial de Claude Code; primero validar el uso básico |
-| Tareas programadas (reporte diario que corre solo) | después | Necesita una cola de aprobaciones y ejecución sin sesión abierta; va de la mano con "ver actividad" |
+| Tareas programadas, alcance acotado (leen, escriben en `memoria/` y escrituras internas; los envíos quedan de borrador) | v0.0.1, tras el rediseño | Decisión de Rafa, 5 oct 2026 (petición de Simon); ver §3b «Tareas programadas» |
+| Tareas programadas con envío desatendido (sin nadie que apruebe) | v0.2 | Necesita la cola de aprobaciones; va de la mano con "ver actividad". La línea roja 3 no se toca antes |
 | Envío por WhatsApp | v0.2 | Riesgo de ban; decidir entre Business API o riesgo aceptado por el usuario |
 | Plantillas dev / legal / salud | v0.3+ | Validar PM primero |
 | Soporte Codex / Cursor / Grok | v0.3+ | Leen AGENTS.md, así que será barato cuando toque |
