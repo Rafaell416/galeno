@@ -10,6 +10,10 @@ import SwiftUI
 struct SkillsStepView: View {
     @EnvironmentObject private var wizard: WizardState
     @Environment(\.locale) private var locale
+    /// Dentro del detalle del agente (`AgentDetailView`, sección Skills): sin título propio (el detalle ya lo pone), sin los
+    /// márgenes de página y con dos columnas de cards, que es lo que cabe en el panel.
+    var embedded = false
+    private var columns: Int { embedded ? 2 : 3 }
     /// Por qué no entró la última skill propia que intentó traer.
     @State private var ownIssue: OwnSkillProblem?
 
@@ -31,12 +35,12 @@ struct SkillsStepView: View {
                 }
                 .padding(.top, 16)
             case .loaded(let catalog):
-                SkillsContent(catalog: catalog) { header(catalog: catalog) }
+                SkillsContent(catalog: catalog, columns: columns) { header(catalog: catalog) }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.horizontal, Space.s48)
-        .padding(.top, 22)
+        .padding(.horizontal, embedded ? 0 : Space.s48)
+        .padding(.top, embedded ? 14 : 22)
         .onAppear { if wizard.skillCatalog == .notLoaded { wizard.loadSkillCatalog() } }
         .onDisappear {
             wizard.previewedSkill = nil
@@ -50,12 +54,14 @@ struct SkillsStepView: View {
     @ViewBuilder
     private func header(catalog: SkillCatalog?) -> some View {
         HStack(alignment: .center, spacing: Space.s16) {
-            StepTitle(text: Text(WizardStep.skills.title))
-                .overlay(alignment: .leading) {
-                    if let glyph = WizardStep.skills.glyph {
-                        GlyphView(glyph: glyph, size: 22, color: .ink500).offset(x: -33, y: 2)
+            if !embedded {
+                StepTitle(text: Text(WizardStep.skills.title))
+                    .overlay(alignment: .leading) {
+                        if let glyph = WizardStep.skills.glyph {
+                            GlyphView(glyph: glyph, size: 22, color: .ink500).offset(x: -33, y: 2)
+                        }
                     }
-                }
+            }
             Spacer(minLength: Space.s16)
             if catalog != nil {
                 Button(action: pickOwnSkills) {
@@ -151,13 +157,13 @@ private struct SkillsTotals: View {
 private struct SkillsContent<Header: View>: View {
     @EnvironmentObject private var wizard: WizardState
     let catalog: SkillCatalog
+    let columns: Int
     @ViewBuilder var header: Header
     @Environment(\.galenoReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
 
     /// El foco del teclado: el id de una skill.
     @FocusState private var focused: String?
-    private static var columns: Int { 3 }
 
     /// Los grupos de este agente (los de su rol, más cualquiera con una skill ya marcada), con alguna skill.
     private var groups: [SkillGroup] {
@@ -238,7 +244,7 @@ private struct SkillsContent<Header: View>: View {
 
     private func grid(for group: SkillGroup) -> some View {
         LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: Self.columns),
+            columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: columns),
             alignment: .leading, spacing: 8
         ) {
             ForEach(catalog.skills(in: group)) { skill in
@@ -265,7 +271,7 @@ private struct SkillsContent<Header: View>: View {
     /// Las propias en su rejilla: «Quitar» con el cursor encima, en vez de «Vista previa».
     private var ownSkills: some View {
         LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: Self.columns),
+            columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: columns),
             alignment: .leading, spacing: 8
         ) {
             ForEach(wizard.ownSkillCards) { skill in
@@ -290,7 +296,7 @@ private struct SkillsContent<Header: View>: View {
     /// de un grupo a otro, en la misma columna (o en la última card si esa fila es más corta).
     private func move(_ direction: MoveCommandDirection) {
         let rows = SkillGrid.rows(
-            [wizard.ownSkillCards.map(\.id)] + groups.map { catalog.skills(in: $0).map(\.id) }, columns: Self.columns)
+            [wizard.ownSkillCards.map(\.id)] + groups.map { catalog.skills(in: $0).map(\.id) }, columns: columns)
         guard let current = focused else {
             focused = rows.first?.first
             return

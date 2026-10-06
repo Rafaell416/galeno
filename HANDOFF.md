@@ -731,6 +731,10 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
   roja 1 intacta: el puente no cambia). Prospectos de sus propios chats y, si pide un segmento, de la
   web, con el número solo si lo publica la propia empresa. Detalle en `docs/03` §6.3. **Sin probar
   con trabajo real.**
+- **Correcciones al detalle tras la prueba de Rafa (6 oct 2026; rama `fix/detalle-conectar-y-skills`).** (1) «Añadir
+  herramienta» conecta **ahí mismo** (la conexión de siempre encima del detalle; al quedar conectada, la fila entra con un
+  destello) en vez de llevar al asistente. (2) Skills: las cards directamente, marcar/desmarcar, «Añadir skill…» y
+  «Guardar skills»/«Descartar»; sin resumen ni «Elegir skills». Sin probar a mano contra cuentas reales.
 - **«Listo»: abrir es terminar (6 oct 2026; rama `feat/listo-abrir-es-terminar`, apilada sobre el detalle).** De seis propuestas de
   Claude Design, Rafa eligió la A: **un solo botón, «Abrir en Claude Code»** (el nombre se mantiene por ahora), que abre el
   agente con su primera pregunta y, solo si se abrió, cierra el asistente y vuelve al home. Sin «Atrás» ni «Terminar»; una salida,

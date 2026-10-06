@@ -16,9 +16,6 @@ final class AppModel: ObservableObject {
     @Published private(set) var health: HealthModel?
     /// El detalle del agente, mientras está abierto (se crea al entrar y se suelta al salir).
     @Published private(set) var agentDetail: AgentDetailModel?
-    /// Si el asistente se abrió desde el detalle de un agente (para añadirle una herramienta), a dónde vuelve al terminar o
-    /// al cancelar.
-    private var wizardReturn: (id: UUID, section: AgentDetailModel.Section)?
 
     private let makeHealth: @MainActor (Language) -> HealthModel
     private let makeAgentDetail: @MainActor (UUID, AgentDetailModel.Section, HomeModel, Language) -> AgentDetailModel
@@ -83,7 +80,6 @@ final class AppModel: ObservableObject {
     /// no se puede leer no se crea nada.
     func startNewAgent() {
         guard let installation = home.loadInstallation() else { return }
-        wizardReturn = nil
         wizard.stopWorking()
         let fresh = makeShortWizard(installation)
         wizard = fresh
@@ -120,22 +116,14 @@ final class AppModel: ObservableObject {
         agentRemoved()
     }
 
-    /// «Añadir herramienta» desde el detalle: el asistente de «Gestionar», con esa herramienta ya marcada, en el paso de
-    /// herramientas. Al terminar —o al cancelar— se vuelve al detalle, en «Herramientas».
-    func addTool(_ tool: Tool, to id: UUID) {
-        manageAgent(id, adding: tool, returningToDetail: true)
-    }
-
     /// «Gestionar»: las pantallas del wizard con lo que el agente ya tiene, para cambiar qué lee, sus skills y sus
     /// reglas. Al guardar se regenera **su** carpeta (`docs/03` §3b) y se vuelve al home. Si la instalación no se
     /// puede leer, o el agente ya no está en ella, no se hace nada.
-    func manageAgent(_ id: UUID, adding tool: Tool? = nil, returningToDetail: Bool = false) {
+    func manageAgent(_ id: UUID) {
         guard let installation = home.loadInstallation(), installation.agent(id: id) != nil else { return }
         wizard.stopWorking()
         agentDetail?.stop()
         let fresh = makeEditWizard(installation, id)
-        if let tool, !fresh.isSelected(tool) { fresh.toggle(tool) }
-        wizardReturn = returningToDetail ? (id, .tools) : nil
         // Si al guardar cambian sus herramientas, se anota: una conversación abierta desde antes no las ve, y el
         // home reinicia Claude al abrir el agente (`AgentOpenPolicy.RestartReason.toolsChanged`).
         let toolsBefore = Set(home.agents.first { $0.id == id }?.tools ?? [])
@@ -174,30 +162,21 @@ final class AppModel: ObservableObject {
         startNewAgent()
     }
 
-    /// «Cancelar» en el primer paso del wizard corto: de vuelta al home, sin haber creado nada. Si se abrió desde el detalle
-    /// de un agente, vuelve a él.
+    /// «Cancelar» en el primer paso del wizard corto: de vuelta al home, sin haber creado nada.
     func cancelWizard() {
         wizard.stopWorking()
         language = home.language
         screen = .home
-        returnToDetailIfNeeded()
     }
 
-    /// «Terminar» en el último paso del wizard: de vuelta al home, con el agente nuevo en la lista (o a su detalle, si se
-    /// abrió desde allí).
+    /// «Terminar» en el último paso del wizard: de vuelta al home, con el agente nuevo en la lista.
     func finishWizard() {
         wizard.stopWorking()
         home.reload()
         language = home.language
         screen = .home
-        returnToDetailIfNeeded()
     }
 
-    private func returnToDetailIfNeeded() {
-        guard let target = wizardReturn else { return }
-        wizardReturn = nil
-        openAgent(target.id, section: target.section)
-    }
 
     private func observe(_ wizard: WizardState) {
         // El menú «Paso» lee el wizard actual: que cambie algo suyo vuelve a pintar la app.

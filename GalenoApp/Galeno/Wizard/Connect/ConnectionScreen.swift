@@ -8,6 +8,7 @@ import SwiftUI
 struct ConnectionScreen: View {
     @ObservedObject var flow: ConnectFlow
     @EnvironmentObject private var wizard: WizardState
+    @Environment(\.galenoEmbeddedConnection) private var embedded
     let tool: Tool
 
     private var name: String { tool.displayName(in: wizard.language) }
@@ -141,7 +142,7 @@ struct ConnectionScreen: View {
 
     private var footer: some View {
         HStack(alignment: .center, spacing: Space.s12) {
-            if flow.canReturnToToolSelection, case .ready = flow.phase, !showsWhatsAppWarning {
+            if flow.canReturnToToolSelection, case .ready = flow.phase, !showsWhatsAppWarning, !embedded {
                 Button("connect.backToTools") { wizard.back() }
                     .buttonStyle(.inkTertiary)
             }

@@ -229,14 +229,16 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - `ConnectServices.installer` no tiene valor por defecto: escribe en `~/Galeno` y en `installation.json`.
   Las pruebas usan `AgentInstaller.sandboxed()`; ninguna debe tocar el disco real.
 - A la app de Claude recién arrancada no se le manda un enlace hasta que **dejó de cargar** (`waitUntilClaudeSettles`): uno que llega
-  antes pierde su carpeta y la conversación cae en la última que la app usó. No volver a una espera fija.
+  antes pierde su carpeta, o la app lo rechaza y la conversación se abre sin la primera pregunta (6 oct 2026). La espera cuenta
+  desde el lanzamiento (mínimo 20 s): el procesador quieto no basta. No volver a una espera fija ni acortarla sin medirlo.
 - Abrir el agente usa los enlaces que documenta Anthropic (`claude://code/new`,
   `claude-cli://open`) y, de respaldo, un `.command` en `$TMPDIR`. **Única excepción, decidida por Rafa (4 oct 2026):**
   desde el home, «Abrir» en la app de Claude vuelve a la última conversación de la carpeta con
   `claude://code/continue?session=local_<id>`, un enlace que la propia app usa en su menú del Dock pero que no está
   documentado. El id sale de `ClaudeSessionStore`, que lee en solo lectura la carpeta de datos de la app de Claude y solo
   cuatro campos (`sessionId`, `cwd`, `isArchived`, `lastActivityAt`); nunca títulos ni conversaciones. Si algo falla o
-  no hay sesión, se abre una nueva con el enlace documentado. No ampliar lo que se lee de esa carpeta. **Segunda excepción, decidida por
+  no hay sesión, se abre una nueva con el enlace documentado. **Desde el home y el detalle no se escribe ninguna pregunta**
+  (decisión de Rafa, 6 oct 2026); solo la pantalla «Listo» abre con la primera pregunta escrita. No ampliar lo que se lee de esa carpeta. **Segunda excepción, decidida por
   Rafa (4 oct 2026):** al *eliminar* un agente, `AgentRemover` manda a la **Papelera** (nunca borra) su carpeta, la carpeta de proyecto de
   Claude Code que corresponde a esa ruta y las sesiones de la app de Claude cuyo `cwd` es esa carpeta, tras una confirmación que lo lista.
   La carpeta solo si está dentro de `~/Galeno` y no es un enlace; jamás `~/.claude.json`. Nada se escribe dentro de la
@@ -308,8 +310,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (`galeno-…`, `AgentDetailModel.canDisconnectAccount`) y quita **esos** (`claude mcp remove`) para todos los agentes que la
   usan, regenerándolos; un conector de la cuenta de Claude, WhatsApp o un servidor con el nombre genérico de otro proyecto del
   usuario nunca se desconectan desde aquí (regla de propiedad). **Eliminar** pide escribir el nombre del agente y manda a la
-  Papelera lo de siempre (`AgentRemover`); **no** quita conexiones, que son compartidas. «Añadir herramienta» abre el asistente
-  en modo «Gestionar» con esa herramienta marcada, y al terminar o cancelar vuelve al detalle.
+  Papelera lo de siempre (`AgentRemover`); **no** quita conexiones, que son compartidas. «Añadir herramienta» **conecta ahí mismo**:
+  elegir una abre su conexión (la de siempre, `ConnectFlow`, en un `WizardState` en modo «Gestionar» que solo hospeda el flujo)
+  encima del detalle; al quedar conectada se guarda en el agente y su fila entra a la lista (la nueva, al final). Las skills se
+  marcan y se guardan en el propio detalle con las mismas cards del asistente (`SkillsStepView`, versión embebida).
 - «Gestionar» como asistente (`WizardState.Mode.edit`) sigue existiendo para conectar herramientas nuevas: regenera la carpeta **del
   mismo agente** y la Revisión avisa antes de guardar que lo editado a mano se pierde y que `memoria/` no se toca. No pasar contexto
   traído (`importedContext`) al guardar, y no habilitarlo si la carpeta no existe.
