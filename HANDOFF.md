@@ -55,7 +55,7 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 | Contexto del proyecto | Una línea en el wizard (y, opcional, material traído de claude.ai que queda en `memoria/contexto/`); en la primera sesión el agente **contesta primero** y luego ofrece armar un resumen del proyecto, que el usuario confirma |
 | Memoria | El agente mantiene notas en `memoria/proyecto.md` (`CLAUDE.md` la importa). Es el único lugar donde escribe sin que nadie lo apruebe; lo que Galeno genera está bloqueado por regla y cualquier otra ruta pide permiso |
 | Dueño de la config | **Galeno**: regenera los archivos completos al cambiar algo; nunca toca `memoria/` |
-| Proactividad | El agente solo trabaja cuando se lo piden. Sin tareas programadas en v0.0.1 |
+| Proactividad | Tareas programadas de alcance acotado (decisión de Rafa, 5 oct 2026, `docs/03` §3b): leen, escriben en `memoria/` y hacen las escrituras internas permitidas; **todo envío queda de borrador hasta que alguien lo apruebe**. Sin construir todavía (tras el rediseño). Envío desatendido: v0.2 |
 | Actualizaciones | **De por vida, gratis**, sin renovación. Tres capas independientes: app (Sparkle), bridge de WhatsApp (viaja en la app, con versión propia) y skills (remotas, sin reinstalar). Sparkle va desde el primer build. Detalle: `docs/03` §4f |
 | Perfil | **Tres roles: producto, marketing y comercial** (decisión de Rafa, 5 oct 2026; antes solo Product Managers). Un cuarto rol es reabrir la decisión |
 | Plataforma | **Solo Mac** (firme; no portabilidad a Windows) |
@@ -320,7 +320,8 @@ relevante; ellos devuelven un borrador y solo el principal envía, con aprobaci�
 | Vista transversal de todos los proyectos | v0.2 |
 | Ver actividad (qué hizo el agente, qué envió) | v0.0.2 |
 | Slack con identidad de bot propia (el agente envía con su nombre, no con el del usuario) | v0.0.2 |
-| Tareas programadas | después |
+| Tareas programadas de alcance acotado (envíos solo como borrador) | v0.0.1, tras el rediseño (`docs/03` §3b) |
+| Tareas programadas con envío desatendido | v0.2 |
 | Skills externas, "trae la tuya" (link de GitHub) | v0.2, con su guardrail |
 | Plantillas dev / legal / salud | v0.3+ |
 | Config para Codex / Cursor / Grok | v0.3+ |
@@ -688,8 +689,12 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
 
 **Peticiones del usuario (necesitan decisión de Rafa: tocan líneas rojas):**
 
-- **Tareas repetitivas** («todos los días a las 8 am, haz tal cosa»). Está fuera de v0.0.1 a
-  propósito (línea roja 8, «tareas programadas»). Primera señal real de demanda.
+- **Tareas repetitivas** («todos los días a las 8 am, haz tal cosa»). **Decidido (Rafa, 5 oct 2026):**
+  entran con alcance acotado —leer, escribir en `memoria/`, escrituras internas; los envíos quedan de
+  borrador y se aprueban por la mañana—; el detalle en `docs/03` §3b «Tareas programadas». Se
+  construyen después de las fases 2–4 del rediseño, verificando antes que una tarea desatendida que
+  choca con una regla `ask` se queda esperando y nunca se salta la pregunta. El envío desatendido
+  sigue en v0.2.
 - **Cargar sus propias skills.** Está cerrado a propósito (línea roja 6, «trae tu skill»): una skill
   son instrucciones para el agente y hoy solo entran las nuestras y las curadas.
 

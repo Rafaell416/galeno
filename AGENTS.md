@@ -362,7 +362,9 @@ Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezc
 7. Reabrir una decisión cerrada: nombre, precio, los tres roles (producto, marketing, comercial;
    un cuarto rol es reabrirla), solo Mac, Swift, Go para WhatsApp, solo Claude Code.
 8. Construir algo fuera de v0.0.1: separación garantizada de contexto entre agentes,
-   vista transversal, tareas programadas, ver
+   vista transversal, tareas programadas **con envío desatendido** (las de alcance acotado —leer,
+   escribir en `memoria/`, escrituras internas, envíos solo como borrador— sí entran: decisión de
+   Rafa, 5 oct 2026, `docs/03` §3b; se construyen tras el rediseño), ver
    actividad, otras plantillas (roles fuera de los tres decididos), Windows, soporte para Codex/Cursor/Grok, marketplace, CLI
    de cara al usuario. Crear varios agentes, uno por proyecto, **sí** es v0.0.1
    (`docs/03` §3b).
