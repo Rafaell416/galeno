@@ -165,7 +165,7 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (WhatsApp, los conectores de la cuenta de Claude) no lleva prefijo.
 - Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
   Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
-  completos. Lo único que el motor nunca toca al regenerar es `memoria/`; la excepción es el material que el usuario trae al crear el agente (paso 3, «Traer contexto»), que el motor deja en `memoria/contexto/` solo si ese archivo no existe. Ese material es dato de terceros: no va en `AgentConfig` ni en el borrador, y nunca se escribe en `AGENTS.md`.
+  completos. Lo único que el motor nunca toca al regenerar es `memoria/`; la excepción es el material que el usuario trae al crear el agente (paso 3, «Traer contexto»), que el motor deja en `memoria/contexto/` solo si ese archivo no existe, y el que añade después desde la sección «Contexto» del detalle (`ContextFolder`: cada uno toma el siguiente número libre y nunca pisa a otro; quitar uno lo manda a la **Papelera**, nunca lo borra). Ese material es dato de terceros: no va en `AgentConfig` ni en el borrador, y nunca se escribe en `AGENTS.md`.
 - Regenerar deja la carpeta idéntica a una nueva con la misma config (`ConfigGenerator` calcula
   todo antes de escribir; un error no la deja a medias). Las conexiones, la lista de agentes y
   sus carpetas viven en `GalenoInstallation`; el estado y el `client_id` de cada herramienta se
@@ -284,8 +284,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (`seal-700`) aparece como máximo una vez por pantalla. Todo movimiento (`Motion.swift`) tiene su
   alternativa en «Reducir movimiento». Ninguna otra textura, ornamento de relleno ni control que
   imite lo antiguo. **La referencia es el archivo `Galeno B1 Impresor.dc.html` del proyecto de Claude
-  Design** (medidas, disposición y textos): una pantalla se construye copiando su marcado, no
-  reinterpretándolo, y se compara lado a lado antes de darla por hecha. Esquinas rectas.
+  Design** (medidas, disposición y textos). **Desde el 6 oct 2026 (Rafa), todo diseño que se pase es una guía y no una
+  camisa de fuerza**: se toman la estructura, los patrones, el copy y los flujos, y se construye con los componentes, tokens
+  y micro-interacciones que Galeno ya tiene, para que siga viéndose y sintiéndose Galeno; donde el diseño choca con la app
+  real (la ventana fija, un servicio que ya existe, una regla de este archivo) se adapta y se dice. Esquinas rectas.
   La ventana es fija, de **800 × 620 pt** (`WindowMetrics`; decisión de Rafa, 5 oct 2026). Los archivos de Claude Design
   siguen dibujados a 720 × 560: mandan en disposición y proporciones, no en el tamaño exacto (`docs/04` §12).
 - El texto de la UI sigue el copy v2 de `docs/04` §12: botones con verbo, el nombre del agente desde
@@ -296,8 +298,21 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - El home (`HomeModel`) lee la instalación con `InstallationStore.load()` y no escribe nunca. Ilegible = error visible con
   «Reintentar»: no se sobrescribe ni se vuelve al wizard en silencio. «Abrir» y «Listo» comparten `AgentOpenPolicy`; no
   duplicar la lógica de reiniciar la app de Claude.
-- «Gestionar» (`WizardState.Mode.edit`) regenera la carpeta **del mismo agente** y la Revisión avisa antes de guardar que lo editado a
-  mano se pierde y que `memoria/` no se toca. No pasar contexto traído (`importedContext`) al guardar, y no habilitarlo si la carpeta no existe.
+- **El detalle del agente** (`AgentDetailView`, `AgentDetailModel`; diseño «Galeno B1 Agente», 6 oct 2026) es donde se
+  gestiona un agente: un clic en su tarjeta o en «Gestionar» lo abre, con cinco secciones (General, Herramientas, Skills, Reglas,
+  Contexto) y «Abrir» siempre arriba. Sin pasos ni «Siguiente»: rol, reglas y herramientas se aplican **al momento** (se vuelve a
+  escribir la carpeta del mismo agente por `AgentInstaller`; `memoria/` no se toca), y skills y contexto, al guardar. No duplica
+  lo que ya existe: abrir, renombrar y eliminar son los del `HomeModel`; el estado de las herramientas, reconectar y re-vincular
+  WhatsApp, los del `HealthModel`; el catálogo de skills, el del asistente. **«Quitar» tiene dos intenciones**: «Quitar de este
+  agente» (la cuenta sigue conectada) y «Desconectar la cuenta», que **solo** existe si los servidores son de Galeno
+  (`galeno-…`, `AgentDetailModel.canDisconnectAccount`) y quita **esos** (`claude mcp remove`) para todos los agentes que la
+  usan, regenerándolos; un conector de la cuenta de Claude, WhatsApp o un servidor con el nombre genérico de otro proyecto del
+  usuario nunca se desconectan desde aquí (regla de propiedad). **Eliminar** pide escribir el nombre del agente y manda a la
+  Papelera lo de siempre (`AgentRemover`); **no** quita conexiones, que son compartidas. «Añadir herramienta» abre el asistente
+  en modo «Gestionar» con esa herramienta marcada, y al terminar o cancelar vuelve al detalle.
+- «Gestionar» como asistente (`WizardState.Mode.edit`) sigue existiendo para conectar herramientas nuevas: regenera la carpeta **del
+  mismo agente** y la Revisión avisa antes de guardar que lo editado a mano se pierde y que `memoria/` no se toca. No pasar contexto
+  traído (`importedContext`) al guardar, y no habilitarlo si la carpeta no existe.
 - La vista de salud (`HealthModel`, `docs/03` §3b) **diagnostica y solo actúa si el usuario lo pide**: «Reconectar» una herramienta y
   «Re-vincular» WhatsApp. El estado de un **conector de la cuenta de Claude** nunca sale de `claude mcp list` (lo da por conectado sin
   estarlo): sale del arranque de una sesión (`ClaudeSessionProbe`). Si no se pudo averiguar, se dice «Sin saber», jamás «Conectada».

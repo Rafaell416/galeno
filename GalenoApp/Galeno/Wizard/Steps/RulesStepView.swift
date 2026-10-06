@@ -81,7 +81,9 @@ struct RulesStepView: View {
             if !writes.isEmpty {
                 VStack(spacing: 8) {
                     ForEach(writes, id: \.self) { write in
-                        WriteRuleRow(write: write)
+                        WriteRuleRow(
+                            write: write, agentName: agentName, policy: wizard.policy(for: write),
+                            onChange: { wizard.setPolicy($0, for: write) })
                     }
                 }
                 .padding(.top, 10)
@@ -148,14 +150,16 @@ extension InternalWrite {
 /// Una escritura que se puede decidir: qué hace, **qué significa lo elegido** (una frase que siempre está a la vista y
 /// cambia con la opción) y dos opciones con nombre propio, una bajo la otra. Reemplaza al selector «Preguntarme /
 /// Sin preguntar» (6 oct 2026, petición de Rafa: no se entendía qué quería decir cada lado ni cuál venía puesto).
-private struct WriteRuleRow: View {
-    @EnvironmentObject private var wizard: WizardState
+///
+/// También la usa el detalle del agente (`AgentDetailView`), que aplica el cambio al momento.
+struct WriteRuleRow: View {
     @Environment(\.galenoReduceMotion) private var reduceMotion
     let write: InternalWrite
+    let agentName: String
+    let policy: ApprovalPolicy
+    let onChange: (ApprovalPolicy) -> Void
 
     private var toolName: String { write.toolDisplayName }
-    private var agentName: String { wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var policy: ApprovalPolicy { wizard.policy(for: write) }
 
     var body: some View {
         HStack(alignment: .top, spacing: Space.s16) {
@@ -179,8 +183,8 @@ private struct WriteRuleRow: View {
             }
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 6) {
-                PolicyOption(title: "rules.policy.ask", isOn: policy == .ask) { wizard.setPolicy(.ask, for: write) }
-                PolicyOption(title: "rules.policy.allow", isOn: policy == .allow) { wizard.setPolicy(.allow, for: write) }
+                PolicyOption(title: "rules.policy.ask", isOn: policy == .ask) { onChange(.ask) }
+                PolicyOption(title: "rules.policy.allow", isOn: policy == .allow) { onChange(.allow) }
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(Text(LocalizedStringKey("rules.write." + write.rawValue)))

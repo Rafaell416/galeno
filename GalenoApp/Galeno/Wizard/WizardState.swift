@@ -56,6 +56,12 @@ final class WizardState: ObservableObject {
     @Published private(set) var ownSkills: [OwnSkillEntry] = []
     /// Las propias que quitó y ya estaban en la carpeta: van a la Papelera al guardar.
     private var ownSkillsToTrash: [String] = []
+    /// Lo que hay que copiar a `skills-propias/` al guardar, y lo que va a la Papelera: para quien guarda **solo las
+    /// skills** de un agente (el detalle, `AgentDetailModel`) sin pasar por la generación del asistente.
+    var pendingOwnSkillImports: [AgentInstaller.OwnSkillImport] {
+        ownSkills.compactMap { entry in entry.pendingSource.map { AgentInstaller.OwnSkillImport(id: entry.id, source: $0) } }
+    }
+    var pendingOwnSkillTrash: [String] { ownSkillsToTrash }
     @Published var sendingRules: SendingRules = .default
 
     /// Lo que la pantalla 2 encontró. No va en el `AgentConfig`: es del Mac.

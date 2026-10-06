@@ -439,3 +439,21 @@ Con una carpeta de skill escrita por el usuario (un `SKILL.md` con frontmatter) 
 | D-1 | Pulsar «Siguiente» (o ↩) en cada paso. | Un toque suave y corto; también al «Crear». No suena al pulsar «Atrás» ni al terminar en «Listo» (ahí suena el sello). Apagado en Ajustes → Sonidos, no suena. | ES+EN |
 | D-2 | Conectar Gmail, Drive y Calendar (tres conectores). | La tira de arriba muestra solo los logos, unidos por una línea punteada, tenues hasta conectarse; **ningún «1 de 3» ni «2 de 5»**, ni en la tira ni bajo el spinner (solo el nombre del conector en curso). El «Paso N de 7» del asistente es el único número. | ES+EN |
 | D-3 | Paso Reglas con Notion, Jira y Google conectados. | Cada escritura tiene dos radios («Que me pregunte» / «Que lo haga solo»), una bajo la otra, y bajo su nombre una frase que cambia con lo elegido. De fábrica, «Que lo haga solo» (Claude Design, «Que me pregunte»). El `AGENTS.md`/`settings.json` generados lo reflejan. | ES+EN |
+
+### 6.13 Detalle del agente (6 oct 2026, `docs/03` §3b)
+
+| ID | Caso | Esperado | Idioma |
+|---|---|---|---|
+| A-1 | En el home, un clic en la tarjeta de un agente (y por otro lado en «Gestionar»). | Se abre el detalle en la sección General: «← Tus agentes», monograma, nombre, rol, «Lee N herramientas · N skills» y el botón partido «Abrir ▾» arriba. «Abrir en» se despliega **hacia abajo**. Un agente sin carpeta no se abre. | ES+EN |
+| A-2 | Cambiar el rol en General. | Aplica al momento (sin «Guardar»); el `AGENTS.md` del agente cambia su presentación; `memoria/` intacta; las skills marcadas siguen. | ES |
+| A-3 | «Renombrar» → nombre nuevo. | El diálogo del home; el detalle muestra el nombre nuevo; la carpeta conserva el suyo. | ES |
+| A-4 | «Eliminar…» en General. | Pide **escribir el nombre**; el botón no se activa hasta que coincide (sin importar mayúsculas). Manda a la Papelera lo de siempre y vuelve al home; **no** toca ninguna conexión. **Bloqueante.** | ES |
+| A-5 | Sección Herramientas con una herramienta caída (autorización vencida). | Estado en ocre («Falta autorizar») y botón «Reconectar»; la navegación marca «1 !» en ocre. Reconectar espera dentro de la fila y nunca marca conectada sola. Si no se pudo averiguar, «Sin saber», jamás «Conectada». **Bloqueante.** | ES |
+| A-6 | WhatsApp en Herramientas. | Vinculado hace N días, o «Sin vincular» con «Vincular»; con ≥ 18 días, «Re-vincular» con la advertencia de siempre (el mismo texto). | ES |
+| A-7 | «Quitar» una herramienta que otro agente también lee. | Hoja con dos intenciones: «Quitar de Hera» («Jarvi la sigue usando») y, solo si la cuenta es de Galeno (`galeno-…`), «Desconectar la cuenta». Quitar de Hera: deja de leerla y Jarvi la sigue leyendo. **Bloqueante.** | ES |
+| A-8 | «Desconectar la cuenta» de una herramienta `galeno-…` (con tus otros servidores de Claude Code a la vista: `claude mcp list`). | Solo desaparecen los `galeno-…` de esa herramienta; **tu `notion`/`slack` genéricos y los de otros proyectos siguen**; cada agente que la tenía deja de leerla. Un conector de Gmail/Google no ofrece «Desconectar la cuenta». **Bloqueante.** | ES |
+| A-9 | «Añadir herramienta» → elegir una. | Se abre el asistente de «Gestionar» en el paso de herramientas con esa marcada; al terminar o cancelar, vuelve al detalle en Herramientas. | ES |
+| A-10 | Skills → «Elegir skills», desmarcar una, «Guardar skills». | El resumen cambia («3 de 4»); la skill desaparece de `.claude/skills/`; «Cancelar» no cambia nada. Con una propia («Añadir skill…») se copia a `skills-propias/`. | ES |
+| A-11 | Reglas: cambiar una escritura a «Que me pregunte». | Aplica al momento; el `settings.json` del agente lo refleja; las fijas llevan candado y no se pueden tocar. | ES |
+| A-12 | Contexto: añadir un archivo y quitar otro, «Guardar contexto». | El nuevo queda en `memoria/contexto/` con el siguiente número y **sin pisar** otro; el quitado va a la **Papelera** (recuperable); «Deshacer» antes de guardar lo devuelve; máximo 10. | ES |
+| A-13 | Esc con una hoja, un diálogo o el catálogo abiertos. | Cierra lo de encima; con nada abierto, vuelve a «Tus agentes». | ES |
