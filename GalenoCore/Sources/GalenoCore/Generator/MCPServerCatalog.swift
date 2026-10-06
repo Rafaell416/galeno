@@ -54,6 +54,12 @@ public struct MCPServerDefinition: Hashable, Sendable {
     /// Las que piden aprobación **siempre**, aunque la herramienta no envíe mensajes: compartir un
     /// archivo con otra persona o mandarlo a la papelera (Google Drive).
     public var alwaysAskTools: [String]
+    /// Las que **preparan sin enviar**: dejan un borrador en la propia cuenta del usuario (los borradores
+    /// de Gmail). Van sin preguntar aunque el servidor envíe a otras personas: un borrador no le llega a
+    /// nadie, y es como una tarea programada deja listo un correo de noche para que el usuario lo apruebe
+    /// por la mañana (`docs/03` §3b «Tareas programadas», decisión de Rafa, 5 oct 2026). Verificadas contra
+    /// el servidor real igual que las lecturas: un error aquí dejaría enviar sin preguntar.
+    public var draftTools: [String]
 
     public init(
         serverName: String,
@@ -62,8 +68,10 @@ public struct MCPServerDefinition: Hashable, Sendable {
         endpointIsVerified: Bool,
         readOnlyTools: [String] = [],
         writeTools: [String] = [],
-        alwaysAskTools: [String] = []
+        alwaysAskTools: [String] = [],
+        draftTools: [String] = []
     ) {
+        self.draftTools = draftTools
         self.alwaysAskTools = alwaysAskTools
         self.serverName = serverName
         self.transport = transport
@@ -182,7 +190,8 @@ public enum MCPServerCatalog {
     /// expone es el del directorio, y las listas de abajo son las herramientas que recibe la sesión. Si
     /// Google añade una, no estará en ninguna lista y el hook la detiene: el fallo es hacia preguntar de más.
     private static func googleConnector(
-        _ name: String, slug: String, reads: [String], writes: [String], alwaysAsk: [String] = []
+        _ name: String, slug: String, reads: [String], writes: [String], alwaysAsk: [String] = [],
+        drafts: [String] = []
     ) -> MCPServerDefinition {
         MCPServerDefinition(
             serverName: claudeConnectorServerName(name),
@@ -190,7 +199,8 @@ public enum MCPServerCatalog {
             endpointIsVerified: true,
             readOnlyTools: reads,
             writeTools: writes,
-            alwaysAskTools: alwaysAsk
+            alwaysAskTools: alwaysAsk,
+            draftTools: drafts
         )
     }
 
@@ -204,13 +214,17 @@ public enum MCPServerCatalog {
         "search_threads",
     ]
 
-    /// Las otras 24: tres envían un correo (`send_message`, `reply`, `forward`) y el resto cambia algo en
-    /// el buzón (borradores, etiquetas, papelera, spam). Gmail le habla a otras personas, así que todas
+    /// Crear o corregir un borrador no envía nada: queda en el buzón del propio usuario, a la espera de su
+    /// «sí». Es la vía por la que una tarea programada deja un correo listo de noche (`docs/03` §3b).
+    /// `delete_draft` no está aquí a propósito: borra trabajo, que lo apruebe alguien.
+    static let gmailDraftTools = ["create_draft", "update_draft"]
+
+    /// Las otras 22: tres envían un correo (`send_message`, `reply`, `forward`) y el resto cambia algo en
+    /// el buzón (etiquetas, papelera, spam). Gmail le habla a otras personas, así que todas
     /// piden aprobación.
     static let gmailWriteTools = [
         "apply_sensitive_message_label",
         "apply_sensitive_thread_label",
-        "create_draft",
         "create_label",
         "delete_draft",
         "delete_label",
@@ -229,7 +243,6 @@ public enum MCPServerCatalog {
         "unmark_thread_spam",
         "untrash_message",
         "untrash_thread",
-        "update_draft",
         "update_label",
         "update_message_labels",
     ]
@@ -406,7 +419,11 @@ public enum MCPServerCatalog {
             ]
         case .gmail:
             // Por el conector de Gmail de la cuenta de Claude del usuario (ver `.googleWorkspace`).
-            return [googleConnector("Gmail", slug: "gmail-gmailmcp", reads: gmailReadOnlyTools, writes: gmailWriteTools)]
+            return [
+                googleConnector(
+                    "Gmail", slug: "gmail-gmailmcp", reads: gmailReadOnlyTools, writes: gmailWriteTools,
+                    drafts: gmailDraftTools)
+            ]
 
         case .googleWorkspace:
             // Por los conectores «Google Drive», «Google Docs» y «Google Sheets» de la cuenta de Claude

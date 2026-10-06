@@ -129,12 +129,14 @@ enum SettingsRenderer {
             let tool = connection.tool
             return MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "").compactMap { server in
                 if tool.externalSend != nil {
-                    return ApprovalTarget(server: server, exempt: server.readOnlyTools)
+                    // Los borradores no envían: quedan exentos igual que las lecturas.
+                    return ApprovalTarget(server: server, exempt: server.readOnlyTools + server.draftTools)
                 }
                 // Un servidor con listas que no envía a otras personas (Google Drive, Docs, Sheets): el
                 // hook deja pasar lo que lee y lo que escribe bajo la regla, y detiene lo demás.
                 guard !server.readOnlyTools.isEmpty else { return nil }
-                return ApprovalTarget(server: server, exempt: server.readOnlyTools + server.writeTools)
+                return ApprovalTarget(
+                    server: server, exempt: server.readOnlyTools + server.writeTools + server.draftTools)
             }
         }
     }
@@ -154,7 +156,8 @@ enum SettingsRenderer {
         let exempt = Set(targets.flatMap(\.exempt))
         let asks = Set(
             targets.flatMap { target in
-                (target.server.readOnlyTools + target.server.writeTools + target.server.alwaysAskTools)
+                (target.server.readOnlyTools + target.server.writeTools + target.server.alwaysAskTools
+                    + target.server.draftTools)
                     .filter { !target.exempt.contains($0) }
             })
         return exempt.subtracting(asks).sorted()
@@ -168,6 +171,25 @@ enum SettingsRenderer {
         let reads = Set(targets.flatMap(\.server.readOnlyTools))
         let others = Set(targets.flatMap { $0.server.writeTools + $0.server.alwaysAskTools })
         return reads.subtracting(others).sorted()
+    }
+
+    /// Los borradores de los conectores (crear y corregir un borrador de Gmail) que en la app de Claude
+    /// pasan sin preguntar. **Única excepción a «el paso libre es solo de lecturas»**, decidida con las
+    /// tareas programadas (`docs/03` §3b): un borrador queda en la cuenta del propio usuario y no le llega
+    /// a nadie; así una corrida nocturna deja el correo listo y el usuario lo aprueba por la mañana. Va en
+    /// su propio hook, aparte del de lecturas, y con los nombres exactos.
+    static func desktopAllowedDrafts(in config: AgentConfig) -> [String] {
+        let targets = connectorTargets(in: config)
+        let drafts = Set(targets.flatMap(\.server.draftTools))
+        let others = Set(targets.flatMap { $0.server.writeTools + $0.server.alwaysAskTools })
+        return drafts.subtracting(others).sorted()
+    }
+
+    /// El `matcher` del hook que deja pasar esos borradores, o `nil` si no hay.
+    static func connectorDraftsMatcher(in config: AgentConfig) -> String? {
+        let drafts = desktopAllowedDrafts(in: config)
+        guard !drafts.isEmpty else { return nil }
+        return "^\(desktopConnectorPrefix)(?:\(drafts.joined(separator: "|")))$"
     }
 
     /// El `matcher` del hook que deja pasar esas lecturas, o `nil` si el agente no usa conectores.
@@ -250,8 +272,11 @@ enum SettingsRenderer {
                     continue
                 }
 
-                // Con lista: leer no pregunta.
+                // Con lista: leer no pregunta. Y preparar un borrador tampoco (queda en la cuenta del
+                // propio usuario, nada le llega a nadie): es como una tarea programada deja un correo
+                // listo de noche (`docs/03` §3b, decisión de Rafa, 5 oct 2026).
                 allow.append(contentsOf: server.readOnlyTools.map { prefix + $0 })
+                allow.append(contentsOf: server.draftTools.map { prefix + $0 })
                 // Las de escritura: en un servidor que envía a otras personas, siempre preguntan;
                 // en uno del propio mundo del usuario (Google Drive), siguen su regla del paso 8.
                 let writes = server.writeTools.map { prefix + $0 }
@@ -286,6 +311,15 @@ enum SettingsRenderer {
             matchers.append(
                 HookMatcher(
                     matcher: reads,
+                    hooks: [HookCommand(command: hookCommand(connectorReadsHookPath))]
+                ))
+        }
+        // Los borradores de Gmail en la app de Claude: su propio paso libre, aparte del de lecturas
+        // (la única excepción decidida; ver `desktopAllowedDrafts`). Usa el mismo script.
+        if let drafts = connectorDraftsMatcher(in: config) {
+            matchers.append(
+                HookMatcher(
+                    matcher: drafts,
                     hooks: [HookCommand(command: hookCommand(connectorReadsHookPath))]
                 ))
         }

@@ -9,7 +9,7 @@
             "type" : "command"
           }
         ],
-        "matcher" : "^mcp__slack__(?!(?:slack_get_reactions|slack_list_channel_members|slack_list_user_channels|slack_read_canvas|slack_read_channel|slack_read_file|slack_read_list|slack_read_thread|slack_read_user_profile|slack_search_channels|slack_search_emojis|slack_search_public|slack_search_public_and_private|slack_search_users)$).*|^mcp__claude_ai_Google_Drive__(?!(?:download_file_content|get_file_metadata|get_file_permissions|list_recent_files|read_file_content|search_files|copy_file|create_file|update_file)$).*|^mcp__claude_ai_Google_Docs__(?!(?:read_doc|update_doc)$).*|^mcp__claude_ai_Google_Sheets__(?!(?:get_spreadsheet|get_values|append_values|batch_clear_values|copy_sheet_to_another_spreadsheet|insert_dimension|update_formulas|update_spreadsheet|update_values)$).*|^mcp__claude_ai_Gmail__(?!(?:get_draft|get_message|get_thread|list_drafts|list_labels|search_threads)$).*|^mcp__jira__(?!(?:atlassianUserInfo|discover|executeRead|getAccessibleAtlassianResources|getConfluenceContent|getGraphContext|getGraphObject|getJiraIssue|getLoomVideo|search|searchConfluence|searchJiraIssuesUsingJql|addGraphContext|addOrEditJiraIssueComment|createConfluenceContent|createJiraIssue|editJiraIssue|transitionJiraIssue|updateConfluenceContent)$).*|^mcp__[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__(?!(?:append_values|batch_clear_values|copy_file|copy_sheet_to_another_spreadsheet|create_file|download_file_content|get_draft|get_file_metadata|get_file_permissions|get_message|get_spreadsheet|get_thread|get_values|insert_dimension|list_drafts|list_labels|list_recent_files|read_doc|read_file_content|search_files|search_threads|update_doc|update_file|update_formulas|update_spreadsheet|update_values)$).*"
+        "matcher" : "^mcp__slack__(?!(?:slack_get_reactions|slack_list_channel_members|slack_list_user_channels|slack_read_canvas|slack_read_channel|slack_read_file|slack_read_list|slack_read_thread|slack_read_user_profile|slack_search_channels|slack_search_emojis|slack_search_public|slack_search_public_and_private|slack_search_users)$).*|^mcp__claude_ai_Google_Drive__(?!(?:download_file_content|get_file_metadata|get_file_permissions|list_recent_files|read_file_content|search_files|copy_file|create_file|update_file)$).*|^mcp__claude_ai_Google_Docs__(?!(?:read_doc|update_doc)$).*|^mcp__claude_ai_Google_Sheets__(?!(?:get_spreadsheet|get_values|append_values|batch_clear_values|copy_sheet_to_another_spreadsheet|insert_dimension|update_formulas|update_spreadsheet|update_values)$).*|^mcp__claude_ai_Gmail__(?!(?:get_draft|get_message|get_thread|list_drafts|list_labels|search_threads|create_draft|update_draft)$).*|^mcp__jira__(?!(?:atlassianUserInfo|discover|executeRead|getAccessibleAtlassianResources|getConfluenceContent|getGraphContext|getGraphObject|getJiraIssue|getLoomVideo|search|searchConfluence|searchJiraIssuesUsingJql|addGraphContext|addOrEditJiraIssueComment|createConfluenceContent|createJiraIssue|editJiraIssue|transitionJiraIssue|updateConfluenceContent)$).*|^mcp__[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__(?!(?:append_values|batch_clear_values|copy_file|copy_sheet_to_another_spreadsheet|create_draft|create_file|download_file_content|get_draft|get_file_metadata|get_file_permissions|get_message|get_spreadsheet|get_thread|get_values|insert_dimension|list_drafts|list_labels|list_recent_files|read_doc|read_file_content|search_files|search_threads|update_doc|update_draft|update_file|update_formulas|update_spreadsheet|update_values)$).*"
       },
       {
         "hooks" : [
@@ -19,6 +19,15 @@
           }
         ],
         "matcher" : "^mcp__[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__(?:download_file_content|get_draft|get_file_metadata|get_file_permissions|get_message|get_spreadsheet|get_thread|get_values|list_drafts|list_labels|list_recent_files|read_doc|read_file_content|search_files|search_threads)$"
+      },
+      {
+        "hooks" : [
+          {
+            "command" : "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/allow-connector-reads.sh\"",
+            "type" : "command"
+          }
+        ],
+        "matcher" : "^mcp__[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__(?:create_draft|update_draft)$"
       }
     ]
   },
@@ -29,12 +38,14 @@
       "Grep",
       "Read",
       "WebSearch",
+      "mcp__claude_ai_Gmail__create_draft",
       "mcp__claude_ai_Gmail__get_draft",
       "mcp__claude_ai_Gmail__get_message",
       "mcp__claude_ai_Gmail__get_thread",
       "mcp__claude_ai_Gmail__list_drafts",
       "mcp__claude_ai_Gmail__list_labels",
       "mcp__claude_ai_Gmail__search_threads",
+      "mcp__claude_ai_Gmail__update_draft",
       "mcp__claude_ai_Google_Docs__read_doc",
       "mcp__claude_ai_Google_Docs__update_doc",
       "mcp__claude_ai_Google_Drive__copy_file",
@@ -88,7 +99,6 @@
     "ask" : [
       "mcp__claude_ai_Gmail__apply_sensitive_message_label",
       "mcp__claude_ai_Gmail__apply_sensitive_thread_label",
-      "mcp__claude_ai_Gmail__create_draft",
       "mcp__claude_ai_Gmail__create_label",
       "mcp__claude_ai_Gmail__delete_draft",
       "mcp__claude_ai_Gmail__delete_label",
@@ -107,7 +117,6 @@
       "mcp__claude_ai_Gmail__unmark_thread_spam",
       "mcp__claude_ai_Gmail__untrash_message",
       "mcp__claude_ai_Gmail__untrash_thread",
-      "mcp__claude_ai_Gmail__update_draft",
       "mcp__claude_ai_Gmail__update_label",
       "mcp__claude_ai_Gmail__update_message_labels",
       "mcp__claude_ai_Google_Drive__share_file",

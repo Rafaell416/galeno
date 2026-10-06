@@ -22,7 +22,7 @@ up Monday.
 
 This skill is the sales week: deals closed, moved and created, and next Monday. For what happened across the whole project (Slack, Jira, documents, meetings), use `/resumen-proyecto` instead; for the user's own daily report of what they worked on, `/reporte-dia`.
 
-**What this does not do:** it does not run by itself. Nothing here is scheduled; the user asks for it at the end of the week, and it does not post the wrap on its own.
+**Scheduling:** it does not post the wrap on its own, ever. If the user asks for it to run at each week's end by itself, schedule it following the "Scheduled runs" section of your AGENTS.md: the wrap is saved to `memoria/informes/` and posting still needs their approval.
 
 ## Before you start
 - Read `memoria/proyecto.md` for what the project is, who is who (which companies and people are customers, which are the team) and what was already decided: the team channel, the stage names and the week boundary may already be there.

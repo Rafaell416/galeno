@@ -154,9 +154,14 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         try generate(GeneratorFixtures.englishEightTools)
         let permissions = try decodedPermissions()
 
-        // Gmail, por el conector de la cuenta de Claude: leer no pregunta; un borrador o una etiqueta, sí.
+        // Gmail, por el conector de la cuenta de Claude: leer no pregunta, y preparar un borrador tampoco
+        // (queda en el buzón del propio usuario; así una tarea programada deja el correo listo de noche,
+        // docs/03 §3b). Borrarlo o etiquetar, sí preguntan.
         XCTAssertTrue(permissions.allow.contains("mcp__claude_ai_Gmail__search_threads"))
-        XCTAssertTrue(permissions.ask.contains("mcp__claude_ai_Gmail__create_draft"))
+        XCTAssertTrue(permissions.allow.contains("mcp__claude_ai_Gmail__create_draft"))
+        XCTAssertTrue(permissions.allow.contains("mcp__claude_ai_Gmail__update_draft"))
+        XCTAssertTrue(permissions.ask.contains("mcp__claude_ai_Gmail__delete_draft"))
+        XCTAssertTrue(permissions.ask.contains("mcp__claude_ai_Gmail__create_label"))
         for sends in ["send_message", "reply", "forward"] {
             XCTAssertTrue(permissions.ask.contains("mcp__claude_ai_Gmail__\(sends)"), sends)
             XCTAssertFalse(permissions.allow.contains("mcp__claude_ai_Gmail__\(sends)"), sends)
@@ -1046,6 +1051,13 @@ final class ConfigGeneratorTests: GeneratorTestCase {
 
     /// Los dos `matcher` de hooks de un agente con todo Google conectado.
     private func googleHookMatchers() throws -> (approval: NSRegularExpression, reads: NSRegularExpression) {
+        let three = try googleHookMatchersWithDrafts()
+        return (three.approval, three.reads)
+    }
+
+    private func googleHookMatchersWithDrafts() throws -> (
+        approval: NSRegularExpression, reads: NSRegularExpression, drafts: NSRegularExpression
+    ) {
         var config = AgentConfig(agentName: "Galena", language: .spanish)
         config.connections = [Tool.gmail, .googleWorkspace, .googleCalendar].map {
             ToolConnection(tool: $0, status: .connected, sources: .everything)
@@ -1054,17 +1066,20 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         let data = try Data(contentsOf: destination.appending(path: ".claude/settings.json"))
         let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
-        XCTAssertEqual(hooks.count, 2)
+        // Tres: aprobación, el paso libre de lecturas y el de los borradores de Gmail (docs/03 §3b).
+        XCTAssertEqual(hooks.count, 3)
         let commands = hooks.compactMap { (($0["hooks"] as? [[String: Any]])?.first?["command"] as? String) }
         XCTAssertEqual(
             commands,
             [
                 "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/require-external-approval.sh\"",
                 "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/allow-connector-reads.sh\"",
+                "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/allow-connector-reads.sh\"",
             ])
         return (
             try NSRegularExpression(pattern: try XCTUnwrap(hooks[0]["matcher"] as? String)),
-            try NSRegularExpression(pattern: try XCTUnwrap(hooks[1]["matcher"] as? String))
+            try NSRegularExpression(pattern: try XCTUnwrap(hooks[1]["matcher"] as? String)),
+            try NSRegularExpression(pattern: try XCTUnwrap(hooks[2]["matcher"] as? String))
         )
     }
 
@@ -1080,13 +1095,30 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         let desktop = "mcp__00000000-0000-4000-8000-000000000000__"
 
         for tool in [
-            "send_message", "reply", "forward", "create_draft", "trash_thread",  // Gmail
+            "send_message", "reply", "forward", "delete_draft", "trash_thread",  // Gmail
             "create_event", "delete_event", "respond_to_event", "update_event",  // Calendar
             "share_file", "trash_file",  // Drive
             "something_new",  // lo que Google añada mañana
         ] {
             XCTAssertTrue(matches(approval, desktop + tool), tool)
             XCTAssertFalse(matches(reads, desktop + tool), "\(tool) nunca pasa sin preguntar")
+        }
+    }
+
+    /// Preparar un borrador de Gmail no envía nada: pasa sin preguntar también en la app de Claude, por su
+    /// propio hook (la única excepción al paso libre de solo lecturas; docs/03 §3b, tareas programadas).
+    /// Enviar, borrar un borrador o cualquier otra escritura siguen pidiendo aprobación.
+    func testGmailDraftsPassWithoutAskingInTheClaudeAppButSendsStillAsk() throws {
+        let (approval, reads, drafts) = try googleHookMatchersWithDrafts()
+        let desktop = "mcp__00000000-0000-4000-8000-000000000000__"
+
+        for tool in ["create_draft", "update_draft"] {
+            XCTAssertFalse(matches(approval, desktop + tool), tool)
+            XCTAssertTrue(matches(drafts, desktop + tool), tool)
+            XCTAssertFalse(matches(reads, desktop + tool), "\(tool): el hook de lecturas sigue siendo solo de lecturas")
+        }
+        for tool in ["send_message", "reply", "forward", "delete_draft", "get_message", "something_new"] {
+            XCTAssertFalse(matches(drafts, desktop + tool), "\(tool) no es un borrador")
         }
     }
 
@@ -1152,9 +1184,9 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let hooks = try XCTUnwrap((root["hooks"] as? [String: Any])?["PreToolUse"] as? [[String: Any]])
         let commands = hooks.compactMap { (($0["hooks"] as? [[String: Any]])?.first?["command"] as? String) }
-        XCTAssertEqual(commands.count, 2)
+        XCTAssertEqual(commands.count, 3, "aprobación, lecturas y los borradores de Gmail")
 
-        for (command, decision) in zip(commands, ["ask", "allow"]) {
+        for (command, decision) in zip(commands, ["ask", "allow", "allow"]) {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/bin/sh")
             process.arguments = ["-c", command]
