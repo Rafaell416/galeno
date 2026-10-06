@@ -303,7 +303,20 @@ Con un agente abierto **en la app de Claude** (las de la terminal mueren con la 
 | P-6 | Pedirle a un **subagente** (scribe, tracker, reporter) que programe algo. | No puede: no tiene las herramientas de programar. | ES |
 | P-7 | Cerrar la app de Claude con una tarea programada. | No corre nada hasta volver a abrirla; al abrir, la tarea sigue existiendo. | ES |
 
-### 6.7 Salud y re-vincular WhatsApp
+### 6.7 Prospección por WhatsApp (`/prospeccion`, `docs/03` §6.3)
+
+Con un agente del rol comercial y WhatsApp vinculado.
+
+| ID | Caso | Esperado | Idioma |
+|---|---|---|---|
+| W-1 | Pedirle «¿a quién le escribo hoy?». | Una tabla en la conversación (quién, por qué ahora con su fuente, número o «sin número») y dos archivos en `memoria/informes/prospeccion-<fecha>.md` y `.html`. Dice cuántos hay y que **no envió nada**. | ES |
+| W-2 | Abrir el `.html` en el navegador y pulsar «Abrir en WhatsApp» en una fila. | Se abre WhatsApp con el mensaje escrito en la caja y **sin enviar**. El mensaje es el de la fila, con saltos de línea correctos. **Bloqueante.** | ES |
+| W-3 | Un chat `@lid` (contacto sin número expuesto) entre los candidatos. | Aparece «sin número», sin botón, con el mensaje en una caja para copiar. Ningún número inventado. | ES |
+| W-4 | Pedirle prospectos nuevos de un segmento («clínicas dentales en Medellín»). | Busca con el segmento y la ciudad, nunca con nombres de personas ni con nada de los chats. Un número solo si la empresa lo publica para clientes; si no, «sin número». Cada fila dice de dónde salió y la fecha. **Bloqueante.** | ES |
+| W-5 | Pedirle que escriba a todos los miembros de un grupo. | No: solo a quien escribió algo que invita a responder. Lo dice. | ES |
+| W-6 | Programarla cada mañana (ver 6.6). | Corre sola, deja los archivos, no envía nada, y lo que no pudo resolver va a `memoria/pendientes.md`. | ES |
+
+### 6.8 Salud y re-vincular WhatsApp
 
 | ID | Caso | Esperado | Idioma |
 |---|---|---|---|
@@ -317,7 +330,7 @@ Con un agente abierto **en la app de Claude** (las de la terminal mueren con la 
 | V-8 | Re-vincular con el dispositivo ya cerrado desde el teléfono. | Anotar qué pasa; debe llegar al QR sin quedar colgado. | ES |
 | V-9 | Sección Skills. | «Actualizar skills» sale deshabilitado, con «se actualizarán desde aquí en una próxima versión», hasta la Fase 5 de la guía. | ES+EN |
 
-### 6.8 Borrar a mano la carpeta de un agente
+### 6.9 Borrar a mano la carpeta de un agente
 
 | ID | Caso | Esperado | Idioma |
 |---|---|---|---|
@@ -326,7 +339,7 @@ Con un agente abierto **en la app de Claude** (las de la terminal mueren con la 
 | Z-3 | «Quitar el agente». | El diálogo de Eliminar: con la carpeta ya ausente, solo lo quita de Galeno y manda a la Papelera lo de Claude. Nada se borra para siempre. | ES+EN |
 | Z-4 | Salud → Carpetas. | Lista la misma situación con las mismas dos acciones. | ES |
 
-### 6.9 Actualizar la app de una versión a la siguiente
+### 6.10 Actualizar la app de una versión a la siguiente
 
 > **Bloqueado hasta la Fase 8/10 de la guía:** Sparkle todavía no está integrado en el proyecto (no hay `SUFeedURL`, clave pública ni appcast), así que hoy no existe una actualización que probar. Las filas se dejan escritas para ejecutarlas en cuanto exista el primer DMG con Sparkle y un segundo build más nuevo. **Una versión que sale sin Sparkle no sabe actualizarse** (`docs/03` §4f): por eso esta sección es bloqueante de la **entrega**, no de esta corrida.
 

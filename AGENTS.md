@@ -359,7 +359,11 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 
 Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezca razonable:
 
-1. Enviar por WhatsApp, en cualquier forma.
+1. Enviar por WhatsApp, en cualquier forma. **Única excepción, decidida por Rafa (6 oct 2026):** la skill
+   `/prospeccion` deja un archivo local con enlaces `wa.me/<número>?text=<mensaje>` que abren WhatsApp con el
+   mensaje escrito; **el que pulsa enviar es el usuario**, el puente no cambia y el código de envío sigue sin
+   existir. El número sale del identificador del chat o del contacto que una empresa publica para sus
+   clientes; nunca el de una persona sacado de la web (`docs/03` §6.3).
 2. Hacer que un token o un dato del usuario salga de su máquina hacia servidores nuestros.
 3. Permitir un envío externo (Slack, email) sin aprobación humana, o debilitar la regla
    `ask` o el hook de aprobación en la config generada.
