@@ -111,9 +111,39 @@ final class SlackTokenPatternTests: XCTestCase {
     func testTheWindowIdentifiesItselfAsTheSystemSafari() {
         XCTAssertEqual(SlackCapture.safariApplicationName(safariVersion: "18.5"), "Version/18.5 Safari/605.1.15")
         XCTAssertEqual(SlackCapture.safariApplicationName(safariVersion: "26.0.1"), "Version/26.0.1 Safari/605.1.15")
-        XCTAssertEqual(SlackCapture.safariApplicationName(safariVersion: nil), "Version/17.6 Safari/605.1.15")
+        // Sin lectura (o con una que no es creíble) se deduce de macOS, que es de donde viene el motor.
+        XCTAssertEqual(
+            SlackCapture.safariApplicationName(safariVersion: nil, systemMajorVersion: 15), "Version/18.0 Safari/605.1.15")
+        XCTAssertEqual(
+            SlackCapture.safariApplicationName(safariVersion: nil, systemMajorVersion: 14), "Version/17.6 Safari/605.1.15")
+        XCTAssertEqual(
+            SlackCapture.safariApplicationName(safariVersion: nil, systemMajorVersion: 26), "Version/26.0 Safari/605.1.15")
+        XCTAssertEqual(
+            SlackCapture.safariApplicationName(safariVersion: "1.0", systemMajorVersion: 15), "Version/18.0 Safari/605.1.15",
+            "un Safari 1.0 no existe: es un archivo de otra cosa")
+        XCTAssertEqual(
+            SlackCapture.safariApplicationName(safariVersion: "13.1", systemMajorVersion: 15), "Version/18.0 Safari/605.1.15")
         // Un valor raro no se cuela en el identificador.
-        XCTAssertEqual(SlackCapture.safariApplicationName(safariVersion: "18.5 (evil)\r\nX: y"), "Version/17.6 Safari/605.1.15")
+        XCTAssertEqual(
+            SlackCapture.safariApplicationName(safariVersion: "18.5 (evil)\r\nX: y", systemMajorVersion: 15),
+            "Version/18.0 Safari/605.1.15")
+    }
+
+    /// Slack rechaza con 403 un navegador que considera viejo; solo eso, y solo si el 403 es de Slack.
+    func testSlacksUnsupportedBrowserResponseIsRecognised() {
+        XCTAssertTrue(SlackCapture.isUnsupportedBrowserResponse(status: 403, host: "slack.com"))
+        XCTAssertTrue(SlackCapture.isUnsupportedBrowserResponse(status: 403, host: "mi-equipo.slack.com"))
+        XCTAssertFalse(SlackCapture.isUnsupportedBrowserResponse(status: 200, host: "slack.com"))
+        XCTAssertFalse(SlackCapture.isUnsupportedBrowserResponse(status: 404, host: "slack.com"))
+        XCTAssertFalse(SlackCapture.isUnsupportedBrowserResponse(status: 403, host: "example.com"))
+        XCTAssertFalse(SlackCapture.isUnsupportedBrowserResponse(status: 403, host: "evilslack.com"))
+        XCTAssertFalse(SlackCapture.isUnsupportedBrowserResponse(status: 403, host: nil))
+    }
+
+    /// En este Mac se lee una versión creíble, y es la que se manda.
+    func testTheInstalledSafariVersionIsReadableHere() throws {
+        let version = try XCTUnwrap(SlackCapture.installedSafariVersion(), "no encontré Safari en este Mac")
+        XCTAssertTrue(SlackCapture.safariApplicationName().hasPrefix("Version/\(version) "))
     }
 
     /// El script no hace nada fuera de `api.slack.com`: es la primera comprobación que hace.

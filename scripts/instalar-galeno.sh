@@ -7,12 +7,16 @@
 #   bash instalar-galeno.sh                 limpia lo anterior, instala y abre Galeno
 #   bash instalar-galeno.sh --solo-limpiar  solo limpia (no instala)
 #   bash instalar-galeno.sh --dry           solo muestra lo que quitaría; no toca nada
-#   bash instalar-galeno.sh --yes           no pregunta (para repetirlo sin atender)
+#   bash instalar-galeno.sh --yes           no pregunta lo principal (para repetirlo sin atender)
+#   bash instalar-galeno.sh --con-conexiones  con --yes, quita también las conexiones con nombre genérico (ver 2)
 #
 # Qué hace, en este orden:
 #   1. Cierra Galeno si está abierta y para su servicio de fondo de WhatsApp.
-#   2. Quita de Claude Code las conexiones que Galeno hizo (Notion, Jira, Slack, Fathom, Claude Design, Google…),
-#      solo si apuntan a los servidores oficiales: una conexión tuya con el mismo nombre no se toca.
+#   2. Quita de Claude Code las conexiones de Galeno, que son las de nombre propio: `galeno-notion`, `galeno-slack`…
+#      (solo si apuntan a los servidores oficiales). Las que tienen el nombre genérico (`notion`, `slack`…) las pudo
+#      poner el usuario, o una versión anterior de Galeno, y las usan también sus otros proyectos: cerrar su sesión
+#      las desconecta en todos (le pasó a Rafa con su agente de MediClub, 5 oct 2026). Esas se preguntan APARTE y,
+#      por defecto, se dejan.
 #   3. Junta en UNA carpeta lo de Galeno: la app, los agentes de ~/Galeno, sus ajustes, la sesión de WhatsApp y
 #      las conversaciones de esos agentes en Claude. La manda a la Papelera: NADA se borra para siempre.
 #   4. Copia Galeno.app a Aplicaciones, le quita la marca de «descargada de internet» (la versión de prueba no
@@ -27,13 +31,15 @@
 SOLO_LIMPIAR=0
 DRY=0
 YES=0
+WITH_CONNECTIONS=0
 for arg in "$@"; do
   case "$arg" in
     --solo-limpiar) SOLO_LIMPIAR=1 ;;
     --dry) DRY=1 ;;
     --yes) YES=1 ;;
-    -h | --help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) echo "No conozco la opción «$arg». Usa --solo-limpiar, --dry, --yes o --help."; exit 2 ;;
+    --con-conexiones) WITH_CONNECTIONS=1 ;;
+    -h | --help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "No conozco la opción «$arg». Usa --solo-limpiar, --dry, --yes, --con-conexiones o --help."; exit 2 ;;
   esac
 done
 
@@ -171,21 +177,25 @@ for candidate in "$(command -v claude 2>/dev/null)" "$HOME/.local/bin/claude" "/
   fi
 done
 
-MCP_FOUND=""
+# OWNED: las que Galeno registró con su nombre (`galeno-…`). SHARED: las de nombre genérico.
+OWNED_FOUND=""
+SHARED_FOUND=""
 if [ -n "$CLAUDE" ]; then
   say "Mirando las conexiones de Claude Code (tarda unos segundos)…"
   MCP_LIST="$("$CLAUDE" mcp list 2>/dev/null)"
   while IFS='|' read -r name url; do
     [ -z "$name" ] && continue
-    for candidate in "$name" "galeno-$name"; do
-      if printf '%s\n' "$MCP_LIST" | grep -E "^$candidate:" | grep -qF "$url"; then
-        MCP_FOUND="${MCP_FOUND}${MCP_FOUND:+ }${candidate}"
-      fi
-    done
+    if printf '%s\n' "$MCP_LIST" | grep -E "^galeno-$name:" | grep -qF "$url"; then
+      OWNED_FOUND="${OWNED_FOUND}${OWNED_FOUND:+ }galeno-$name"
+    fi
+    if printf '%s\n' "$MCP_LIST" | grep -E "^$name:" | grep -qF "$url"; then
+      SHARED_FOUND="${SHARED_FOUND}${SHARED_FOUND:+ }$name"
+    fi
   done <<EOF
 $SERVERS
 EOF
-  [ -n "$MCP_FOUND" ] && add_summary "Las conexiones a herramientas que Claude Code tiene con Galeno ($(printf '%s' "$MCP_FOUND" | sed 's/ /, /g')); las vuelves a conectar en un momento"
+  [ -n "$OWNED_FOUND" ] && add_summary "Las conexiones de Galeno en Claude Code ($(printf '%s' "$OWNED_FOUND" | sed 's/ /, /g'))"
+  SHARED_NAMES="$(printf '%s' "$SHARED_FOUND" | sed 's/ /, /g')"
 fi
 
 # ---------------------------------------------------------------------------------------------------------
@@ -217,12 +227,19 @@ fi
 [ "$CAN_INSTALL" -eq 1 ] && say "Después instalaré la Galeno nueva de este disco y la abriré."
 say ""
 
+if [ -n "$SHARED_FOUND" ]; then
+  say "Además, Claude Code tiene conexiones con nombre genérico a: $SHARED_NAMES."
+  say "Esas no son solo de Galeno (pudo ponerlas una versión anterior o tú): si las usas en otros proyectos, dejarían"
+  say "de funcionar ahí al quitarlas. Por eso te lo pregunto aparte, después, y por defecto se quedan."
+  say ""
+fi
+
 if [ "$DRY" -eq 1 ]; then
   say "(--dry: no toqué nada)"
   exit 0
 fi
 
-if [ -z "$SUMMARY" ] && [ "$CAN_INSTALL" -eq 0 ]; then
+if [ -z "$SUMMARY" ] && [ -z "$SHARED_FOUND" ] && [ "$CAN_INSTALL" -eq 0 ]; then
   exit 0
 fi
 
@@ -237,6 +254,27 @@ if [ "$YES" -eq 0 ]; then
       exit 1
       ;;
   esac
+fi
+
+# Las de nombre genérico se preguntan aparte, y por defecto se dejan: quitarlas afecta a otros proyectos de Claude.
+REMOVE_SHARED=""
+if [ -n "$SHARED_FOUND" ]; then
+  if [ "$YES" -eq 1 ]; then
+    [ "$WITH_CONNECTIONS" -eq 1 ] && REMOVE_SHARED="$SHARED_FOUND"
+  else
+    say ""
+    say "Las conexiones con nombre genérico ($SHARED_NAMES)."
+    say "  • Si las quitas, Galeno te las vuelve a pedir y empiezas de cero."
+    say "  • Si las usas con Claude en otros proyectos, ahí dejarán de funcionar hasta que las vuelvas a conectar."
+    say "  • Si las dejas, no pasa nada: Galeno usa las suyas, con su propio nombre."
+    printf "¿Quitarlas también? Escribe  si  o  no  y pulsa Intro (si dudas, escribe no): "
+    read -r ANSWER
+    ANSWER="$(printf '%s' "$ANSWER" | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+    case "$ANSWER" in
+      si | sí | s | y | yes) REMOVE_SHARED="$SHARED_FOUND" ;;
+    esac
+  fi
+  [ -z "$REMOVE_SHARED" ] && say "  Las conexiones con nombre genérico se quedan como están."
 fi
 say ""
 
@@ -263,7 +301,7 @@ if [ "$HAS_SERVICE" -eq 1 ]; then
 fi
 
 # Las conexiones de Claude Code: primero se cierra la autorización y luego se quita el registro.
-for name in $MCP_FOUND; do
+for name in $OWNED_FOUND $REMOVE_SHARED; do
   "$CLAUDE" mcp logout "$name" >/dev/null 2>&1
   if "$CLAUDE" mcp remove "$name" -s user >/dev/null 2>&1; then
     step "Conexión quitada: $name"
@@ -349,7 +387,8 @@ say ""
 if [ -n "$SUMMARY" ]; then
   say "Quedan dos cosas que solo se pueden hacer a mano (por si las conectaste antes):"
   say "  1. En tu teléfono: WhatsApp → Ajustes → Dispositivos vinculados → cierra la sesión del dispositivo de Galeno."
-  say "  2. En claude.ai → Ajustes → Conectores: desconecta Gmail, Google Drive o Calendar si quieres volver a conectarlos desde cero."
+  say "  2. En claude.ai → Ajustes → Conectores: desconecta Gmail, Google Drive o Calendar si quieres volver a conectarlos desde cero"
+  say "     (solo si no los usas con Claude en otras cosas: son de toda tu cuenta)."
   say ""
 fi
 say "Ya puedes cerrar esta ventana."

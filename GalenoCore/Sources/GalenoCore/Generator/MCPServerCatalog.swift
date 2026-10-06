@@ -82,9 +82,24 @@ public struct MCPServerDefinition: Hashable, Sendable {
 /// lo que hay aquí al momento de generar — así el catálogo se queda simple y
 /// se puede seguir probando sin nada de estado.
 public enum MCPServerCatalog {
-    /// Prefijo del nombre alternativo (`galeno-slack`) para cuando el normal ya
-    /// lo usa otro servidor del usuario en Claude Code.
-    public static let alternateNamePrefix = "galeno-"
+    /// Prefijo con el que Galeno registra **sus** conexiones en Claude Code (`galeno-notion`, `galeno-slack`).
+    ///
+    /// Los servidores de Claude Code son de todo el usuario, no de un proyecto: cerrar la sesión o quitar uno lo
+    /// desconecta en cualquier otro repositorio que use el mismo nombre y dirección (le pasó a Rafa con su agente
+    /// de MediClub, 5 oct 2026). Por eso Galeno nunca usa el nombre genérico para una conexión nueva: así lo que
+    /// registra es suyo, y lo único que cierra o quita son esos. Ver `docs/03` §3 «Conexiones propias».
+    public static let ownedNamePrefix = "galeno-"
+
+    /// El prefijo que lleva una conexión **nueva** de esta herramienta: `galeno-` si Galeno registra un servidor
+    /// hospedado para ella; `nil` si no registra ninguno en Claude Code (WhatsApp tiene su bridge, que vive solo
+    /// en la carpeta de cada agente; Gmail y los de Google son conectores de la cuenta de Claude).
+    public static func defaultNamePrefix(for tool: Tool) -> String? {
+        let registersAServer = definitions(for: tool, whatsAppBridgePath: "").contains { definition in
+            if case .http = definition.transport { return true }
+            return false
+        }
+        return registersAServer ? ownedNamePrefix : nil
+    }
 
     /// Las definiciones de una conexión concreta: las de su herramienta, con el
     /// nombre con el que de verdad quedó registrada (`serverNamePrefix`).

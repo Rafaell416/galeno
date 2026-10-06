@@ -2815,6 +2815,23 @@
         }
       }
     },
+    "connect.slack.window.unsupportedBrowser %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack does not accept this Mac’s version of Safari (%@). Update macOS in System Settings → General → Software Update, or cancel and skip Slack for now."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slack no acepta la versión de Safari de este Mac (%@). Actualiza macOS en Ajustes del Sistema → General → Actualización de software, o cancela y salta Slack por ahora."
+          }
+        }
+      }
+    },
     "context.add" : {
       "extractionState" : "manual",
       "localizations" : {
