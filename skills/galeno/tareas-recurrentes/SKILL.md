@@ -9,7 +9,7 @@ Respond and produce all documents in the user's configured language.
 
 Some work comes back every week or every sprint. This skill sets up that period's copies in one go.
 
-**What this does not do:** it does not run by itself. Nothing here is scheduled; the user runs it at the start of each period. If Jira or Notion has native recurring tasks and the user wants those instead, tell them how it works there, but do not set up scheduling on your own.
+**Scheduling:** this skill does not schedule anything on its own. If the user asks for it to run at the start of each period by itself, set that up with the scheduled-tasks tool following the "Scheduled runs" section of your AGENTS.md (their approval, no approval-skipping modes). If Jira or Notion has native recurring tasks and the user prefers those, tell them how it works there.
 
 ## 1. Gather
 - Find the list of recurring tasks. Look first in `memoria/proyecto.md`; otherwise in the previous period's tasks; otherwise ask the user to name them.

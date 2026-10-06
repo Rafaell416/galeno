@@ -19,7 +19,7 @@ Respond and produce all documents in the user's configured language.
 
 The morning look ahead, for the user only: today's meetings, the pipeline, the customer emails that are waiting and the top three actions. For the end-of-day report of what the user did, posted in Slack, use `/reporte-dia` instead.
 
-**What this does not do:** it does not run by itself. Nothing here is scheduled; the user asks for it each morning.
+**Scheduling:** it does not run by itself unless the user asks for that. If they want it every morning, schedule it with the scheduled-tasks tool following the "Scheduled runs" section of your AGENTS.md: the briefing is saved to `memoria/informes/`, and nothing is sent.
 
 ## Before you start
 - Read `memoria/proyecto.md` for what the project is, who is who (which companies and people are customers, which are the team) and what was already decided.

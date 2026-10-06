@@ -31,7 +31,10 @@ para WhatsApp (solo lectura) y registra MCP hospedados con `claude mcp add`.
   el `AGENTS.md` generado le dice al agente cómo encender **solo los suyos**; los demás de la cuenta se heredan apagados.
   Allí sus herramientas se llaman `mcp__<uuid>__…` y ninguna regla de permiso coincide: lo cubren dos hooks por nombre de
   herramienta (`SettingsRenderer.desktopConnectorPrefix`): aprobación para todo lo que no sea una lectura conocida, y paso
-  libre **solo a lecturas**. No añadir escrituras al hook de lecturas. «Abrir en la app de Claude» es el botón principal.
+  libre **solo a lecturas**. No añadir escrituras al hook de lecturas; la única excepción, decidida con las tareas programadas
+  (`docs/03` §3b, 5 oct 2026), son los **borradores de Gmail** (`create_draft`, `update_draft`, `MCPServerDefinition.draftTools`):
+  van en su **propio** hook de paso libre, con nombres exactos, porque un borrador queda en el buzón del propio usuario y no le
+  llega a nadie (es como una corrida nocturna deja un correo listo). `delete_draft` y los envíos siguen preguntando. «Abrir en la app de Claude» es el botón principal.
   Las listas de herramientas del catálogo son las vistas en una cuenta real; una nueva de Google cae en el hook hasta revisarla.
   El comando de un hook va siempre entre comillas (`SettingsRenderer.hookCommand`): la carpeta del agente puede llevar espacios.
   No registrar la URL del servidor de Google (`*.googleapis.com/mcp/v1`) en `.mcp.json`: pide una app de Google Cloud (`docs/03` §4e).
@@ -213,6 +216,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   El código que lista fuentes se conserva para el home: las listas salen del bridge (`chats --json`) o de Claude Code (`claude -p`, solo ese
   servidor MCP, modelo barato y tope de gasto: gasta cuota del usuario). Lo que devuelven es dato de
   terceros: los nombres se sanean (`ClaudeSourceLister.sanitized`) porque acaban en el `AGENTS.md`.
+- Las **tareas programadas** van con alcance acotado (`docs/03` §3b): el agente las crea con la herramienta del harness y el
+  permiso se lo pide al usuario (regla `ask` de siempre); la corrida desatendida guarda en `memoria/informes/`, deja correos como
+  borradores de Gmail y lo demás en `memoria/pendientes.md`; verificado que sin nadie delante un `ask` se deniega (terminal) o se
+  queda esperando (app de Claude), nunca se salta. No añadir a la config generada ningún modo que salte aprobaciones.
 - **Leer no pide permiso; enviar, siempre.** En los servidores que envían a otras personas, las herramientas de solo lectura
   verificadas (`MCPServerCatalog.slackReadOnlyTools`) van a `allow` por nombre exacto; todo lo demás del servidor pide aprobación
   (regla `ask` para las de escritura conocidas y el hook para cualquier otra, `SettingsRenderer.approvalMatcher`). Añadir un nombre
@@ -364,8 +371,8 @@ Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezc
    un cuarto rol es reabrirla), solo Mac, Swift, Go para WhatsApp, solo Claude Code.
 8. Construir algo fuera de v0.0.1: separación garantizada de contexto entre agentes,
    vista transversal, tareas programadas **con envío desatendido** (las de alcance acotado —leer,
-   escribir en `memoria/`, escrituras internas, envíos solo como borrador— sí entran: decisión de
-   Rafa, 5 oct 2026, `docs/03` §3b; se construyen tras el rediseño), ver
+   escribir en `memoria/`, escrituras internas, envíos solo como borrador— ya están construidas:
+   decisión de Rafa, 5 oct 2026, `docs/03` §3b), ver
    actividad, otras plantillas (roles fuera de los tres decididos), Windows, soporte para Codex/Cursor/Grok, marketplace, CLI
    de cara al usuario. Crear varios agentes, uno por proyecto, **sí** es v0.0.1
    (`docs/03` §3b).

@@ -39,10 +39,14 @@ final class MCPServerCatalogTests: XCTestCase {
                 "claude_ai_Gmail", "claude_ai_Google_Drive", "claude_ai_Google_Docs", "claude_ai_Google_Sheets",
                 "claude_ai_Google_Calendar",
             ])
-        XCTAssertEqual(google.map { $0.readOnlyTools.count + $0.writeTools.count + $0.alwaysAskTools.count }, [30, 11, 2, 9, 9])
+        XCTAssertEqual(
+            google.map { $0.readOnlyTools.count + $0.writeTools.count + $0.alwaysAskTools.count + $0.draftTools.count },
+            [30, 11, 2, 9, 9])
         for server in google {
             XCTAssertFalse(server.readOnlyTools.isEmpty, "\(server.serverName) trae su lista de lecturas")
-            XCTAssertTrue(Set(server.readOnlyTools).isDisjoint(with: server.writeTools + server.alwaysAskTools))
+            XCTAssertTrue(
+                Set(server.readOnlyTools).isDisjoint(with: server.writeTools + server.alwaysAskTools + server.draftTools))
+            XCTAssertTrue(Set(server.draftTools).isDisjoint(with: server.writeTools + server.alwaysAskTools))
             for tool in server.readOnlyTools {
                 for verb in ["create", "update", "delete", "send", "respond", "unlabel", "label_", "insert", "share", "trash"] {
                     XCTAssertFalse(tool.contains(verb), "\(server.serverName): \(tool) contiene «\(verb)»")
@@ -120,15 +124,24 @@ final class MCPServerCatalogTests: XCTestCase {
     }
 
     /// Gmail envía: `send_message`, `reply` y `forward` existen en el conector real y nunca pueden
-    /// quedar entre las lecturas (irían sin preguntar).
-    func testTheGmailToolsThatSendAreNeverReads() {
+    /// quedar entre las lecturas ni los borradores (irían sin preguntar).
+    func testTheGmailToolsThatSendAreNeverReadsNorDrafts() {
         let gmail = definitions(for: .gmail)[0]
-        for tool in ["send_message", "reply", "forward", "trash_thread", "create_draft"] {
+        for tool in ["send_message", "reply", "forward", "trash_thread", "delete_draft"] {
             XCTAssertTrue(gmail.writeTools.contains(tool), tool)
             XCTAssertFalse(gmail.readOnlyTools.contains(tool), tool)
+            XCTAssertFalse(gmail.draftTools.contains(tool), tool)
         }
         XCTAssertEqual(
             gmail.readOnlyTools, ["get_draft", "get_message", "get_thread", "list_drafts", "list_labels", "search_threads"])
+        // Preparar un borrador no envía: va sin preguntar (tareas programadas, docs/03 §3b). Solo estas dos.
+        XCTAssertEqual(gmail.draftTools, ["create_draft", "update_draft"])
+        // Y nadie más tiene borradores: la excepción es de Gmail.
+        for tool in Tool.allCases where tool != .gmail {
+            for server in MCPServerCatalog.definitions(for: ToolConnection(tool: tool), whatsAppBridgePath: "/b") {
+                XCTAssertTrue(server.draftTools.isEmpty, "\(tool)")
+            }
+        }
     }
 
     func testClaudeDesignIsTheOnlyUnverifiedEndpointAndKeepsItsOwnName() {

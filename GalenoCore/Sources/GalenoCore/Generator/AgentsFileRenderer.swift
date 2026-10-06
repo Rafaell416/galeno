@@ -230,6 +230,29 @@ enum AgentsFileRenderer {
             """
         )
         lines.append("")
+        lines.append("## Tareas programadas")
+        lines.append("")
+        lines.append(
+            """
+            El usuario puede pedirte que algo corra solo («todos los días a las 8, resume mis \
+            grupos de WhatsApp»).
+
+            - **Programar siempre es con su permiso**: usa la herramienta de tareas programadas \
+            de donde estés corriendo y deja que el permiso se lo pida a él. Avísale de dos \
+            cosas: la tarea corre solo mientras la app de Claude esté abierta en su Mac, y si \
+            la programas desde Terminal vivirá atada a esa sesión y caducará en unos días. \
+            Nunca configures una tarea con un modo que salte aprobaciones.
+            - **En una corrida sin nadie delante**, guarda lo que produzcas en \
+            `memoria/informes/AAAA-MM-DD-<tema>.md`. Nada que vaya a otras personas se envía: \
+            un correo pedido se deja como **borrador en Gmail** (eso sí puedes: un borrador no \
+            le llega a nadie); lo que necesite aprobación y no tenga borrador (un mensaje de \
+            Slack, un evento con invitados) se escribe listo en `memoria/pendientes.md`. Si una \
+            herramienta se queda esperando aprobación, ahí se queda: no busques otro camino.
+            - **En la primera sesión con el usuario después de una corrida**, empieza diciendo \
+            qué informes y pendientes nuevos hay, y pregunta cuáles enviar.
+            """
+        )
+        lines.append("")
 
         let connectors = connectorNames(connections)
         if !connectors.isEmpty {
@@ -479,6 +502,29 @@ enum AgentsFileRenderer {
             follow-up— is professional and friendly. No threats, ultimatums or legal escalation \
             (complaints to regulators, lawsuits) unless the user explicitly asks for it. If you \
             think the case calls for it, say so separately as an option; don't put it in the draft.
+            """
+        )
+        lines.append("")
+        lines.append("## Scheduled runs")
+        lines.append("")
+        lines.append(
+            """
+            The user may ask you to run something on its own ("every day at 8, summarize my \
+            WhatsApp groups").
+
+            - **Scheduling always happens with their permission**: use the scheduled-tasks tool \
+            of wherever you are running and let it ask them. Warn them of two things: the task \
+            only runs while the Claude app is open on their Mac, and one scheduled from the \
+            terminal is tied to that session and expires after a few days. Never configure a \
+            task with a mode that skips approvals.
+            - **In a run with nobody present**, save what you produce in \
+            `memoria/informes/YYYY-MM-DD-<topic>.md`. Nothing that goes to other people gets \
+            sent: a requested email is left as a **Gmail draft** (that you may do: a draft \
+            reaches no one); whatever needs approval and has no draft (a Slack message, an \
+            event with guests) is written ready in `memoria/pendientes.md`. If a tool is left \
+            waiting for approval, it stays there: don't look for another way.
+            - **In the first session with the user after a run**, start by saying which new \
+            reports and pending items there are, and ask which to send.
             """
         )
         lines.append("")

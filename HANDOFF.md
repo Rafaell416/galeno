@@ -714,12 +714,16 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
 
 **Peticiones del usuario (necesitan decisión de Rafa: tocan líneas rojas):**
 
-- **Tareas repetitivas** («todos los días a las 8 am, haz tal cosa»). **Decidido (Rafa, 5 oct 2026):**
-  entran con alcance acotado —leer, escribir en `memoria/`, escrituras internas; los envíos quedan de
-  borrador y se aprueban por la mañana—; el detalle en `docs/03` §3b «Tareas programadas». Se
-  construyen después de las fases 2–4 del rediseño, verificando antes que una tarea desatendida que
-  choca con una regla `ask` se queda esperando y nunca se salta la pregunta. El envío desatendido
-  sigue en v0.2.
+- **Tareas repetitivas** («todos los días a las 8 am, haz tal cosa»). **Decidido y construido (Rafa,
+  5 oct 2026; rama `feat/tareas-programadas`):** alcance acotado —leer, escribir en `memoria/`,
+  escrituras internas; los envíos quedan de borrador y se aprueban por la mañana—; detalle y
+  verificación de la puerta en `docs/03` §3b «Tareas programadas». La puerta pasó: un `ask` sin nadie
+  delante se deniega (terminal, probado de primera mano) o queda esperando (tareas de la app de
+  Claude, documentado); nada se la salta. Construido: la sección «Tareas programadas» del `AGENTS.md`
+  generado, los borradores de Gmail en `allow` con su propio hook (la única excepción al paso libre
+  de solo lecturas), y las skills `/tareas-recurrentes`, `daily-briefing` y `weekly-wrap` dicen cómo
+  programarse. **Sin probar a mano una tarea real en la app de Claude.** El envío desatendido sigue
+  en v0.2.
 - **Cargar sus propias skills.** Está cerrado a propósito (línea roja 6, «trae tu skill»): una skill
   son instrucciones para el agente y hoy solo entran las nuestras y las curadas.
 
