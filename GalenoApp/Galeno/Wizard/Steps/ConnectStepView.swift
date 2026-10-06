@@ -33,13 +33,14 @@ struct ConnectStepView: View {
 /// hay barra de navegación).
 private struct ClaudeSetupGate: View {
     @EnvironmentObject private var wizard: WizardState
+    @Environment(\.galenoEmbeddedConnection) private var embedded
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             StepTitle(text: Text("connect.claude.title"))
             ClaudeSetupContent()
             Spacer(minLength: 0)
-            if !wizard.claudeSetup.isWorking {
+            if !wizard.claudeSetup.isWorking, !embedded {
                 Button("connect.backToTools") { wizard.back() }
                     .buttonStyle(.inkTertiary)
             }
@@ -53,6 +54,7 @@ private struct ClaudeSetupGate: View {
 
 private struct ConnectFlowView: View {
     @ObservedObject var flow: ConnectFlow
+    @Environment(\.galenoEmbeddedConnection) private var embedded
 
     var body: some View {
         VStack(spacing: 0) {
@@ -72,6 +74,8 @@ private struct ConnectFlowView: View {
 
     /// La barra "N de M" va en las conexiones, no en las pantallas completas.
     private var showsProgress: Bool {
+        // Dentro del detalle hay una sola herramienta: una tira con un solo logo no cuenta nada.
+        if embedded { return false }
         if case .connection = flow.screen { return true }
         return false
     }

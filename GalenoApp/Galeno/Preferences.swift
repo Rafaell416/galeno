@@ -87,6 +87,20 @@ extension EnvironmentValues {
     }
 }
 
+private struct EmbeddedConnectionKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// La conexión se muestra **dentro del detalle de un agente** (para añadirle una herramienta), no en el asistente: sin
+    /// «Volver a elegir herramientas» ni la tira de logos, que no tienen a dónde llevar ni qué contar. El detalle pone su propio
+    /// «Cancelar».
+    var galenoEmbeddedConnection: Bool {
+        get { self[EmbeddedConnectionKey.self] }
+        set { self[EmbeddedConnectionKey.self] = newValue }
+    }
+}
+
 private struct CancelWizardKey: EnvironmentKey {
     static let defaultValue: (@MainActor () -> Void)? = nil
 }

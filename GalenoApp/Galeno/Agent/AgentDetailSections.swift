@@ -145,8 +145,8 @@ struct GeneralSection: View {
 /// espera es por fila y nunca se marca sola (es el mismo `HealthModel` de Salud).
 struct ToolsSection: View {
     @ObservedObject var model: AgentDetailModel
-    let onAddTool: (Tool) -> Void
     @State private var addOpen = false
+    @Environment(\.galenoReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -156,8 +156,11 @@ struct ToolsSection: View {
                 AgentList {
                     ForEach(model.toolRows) { row in
                         ToolRowView(model: model, row: row)
+                            // La que acaba de conectarse entra desde abajo, con un destello (`justAdded`).
+                            .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                     }
                 }
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.45), value: model.toolRows.map(\.tool))
             }
             if !model.addableTools.isEmpty { addArea.padding(.top, 14) }
         }
@@ -175,7 +178,10 @@ struct ToolsSection: View {
                 }
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                     ForEach(model.addableTools) { tool in
-                        AddToolButton(tool: tool, language: model.language) { onAddTool(tool) }
+                        AddToolButton(tool: tool, language: model.language, isDisabled: model.isPreparingConnection || model.isWorking) {
+                            addOpen = false
+                            Task { await model.startConnecting(tool) }
+                        }
                     }
                 }
                 Text("agent.tools.add.hint").font(Typo.text(13)).foregroundStyle(Color.ink500)
@@ -208,6 +214,7 @@ struct ToolsSection: View {
 private struct AddToolButton: View {
     let tool: Tool
     let language: Language
+    var isDisabled = false
     let action: () -> Void
     @State private var hovering = false
 
@@ -226,6 +233,7 @@ private struct AddToolButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(isDisabled)
         .onHover { hovering = $0 }
         .pointingHandOnHover()
     }
@@ -264,6 +272,9 @@ private struct ToolRowView: View {
             }
         }
         .padding(.vertical, 12)
+        // El destello de la herramienta que se acaba de conectar.
+        .background(model.justAdded == row.tool ? Color.moss100 : Color.clear)
+        .animation(.easeOut(duration: 0.8), value: model.justAdded)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.parchment300).frame(height: 1) }
         .accessibilityElement(children: .contain)
     }
@@ -370,45 +381,40 @@ extension HealthModel.ReconnectIssue {
 
 // MARK: - Skills
 
-/// Un resumen por grupo de lo marcado, y «Elegir skills», que abre el catálogo en cards.
-struct SkillsSection: View {
+/// Las cards de siempre —las de las skills del rol, «Tus skills» y «Añadir skill…»— para marcar y desmarcar aquí mismo, con su
+/// «Guardar skills». El catálogo es el del asistente (`SkillsStepView`, en su versión embebida); lo marcado se guarda al
+/// pulsar «Guardar», no al marcar.
+struct SkillsEditor: View {
     @ObservedObject var model: AgentDetailModel
-    @Environment(\.locale) private var locale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            let groups = model.skillSummary
-            if groups.isEmpty {
-                Text("agent.skills.none").font(Typo.text(15)).foregroundStyle(Color.ink500)
-            } else {
-                AgentList {
-                    ForEach(groups) { group in
-                        HStack(alignment: .firstTextBaseline, spacing: 16) {
-                            SmallCapsText(string: group.title, size: 12, tracking: 0.12)
-                                .foregroundStyle(Color.ink500)
-                                .frame(width: 150, alignment: .leading)
-                            Text(verbatim: group.names.isEmpty ? "—" : group.names.joined(separator: " · "))
-                                .font(Typo.text(15)).lineSpacing(2)
-                                .foregroundStyle(group.names.isEmpty ? Color.ink500 : Color.ink900)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(verbatim: Localized.string("agent.skills.count %lld %lld", group.selected, group.total, locale: locale))
-                                .font(Typo.text(13.5)).foregroundStyle(Color.ink500).lineLimit(1)
-                        }
-                        .padding(.vertical, 12)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Color.parchment300).frame(height: 1) }
+        Group {
+            if let picker = model.picker {
+                VStack(spacing: 0) {
+                    SkillsStepView(embedded: true)
+                        .environmentObject(picker)
+                    Rectangle().fill(Color.parchment300).frame(height: 1)
+                    HStack(alignment: .center, spacing: 12) {
+                        Text(LocalizedStringKey(model.skillsDirty ? "agent.skills.unsaved" : "agent.skills.hint"))
+                            .font(Typo.text(13))
+                            .foregroundStyle(model.skillsDirty ? Color.ochre700 : Color.ink500)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        Button("agent.skills.discard") { model.discardSkillChanges() }
+                            .buttonStyle(InkLinkStyle(size: 14.5))
+                            .disabled(!model.skillsDirty || model.isWorking)
+                        Button("agent.skills.save") { model.saveSkills() }
+                            .buttonStyle(InkButtonStyle(.primary, size: .bar, padding: 18, isLoading: model.isWorking))
+                            .disabled(!model.skillsDirty || model.isWorking)
                     }
+                    .padding(.top, 10)
                 }
+            } else {
+                InkSpinner(size: 16).padding(.top, 16)
             }
-            HStack(alignment: .center, spacing: 16) {
-                Button("agent.skills.pick") { model.openSkillsPicker() }
-                    .buttonStyle(InkButtonStyle(.secondary, size: .regular, padding: 18))
-                    .disabled(model.isWorking)
-                Text("agent.skills.hint").font(Typo.text(14)).foregroundStyle(Color.ink500)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.top, 16)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onAppear { model.prepareSkillsEditor() }
     }
 }
 

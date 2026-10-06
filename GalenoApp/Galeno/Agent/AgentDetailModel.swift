@@ -26,8 +26,9 @@ nonisolated struct ClaudeAccountDisconnector: AccountDisconnecting {
 /// guardar.
 ///
 /// Reutiliza lo que ya existe en vez de duplicarlo: abrir, renombrar y eliminar son los del `HomeModel`; el estado de
-/// las herramientas, reconectar y re-vincular WhatsApp, los del `HealthModel`; el catálogo de skills, el del asistente
-/// (`WizardState` en modo «Gestionar»); escribir la carpeta, el `AgentInstaller`.
+/// las herramientas, reconectar y re-vincular WhatsApp, los del `HealthModel`; el catálogo de skills **y** la conexión de una
+/// herramienta nueva, los del asistente (un `WizardState` en modo «Gestionar» que solo se usa para eso); escribir la
+/// carpeta, el `AgentInstaller`.
 @MainActor
 final class AgentDetailModel: ObservableObject {
     enum Section: String, CaseIterable, Identifiable {
@@ -77,15 +78,6 @@ final class AgentDetailModel: ObservableObject {
         }
     }
 
-    /// Un grupo del resumen de skills: «Documentos · PRD · Roadmap … · 4 de 4».
-    struct SkillGroupSummary: Identifiable, Equatable {
-        var id: String
-        var title: String
-        var names: [String]
-        var selected: Int
-        var total: Int
-    }
-
     /// Por qué no se pudo traer un material a «Contexto».
     enum ContextProblem: Equatable {
         case unsupported, tooLarge, unreadable, tooMany, tooLong, empty
@@ -108,8 +100,25 @@ final class AgentDetailModel: ObservableObject {
     @Published private(set) var isWorking = false
     /// Qué salió mal, a la vista en la sección (nunca en silencio).
     @Published private(set) var error: String?
-    /// El catálogo de skills abierto: un `WizardState` en modo «Gestionar» que solo se usa para elegir.
-    @Published private(set) var picker: WizardState?
+    /// Las skills como cards, editables en su sitio: un `WizardState` en modo «Gestionar» que solo se usa para elegir. Se
+    /// crea al entrar a la sección y guarda lo marcado hasta «Guardar skills» o «Descartar».
+    @Published private(set) var picker: WizardState? {
+        didSet {
+            pickerObserver = picker?.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        }
+    }
+    private var pickerObserver: AnyCancellable?
+
+    /// Una herramienta que se está conectando **aquí mismo** (otro `WizardState` en modo «Gestionar», solo por su flujo de
+    /// conexión) y cuál. Mientras no es `nil`, el detalle muestra la conexión encima.
+    @Published private(set) var connecting: WizardState?
+    @Published private(set) var connectingTool: Tool?
+    /// Mientras se busca `claude` antes de abrir la conexión.
+    @Published private(set) var isPreparingConnection = false
+    /// La última herramienta que quedó conectada: su fila entra a la lista con un destello.
+    @Published private(set) var justAdded: Tool?
+    private var connectionObserver: AnyCancellable?
+    private var isFinishingConnection = false
 
     // Contexto: lo editado, hasta que se guarda.
     @Published var projectDraft = ""
@@ -121,18 +130,18 @@ final class AgentDetailModel: ObservableObject {
     // MARK: Dependencias
 
     private let installer: AgentInstaller
-    private let skillsDirectory: URL?
+    /// Cuánto se deja ver el éxito de la conexión antes de volver a la lista.
+    private let connectedHold: Duration
     private let makePicker: @MainActor (GalenoInstallation, UUID) -> WizardState
     private let disconnector: any AccountDisconnecting
     private let trashContext: (URL) throws -> Void
     private let importContext: (URL) throws -> ContextFile
     private let reveal: @MainActor (URL) -> Void
     private var cancellables: Set<AnyCancellable> = []
-    private lazy var catalog: SkillCatalog? = skillsDirectory.flatMap { try? SkillCatalog.load(from: $0) }
 
     init(
         agentID: UUID, section: Section = .general, home: HomeModel, health: HealthModel,
-        installer: AgentInstaller? = nil, skillsDirectory: URL? = SkillsLocation.bundled(),
+        installer: AgentInstaller? = nil, connectedHold: Duration = .milliseconds(1200),
         makePicker: @escaping @MainActor (GalenoInstallation, UUID) -> WizardState = {
             WizardState(preferredLanguages: [$0.language.rawValue], startingFrom: $0, editing: $1)
         },
@@ -146,7 +155,7 @@ final class AgentDetailModel: ObservableObject {
         self.home = home
         self.health = health
         self.installer = installer ?? AgentInstaller.live()
-        self.skillsDirectory = skillsDirectory
+        self.connectedHold = connectedHold
         self.makePicker = makePicker
         self.disconnector = disconnector ?? ClaudeAccountDisconnector(claudePath: HealthModel.locateClaude())
         self.trashContext = trashContext
@@ -160,8 +169,9 @@ final class AgentDetailModel: ObservableObject {
         reload()
     }
 
-    /// Al salir del detalle: deja de mirar las conexiones.
+    /// Al salir del detalle: deja de mirar las conexiones y cierra una conexión a medias.
     func stop() {
+        cancelConnecting()
         health.cancelReconnect()
         health.stop()
     }
@@ -263,6 +273,102 @@ final class AgentDetailModel: ObservableObject {
             .filter { !have.contains($0) }
     }
 
+    // MARK: Conectar una herramienta nueva, aquí mismo
+
+    /// «Añadir herramienta» → elegir una: se abre **su conexión** encima del detalle (ficha, navegador, autorizar), sin pasar por
+    /// el asistente ni por «Elige tus herramientas». Al quedar conectada se guarda en el agente y su fila entra a la lista.
+    /// Es el flujo de conexión de siempre (`ConnectFlow`): todas las herramientas, con sus casos (QR de WhatsApp, la app
+    /// de Slack, el nombre ocupado…).
+    func startConnecting(_ tool: Tool) async {
+        guard connecting == nil, !isPreparingConnection, !isWorking, addableTools.contains(tool),
+            let installation = (try? installer.store.load()) ?? nil, installation.agent(id: agentID) != nil
+        else { return }
+        isPreparingConnection = true
+        error = nil
+        defer { isPreparingConnection = false }
+        let wizard = makePicker(installation, agentID)
+        // Solo esta herramienta: lo que el agente tenía saltado (y el modo «Gestionar» vuelve a poner por conectar) no entra.
+        if !wizard.isSelected(tool) { wizard.toggle(tool) }
+        wizard.connections.removeAll { $0.status != .connected && $0.tool != tool }
+        // Con `claude` ya buscado, la conexión no parpadea con «Antes de conectar».
+        await wizard.detectClaudeCodeIfNeeded()
+        // Lista la conexión antes de mostrarla (si `claude` no está listo, la pantalla lo arregla y la arma después).
+        if wizard.claudeStatus.isReady { wizard.beginConnecting() }
+        isFinishingConnection = false
+        connectingTool = tool
+        connecting = wizard
+        connectionObserver = wizard.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor in self?.connectionChanged() }
+        }
+    }
+
+    /// Cierra la conexión sin guardar nada (el usuario canceló o saltó la herramienta).
+    func cancelConnecting() {
+        connectionObserver = nil
+        connecting?.stopWorking()
+        connecting = nil
+        connectingTool = nil
+        isFinishingConnection = false
+    }
+
+    private func connectionChanged() {
+        guard let wizard = connecting, let tool = connectingTool, let flow = wizard.connectFlow else { return }
+        if flow.statuses[tool] == .skipped {
+            cancelConnecting()
+            return
+        }
+        guard !isFinishingConnection, flow.statuses[tool] == .connected else { return }
+        // «Conectada» llega antes que el final (WhatsApp sigue sincronizando): se espera a que la conexión **termine**.
+        if case .succeeded = flow.phase {
+            isFinishingConnection = true
+            Task { [connectedHold] in
+                try? await Task.sleep(for: connectedHold)
+                await finishConnecting()
+            }
+        } else if flow.isFinished {
+            isFinishingConnection = true
+            Task { await finishConnecting() }
+        }
+    }
+
+    /// Guarda la herramienta ya conectada en el agente (la conexión compartida y su carpeta), anota que cambiaron sus
+    /// herramientas y deja que su fila entre a la lista.
+    private func finishConnecting() async {
+        guard let wizard = connecting, let tool = connectingTool, wizard.connectedTools.contains(tool) else {
+            isFinishingConnection = false
+            return
+        }
+        var config = wizard.makeConfig()
+        // El asistente ordena las herramientas por rol: aquí las de antes conservan su sitio y la nueva entra al final de la lista.
+        let order = (self.config?.connections ?? []).map(\.tool)
+        config.connections.sort { (order.firstIndex(of: $0.tool) ?? .max) < (order.firstIndex(of: $1.tool) ?? .max) }
+        connectionObserver = nil
+        wizard.stopWorking()
+        do {
+            _ = try installer.install(config, existingAgentID: agentID)
+        } catch {
+            connecting = nil
+            connectingTool = nil
+            isFinishingConnection = false
+            self.error = Localized.string("agent.error.save", locale: locale)
+            return
+        }
+        connecting = nil
+        connectingTool = nil
+        isFinishingConnection = false
+        home.noteToolsChanged(agentID)
+        home.reload()
+        reload()
+        section = .tools
+        justAdded = tool
+        health.refresh()
+        // El destello dura un momento.
+        Task {
+            try? await Task.sleep(for: .seconds(2.4))
+            if justAdded == tool { justAdded = nil }
+        }
+    }
+
     func reconnect(_ tool: Tool) { health.reconnect(tool) }
     func relinkWhatsApp() { health.askRelink() }
     func askRemove(_ tool: Tool) { sheet = .removeTool(tool) }
@@ -347,35 +453,10 @@ final class AgentDetailModel: ObservableObject {
 
     // MARK: Skills
 
-    /// El resumen por grupo, de lo que el agente tiene marcado. Vacío si el catálogo no se pudo leer.
-    var skillSummary: [SkillGroupSummary] {
-        guard let config, let catalog else { return [] }
-        let chosen = Set(config.skills.map { "\($0.source.rawValue)/\($0.id)" })
-        var groups: [SkillGroupSummary] = []
-        for group in catalog.groups {
-            let skills = catalog.skills(in: group)
-            let selected = skills.filter { chosen.contains("\($0.source.rawValue)/\($0.id)") }
-            // Los grupos de su rol, y cualquier otro con algo marcado.
-            guard config.role.skillGroups.contains(group.id) || !selected.isEmpty, !skills.isEmpty else { continue }
-            groups.append(
-                SkillGroupSummary(
-                    id: group.id, title: group.name.text(in: language),
-                    names: selected.map { $0.name.text(in: language) }, selected: selected.count, total: skills.count))
-        }
-        let own = config.skills.filter { $0.source == .own }
-        if !own.isEmpty, let record {
-            let known = Dictionary(uniqueKeysWithValues: OwnSkills.list(in: record.folder).map { ($0.id, $0) })
-            groups.append(
-                SkillGroupSummary(
-                    id: WizardState.ownSkillGroupID, title: Localized.string("skills.own.group", locale: locale),
-                    names: own.map { known[$0.id]?.name ?? $0.id }, selected: own.count, total: own.count))
-        }
-        return groups
-    }
-
     var skillCount: Int { config?.skills.count ?? 0 }
 
-    func openSkillsPicker() {
+    /// Prepara las cards de skills de este agente (idempotente). La vista lo llama al entrar a la sección.
+    func prepareSkillsEditor() {
         guard picker == nil, let installation = (try? installer.store.load()) ?? nil,
             installation.agent(id: agentID) != nil
         else { return }
@@ -384,16 +465,29 @@ final class AgentDetailModel: ObservableObject {
         picker = wizard
     }
 
-    func cancelSkillsPicker() { picker = nil }
+    /// ¿Hay algo marcado, quitado o traído que todavía no se guardó?
+    var skillsDirty: Bool {
+        guard let picker, let config else { return false }
+        return Set(picker.skills) != Set(config.skills) || !picker.pendingOwnSkillImports.isEmpty
+            || !picker.pendingOwnSkillTrash.isEmpty
+    }
+
+    /// «Descartar»: vuelve a lo guardado.
+    func discardSkillChanges() {
+        picker = nil
+        prepareSkillsEditor()
+    }
 
     func saveSkills() {
-        guard let picker else { return }
+        guard let picker, skillsDirty else { return }
         let skills = picker.skills
         if apply(
             ownSkills: picker.pendingOwnSkillImports, ownSkillsToTrash: picker.pendingOwnSkillTrash,
             { $0.skills = skills })
         {
+            // Ya está guardado: se arma de nuevo desde lo guardado (lo traído ya vive en `skills-propias/`).
             self.picker = nil
+            prepareSkillsEditor()
         }
     }
 

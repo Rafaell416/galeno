@@ -85,6 +85,7 @@ final class AgentDetailTests: XCTestCase {
         let record = record ?? hera!
         return AgentDetailModel(
             agentID: record.id, section: section, home: home ?? makeHome(), health: makeHealth(mcp), installer: installer,
+            connectedHold: .zero,
             makePicker: { installation, id in
                 WizardState(
                     preferredLanguages: ["es-CO"],
@@ -128,10 +129,7 @@ final class AgentDetailTests: XCTestCase {
         XCTAssertEqual(detail.toolRows.first { $0.tool == .jira }?.sharedWith, [])
         XCTAssertNotNil(detail.createdAt, "se lee de la carpeta del agente")
         XCTAssertEqual(detail.skillCount, 17)
-        // El resumen por grupo: los cuatro de producto, con lo marcado.
-        XCTAssertEqual(detail.skillSummary.map(\.id), ["documents", "work", "reports", "meetings"])
-        XCTAssertEqual(detail.skillSummary.first?.selected, detail.skillSummary.first?.total, "todas marcadas de fábrica")
-        XCTAssertTrue(detail.skillSummary.first?.names.contains("PRD") == true)
+        XCTAssertFalse(detail.skillsDirty, "sin abrir las cards no hay nada sin guardar")
     }
 
     func testTheAddableToolsAreTheOnesItDoesNotReadYet() {
@@ -298,47 +296,125 @@ final class AgentDetailTests: XCTestCase {
 
     // MARK: Skills
 
-    func testChoosingSkillsSavesOnlyOnSaveAndCancelChangesNothing() throws {
+    /// Las skills como cards, aquí mismo: marcar no guarda; «Descartar» vuelve a lo guardado y «Guardar skills» escribe la carpeta.
+    func testTickingSkillsSavesOnlyOnSaveAndDiscardChangesNothing() throws {
         let detail = makeDetail()
-        detail.openSkillsPicker()
+        detail.prepareSkillsEditor()
         let picker = try XCTUnwrap(detail.picker)
         XCTAssertTrue(picker.isSkillSelected("prd", source: .galeno))
+        XCTAssertFalse(detail.skillsDirty)
         picker.toggleSkill("prd", source: .galeno)
+        XCTAssertTrue(detail.skillsDirty)
+        XCTAssertTrue(exists(".claude/skills/prd/SKILL.md"), "marcar no guarda")
 
-        detail.cancelSkillsPicker()
-        XCTAssertNil(detail.picker)
-        XCTAssertTrue(exists(".claude/skills/prd/SKILL.md"), "cancelar no cambia nada")
+        detail.discardSkillChanges()
+        XCTAssertFalse(detail.skillsDirty)
+        XCTAssertTrue(try XCTUnwrap(detail.picker).isSkillSelected("prd", source: .galeno), "volvió a lo guardado")
         XCTAssertEqual(try storedConfig().skills.count, 17)
 
-        detail.openSkillsPicker()
-        let again = try XCTUnwrap(detail.picker)
-        again.toggleSkill("prd", source: .galeno)
+        try XCTUnwrap(detail.picker).toggleSkill("prd", source: .galeno)
         detail.saveSkills()
 
-        XCTAssertNil(detail.picker)
+        XCTAssertFalse(detail.skillsDirty, "ya está guardado")
         XCTAssertEqual(try storedConfig().skills.count, 16)
         XCTAssertFalse(exists(".claude/skills/prd/SKILL.md"))
         XCTAssertEqual(detail.skillCount, 16)
         XCTAssertTrue(exists(".claude/skills/roadmap/SKILL.md"))
+        XCTAssertNotNil(detail.picker, "las cards siguen a la vista, ya desde lo guardado")
     }
 
-    /// Una skill propia traída en el catálogo se copia a `skills-propias/` al guardar, y entra al resumen.
-    func testAnOwnSkillBroughtInThePickerIsCopiedOnSaveAndShownInTheSummary() throws {
+    /// Una skill propia traída en las cards se copia a `skills-propias/` al guardar y queda como una más.
+    func testAnOwnSkillBroughtInTheCardsIsCopiedOnSave() throws {
         let folder = scratch.appending(path: "Cierre", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try "---\nname: cierre\ndescription: \"Cierra la semana.\"\n---\n\nHaz esto.\n"
             .write(to: folder.appending(path: "SKILL.md"), atomically: true, encoding: .utf8)
         let detail = makeDetail()
-        detail.openSkillsPicker()
+        detail.prepareSkillsEditor()
         let picker = try XCTUnwrap(detail.picker)
         XCTAssertNil(picker.addOwnSkill(from: folder))
+        XCTAssertTrue(detail.skillsDirty, "lo traído también cuenta como sin guardar")
 
         detail.saveSkills()
 
         XCTAssertTrue(exists("skills-propias/cierre/SKILL.md"))
         XCTAssertTrue(exists(".claude/skills/cierre/SKILL.md"))
-        XCTAssertEqual(detail.skillSummary.last?.id, WizardState.ownSkillGroupID)
-        XCTAssertEqual(detail.skillSummary.last?.names, ["cierre"])
+        XCTAssertFalse(detail.skillsDirty)
+        XCTAssertEqual(try XCTUnwrap(detail.picker).ownSkillCards.map(\.id), ["cierre"], "queda como una de «Tus skills»")
+    }
+
+    // MARK: Conectar una herramienta nueva, aquí mismo
+
+    private func waitUntil(_ condition: @MainActor () -> Bool) async -> Bool {
+        for _ in 0..<500 {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return condition()
+    }
+
+    /// «Añadir herramienta» → elegir una: se abre **su conexión** encima del detalle (sin pasar por el asistente); al quedar
+    /// conectada se guarda en el agente, anota el cambio y su fila entra a la lista.
+    func testAddingAToolConnectsItRightThereAndItEntersTheList() async throws {
+        let home = makeHome()
+        let detail = makeDetail(home: home)
+        XCTAssertTrue(detail.addableTools.contains(.fathom))
+
+        await detail.startConnecting(.fathom)
+        let wizard = try XCTUnwrap(detail.connecting)
+        XCTAssertEqual(detail.connectingTool, .fathom)
+        XCTAssertEqual(wizard.connectFlow?.tools, [.fathom], "solo esa herramienta")
+        XCTAssertFalse(try file(".mcp.json").contains("galeno-fathom"), "hasta conectarla no se guarda nada")
+
+        wizard.connectFlow?.connect()
+        let done = await waitUntil { detail.connecting == nil }
+
+        XCTAssertTrue(done, "\(String(describing: wizard.connectFlow?.phase))")
+        XCTAssertEqual(detail.toolRows.map(\.tool), [.notion, .jira, .googleWorkspace, .fathom])
+        XCTAssertEqual(detail.justAdded, .fathom, "su fila entra con el destello")
+        XCTAssertTrue(try file(".mcp.json").contains("galeno-fathom"))
+        XCTAssertEqual(try XCTUnwrap(try installer.store.load()).connection(for: .fathom)?.status, .connected)
+        XCTAssertNotNil(defaults.dictionary(forKey: Prefs.toolsChangedAt)?[hera.id.uuidString], "se anota para reiniciar Claude")
+        XCTAssertEqual(detail.section, .tools)
+        XCTAssertFalse(detail.addableTools.contains(.fathom))
+    }
+
+    func testCancellingTheConnectionSavesNothing() async throws {
+        let detail = makeDetail()
+        await detail.startConnecting(.fathom)
+        XCTAssertNotNil(detail.connecting)
+
+        detail.cancelConnecting()
+
+        XCTAssertNil(detail.connecting)
+        XCTAssertNil(detail.connectingTool)
+        XCTAssertEqual(detail.toolRows.map(\.tool), [.notion, .jira, .googleWorkspace])
+        XCTAssertFalse(try file(".mcp.json").contains("galeno-fathom"))
+    }
+
+    /// «Conectar después» dentro de la conexión cierra todo sin guardar: no queda «saltada» ni a medias.
+    func testSkippingTheToolInTheConnectionClosesItWithoutSaving() async throws {
+        let detail = makeDetail()
+        await detail.startConnecting(.fathom)
+
+        detail.connecting?.connectFlow?.skip()
+        let closed = await waitUntil { detail.connecting == nil }
+
+        XCTAssertTrue(closed)
+        XCTAssertFalse(try file(".mcp.json").contains("galeno-fathom"))
+        XCTAssertEqual(detail.toolRows.map(\.tool), [.notion, .jira, .googleWorkspace])
+    }
+
+    func testItDoesNotConnectAToolTheAgentAlreadyReadsOrTwoAtOnce() async throws {
+        let detail = makeDetail()
+        await detail.startConnecting(.notion)
+        XCTAssertNil(detail.connecting, "Notion ya la lee: no hay nada que conectar")
+
+        await detail.startConnecting(.fathom)
+        let first = detail.connecting
+        await detail.startConnecting(.whatsapp)
+        XCTAssertTrue(detail.connecting === first, "una conexión a la vez")
+        XCTAssertEqual(detail.connectingTool, .fathom)
     }
 
     // MARK: Contexto
@@ -454,27 +530,6 @@ final class AgentDetailTests: XCTestCase {
         app.openAgent(UUID())
         XCTAssertEqual(app.screen, .home)
         XCTAssertNil(app.agentDetail)
-    }
-
-    /// «Añadir herramienta» abre el asistente de «Gestionar» con esa herramienta marcada, en el paso de herramientas; al
-    /// cancelar o terminar se vuelve al detalle, en «Herramientas».
-    func testAddingAToolOpensTheAssistantWithItTickedAndComesBackToTheDetail() throws {
-        let app = makeApp()
-        app.openAgent(hera.id)
-
-        app.addTool(.fathom, to: hera.id)
-
-        XCTAssertEqual(app.screen, .wizard)
-        XCTAssertEqual(app.wizard.mode, .edit)
-        XCTAssertEqual(app.wizard.step, .tools)
-        XCTAssertTrue(app.wizard.isSelected(.fathom))
-        XCTAssertNil(app.agentDetail?.picker)
-
-        app.cancelWizard()
-
-        XCTAssertEqual(app.screen, .agent)
-        XCTAssertEqual(app.agentDetail?.agentID, hera.id)
-        XCTAssertEqual(app.agentDetail?.section, .tools)
     }
 
     func testManagingFromTheOldPathStillReturnsToTheHome() {

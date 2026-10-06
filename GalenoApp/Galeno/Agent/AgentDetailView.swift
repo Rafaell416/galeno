@@ -10,8 +10,6 @@ struct AgentDetailView: View {
     let onBack: () -> Void
     /// Se eliminó el agente desde aquí: ya no hay detalle que mostrar.
     let onRemoved: () -> Void
-    /// «Añadir herramienta»: abre el asistente de conexión para esa herramienta y vuelve aquí al terminar.
-    let onAddTool: (Tool) -> Void
     @Environment(\.locale) private var locale
     @Environment(\.galenoReduceMotion) private var reduceMotion
 
@@ -29,20 +27,26 @@ struct AgentDetailView: View {
                     HStack(alignment: .top, spacing: 28) {
                         nav
                             .frame(width: 168)
-                        ScrollView {
-                            content
-                                .padding(.trailing, 6)
-                                .padding(.bottom, 20)
+                        if model.section == .skills {
+                            // Las cards llevan su propio desplazamiento y el pie de «Guardar»: no van dentro de otro.
+                            VStack(alignment: .leading, spacing: 0) {
+                                heading
+                                SkillsEditor(model: model)
+                            }
+                            .padding(.trailing, 6)
+                            .padding(.bottom, 14)
+                        } else {
+                            ScrollView {
+                                content
+                                    .padding(.trailing, 6)
+                                    .padding(.bottom, 20)
+                            }
+                            .scrollBounceBehavior(.basedOnSize)
                         }
-                        .scrollBounceBehavior(.basedOnSize)
                     }
                     .padding(.horizontal, Self.margin)
                     .padding(.top, 16)
                 }
-            }
-            if let picker = model.picker {
-                SkillsPicker(model: model, picker: picker)
-                    .transition(.opacity)
             }
         }
         .background(Color.parchment50)
@@ -61,9 +65,25 @@ struct AgentDetailView: View {
                     .transition(.opacity)
             }
         }
+        // La vista previa de una skill cae sobre toda la ventana, como en el asistente.
+        .overlay {
+            if model.section == .skills, let picker = model.picker, let skill = picker.previewedSkill {
+                SkillPreviewSheet(skill: skill)
+                    .environmentObject(picker)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 4)))
+            }
+        }
+        // Conectar una herramienta nueva: su conexión, encima del detalle.
+        .overlay {
+            if let wizard = model.connecting {
+                ConnectOverlay(model: model, wizard: wizard)
+                    .transition(.opacity)
+            }
+        }
         .animation(reduceMotion ? nil : .easeOut(duration: Motion.micro), value: model.sheet)
         .animation(reduceMotion ? nil : .easeOut(duration: Motion.micro), value: model.home.dialog)
-        .animation(reduceMotion ? nil : .easeOut(duration: Motion.micro), value: model.picker == nil)
+        .animation(reduceMotion ? nil : .easeOut(duration: Motion.micro), value: model.connecting == nil)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: model.picker?.previewedSkill)
         .onExitCommand(perform: escape)
         .onAppear { model.refreshHealth() }
         .onDisappear { model.stop() }
@@ -72,10 +92,11 @@ struct AgentDetailView: View {
 
     /// Esc cierra lo de encima, en este orden; y con nada abierto, vuelve a los agentes.
     private func escape() {
+        if model.connecting != nil { return }  // la conexión lleva su propio «Cancelar» (y su Esc)
+        if let picker = model.picker, picker.previewedSkill != nil { picker.previewedSkill = nil; return }
         if model.health.relink != .idle { model.health.cancelRelink(); return }
         if model.home.dialog != nil { model.home.cancelDialog(); return }
         if model.sheet != nil { model.closeSheet(); return }
-        if model.picker != nil { model.cancelSkillsPicker(); return }
         if model.home.menuOpen != nil { model.home.closeMenu(); return }
         back()
     }
@@ -157,15 +178,16 @@ struct AgentDetailView: View {
     private func hint(for section: AgentDetailModel.Section) -> NavItem.Hint? {
         switch section {
         case .tools: model.reviewCount > 0 ? NavItem.Hint(text: "\(model.reviewCount) !", warn: true) : nil
-        case .skills: NavItem.Hint(text: "\(model.skillCount)", warn: false)
+        // Con lo marcado sin guardar, un punto en ocre en vez del número.
+        case .skills: model.skillsDirty ? NavItem.Hint(text: "•", warn: true) : NavItem.Hint(text: "\(model.skillCount)", warn: false)
         default: nil
         }
     }
 
     // MARK: Contenido
 
-    @ViewBuilder
-    private var content: some View {
+    /// El título de la sección, su línea de apoyo y, si algo falló, el error.
+    private var heading: some View {
         VStack(alignment: .leading, spacing: 0) {
             StepTitle(text: Text(LocalizedStringKey(model.section.titleKey)), size: 28)
                 .id(model.section)
@@ -185,11 +207,18 @@ struct AgentDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 10)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            heading
             Group {
                 switch model.section {
                 case .general: GeneralSection(model: model)
-                case .tools: ToolsSection(model: model, onAddTool: onAddTool)
-                case .skills: SkillsSection(model: model)
+                case .tools: ToolsSection(model: model)
+                case .skills: EmptyView()  // va aparte: ver `body`
                 case .rules: RulesSection(model: model)
                 case .context: ContextSection(model: model)
                 }
@@ -365,49 +394,39 @@ private struct RemoveToolSheet: View {
     }
 }
 
-// MARK: - El catálogo de skills, dentro del detalle
+// MARK: - Conectar una herramienta nueva, encima del detalle
 
-/// «Elegir skills»: el mismo catálogo de cards del asistente (`SkillsStepView`), con un `WizardState` en modo «Gestionar»
-/// que solo se usa para elegir. «Guardar skills» vuelve a escribir la carpeta del agente; «Cancelar» no cambia nada.
-private struct SkillsPicker: View {
+/// La conexión de la herramienta que se acaba de elegir, a pantalla completa: la misma de siempre (`ConnectStepView`), con su
+/// ficha, el navegador y la autorización. Al quedar conectada se cierra sola y la herramienta entra a la lista; «Cancelar» la
+/// cierra sin guardar nada (no hay «Cancelar» mientras WhatsApp sincroniza: se espera a que termine, como en el asistente).
+private struct ConnectOverlay: View {
     @ObservedObject var model: AgentDetailModel
-    @ObservedObject var picker: WizardState
-    @Environment(\.galenoReduceMotion) private var reduceMotion
+    @ObservedObject var wizard: WizardState
+
+    private var isSyncing: Bool {
+        if case .syncing? = wizard.connectFlow?.phase { return true }
+        return false
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            SkillsStepView()
-                .environmentObject(picker)
-            Rectangle().fill(Color.parchment300).frame(height: 1)
-            HStack(spacing: Space.s16) {
-                Button("wizard.cancel") { model.cancelSkillsPicker() }
-                    .buttonStyle(InkButtonStyle(.secondary, padding: 20))
-                    .disabled(model.isWorking)
+            HStack {
+                Button { model.cancelConnecting() } label: { Text("← ") + Text("agent.connect.cancel") }
+                    .buttonStyle(InkLinkStyle(size: 14))
+                    .foregroundStyle(Color.ink700)
+                    .disabled(isSyncing)
+                    .opacity(isSyncing ? 0 : 1)
                 Spacer(minLength: 0)
-                if let error = model.error {
-                    Text(verbatim: error).font(Typo.text(13)).foregroundStyle(Color.seal700).lineLimit(1)
-                }
-                Button("agent.skills.save") { model.saveSkills() }
-                    .buttonStyle(InkButtonStyle(.primary, padding: 26, isLoading: model.isWorking))
-                    .keyboardShortcut(picker.returnBelongsToStep ? KeyboardShortcut(.return, modifiers: .command) : .defaultAction)
-                    .disabled(model.isWorking)
             }
-            .padding(.horizontal, Space.s48)
-            .padding(.vertical, 14)
+            .padding(.horizontal, AgentDetailView.margin)
+            .padding(.top, 16)
+            ConnectStepView()
+                .environmentObject(wizard)
+                .environment(\.galenoEmbeddedConnection, true)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.parchment50)
         .overlay { GrainOverlay() }
-        // La vista previa de una skill cae sobre toda la ventana, como en el asistente.
-        .overlay {
-            if let skill = picker.previewedSkill {
-                SkillPreviewSheet(skill: skill)
-                    .environmentObject(picker)
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 4)))
-            }
-        }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: picker.previewedSkill)
-        .onExitCommand {
-            if picker.previewedSkill != nil { picker.previewedSkill = nil } else { model.cancelSkillsPicker() }
-        }
+        .onExitCommand { if !isSyncing { model.cancelConnecting() } }
     }
 }

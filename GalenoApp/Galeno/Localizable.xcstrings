@@ -284,13 +284,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "What is ticked. “Choose skills” opens the catalog."
+            "value" : "Tick the ones you want and save. Changes apply when you save."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lo que tiene marcado. «Elegir skills» abre el catálogo."
+            "value" : "Marca las que quieres y guarda. Los cambios se aplican al guardar."
           }
         }
       }
@@ -675,13 +675,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The connection assistant opens for that tool; when it finishes you come back here."
+            "value" : "Pick one and it connects right here: its connection opens and, when it finishes, it joins the list."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se abre el asistente de conexión para esa herramienta; al terminar vuelves aquí."
+            "value" : "Elige una y se conecta aquí mismo: se abre su conexión y, al terminar, entra a la lista."
           }
         }
       }
@@ -890,70 +890,19 @@
         }
       }
     },
-    "agent.skills.pick" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose skills"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elegir skills"
-          }
-        }
-      }
-    },
     "agent.skills.hint" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The catalog opens as cards. Changes apply when you save."
+            "value" : "Your own skills go under “Your skills”; “Add skill…” adds one from your Mac."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se abre el catálogo en cards. Los cambios se aplican al guardar."
-          }
-        }
-      }
-    },
-    "agent.skills.none" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No skills ticked yet."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todavía no tiene skills marcadas."
-          }
-        }
-      }
-    },
-    "agent.skills.count %lld %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld of %2$lld"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld de %2$lld"
+            "value" : "Tus skills van en «Tus skills»; «Añadir skill…» suma una de tu Mac."
           }
         }
       }
@@ -1243,6 +1192,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo actualizar algún archivo de contexto. Revisa la lista."
+          }
+        }
+      }
+    },
+    "agent.skills.unsaved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have unsaved changes."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay cambios sin guardar."
+          }
+        }
+      }
+    },
+    "agent.skills.discard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descartar"
+          }
+        }
+      }
+    },
+    "agent.connect.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
           }
         }
       }

@@ -280,26 +280,29 @@ struct SystemAgentOpener: AgentOpening {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: claudeBundleID) else { return }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
+        let launchedAt = Date()
         _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
         for _ in 0..<60 {
             if claudeHasWindow() { break }
             try? await Task.sleep(for: .milliseconds(250))
         }
-        await waitUntilClaudeSettles()
+        await waitUntilClaudeSettles(since: launchedAt)
     }
 
     /// Con la ventana ya a la vista, la app todavía carga su interfaz y sus conversaciones. Se da por cargada
-    /// cuando sus procesos llevan dos segundos seguidos casi sin usar el procesador, con un mínimo de 4 s y un
-    /// tope de 25 s (una conversación trabajando de fondo puede no dejarla quieta nunca). Solo se mira cuánto
-    /// procesador usan sus procesos: nada de su contenido.
-    static func waitUntilClaudeSettles(minimum: Double = 4, maximum: Double = 25) async {
-        let started = Date()
+    /// cuando sus procesos llevan dos segundos seguidos casi sin usar el procesador, **y** han pasado al menos
+    /// 20 s desde que se lanzó (`since`), con un tope de 35 s (una conversación trabajando de fondo puede no dejarla
+    /// quieta nunca). El mínimo cuenta desde el lanzamiento y no desde la ventana: en la prueba del 6 oct 2026 el
+    /// procesador se quedó quieto esperando a la red antes de que la app terminara de arrancar (~18 s), y el enlace
+    /// que llegó entonces lo rechazó la app («navigateTo loadURL rejected»): la conversación se abrió sin la primera
+    /// pregunta. Solo se mira cuánto procesador usan sus procesos: nada de su contenido.
+    static func waitUntilClaudeSettles(since: Date = Date(), minimum: Double = 20, maximum: Double = 35) async {
         var quiet = 0
-        while Date().timeIntervalSince(started) < maximum {
+        while Date().timeIntervalSince(since) < maximum {
             try? await Task.sleep(for: .seconds(1))
             let load = await claudeProcessorLoad()
             quiet = ClaudeAppLoad.isQuiet(load) ? quiet + 1 : 0
-            if quiet >= 2, Date().timeIntervalSince(started) >= minimum { return }
+            if quiet >= 2, Date().timeIntervalSince(since) >= minimum { return }
         }
     }
 

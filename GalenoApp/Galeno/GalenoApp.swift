@@ -48,9 +48,7 @@ private struct RootView: View {
                     .transition(reduceMotion ? .opacity : .pageTurn)
             case .agent:
                 if let detail = app.agentDetail {
-                    AgentDetailView(
-                        model: detail, onBack: app.closeAgent, onRemoved: app.agentRemovedFromDetail,
-                        onAddTool: { app.addTool($0, to: detail.agentID) })
+                    AgentDetailView(model: detail, onBack: app.closeAgent, onRemoved: app.agentRemovedFromDetail)
                         .id(detail.agentID)
                         .transition(reduceMotion ? .opacity : .pageTurn)
                 }
