@@ -5,7 +5,11 @@ import SwiftUI
 /// ("el libro de noche": negro cálido de Claude Code desktop, `#141413`, sin tinte azul ni verde). Cada color cambia solo
 /// con la apariencia del sistema.
 extension Color {
-    private static func dynamic(light: UInt32, dark: UInt32) -> Color {
+    /// `nonisolated` a propósito: SwiftUI resuelve estos colores **fuera del hilo principal** (el renderizado asíncrono de
+    /// macOS 15 corre en `com.apple.SwiftUI.DisplayLink`). Con el aislamiento por defecto de la app (actor principal), el
+    /// cierre de abajo lo heredaría y Swift comprobaría el hilo al ejecutarlo: la app se caía al pasar de las pantallas
+    /// previas al asistente (`EXC_BREAKPOINT`, demo con Aquiles, 5 oct 2026). `ThemeColorTests` lo cubre.
+    private nonisolated static func dynamic(light: UInt32, dark: UInt32) -> Color {
         func ns(_ hex: UInt32) -> NSColor {
             NSColor(
                 srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
