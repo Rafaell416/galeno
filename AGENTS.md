@@ -199,13 +199,14 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   portapapeles; el dominio está a la vista; el inicio de sesión de Google se bloquea (no se
   esquiva su política); y no se aceptan cookies ni términos por el usuario. Añadir otra vista
   web, o relajar cualquiera de estas condiciones, exige preguntar antes.
-- Las demás herramientas con OAuth en el navegador (Notion, Jira, Fathom, Fireflies, Granola) se autorizan en la **hoja de
-  autenticación del sistema** (`SystemAuthorizationSheet`, `ASWebAuthenticationSession`; decisión de Rafa, 4 oct 2026). **No es una
-  vista web de Galeno**: es el navegador del usuario, con su sesión y con Google permitido, y Galeno no ve ni toca lo que pasa dentro.
-  Sesión **no** efímera (para eso se usa), solo direcciones `https`, y la vuelta de OAuth sigue yendo a `claude mcp login` en
-  `localhost`: Galeno cierra la hoja cuando ese proceso termina. Si la hoja no se puede mostrar, se abre el navegador como siempre.
-  No convertirla en una `WKWebView` ni leer nada de ella. Slack sigue en su ventana propia; los conectores de la cuenta de Claude,
-  en el navegador.
+- Las demás herramientas con OAuth en el navegador (Notion, Jira, Fathom, Fireflies, Granola) se autorizan en el **navegador
+  predeterminado del usuario** (decisión de Rafa, 5 oct 2026, demo con Aquiles: la hoja del sistema —`ASWebAuthenticationSession`—
+  usa la sesión de **Safari**, y si las cuentas viven en otro navegador autoriza con las equivocadas; Jira se conectó al workspace
+  que no era). Lo abre `claude mcp login` él mismo (en producción no se inyecta `systemAuthorizer`); la vuelta de OAuth va a
+  `localhost`, la pestaña queda abierta —no se puede cerrar una pestaña ajena— y Galeno vuelve al frente al terminar (`AppFocus`).
+  Galeno no ve ni toca lo que pasa en el navegador, y nada de esto se convierte en una vista web de Galeno. La hoja del sistema
+  (`SystemAuthorizationSheet`) queda retirada pero en el código, por si vuelve como opción. Slack sigue en su ventana propia; los
+  conectores de la cuenta de Claude, también en el navegador.
 - Un agente de navegador con un modelo (Claude con `--chrome`) **nunca ve un secreto**; para
   Slack se probó y se descartó (`docs/03` §4e).
 - La pantalla del foco salió del wizard en el rediseño B1 (`docs/03` §3): lo conectado se lee entero.

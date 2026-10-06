@@ -33,21 +33,26 @@ public enum AgentRole: String, Codable, CaseIterable, Sendable {
     }
 
     /// El orden en que se le ofrecen (y se conectan) las herramientas. Primero las que más usa ese oficio:
-    /// producto empieza por Jira; marketing y comercial, por WhatsApp. Las que no están aquí van después,
-    /// en el orden de `Tool.allCases`.
+    /// producto empieza por Jira; marketing y comercial, por WhatsApp. **Las tres de Google van siempre
+    /// juntas** (feedback de Aquiles, 5 oct 2026: Calendar quedaba lejos de Drive y no la vio). Las que no
+    /// están aquí van después, en el orden de `Tool.allCases`.
     public var toolOrder: [Tool] {
         switch self {
-        case .productManager: [.jira, .notion, .slack, .googleWorkspace, .fathom, .whatsapp]
-        case .marketing: [.whatsapp, .googleWorkspace, .slack, .notion, .fathom, .jira]
-        case .sales: [.whatsapp, .gmail, .googleWorkspace, .slack, .notion, .fathom]
+        case .productManager: [.jira, .notion, .slack, .googleWorkspace, .gmail, .googleCalendar, .fathom, .whatsapp]
+        case .marketing: [.whatsapp, .googleWorkspace, .gmail, .googleCalendar, .slack, .notion, .fathom, .jira]
+        case .sales: [.whatsapp, .gmail, .googleWorkspace, .googleCalendar, .slack, .notion, .fathom]
         }
     }
 
-    /// Cuántas de las primeras vienen marcadas de fábrica en «Tus herramientas».
-    public static let preselectedToolCount = 3
-
-    /// Las herramientas que el paso «Tus herramientas» marca de fábrica para este rol.
-    public var preselectedTools: [Tool] { Array(toolOrder.prefix(Self.preselectedToolCount)) }
+    /// Las herramientas que el paso «Tus herramientas» marca de fábrica para este rol. Lista propia, no las
+    /// tres primeras del orden: agrupar Google en la grilla no debe cambiar qué viene marcado.
+    public var preselectedTools: [Tool] {
+        switch self {
+        case .productManager: [.jira, .notion, .slack]
+        case .marketing: [.whatsapp, .googleWorkspace, .slack]
+        case .sales: [.whatsapp, .gmail, .googleWorkspace]
+        }
+    }
 
     /// Todas las herramientas, en el orden de este rol.
     public func ordered(_ tools: [Tool]) -> [Tool] {

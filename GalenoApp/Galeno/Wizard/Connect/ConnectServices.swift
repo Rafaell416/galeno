@@ -49,7 +49,11 @@ struct ConnectServices {
             makeMCP: { ClaudeMCPClient(claudePath: $0) },
             whatsapp: WhatsAppBridge.live(),
             authorizer: SlackAuthorizeWindowPresenter(),
-            systemAuthorizer: SystemAuthorizationSheet(),
+            // Notion, Jira y las de reuniones se autorizan en el navegador predeterminado del usuario, no en la
+            // hoja del sistema (decisión de Rafa, 5 oct 2026, demo con Aquiles: la hoja usa la sesión de Safari,
+            // y sus cuentas de verdad estaban en Chrome; se conectó al workspace equivocado de Jira). La pestaña
+            // queda abierta —no se puede cerrar una pestaña ajena—; Galeno vuelve al frente al terminar.
+            systemAuthorizer: nil,
             installer: .live(),
             returnToApp: { AppFocus.bringToFront() },
             openURL: { NSWorkspace.shared.open($0) },

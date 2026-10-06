@@ -261,6 +261,32 @@ struct InkSegmented<Value: Hashable>: View {
 
 /// «Copiar» → «Copiado» sin que el botón cambie de ancho: ambas cadenas reservan el sitio y el texto
 /// visible cambia con un fundido de 150 ms.
+/// El icono de copiar, para cuando un botón con palabra pesaría de más (la caja del mensaje de contexto):
+/// un círculo de 22 pt con `doc.on.doc` que, al copiar, se vuelve una palomita en musgo un momento.
+struct CopyIconButton: View {
+    let copied: Bool
+    let label: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(copied ? Color.moss700 : Color.ink700)
+                .frame(width: 22, height: 22)
+                .background(Color.parchment50)
+                .overlay(Circle().strokeBorder(Color.parchment400, lineWidth: 1))
+                .clipShape(Circle())
+                .contentShape(Circle())
+                .animation(.easeOut(duration: Motion.micro), value: copied)
+        }
+        .buttonStyle(.plain)
+        .pointingHandOnHover()
+        .help(Text(label))
+        .accessibilityLabel(Text(label))
+    }
+}
+
 struct CopyLabel: View {
     let copied: Bool
     var idle: LocalizedStringKey

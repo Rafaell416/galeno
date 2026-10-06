@@ -364,6 +364,12 @@ final class SkillCatalogTests: XCTestCase {
             XCTAssertEqual(Set(ordered), Set(all), "ninguna se pierde al ordenar")
             XCTAssertEqual(ordered.count, all.count)
             XCTAssertEqual(Array(ordered.prefix(role.toolOrder.count)), role.toolOrder)
+            // Las de Google van juntas en la grilla (feedback de Aquiles: Calendar quedaba lejos de Drive).
+            let google: Set<Tool> = [.googleWorkspace, .gmail, .googleCalendar]
+            let positions = ordered.enumerated().filter { google.contains($0.element) }.map(\.offset)
+            XCTAssertEqual(positions.max()! - positions.min()!, google.count - 1, "\(role): Google va junto")
+            // Y lo preseleccionado sigue siendo lo decidido, aunque el orden cambie.
+            XCTAssertTrue(role.preselectedTools.allSatisfy(ordered.contains))
         }
     }
 

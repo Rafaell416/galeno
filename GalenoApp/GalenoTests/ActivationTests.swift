@@ -207,6 +207,8 @@ final class ActivationTests: XCTestCase {
         XCTAssertEqual(setup.calls, ["install"])
         XCTAssertEqual(state.claudeStatus, .found(version: "2.1.289", path: claude, loggedIn: false))
         XCTAssertFalse(state.claudeStatus.isReady, "recién instalado: falta la sesión")
+        // Y se dice que quedó instalado antes de pedir la sesión (feedback de Aquiles, 5 oct 2026).
+        XCTAssertEqual(state.claudeJustInstalledVersion, "2.1.289")
     }
 
     func testAnOutdatedClaudeIsUpdatedWithTheSameInstaller() async {

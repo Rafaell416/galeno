@@ -3892,13 +3892,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Why: without Claude Code there is nowhere to write or run your agent."
+            "value" : "Because without Claude Code there is nowhere to write or run your agent."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Por qué: sin Claude Code no hay dónde escribir ni ejecutar tu agente."
+            "value" : "Porque sin Claude Code no hay dónde escribir ni ejecutar tu agente."
+          }
+        }
+      }
+    },
+    "detection.justInstalled %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code is now installed (version %@). One step left: signing in."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code quedó instalado (versión %@). Falta un paso: entrar con tu cuenta."
           }
         }
       }
@@ -6454,13 +6471,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No. Anything that goes out to other people (Slack, email) needs your approval, and that can’t be changed."
+            "value" : "No. Anything that goes out to other people (a message, an email) needs your approval, and that can’t be changed."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No. Todo lo que sale hacia otras personas (Slack, correo) pide tu aprobación, y eso no se puede cambiar."
+            "value" : "No. Todo lo que sale hacia otras personas (un mensaje, un correo) pide tu aprobación, y eso no se puede cambiar."
           }
         }
       }
@@ -6488,13 +6505,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "That the agent creates and edits inside your tools (Notion, Jira…) without telling you first. A draft can be fixed; choose by how much you trust it."
+            "value" : "That the agent creates and edits inside your tools without telling you first. A draft can be fixed; choose by how much you trust it."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Que el agente cree y edite dentro de tus herramientas (Notion, Jira…) sin avisarte antes. Un borrador se corrige; elige según tu confianza."
+            "value" : "Que el agente cree y edite dentro de tus herramientas sin avisarte antes. Un borrador se corrige; elige según tu confianza."
           }
         }
       }
@@ -8630,13 +8647,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A Slack message or an email is never sent without your approval. This can't be changed."
+            "value" : "Nothing going to another person is sent without your approval. This cannot be changed."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Un mensaje en Slack o un correo nunca se envía sin que tú lo apruebes. Esto no se puede cambiar."
+            "value" : "Nada que vaya a otra persona se envía sin que tú lo apruebes. Esto no se puede cambiar."
           }
         }
       }
@@ -8681,13 +8698,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A draft in your own Notion can be fixed; a sent email can't. That's why you can choose here."
+            "value" : "A draft inside your own tools can be fixed; something already sent cannot. That is why you do get to choose here."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Un borrador en tu propio Notion se corrige; un correo enviado, no. Por eso aquí sí puedes elegir."
+            "value" : "Un borrador dentro de tus propias herramientas se corrige; algo ya enviado, no. Por eso aquí sí puedes elegir."
           }
         }
       }
@@ -9990,13 +10007,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It decides what your agent will know how to do."
+            "value" : "Pick one: it decides what your agent will know how to do."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decide qué sabrá hacer tu agente."
+            "value" : "Elige uno: decide qué sabrá hacer tu agente."
           }
         }
       }

@@ -135,6 +135,27 @@ final class WizardStepsTests: XCTestCase {
         XCTAssertEqual(state.skills, catalog.defaultSelection(for: .sales), "rol nuevo: sus skills")
     }
 
+    /// La pantalla de skills enseña solo los grupos del rol (feedback de Aquiles: eligió producto y vio
+    /// también marketing y ventas); un grupo ajeno solo aparece si trae una skill ya marcada.
+    func testTheSkillsScreenShowsOnlyTheRolesGroups() {
+        let state = WizardState(
+            preferredLanguages: ["es"], claudeStatus: .found(version: "2.1.289", path: "/ruta/claude", loggedIn: true))
+        state.loadSkillCatalog()
+        guard case .loaded(let catalog) = state.skillCatalog else { return XCTFail("sin catálogo") }
+
+        XCTAssertEqual(state.visibleSkillGroups(in: catalog).map(\.id), AgentRole.productManager.skillGroups)
+        XCTAssertFalse(state.visibleSkills(in: catalog).contains { $0.group == "marketing" || $0.group == "sales" })
+
+        // Una skill marcada fuera del rol mantiene su grupo a la vista (un agente editado puede traerla).
+        guard let sales = catalog.cards.first(where: { $0.group == "sales" }) else { return XCTFail("sin ventas") }
+        state.toggleSkill(sales.id, source: sales.source)
+        XCTAssertTrue(state.visibleSkillGroups(in: catalog).contains { $0.id == "sales" })
+
+        state.role = .marketing
+        XCTAssertTrue(state.visibleSkillGroups(in: catalog).contains { $0.id == "marketing" })
+        XCTAssertFalse(state.visibleSkillGroups(in: catalog).contains { $0.id == "documents" })
+    }
+
     // MARK: - Darle contexto
 
     /// Es opcional: se pasa de largo sin tocar nada, y lo que se escriba llega al agente.
