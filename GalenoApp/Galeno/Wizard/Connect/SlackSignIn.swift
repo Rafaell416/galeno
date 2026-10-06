@@ -54,12 +54,15 @@ final class SlackSignInModel: NSObject, ObservableObject {
         case generating
         case captured
         case loadFailed(String)
+        /// Slack rechaza el navegador de esta ventana («tu navegador no es compatible»): su Safari es de hace más de un año.
+        /// El texto es la versión de Safari de este Mac. Se le dice al usuario qué hacer; no se disfraza la ventana.
+        case unsupportedBrowser(String)
 
         /// En cuál de los 4 pasos de la barra está: iniciar sesión, elegir workspace, generar el
         /// token, listo.
         var step: Int {
             switch self {
-            case .loading, .signIn, .googleSignIn, .loadFailed: 1
+            case .loading, .signIn, .googleSignIn, .loadFailed, .unsupportedBrowser: 1
             case .chooseWorkspace, .pickingWorkspace: 2
             case .working, .openingDialog, .generating, .needsClick: 3
             case .captured: 4
@@ -270,6 +273,8 @@ final class SlackSignInModel: NSObject, ObservableObject {
 
     private func locationChanged(_ url: URL?) {
         guard !captured else { return }
+        // La página de «navegador no compatible» sigue siendo de Slack: no se pisa el aviso hasta que llegue otra respuesta.
+        if case .unsupportedBrowser = stage { host = url?.host ?? ""; return }
         host = url?.host ?? ""
         trace("ubicación \(describe(url)) → \(SlackSignInLocation.classify(url))")
         if SlackSignInLocation.classify(url) != .tokensPage {
@@ -388,6 +393,25 @@ extension SlackSignInModel: WKNavigationDelegate, WKUIDelegate {
         }
     }
 
+    /// Slack contesta 403 a un navegador que considera viejo («tu navegador no es compatible»). Se mira la respuesta de la
+    /// página principal para decirle al usuario qué pasa, en vez de dejarlo mirando la página de Slack sin saber qué hacer.
+    func webView(
+        _ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse
+    ) async -> WKNavigationResponsePolicy {
+        guard navigationResponse.isForMainFrame, let http = navigationResponse.response as? HTTPURLResponse else {
+            return .allow
+        }
+        if SlackCapture.isUnsupportedBrowserResponse(status: http.statusCode, host: http.url?.host) {
+            trace("Slack rechazó el navegador (\(http.statusCode)) en \(describe(http.url))")
+            hintTask?.cancel()
+            hintTask = nil
+            stage = .unsupportedBrowser(SlackCapture.installedSafariVersion() ?? "")
+        } else if case .unsupportedBrowser = stage {
+            stage = .loading
+        }
+        return .allow
+    }
+
     /// Los enlaces que piden ventana nueva (el inicio de sesión con un proveedor) se abren aquí
     /// mismo: no hay más ventanas que esta.
     func webView(
@@ -460,7 +484,7 @@ struct SlackSignInView: View {
 
     private var isWarning: Bool {
         switch model.stage {
-        case .googleSignIn, .loadFailed: true
+        case .googleSignIn, .loadFailed, .unsupportedBrowser: true
         default: false
         }
     }
@@ -478,6 +502,7 @@ struct SlackSignInView: View {
         case .needsClick: Text("connect.slack.window.needsClick")
         case .captured: Text("connect.slack.window.captured")
         case .loadFailed(let detail): Text("connect.slack.window.loadFailed \(detail)")
+        case .unsupportedBrowser(let version): Text("connect.slack.window.unsupportedBrowser \(version)")
         }
     }
 }

@@ -6,11 +6,18 @@
 #   scripts/reset-pruebas.sh          lista lo que quitaría y pregunta
 #   scripts/reset-pruebas.sh --yes    lo quita sin preguntar
 #   scripts/reset-pruebas.sh --dry    solo lista, no toca nada
+#   scripts/reset-pruebas.sh --con-genericas   quita también los servidores con nombre genérico (ver OJO)
+#
+# OJO con los servidores MCP: son de TODO Claude Code, no solo de Galeno. Quitar uno (y cerrar su sesión) lo desconecta también
+# en cualquier otro proyecto del Mac que use el mismo nombre y dirección (le pasó a Rafa con mediclub-monorepo, 5 oct 2026). Galeno
+# registra los suyos como `galeno-<nombre>`: esos son los únicos que son suyos. Los de nombre genérico (`notion`, `slack`…) pueden ser
+# de otro proyecto: mira la lista antes de confirmar.
 #
 # Qué quita:
 #   · los agentes de ~/Galeno (a la Papelera, recuperables) y el registro de Galeno (installation.json, draft.json)
 #   · la sesión de WhatsApp y todo el historial local (Application Support/Galeno/whatsapp) y su servicio de fondo
-#   · los servidores MCP que Galeno registra en Claude Code: slack, notion, claude-design y sus nombres alternativos galeno-*
+#   · los servidores MCP que Galeno registra en Claude Code, con su nombre propio: galeno-slack, galeno-notion… (los de nombre
+#     genérico, solo con --con-genericas)
 #   · las preferencias de la app (apariencia, sonidos, pantalla de arranque…)
 # Qué NO hace (hay que hacerlo a mano, y al final lo recuerda):
 #   · cerrar la sesión de Galeno en el teléfono (WhatsApp → Dispositivos vinculados)
@@ -19,12 +26,14 @@
 
 set -u
 MODE=ask
+GENERIC=0
 for arg in "$@"; do
   case "$arg" in
+    --con-genericas) GENERIC=1 ;;
     --yes) MODE=yes ;;
     --dry) MODE=dry ;;
-    -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) echo "Opción desconocida: $arg (usa --yes, --dry o --help)"; exit 2 ;;
+    -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "Opción desconocida: $arg (usa --yes, --dry, --con-genericas o --help)"; exit 2 ;;
   esac
 done
 
@@ -72,10 +81,13 @@ FOUND=()
 if command -v claude >/dev/null 2>&1; then
   LIST="$(claude mcp list 2>/dev/null)"
   # whatsapp: lo registra Galeno con su binario, no por URL.
-  if echo "$LIST" | grep -qE "^whatsapp:"; then FOUND+=("whatsapp"); fi
+  if [ "$GENERIC" -eq 1 ] && echo "$LIST" | grep -qE "^whatsapp:"; then FOUND+=("whatsapp"); fi
   for entry in "${SERVERS[@]}"; do
     name="${entry%%|*}"; url="${entry#*|}"
-    for candidate in "$name" "galeno-$name"; do
+    # Solo los de nombre propio, salvo --con-genericas: los genéricos pueden ser de otro proyecto.
+    candidates=("galeno-$name")
+    [ "$GENERIC" -eq 1 ] && candidates+=("$name")
+    for candidate in "${candidates[@]}"; do
       if echo "$LIST" | grep -E "^$candidate:" | grep -qF "$url"; then FOUND+=("$candidate"); fi
     done
   done

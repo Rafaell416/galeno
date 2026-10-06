@@ -98,14 +98,49 @@ nonisolated enum SlackCapture {
     /// Safari de este Mac: es una declaración cierta sobre el motor, no un disfraz de otro
     /// navegador. No sirve para saltarse el bloqueo de Google, que se respeta aparte
     /// (`navigationDecision`).
+    ///
+    /// La versión sale del Safari instalado; si no se puede leer, o lo que se lee no es creíble (un Safari anterior al 14 no
+    /// existe en un Mac que corre esta app), se deduce de la versión de macOS, que es de donde viene su motor: macOS 14 → 17,
+    /// 15 → 18, y de la 26 en adelante la misma cifra. Slack rechaza («tu navegador no es compatible») un identificador que
+    /// no reconoce, y un número absurdo se lo parece (visto en un Mac con macOS 15.6.1, 5 oct 2026).
     static func safariApplicationName(
-        safariVersion: String? = Bundle(path: "/Applications/Safari.app")?
-            .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        safariVersion: String? = installedSafariVersion(),
+        systemMajorVersion: Int = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
     ) -> String {
-        let version = safariVersion.flatMap { value -> String? in
-            value.range(of: #"^\d+(\.\d+){0,2}$"#, options: .regularExpression) != nil ? value : nil
+        let readable = safariVersion.flatMap { value -> String? in
+            guard value.range(of: #"^\d+(\.\d+){0,2}$"#, options: .regularExpression) != nil,
+                let major = Int(value.split(separator: ".")[0]), major >= 14
+            else { return nil }
+            return value
         }
-        return "Version/\(version ?? "17.6") Safari/605.1.15"
+        return "Version/\(readable ?? safariVersionImplied(by: systemMajorVersion)) Safari/605.1.15"
+    }
+
+    /// ¿Es esta la respuesta con la que Slack rechaza un navegador que considera viejo? Es un 403 de la propia Slack (comprobado
+    /// el 5 oct 2026: respondía 403 a todo Safari anterior al 26, y también a un Chrome y un Firefox de hace un año).
+    static func isUnsupportedBrowserResponse(status: Int, host: String?) -> Bool {
+        guard status == 403, let host = host?.lowercased() else { return false }
+        return host == "slack.com" || host.hasSuffix(".slack.com")
+    }
+
+    /// La versión de Safari que trae una versión de macOS.
+    static func safariVersionImplied(by systemMajorVersion: Int) -> String {
+        switch systemMajorVersion {
+        case 26...: "\(systemMajorVersion).0"
+        case 15: "18.0"
+        default: "17.6"
+        }
+    }
+
+    /// La versión del Safari de este Mac. Desde macOS 13 vive en el *cryptex* del sistema y `/Applications/Safari.app` solo
+    /// lo enlaza: se mira primero donde está de verdad.
+    static func installedSafariVersion() -> String? {
+        for path in ["/System/Cryptexes/App/System/Applications/Safari.app", "/Applications/Safari.app"] {
+            if let version = Bundle(path: path)?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String {
+                return version
+            }
+        }
+        return nil
     }
 
     /// El workspace en el que el usuario acaba de entrar, según las direcciones por las que pasó la

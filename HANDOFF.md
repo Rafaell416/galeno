@@ -612,11 +612,42 @@ Instalación sin Terminal OK. Falló lo de Google, que es lo que más pesa:
 **`instalar-galeno.sh`** y el LÉEME (`scripts/dmg/LEEME.md`). El usuario no hace «arrastrar a Aplicaciones» ni pelea con Gatekeeper: abre la
 Terminal, escribe `bash `, arrastra `instalar-galeno.sh` a la ventana y pulsa Intro. El script lista lo que va a quitar y pide `si`; manda **a la
 Papelera** (nunca borra) la app anterior, `~/Galeno`, `Application Support/Galeno` (con la sesión de WhatsApp), cachés y preferencias, las
-conversaciones de esos agentes en Claude Code y en la app de Claude; quita las conexiones de Claude Code que apuntan a las **direcciones
-oficiales** (una tuya con el mismo nombre y otra dirección no se toca); copia la app, le quita la cuarentena y la abre. No toca `~/.claude.json`
+conversaciones de esos agentes en Claude Code y en la app de Claude; quita las conexiones de Claude Code **de Galeno** (`galeno-*` con dirección oficial) y, **solo si el usuario lo acepta aparte** (por defecto no;
+`--yes` tampoco, salvo `--con-conexiones`), las de nombre genérico que pudo poner él o una versión anterior de Galeno; copia la app, le quita la cuarentena y la abre. No toca `~/.claude.json`
 ni Claude Code. Solo usa lo que trae macOS (sin Python: el de macOS sin herramientas de desarrollo abre un aviso de instalación). Probado en un
 HOME de mentira con dobles de `launchctl`, `defaults`, `claude`, `trash`…, con la app real; **sin correr de verdad en otro Mac**. `scripts/reset-pruebas.sh`
 sigue siendo la versión para desarrollo (con `--dry`/`--yes`).
+
+*Caída al pasar de las pantallas previas al asistente (5 oct 2026, noche, demo con Aquiles, macOS 15.6.1, Release):* `EXC_BREAKPOINT` en el hilo
+`com.apple.SwiftUI.DisplayLink`, dentro de `Color.dynamic(light:dark:)`. El cierre del `NSColor` dinámico heredaba el aislamiento del actor
+principal (la app lo lleva por defecto) y SwiftUI lo resuelve en un hilo de fondo con el renderizado asíncrono de macOS 15: Swift comprueba el
+hilo y aborta. No se vio en el Mac de desarrollo (macOS 26). Arreglo: `nonisolated` en `Color.dynamic`; `ThemeColorTests` resuelve los colores
+fuera del hilo principal (se comprobó que antes del arreglo tira el proceso de pruebas). **Falta probarlo en un Mac con macOS 15**, y revisar si
+hay otros cierres para AppKit/SwiftUI con el mismo problema (por ahora el único es este). Convendría una máquina o una VM con macOS 15 para el QA.
+
+*Slack: «tu navegador no es compatible» (5 oct 2026, noche, demo con Aquiles, macOS 15.6.1, Safari 18.6):* **la causa no era la lectura de la versión de
+Safari** (la hipótesis inicial; el Safari de esa Mac sí se lee, 18.6). Se comprobó pidiéndole a `slack.com/signin` con distintos identificadores: **responde
+403 a todo Safari anterior al 26** (probados 15.6 a 25.6), y también a un Chrome 130 y un Firefox 130; con 26.0 o más, 200. Slack rechaza navegadores de
+más de un año, así que un Mac con **Safari 18.6 no puede iniciar sesión en Slack** ni siquiera con Safari de verdad. Decisión: **no se disfraza la ventana**
+(decir «Safari 26» en un Mac que tiene 18.6 sería mentir); se detecta el 403 de Slack y se le dice al usuario que actualice macOS/Safari (Ajustes del
+Sistema → General → Actualización de software) o salte Slack. Arreglo para Aquiles: actualizar su Mac; Safari 26 existe para macOS 15. El umbral de Slack se
+mueve con el tiempo: la detección es por la respuesta, no por un número. Además, la versión de Safari se lee ahora del *cryptex* primero y, si no es
+creíble, se deduce de macOS (`SlackCapture.safariApplicationName`). Pendiente: probar en un Mac con macOS 15 ya actualizado.
+
+*Conexiones con nombre propio (5 oct 2026, noche; rama `feat/conexiones-propias`; decisión de Rafa):* Galeno registra ahora sus conexiones como
+`galeno-notion`, `galeno-jira`, `galeno-slack`…, nunca con el genérico, y **solo cierra sesión o quita lo que lleva su prefijo**
+(`ToolConnection.galenoOwnsServers`). Motivo, un **incidente**: Rafa tiene un agente de Claude Code en `mediclub-monorepo` con su propio `notion` (alcance
+local del proyecto) con la misma dirección que el de Galeno. Para empezar de cero se le pidió `claude mcp logout notion` y `claude mcp remove … -s user`
+de Notion, Jira, Fathom y Claude Design: el `logout` borra las credenciales de OAuth, que Claude Code guarda por nombre y dirección (inferido: no
+probado), así que ese otro agente, ya corriendo, perdió Notion. Se había avisado de que afectaría a las sesiones de desarrollo **de este repositorio**,
+no de que podía afectar a otros, y no se miró antes quién más usaba esos servidores. Lección: **cerrar sesión o quitar un servidor de Claude Code
+de alcance de usuario es una acción sobre todos los proyectos del Mac**; se mira qué proyectos lo usan y se avisa. Hecho: nombre propio por
+defecto para las conexiones nuevas (el motor no cambia: el prefijo ya existía), una prueba de que el asistente registra `galeno-notion` y no toca
+el `notion` del usuario, y el instalador, que ya solo quita lo propio sin preguntar. Las conexiones anteriores (sin prefijo) siguen con su nombre.
+**Costo:** quien ya tenía Notion autorizado lo autoriza otra vez para Galeno. Pendiente (rediseño, fase 4): la hoja «Herramientas de <agente>» debe
+usar la misma regla (en «Desconectar» solo se cierra sesión de lo propio; lo adoptado se desvincula del agente). Conexiones **por agente** (otro
+workspace por cliente): v0.2, con la separación de contexto. Sin explicar todavía: el `slack` de la última prueba (y el conector `claude.ai Slack`)
+quedaron en «Needs authentication».
 
 ### Slack: los mensajes salen con el nombre de la persona (demo de Felipe, 4 oct 2026)
 

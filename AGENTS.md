@@ -150,10 +150,16 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 ### Código
 
 - La app consume el motor y no duplica su lógica.
-- **Galeno nunca borra ni pisa un servidor MCP del usuario sin preguntar.** Si el nombre ya lo usa
-  otro, ofrece registrar el suyo con otro nombre (`galeno-<nombre>`, lo predeterminado) o, solo si el
-  usuario lo elige y lo confirma, borrar el existente (`docs/03` §3, pantalla 5). El nombre
-  alternativo vive en `ToolConnection.serverNamePrefix` y todo lo generado lo usa.
+- **Galeno registra sus conexiones con nombre propio** (`galeno-notion`, `galeno-slack`…; `MCPServerCatalog.defaultNamePrefix`,
+  `ToolConnection.serverNamePrefix`), nunca con el genérico (decisión de Rafa, 5 oct 2026). Los servidores de Claude Code son de
+  **todo el usuario**: cerrar su sesión (`claude mcp logout`) o quitarlo (`claude mcp remove -s user`) lo desconecta en cualquier
+  otro proyecto que use el mismo nombre y dirección (a Rafa se le cayó Notion en su agente de MediClub). **Regla de propiedad:
+  Galeno solo cierra sesión o quita lo que lleva su prefijo (`galenoOwnsServers`)**; un servidor con el nombre genérico no se mira,
+  no se registra, no se autoriza y no se desconecta, ni en el instalador ni en los scripts. Antes de pedir (o de escribir un script
+  que haga) cualquier `logout` o `remove` de alcance de usuario, se mira qué proyectos lo usan (`~/.claude.json`, `.mcp.json`) y se
+  avisa de que afecta a todos. **Galeno nunca borra ni pisa un servidor MCP del usuario sin preguntar** (`docs/03` §3, pantalla 5).
+  Las conexiones guardadas antes de este cambio (sin prefijo) siguen con su nombre. Lo que Galeno no registra en Claude Code
+  (WhatsApp, los conectores de la cuenta de Claude) no lleva prefijo.
 - Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
   Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
   completos. Lo único que el motor nunca toca al regenerar es `memoria/`; la excepción es el material que el usuario trae al crear el agente (paso 3, «Traer contexto»), que el motor deja en `memoria/contexto/` solo si ese archivo no existe. Ese material es dato de terceros: no va en `AgentConfig` ni en el borrador, y nunca se escribe en `AGENTS.md`.
@@ -308,6 +314,11 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (hoy «Marketing»). Las tarjetas salen de `SkillCatalog.cards` y cada una sabe de dónde se instala (`CatalogSkill.source`):
   no escribir `.galeno` a mano en la vista. Toda skill con tarjeta lleva su dibujo propio (una prueba lo exige): el símbolo genérico es solo el respaldo de una
   que llegue por el catálogo remoto antes que su dibujo.
+- **Lo que SwiftUI o AppKit llaman fuera del hilo principal no puede heredar el aislamiento del actor principal** (la app lo lleva por
+  defecto, `SWIFT_DEFAULT_ACTOR_ISOLATION`): el color dinámico del tema (`Color.dynamic`) es `nonisolated` porque el renderizado asíncrono de
+  macOS 15 lo resuelve en `com.apple.SwiftUI.DisplayLink`, y con el aislamiento heredado la app se caía (`EXC_BREAKPOINT`) al pasar de las
+  pantallas previas al asistente. Un cierre nuevo que reciba AppKit/SwiftUI se prueba en un hilo de fondo (`ThemeColorTests`). Se
+  prueba también en un Mac con **macOS 15**: en el de desarrollo (macOS 26) no se vio.
 - Los glifos de sección (`Glyphs.swift`) son dibujos propios de línea a 1,5 pt; cuelgan en el margen junto al título de algunos pasos y nunca van en la misma fila que un SF Symbol.
 - El movimiento lee `\.galenoReduceMotion` (sistema **o** «Menos movimiento» de Ajustes), no
   `\.accessibilityReduceMotion`. Cada ventana lleva `.motionPreference()` en su raíz.

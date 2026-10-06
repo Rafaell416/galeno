@@ -585,7 +585,10 @@ final class WizardState: ObservableObject {
                             sources: needed.selectableSourceKinds.isEmpty ? .everything : .nothing,
                             oauthClientID: known.oauthClientID, serverNamePrefix: known.serverNamePrefix))
                 } else {
-                    connections.append(ToolConnection(tool: needed))
+                    // Una conexión nueva se registra con el nombre propio de Galeno (`galeno-notion`): así lo que
+                    // Galeno cierra o quita nunca es de otro proyecto del usuario.
+                    connections.append(
+                        ToolConnection(tool: needed, serverNamePrefix: MCPServerCatalog.defaultNamePrefix(for: needed)))
                 }
             }
             // El orden de la grilla (el del rol), no el de los clics: es el de las conexiones del paso 4.

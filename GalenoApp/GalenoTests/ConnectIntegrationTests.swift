@@ -120,6 +120,32 @@ final class ConnectIntegrationTests: XCTestCase {
         XCTAssertEqual(state.connectFlow?.connectedCount, 0)
     }
 
+    /// El usuario ya tiene su propio `notion` conectado (lo usan otros proyectos suyos). Galeno registra y autoriza el
+    /// suyo, `galeno-notion`, y **no toca** el del usuario: ni lo mira, ni lo registra, ni inicia o cierra su sesión.
+    /// (Incidente del 5 oct 2026: limpiar `notion` desconectó el agente de MediClub.)
+    func testGalenoConnectsItsOwnNameAndNeverTouchesTheUsersServer() async {
+        let mcp = FakeMCP(statuses: ["notion": .connected])
+        let state = makeState([.notion], mcp: mcp)
+        advance(state, to: .connect)
+        state.beginConnecting()
+
+        state.connectFlow?.connect()
+        let connected = await waitUntil { state.connections.first { $0.tool == .notion }?.status == .connected }
+
+        XCTAssertTrue(connected, "etapa: \(String(describing: state.connectFlow?.phase))")
+        XCTAssertEqual(
+            Array(mcp.calls.prefix(3)), ["status galeno-notion", "register galeno-notion", "login galeno-notion"])
+        for call in mcp.calls {
+            let server = call.split(separator: " ").dropFirst().first.map(String.init) ?? ""
+            XCTAssertNotEqual(server, "notion", "tocó el servidor del usuario: \(call)")
+        }
+        XCTAssertEqual(state.connections.first { $0.tool == .notion }?.serverNamePrefix, "galeno-")
+        // Lo que se genera (`.mcp.json`, permisos) usa ese mismo nombre.
+        let connection = try? XCTUnwrap(state.makeConfig().connections.first { $0.tool == .notion })
+        let names = connection.map { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "").map(\.serverName) }
+        XCTAssertEqual(names, ["galeno-notion"])
+    }
+
     func testItUsesTheClaudePathFoundInStep2() async {
         let mcp = FakeMCP(statuses: ["notion": .connected])
         var receivedPath: String?

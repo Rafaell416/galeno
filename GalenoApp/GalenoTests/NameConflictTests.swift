@@ -60,7 +60,7 @@ final class NameConflictTests: XCTestCase {
         XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("remove") })
         XCTAssertEqual(prefixes.count, 1)
         XCTAssertEqual(prefixes.first?.0, .notion)
-        XCTAssertEqual(prefixes.first?.1, MCPServerCatalog.alternateNamePrefix)
+        XCTAssertEqual(prefixes.first?.1, MCPServerCatalog.ownedNamePrefix)
         XCTAssertTrue(statuses.contains { $0 == (.notion, .connected) })
     }
 
