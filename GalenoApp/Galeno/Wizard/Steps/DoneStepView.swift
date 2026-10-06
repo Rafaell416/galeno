@@ -2,165 +2,96 @@ import AppKit
 import GalenoCore
 import SwiftUI
 
-/// Paso 10: dónde quedó el agente, qué pedirle primero y dónde abrirlo (`docs/03` §3): en la app
-/// de Claude o en Terminal, a elección del usuario. Desde aquí se llega al home (§3b).
+/// «Listo» (rediseño «Abrir es terminar», 6 oct 2026; guiado por «Galeno B1 Agente»): un solo gesto. El agente está
+/// creado, y lo que sigue es probarlo: **un botón, «Abrir en Claude Code»**, que abre el agente con su primera pregunta
+/// ya escrita, cierra el asistente y vuelve al home con el agente en la lista. Quien no quiera abrir ahora tiene la salida
+/// «Ir a mis agentes sin abrir». Ya no hay «Atrás» ni «Terminar»: el paso lleva su propio pie.
 struct DoneStepView: View {
     @EnvironmentObject private var wizard: WizardState
+    @Environment(\.galenoFinishWizard) private var finishWizard
 
     var body: some View {
-        // En un `ScrollView` por la misma razón que `StepScaffold`: la ventana es fija.
-        ScrollView {
-            Group {
-                if let agent = wizard.generatedAgent {
-                    DoneContent(agent: agent)
-                } else {
-                    // No debería pasar: a «Listo» solo se llega tras generar.
-                    Text("done.noAgent")
-                        .font(.galenoBody)
-                        .foregroundStyle(Color.ink700)
+        VStack(spacing: 0) {
+            // En un `ScrollView` por la misma razón que `StepScaffold`: la ventana es fija.
+            ScrollView {
+                Group {
+                    if let agent = wizard.generatedAgent {
+                        DoneContent(agent: agent, finish: finish)
+                    } else {
+                        // No debería pasar: a «Listo» solo se llega tras generar.
+                        Text("done.noAgent")
+                            .font(.galenoBody)
+                            .foregroundStyle(Color.ink700)
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, Space.s48)
+                .padding(.top, 18)
+                .padding(.bottom, Space.s16)
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .scrollBounceBehavior(.basedOnSize)
+            Rectangle().fill(Color.parchment300).frame(height: 1)
+            HStack {
+                // La salida, discreta. ↩ la pulsa: es lo que hacía «Terminar», y no cierra ni abre nada.
+                Button("done.skip", action: finish)
+                    .buttonStyle(InkLinkStyle(size: 15))
+                    .keyboardShortcut(.defaultAction)
+                Spacer(minLength: 0)
+            }
             .padding(.horizontal, Space.s48)
-            .padding(.top, 22)
-            .padding(.bottom, Space.s16)
+            .padding(.vertical, 18)
         }
-        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    private func finish() {
+        if let finishWizard { finishWizard() } else { NSApplication.shared.terminate(nil) }
     }
 }
 
-/// La pantalla «Listo» (B1): el retrato y el título, cuatro tarjetas con filete y, destacado, lo
-/// primero que hay que pedirle al agente.
+/// El contenido de «Listo»: el sello, el título y, en el único recuadro de filete grueso, la primera pregunta y el botón que
+/// abre el agente con ella ya escrita.
 struct DoneContent: View {
     @EnvironmentObject private var wizard: WizardState
     let agent: AgentRecord
+    /// Volver al home: el asistente se cierra.
+    let finish: () -> Void
 
-    @State private var copied: Copied?
-    /// Lo que salió mal al abrir: no se pudo, o Claude no se cerró. `nil` = nada.
+    /// Lo que salió mal al abrir: no se pudo, o Claude no se cerró. `nil` = nada. En ese caso **no** se sale: se queda aquí,
+    /// con la pregunta a mano para copiarla.
     @State private var openProblem: AgentOpenOutcome?
-    /// La tarjeta que se ilumina un momento al copiar (150 ms ida, 400 ms vuelta).
-    @State private var lit: Copied?
-    /// Abriendo en la app o en Terminal: el botón conserva su ancho y muestra la rueda hasta que otra app toma el foco.
+    /// Abriendo en la app de Claude o en Terminal: el botón conserva su ancho y muestra la rueda hasta que otra app toma el foco.
     @State private var opening: OpenTarget?
-    /// Ya se abrió una vez en la app de Claude: la nota pasa a decir cómo repetirlo si no cayó en su carpeta.
-    @State private var openedInApp = false
+    @State private var copied = false
+    /// El recuadro se ilumina un momento al copiar (150 ms ida, 400 ms vuelta).
+    @State private var lit = false
     private enum OpenTarget { case app, terminal }
-
-    private enum Copied { case path, prompt }
-
-    /// La tarjeta «Dónde quedó» (ruta, Finder, copiar ruta). Apagada: ver el cuerpo.
-    private static let showsFolderCard = false
 
     private var prompt: String {
         FirstCommand.suggestion(for: wizard.connectedTools, language: wizard.language)
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 18) {
-                PortraitMark(size: 56).stamp()
-                VStack(alignment: .leading, spacing: 2) {
-                    StepTitle(text: Text("done.headline \(agent.config.agentName)"))
-                    Text("step.done.summary")
-                        .font(Typo.list)
-                        .foregroundStyle(Color.ink700)
-                }
-            }
+    /// Sin la app de Claude en el Mac, Claude Code se abre en Terminal.
+    private var appAvailable: Bool { wizard.opener.isClaudeAppAvailable }
+    private var name: String { agent.config.agentName }
 
-            pact
+    var body: some View {
+        VStack(spacing: 16) {
+            PortraitMark(size: 60).stamp()
+            StepTitle(text: Text("done.headline \(name)"))
 
             warnings
 
-            // Lo que importa ahora: probar el agente. Un solo bloque —el único con filete grueso y el rótulo
-            // en lacre— con la primera pregunta y dónde abrirlo; se abre con la pregunta ya escrita.
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    SmallCapsLabel("done.first.title", size: 12)
-                        .foregroundStyle(Color.seal700)
-                    HStack(alignment: .lastTextBaseline, spacing: 3) {
-                        Text(verbatim: "«\(prompt)»")
-                            .font(Typo.display(24, italic: true))
-                            .foregroundStyle(Color.ink900)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                        InvitingCursor()
-                    }
-                }
+            firstBox
+                .staggered(0, base: 0.3)
 
-                HStack(spacing: 10) {
-                    // Sin la app de Claude en el Mac, Terminal es la acción principal.
-                    if wizard.opener.isClaudeAppAvailable {
-                        appButton(.primary)
-                        terminalButton(.secondary)
-                    } else {
-                        terminalButton(.primary)
-                    }
-                    Spacer(minLength: 0)
-                    Button { copy(prompt, .prompt) } label: {
-                        CopyLabel(copied: copied == .prompt, idle: "done.first.copy")
-                    }
-                    .buttonStyle(InkButtonStyle(.secondary, padding: 14, quiet: true))
-                }
-
-                // Qué va a pasar al abrirlo; si no se pudo abrir, el texto cambia con un fundido.
-                Group {
-                    if let openProblem {
-                        Text(openProblem == .claudeDidNotQuit ? "done.open.claudeStillOpen" : "done.open.failed")
-                            .foregroundStyle(Color.seal700)
-                    } else if opening == .app {
-                        // Puede tardar: si hay que reiniciar la app de Claude, se espera a que termine de cargar.
-                        Text("done.open.opening \(agent.config.agentName)")
-                            .foregroundStyle(Color.ink700)
-                    } else if openedInApp {
-                        // La app de Claude a veces pierde la carpeta del enlace mientras carga. Con ella ya
-                        // abierta, repetirlo sí cae en su sitio.
-                        Text("done.open.again \(agent.config.agentName)")
-                            .foregroundStyle(Color.ink700)
-                    } else {
-                        (Text("done.open.hint") + Text(verbatim: " ") + Text(openNote))
-                            .foregroundStyle(Color.ink500)
-                    }
-                }
-                .id(noteID)
-                .transition(.opacity)
-                .font(Typo.text(13))
-                .fixedSize(horizontal: false, vertical: true)
-                .animation(.easeOut(duration: Motion.micro), value: noteID)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(lit == .prompt ? Color.parchment200 : Color.parchment100, in: RoundedRectangle(cornerRadius: Radius.b1))
-            .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.ink900, lineWidth: 1.5))
-            .staggered(0, base: 0.3)
-
-            // Dónde quedó la carpeta: oculto por ahora (decisión de Rafa: a quien acaba de crear su agente
-            // le importa probarlo, no la ruta). Se enciende con `showsFolderCard`.
-            if Self.showsFolderCard {
-                card("done.where.title", lit: lit == .path) {
-                    Text(verbatim: displayPath)
-                        .font(.system(size: 14, design: .monospaced))
-                        .foregroundStyle(Color.ink900)
-                        .textSelection(.enabled)
-                        .lineLimit(2)
-                        .padding(.vertical, 2)
-                    HStack(spacing: 8) {
-                        Button("done.where.reveal") { wizard.opener.reveal(agent.folder) }
-                            .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 12))
-                        Button { copy(agent.folderPath, .path) } label: {
-                            CopyLabel(copied: copied == .path, idle: "done.copyPath")
-                        }
-                        .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 12, quiet: true))
-                    }
-                }
-                .staggered(1, base: 0.3)
-            }
+            pact
 
             // Con Claude Design conectado, se dice cómo usarlo: pasarle el enlace de un diseño.
             if wizard.connectedTools.contains(.claudeDesign) {
                 Text("tools.designNote")
                     .font(Typo.text(13))
                     .foregroundStyle(Color.ink500)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .staggered(1, base: 0.3)
             }
@@ -169,9 +100,84 @@ struct DoneContent: View {
             Text("dopamine.done")
                 .font(Typo.display(16, italic: true))
                 .foregroundStyle(Color.ink500)
+                .multilineTextAlignment(.center)
                 .appearing(after: 0.3 + Motion.stagger + 0.4)
         }
+        .frame(maxWidth: 540)
         .onAppear { Sounds.play(.seal) }
+    }
+
+    // MARK: El recuadro
+
+    private var firstBox: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                SmallCapsLabel("done.first.title", size: 12)
+                    .foregroundStyle(Color.ink500)
+                Spacer(minLength: 8)
+                Button { copy() } label: { CopyLabel(copied: copied, idle: "done.first.copy") }
+                    .buttonStyle(InkButtonStyle(.tertiary, size: .bar, quiet: true))
+            }
+            HStack(alignment: .lastTextBaseline, spacing: 3) {
+                Text(verbatim: "«\(prompt)»")
+                    .font(Typo.display(24, italic: true))
+                    .foregroundStyle(Color.ink900)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                InvitingCursor()
+            }
+
+            HStack(alignment: .center, spacing: 16) {
+                Button("done.open.claudeCode") { open(inApp: appAvailable) }
+                    .buttonStyle(InkButtonStyle(.primary, padding: 22, isLoading: opening != nil))
+                    .disabled(opening != nil)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("done.open.hint")
+                    Text("done.open.listed \(name)")
+                }
+                .font(Typo.text(13.5))
+                .foregroundStyle(Color.ink500)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Qué va a pasar al abrirlo (y, antes de pulsar, si Claude se va a reiniciar); si no se pudo abrir, el texto
+            // cambia con un fundido.
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                status
+                    .id(noteID)
+                    .transition(.opacity)
+                    .font(Typo.text(13))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .animation(.easeOut(duration: Motion.micro), value: noteID)
+                Spacer(minLength: 0)
+                // Con la app de Claude, Terminal es la otra manera; sin ella, ya es la principal.
+                if appAvailable {
+                    Button("done.open.terminal") { open(inApp: false) }
+                        .buttonStyle(InkLinkStyle(size: 13))
+                        .disabled(opening != nil)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(lit ? Color.parchment200 : Color.parchment100, in: RoundedRectangle(cornerRadius: Radius.b1))
+        .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.ink900, lineWidth: 1.5))
+    }
+
+    @ViewBuilder
+    private var status: some View {
+        if let openProblem {
+            Text(openProblem == .claudeDidNotQuit ? "done.open.claudeStillOpen" : "done.open.failed")
+                .foregroundStyle(Color.seal700)
+        } else if opening == .app {
+            // Puede tardar: si hay que reiniciar la app de Claude, se espera a que termine de cargar.
+            Text("done.open.opening \(name)").foregroundStyle(Color.ink700)
+        } else if !appAvailable {
+            Text("done.open.inTerminal").foregroundStyle(Color.ink500)
+        } else {
+            Text(needsClaudeRestart ? "done.open.restart" : "done.open.confirm").foregroundStyle(Color.ink500)
+        }
     }
 
     /// La app de Claude carga los conectores de la cuenta al arrancar (`docs/03` §4e): si lleva abierta
@@ -180,29 +186,11 @@ struct DoneContent: View {
         AgentOpenPolicy.needsClaudeRestart(tools: wizard.connectedTools, folder: agent.folder, opener: wizard.opener)
     }
 
-    /// Qué nota se ve bajo los botones, para fundir de una a otra.
+    /// Qué nota se ve bajo el botón, para fundir de una a otra.
     private var noteID: String {
         if let openProblem { return "problema-\(openProblem)" }
         if opening == .app { return "abriendo" }
-        return openedInApp ? "abierto" : "antes"
-    }
-
-    /// La nota bajo los botones. Si Claude se va a reiniciar, se dice antes de pulsar.
-    private var openNote: LocalizedStringKey {
-        guard wizard.opener.isClaudeAppAvailable else { return "done.open.appMissing" }
-        return needsClaudeRestart ? "done.open.restart" : "done.open.confirm"
-    }
-
-    private func appButton(_ kind: InkButtonStyle.Kind) -> some View {
-        Button("done.open.app") { open(inApp: true) }
-            .buttonStyle(InkButtonStyle(kind, padding: 18, isLoading: opening == .app))
-            .disabled(opening != nil)
-    }
-
-    private func terminalButton(_ kind: InkButtonStyle.Kind) -> some View {
-        Button("done.open.terminal") { open(inApp: false) }
-            .buttonStyle(InkButtonStyle(kind, padding: 18, isLoading: opening == .terminal))
-            .disabled(opening != nil)
+        return "antes"
     }
 
     /// El pacto de reglas, en una línea y siempre a la vista: lo que nunca hace, lo que siempre
@@ -221,16 +209,11 @@ struct DoneContent: View {
             line
                 .font(Typo.text(14))
                 .foregroundStyle(Color.ink700)
+                .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
             Button("pact.change") { wizard.jump(to: .rules) }
                 .buttonStyle(LinkTextStyle())
         }
-    }
-
-    /// `~` en lugar de la ruta completa del usuario.
-    private var displayPath: String {
-        let home = NSHomeDirectory()
-        return agent.folderPath.hasPrefix(home) ? "~" + agent.folderPath.dropFirst(home.count) : agent.folderPath
     }
 
     /// Lo que el motor avisó y alguien debería mirar. Solo lo que le sirve al usuario.
@@ -248,57 +231,49 @@ struct DoneContent: View {
         }
     }
 
-    private func card<Content: View>(
-        _ title: String, lit: Bool = false, @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Space.s8) {
-            SmallCapsLabel(title, size: 12)
-                .foregroundStyle(Color.ink500)
-            content()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(lit ? Color.parchment100 : Color.clear, in: RoundedRectangle(cornerRadius: Radius.b1))
-        .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.parchment300, lineWidth: 1))
-    }
+    // MARK: Acciones
 
-    private func copy(_ text: String, _ what: Copied) {
+    private func copy() {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        copied = what
-        withAnimation(.easeOut(duration: Motion.micro)) { lit = what }
-        // La tarjeta se ilumina y vuelve (400 ms); el botón vuelve a «Copiar» a los 1,5 s.
+        NSPasteboard.general.setString(prompt, forType: .string)
+        copied = true
+        withAnimation(.easeOut(duration: Motion.micro)) { lit = true }
+        // El recuadro se ilumina y vuelve (400 ms); el botón vuelve a «Copiar» a los 1,5 s.
         Task {
             try? await Task.sleep(for: .milliseconds(150))
-            withAnimation(.easeOut(duration: 0.4)) { if lit == what { lit = nil } }
+            withAnimation(.easeOut(duration: 0.4)) { lit = false }
             try? await Task.sleep(for: .milliseconds(1350))
-            if copied == what { copied = nil }
+            copied = false
         }
     }
 
+    /// Abre el agente con su primera pregunta y, **si se abrió**, cierra el asistente. Si no se pudo (o Claude no se cerró) se
+    /// queda aquí y lo dice: no se da por hecho lo que no pasó.
     private func open(inApp: Bool) {
         let opener = wizard.opener
         let claudePath = wizard.claudePath
         openProblem = nil
         opening = inApp ? .app : .terminal
         // Un solo camino con el home (`AgentOpenPolicy`): si Claude lleva abierto desde antes de conectar, se cierra y se
-        // vuelve a abrir en el agente (decisión de Rafa, 4 oct 2026; la nota bajo los botones ya lo avisó), y si hay que
+        // vuelve a abrir en el agente (decisión de Rafa, 4 oct 2026; la nota bajo el botón ya lo avisó), y si hay que
         // arrancarlo, se espera a que cargue antes de mandarle el enlace.
         Task {
             let outcome = await AgentOpenPolicy.open(
                 folder: agent.folder, tools: wizard.connectedTools, inApp: inApp, prompt: prompt, resume: false,
                 opener: opener, claudePath: claudePath)
             openProblem = outcome == .opened ? nil : outcome
-            if outcome == .opened, inApp { openedInApp = true }
-            // Cargando hasta que la otra app toma el foco (o, como mucho, 2 s).
-            if outcome == .opened {
-                for _ in 0..<20 {
-                    try? await Task.sleep(for: .milliseconds(100))
-                    if !NSApp.isActive { break }
-                }
+            guard outcome == .opened else {
+                opening = nil
+                return
+            }
+            // Cargando hasta que la otra app toma el foco (o, como mucho, 2 s); entonces el asistente se cierra y el home
+            // queda con el agente en la lista.
+            for _ in 0..<20 {
+                try? await Task.sleep(for: .milliseconds(100))
+                if !NSApp.isActive { break }
             }
             opening = nil
+            finish()
         }
     }
 }

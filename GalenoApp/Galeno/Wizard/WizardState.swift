@@ -338,9 +338,10 @@ final class WizardState: ObservableObject {
     var canGoForward: Bool { !isLastStep && isCurrentStepComplete }
 
     /// El sub-wizard del paso 5 lleva sus propios botones (Conectar, Conectar después,
-    /// Reintentar, Continuar…) hasta el final: la barra Atrás/Siguiente no aparece en ese paso.
+    /// Reintentar, Continuar…) hasta el final: la barra Atrás/Siguiente no aparece en ese paso. «Listo» tampoco la
+    /// lleva: tiene su botón de abrir y su salida (6 oct 2026).
     var hidesNavigation: Bool {
-        step == .connect || step == .generating
+        step == .connect || step == .generating || step == .done
     }
 
     /// Si el paso actual tiene lo que necesita para seguir. Los pasos que

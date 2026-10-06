@@ -731,6 +731,12 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
   roja 1 intacta: el puente no cambia). Prospectos de sus propios chats y, si pide un segmento, de la
   web, con el número solo si lo publica la propia empresa. Detalle en `docs/03` §6.3. **Sin probar
   con trabajo real.**
+- **«Listo»: abrir es terminar (6 oct 2026; rama `feat/listo-abrir-es-terminar`, apilada sobre el detalle).** De seis propuestas de
+  Claude Design, Rafa eligió la A: **un solo botón, «Abrir en Claude Code»** (el nombre se mantiene por ahora), que abre el
+  agente con su primera pregunta y, solo si se abrió, cierra el asistente y vuelve al home. Sin «Atrás» ni «Terminar»; una salida,
+  «Ir a mis agentes sin abrir». Si falla, se queda y deja la pregunta a mano. Descartadas: abrir sola a los 3 s (cerraría Claude sin
+  que el usuario pulse), dos pasos con «Terminar» apagado y terminar primero (posible mejora: marca «NUEVA» en la tarjeta). Pendiente
+  de decidir: «está listo» (como hoy) o «está lista» (como las propuestas).
 - **Detalle del agente (6 oct 2026; rama `feat/detalle-agente`, apilada sobre `feat/feedback-prueba-simon`).** Un clic en
   la tarjeta o en «Gestionar» abre `AgentDetailView`: cinco secciones (General, Herramientas, Skills, Reglas, Contexto) con
   «Abrir» arriba; rol, reglas y herramientas aplican al momento, skills y contexto al guardar. Reutiliza `HomeModel` (abrir,
