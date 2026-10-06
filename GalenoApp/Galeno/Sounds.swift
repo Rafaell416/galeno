@@ -13,7 +13,7 @@ enum Sounds {
         case failed = "fallo"
         /// El agente está listo.
         case seal = "sello"
-        /// «Siguiente» en el asistente: una sola nota suave con un roce de papel. No suena al volver atrás.
+        /// «Siguiente» desde el onboarding y en el asistente: una sola nota suave con un roce de papel. No suena al volver atrás.
         case step = "paso"
     }
 

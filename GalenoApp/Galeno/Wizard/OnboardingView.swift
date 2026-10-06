@@ -39,7 +39,10 @@ struct OnboardingView: View {
 
             Rectangle().fill(Color.parchment300).frame(height: 1)
             HStack(spacing: Space.s16) {
-                Button("onboarding.skip", action: onFinish)
+                Button("onboarding.skip") {
+                    Sounds.play(.step)
+                    onFinish()
+                }
                     .buttonStyle(InkLinkStyle(size: 15))
                 HStack(spacing: 6) {
                     ForEach(0..<Self.pageCount, id: \.self) { index in
@@ -69,6 +72,8 @@ struct OnboardingView: View {
     }
 
     private func advance() {
+        // El mismo toque suave que «Siguiente» en el asistente (6 oct 2026): suena desde la primera pantalla.
+        Sounds.play(.step)
         if page == Self.pageCount - 1 { onFinish() } else { page += 1 }
     }
 

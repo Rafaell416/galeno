@@ -43,9 +43,17 @@ private struct RootView: View {
             switch app.screen {
             case .home:
                 HomeView(
-                    model: app.home, onNewAgent: app.startNewAgent, onManage: app.manageAgent,
+                    model: app.home, onNewAgent: app.startNewAgent, onManage: { app.openAgent($0) },
                     onAgentRemoved: app.agentRemoved, onHealth: app.openHealth)
                     .transition(reduceMotion ? .opacity : .pageTurn)
+            case .agent:
+                if let detail = app.agentDetail {
+                    AgentDetailView(
+                        model: detail, onBack: app.closeAgent, onRemoved: app.agentRemovedFromDetail,
+                        onAddTool: { app.addTool($0, to: detail.agentID) })
+                        .id(detail.agentID)
+                        .transition(reduceMotion ? .opacity : .pageTurn)
+                }
             case .health:
                 if let health = app.health {
                     HealthView(model: health, home: app.home, onBack: app.closeHealth)

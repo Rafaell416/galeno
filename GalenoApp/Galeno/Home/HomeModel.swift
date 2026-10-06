@@ -72,10 +72,9 @@ final class HomeModel: ObservableObject {
     @Published private(set) var dialogError: String?
     /// Un aviso tras eliminar, si algo de Claude no se pudo mandar a la Papelera.
     @Published private(set) var notice: String?
-    /// El agente cuyo menú «Gestionar» está desplegado.
-    @Published private(set) var manageMenu: UUID?
 
-    private let store: InstallationStore
+    /// Dónde está la instalación: el detalle de un agente (`AgentDetailModel`) escribe en la misma.
+    let store: InstallationStore
     private let installer: AgentInstaller
     private let remover: AgentRemover
     private let defaults: UserDefaults
@@ -195,6 +194,12 @@ final class HomeModel: ObservableObject {
 
     func closeMenu() { menuOpen = nil }
 
+    /// Cambia dónde abre «Abrir» a secas, sin abrir nada (el detalle del agente: «Ábrelo en»).
+    func setOpenTarget(_ target: OpenTarget) {
+        guard canChoose || target == .terminal else { return }
+        openTarget = target
+    }
+
     /// Abre el agente donde se pidió y lo deja como la elección de ahí en adelante. **Vuelve a la última
     /// conversación** de la carpeta si la hay (en la app de Claude); sin primera pregunta: el usuario ya
     /// conoce a su agente.
@@ -216,22 +221,13 @@ final class HomeModel: ObservableObject {
 
     // MARK: - Gestionar un agente: renombrar y eliminar
 
-    func toggleManageMenu(_ agent: HomeAgent) {
-        guard opening == nil, agent.folderExists, !isWorking else { return }
-        manageMenu = manageMenu == agent.id ? nil : agent.id
-    }
-
-    func closeManageMenu() { manageMenu = nil }
-
     func askRename(_ agent: HomeAgent) {
-        manageMenu = nil
         dialogError = nil
         dialog = .rename(agent)
     }
 
     /// «Eliminar»: se calcula primero **qué** se mandaría a la Papelera y se enseña. No se toca nada hasta confirmar.
     func askDelete(_ agent: HomeAgent) {
-        manageMenu = nil
         dialogError = nil
         guard let installation = try? store.load(), let record = installation.agent(id: agent.id) else {
             dialogError = nil
@@ -243,7 +239,6 @@ final class HomeModel: ObservableObject {
     /// «Regenerar la carpeta» de un agente cuya carpeta ya no está: se explica qué se crea y qué no se puede traer
     /// de vuelta (`memoria/`), y no se escribe nada hasta confirmar.
     func askRegenerate(_ agent: HomeAgent) {
-        manageMenu = nil
         dialogError = nil
         guard !agent.folderExists else { return }
         dialog = .regenerate(agent)
@@ -256,6 +251,14 @@ final class HomeModel: ObservableObject {
     }
 
     func dismissNotice() { notice = nil }
+
+    /// ¿Escribió el nombre del agente para confirmar que se elimina? Sin importar mayúsculas ni espacios de más: es
+    /// una confirmación, no una contraseña.
+    static func deleteConfirmed(typed: String, name: String) -> Bool {
+        let typed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !name.isEmpty && typed.caseInsensitiveCompare(name) == .orderedSame
+    }
 
     static func renameIssue(for name: String) -> RenameIssue? {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)

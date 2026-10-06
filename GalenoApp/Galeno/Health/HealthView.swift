@@ -359,24 +359,14 @@ private struct ConnectionLine: View {
         }
     }
 
-    private func issueKey(_ issue: HealthModel.ReconnectIssue) -> String {
-        switch issue {
-        case .needsWizard: "health.reconnect.issue.needsWizard"
-        case .notAuthorized: "health.reconnect.issue.notAuthorized"
-        case .timedOut: "health.reconnect.issue.timedOut"
-        case .stillNotConnected: "health.reconnect.issue.stillNotConnected"
-        case .nameTaken: "health.reconnect.issue.nameTaken"
-        case .claudeOutdated: "health.reconnect.issue.claudeOutdated"
-        case .failed: "health.reconnect.issue.failed"
-        }
-    }
+    private func issueKey(_ issue: HealthModel.ReconnectIssue) -> String { issue.messageKey }
 }
 
 // MARK: - Re-vincular WhatsApp
 
 /// El re-vincular: la advertencia de siempre (el mismo texto, sin tocarlo), después el QR en pantalla. Va sobre
 /// el fondo atenuado, como los diálogos del inicio.
-private struct RelinkPanelView: View {
+struct RelinkPanelView: View {
     @ObservedObject var model: HealthModel
     @Environment(\.locale) private var locale
 

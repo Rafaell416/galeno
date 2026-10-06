@@ -56,6 +56,12 @@ final class WizardState: ObservableObject {
     @Published private(set) var ownSkills: [OwnSkillEntry] = []
     /// Las propias que quitó y ya estaban en la carpeta: van a la Papelera al guardar.
     private var ownSkillsToTrash: [String] = []
+    /// Lo que hay que copiar a `skills-propias/` al guardar, y lo que va a la Papelera: para quien guarda **solo las
+    /// skills** de un agente (el detalle, `AgentDetailModel`) sin pasar por la generación del asistente.
+    var pendingOwnSkillImports: [AgentInstaller.OwnSkillImport] {
+        ownSkills.compactMap { entry in entry.pendingSource.map { AgentInstaller.OwnSkillImport(id: entry.id, source: $0) } }
+    }
+    var pendingOwnSkillTrash: [String] { ownSkillsToTrash }
     @Published var sendingRules: SendingRules = .default
 
     /// Lo que la pantalla 2 encontró. No va en el `AgentConfig`: es del Mac.
@@ -332,9 +338,10 @@ final class WizardState: ObservableObject {
     var canGoForward: Bool { !isLastStep && isCurrentStepComplete }
 
     /// El sub-wizard del paso 5 lleva sus propios botones (Conectar, Conectar después,
-    /// Reintentar, Continuar…) hasta el final: la barra Atrás/Siguiente no aparece en ese paso.
+    /// Reintentar, Continuar…) hasta el final: la barra Atrás/Siguiente no aparece en ese paso. «Listo» tampoco la
+    /// lleva: tiene su botón de abrir y su salida (6 oct 2026).
     var hidesNavigation: Bool {
-        step == .connect || step == .generating
+        step == .connect || step == .generating || step == .done
     }
 
     /// Si el paso actual tiene lo que necesita para seguir. Los pasos que
