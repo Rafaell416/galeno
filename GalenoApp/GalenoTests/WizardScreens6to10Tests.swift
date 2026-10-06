@@ -293,6 +293,10 @@ final class WizardScreens6to10Tests: XCTestCase {
 
         state.finishGeneration()
         XCTAssertEqual(state.step, .done)
+        // «Listo» lleva su propio botón de abrir y su salida (6 oct 2026): sin la barra Atrás/Terminar. Atrás sigue
+        // existiendo por teclado (⌘←, Esc), hacia la revisión.
+        XCTAssertTrue(state.hidesNavigation)
+        XCTAssertTrue(state.canGoBack)
     }
 
     func testGoingBackFromDoneAndAdvancingAgainRegeneratesTheSameAgent() async throws {

@@ -190,8 +190,10 @@ Cada herramienta se conecta una por una, en el orden de la grilla. **Todas** se 
 | Q-7.6 | Listo: «Abrir en la app de Claude» con Claude **cerrada**. | La abre, espera a que cargue y cae en la carpeta del agente. La app pide confirmar la carpeta (es normal). | ES |
 | Q-7.7 | Listo: «Abrir en Terminal». | Abre Terminal en la carpeta del agente con la pregunta; funciona sin la app de Claude. | ES |
 | Q-7.8 | Listo: la primera pregunta. | Responde sobre lo que conectó, en pocos segundos, **en el idioma elegido**. Anotar el tiempo. **Bloqueante.** | ES+EN |
-| Q-7.9 | Listo: «Atrás» y volver a avanzar. | Regenera **el mismo agente** en la misma carpeta (no crea «Hera 2»), sin tocar `memoria/`. | ES |
-| Q-7.10 | «Terminar» / ir al inicio. | Abre el home con el agente en su lista. | ES+EN |
+| Q-7.9 | Listo: volver atrás (⌘← o Esc) y avanzar otra vez. | Regenera **el mismo agente** en la misma carpeta (no crea «Hera 2»), sin tocar `memoria/`. | ES |
+| Q-7.10 | «Ir a mis agentes sin abrir» (o ↩). | Abre el home con el agente en su lista, sin abrir ni cerrar nada. | ES+EN |
+| Q-7.11 | «Listo»: **un solo botón**, «Abrir en Claude Code». | Abre el agente con la pregunta escrita y, **solo si se abrió**, el asistente se cierra y el home muestra el agente. Con la app de Claude ya abierta y conectores de Google, la nota lo avisa **antes** de pulsar. Sin la app de Claude, abre Terminal. Sin «Atrás» ni «Terminar» en pantalla. **Bloqueante.** | ES+EN |
+| Q-7.12 | «Listo»: abrir falla (o Claude no se cierra). | El asistente **no** se cierra; el texto en lacre lo dice y la pregunta sigue a mano con «Copiar»; se puede volver a intentar o usar «Abrir en Terminal». **Bloqueante.** | ES |
 
 ## 4. Casos de error y de estado previo (transversales)
 

@@ -5110,40 +5110,6 @@
         }
       }
     },
-    "done.open.app" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open in the Claude app"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abrir en la app de Claude"
-          }
-        }
-      }
-    },
-    "done.open.appMissing" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I couldn't find the Claude app on this Mac. You can open it in Terminal."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No encontré la app de Claude en este Mac. Puedes abrirlo en Terminal."
-          }
-        }
-      }
-    },
     "done.open.claudeStillOpen" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5201,13 +5167,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It opens with that question already typed: you only have to send it."
+            "value" : "It opens with the question already typed."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se abre con esa pregunta ya escrita: solo tienes que enviarla."
+            "value" : "Se abre con la pregunta escrita."
           }
         }
       }
@@ -5331,19 +5297,70 @@
         }
       }
     },
-    "done.open.again %@" : {
+    "done.open.claudeCode" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Did the Claude app not open %@’s folder? Press “Open in the Claude app” again."
+            "value" : "Open in Claude Code"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿La app de Claude no abrió la carpeta de %@? Pulsa otra vez «Abrir en la app de Claude»."
+            "value" : "Abrir en Claude Code"
+          }
+        }
+      }
+    },
+    "done.open.listed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ stays in your agents list."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ queda en tu lista de agentes."
+          }
+        }
+      }
+    },
+    "done.open.inTerminal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It opens in Terminal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se abre en Terminal."
+          }
+        }
+      }
+    },
+    "done.skip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to my agents without opening"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a mis agentes sin abrir"
           }
         }
       }
