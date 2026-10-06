@@ -731,6 +731,13 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
   roja 1 intacta: el puente no cambia). Prospectos de sus propios chats y, si pide un segmento, de la
   web, con el número solo si lo publica la propia empresa. Detalle en `docs/03` §6.3. **Sin probar
   con trabajo real.**
+- **Ajustes tras la prueba de Rafa (6 oct 2026; rama `feat/feedback-prueba-simon`).** (1) La sincronización
+  de WhatsApp **espera a que termine**: se quitó «Seguir mientras sincroniza» (tope de seguridad de 10 min).
+  (2) Un cuarto sonido, `paso.wav`, al pulsar «Siguiente» (reabre la decisión del 4 oct de «ningún sonido en
+  cambios de paso», a petición de Rafa). (3) «Añadir skill…» pasa a la cabecera del paso Skills y «Tus skills»
+  al principio de la lista. (4) Las reglas de escritura dejan el selector «Preguntarme / Sin preguntar» por dos
+  radios con nombre y una frase que dice qué significa lo elegido. (5) La tira de conexión no numera («1 de 3»,
+  «2 de 5»): iconos unidos por una línea punteada, tenues hasta conectarse.
 - **Cargar sus propias skills.** **Decidido y construido con alcance acotado (Rafa, 6 oct 2026; rama
   `feat/skills-propias`):** solo archivos del propio usuario, de su Mac, elegidos en el selector del paso
   «Skills» («Tus skills» → «Añadir skill…»); viven en `skills-propias/` del agente, carpeta que el motor

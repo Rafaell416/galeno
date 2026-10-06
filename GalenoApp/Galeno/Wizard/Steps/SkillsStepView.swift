@@ -4,10 +4,14 @@ import SwiftUI
 /// Paso 6 (y «Gestionar» → Skills): las skills como cards, en una lista por grupos que se desplaza (`docs/03` §3;
 /// diseño «Galeno B1 Skills», variante «scroll»). Se elige de un catálogo común **para este agente**: todas las nuestras vienen marcadas. Al pasar el cursor
 /// por una card aparece «Vista previa», que abre una hoja con cómo pedirla, un ejemplo y qué necesita.
-/// Al final, «Tus skills» (`docs/03` §6.3): las que el usuario trae de su propio Mac con «Añadir skill…». Solo
+/// «Añadir skill…» va en la cabecera, siempre a la vista (6 oct 2026, petición de Rafa: al final de la lista nadie lo
+/// encontraba), y lo que el usuario trae de su propio Mac (`docs/03` §6.3) queda al principio, en «Tus skills». Solo
 /// archivos suyos: «trae la tuya» de un enlace o de un catálogo de terceros sigue sin existir.
 struct SkillsStepView: View {
     @EnvironmentObject private var wizard: WizardState
+    @Environment(\.locale) private var locale
+    /// Por qué no entró la última skill propia que intentó traer.
+    @State private var ownIssue: OwnSkillProblem?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -40,11 +44,12 @@ struct SkillsStepView: View {
         }
     }
 
-    /// El título con su punto de lacre —el único de la pantalla— y, a la derecha, lo que vale para todo el
-    /// catálogo: cuántas hay marcadas, «Todas» y «Ninguna». Sin catálogo todavía, solo el título.
+    /// El título con su punto de lacre —el único de la pantalla—, «Añadir skill…» y, a la derecha, lo que vale para
+    /// todo el catálogo: cuántas hay marcadas, «Todas» y «Ninguna». Debajo, una línea que dice qué se puede traer
+    /// (o por qué la última no entró). Sin catálogo todavía, solo el título.
     @ViewBuilder
     private func header(catalog: SkillCatalog?) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .center, spacing: Space.s16) {
             StepTitle(text: Text(WizardStep.skills.title))
                 .overlay(alignment: .leading) {
                     if let glyph = WizardStep.skills.glyph {
@@ -52,7 +57,44 @@ struct SkillsStepView: View {
                     }
                 }
             Spacer(minLength: Space.s16)
+            if catalog != nil {
+                Button(action: pickOwnSkills) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus").font(.system(size: 11, weight: .semibold))
+                        Text("skills.own.add")
+                    }
+                }
+                .buttonStyle(.inkInline)
+                .help(Text("skills.own.hint"))
+            }
             if let catalog { SkillsTotals(catalog: catalog) }
+        }
+        if catalog != nil {
+            Group {
+                if let ownIssue {
+                    Text(verbatim: ownIssue.message(locale: locale)).foregroundStyle(Color.ochre700)
+                } else if wizard.ownSkillCards.isEmpty {
+                    Text("skills.own.hint").foregroundStyle(Color.ink500)
+                }
+            }
+            .font(Typo.text(12.5))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 2)
+        }
+    }
+
+    /// El selector: carpetas con `SKILL.md` o archivos `.md`, varias de una vez. La primera que no entra se explica.
+    private func pickOwnSkills() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = OwnSkillImporter.allowedTypes
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.message = Localized.string("skills.own.hint", locale: locale)
+        guard panel.runModal() == .OK else { return }
+        ownIssue = nil
+        for url in panel.urls {
+            if let problem = wizard.addOwnSkill(from: url), ownIssue == nil { ownIssue = problem }
         }
     }
 }
@@ -115,8 +157,6 @@ private struct SkillsContent<Header: View>: View {
 
     /// El foco del teclado: el id de una skill.
     @FocusState private var focused: String?
-    /// Por qué no entró la última skill propia que intentó traer.
-    @State private var ownIssue: OwnSkillProblem?
     private static var columns: Int { 3 }
 
     /// Los grupos de este agente (los de su rol, más cualquiera con una skill ya marcada), con alguna skill.
@@ -132,6 +172,20 @@ private struct SkillsContent<Header: View>: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        // «Tus skills» van primero: lo que el usuario trajo es lo que más quiere ver.
+                        if !wizard.ownSkillCards.isEmpty {
+                            Section {
+                                ownSkills
+                                    .padding(.bottom, 14)
+                            } header: {
+                                sectionHeader(
+                                    title: Localized.string("skills.own.group", locale: locale),
+                                    on: wizard.ownSkillCards.filter { wizard.isSkillSelected($0.id, source: .own) }.count,
+                                    total: wizard.ownSkillCards.count
+                                )
+                                .padding(.bottom, 8)
+                            }
+                        }
                         ForEach(groups) { group in
                             Section {
                                 grid(for: group)
@@ -140,18 +194,6 @@ private struct SkillsContent<Header: View>: View {
                                 groupHeader(group)
                                     .padding(.bottom, 8)
                             }
-                        }
-                        // «Tus skills»: las propias, y el botón para traer una.
-                        Section {
-                            ownSkills
-                                .padding(.bottom, 14)
-                        } header: {
-                            sectionHeader(
-                                title: Localized.string("skills.own.group", locale: locale),
-                                on: wizard.ownSkillCards.filter { wizard.isSkillSelected($0.id, source: .own) }.count,
-                                total: wizard.ownSkillCards.count
-                            )
-                            .padding(.bottom, 8)
                         }
                     }
                     .padding(.trailing, 10)  // sitio para la barra de desplazamiento
@@ -220,61 +262,27 @@ private struct SkillsContent<Header: View>: View {
         }
     }
 
-    /// Las propias en su rejilla, y debajo «Añadir skill…» con una línea que dice qué se acepta. Si la última no entró,
-    /// el motivo en ocre.
+    /// Las propias en su rejilla: «Quitar» con el cursor encima, en vez de «Vista previa».
     private var ownSkills: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            let cards = wizard.ownSkillCards
-            if !cards.isEmpty {
-                LazyVGrid(
-                    columns: Array(
-                        repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: Self.columns),
-                    alignment: .leading, spacing: 8
-                ) {
-                    ForEach(cards) { skill in
-                        SkillCard(
-                            skill: skill, isFocused: focused == skill.id,
-                            toggle: { wizard.toggleSkill(skill.id, source: .own) },
-                            preview: { wizard.previewedSkill = skill },
-                            remove: { wizard.removeOwnSkill(skill.id) }
-                        )
-                        .id(skill.id)
-                        .focusable()
-                        .focused($focused, equals: skill.id)
-                        .onKeyPress(.space) {
-                            wizard.toggleSkill(skill.id, source: .own)
-                            return .handled
-                        }
-                    }
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: Self.columns),
+            alignment: .leading, spacing: 8
+        ) {
+            ForEach(wizard.ownSkillCards) { skill in
+                SkillCard(
+                    skill: skill, isFocused: focused == skill.id,
+                    toggle: { wizard.toggleSkill(skill.id, source: .own) },
+                    preview: { wizard.previewedSkill = skill },
+                    remove: { wizard.removeOwnSkill(skill.id) }
+                )
+                .id(skill.id)
+                .focusable()
+                .focused($focused, equals: skill.id)
+                .onKeyPress(.space) {
+                    wizard.toggleSkill(skill.id, source: .own)
+                    return .handled
                 }
             }
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Button("skills.own.add", action: pickOwnSkills)
-                    .buttonStyle(.inkInline)
-                Text("skills.own.hint")
-                    .font(Typo.text(12.5))
-                    .foregroundStyle(Color.ink500)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let ownIssue {
-                Text(verbatim: ownIssue.message(locale: locale))
-                    .font(Typo.text(12.5))
-                    .foregroundStyle(Color.ochre700)
-            }
-        }
-    }
-
-    /// El selector: carpetas con `SKILL.md` o archivos `.md`, varias de una vez. La primera que no entra se explica.
-    private func pickOwnSkills() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = OwnSkillImporter.allowedTypes
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = true
-        guard panel.runModal() == .OK else { return }
-        ownIssue = nil
-        for url in panel.urls {
-            if let problem = wizard.addOwnSkill(from: url), ownIssue == nil { ownIssue = problem }
         }
     }
 
@@ -282,7 +290,7 @@ private struct SkillsContent<Header: View>: View {
     /// de un grupo a otro, en la misma columna (o en la última card si esa fila es más corta).
     private func move(_ direction: MoveCommandDirection) {
         let rows = SkillGrid.rows(
-            groups.map { catalog.skills(in: $0).map(\.id) } + [wizard.ownSkillCards.map(\.id)], columns: Self.columns)
+            [wizard.ownSkillCards.map(\.id)] + groups.map { catalog.skills(in: $0).map(\.id) }, columns: Self.columns)
         guard let current = focused else {
             focused = rows.first?.first
             return

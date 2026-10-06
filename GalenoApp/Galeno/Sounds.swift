@@ -1,9 +1,9 @@
 import AppKit
 
-/// Los tres sonidos de la app, ligados a momentos y no a clics: una conexión lograda, algo que falló y el
-/// sello al llegar a «Listo». Breves (≤ 450 ms), a volumen bajo y generados por nosotros (`Sounds/*.wav`).
-/// **Encendidos de fábrica**; un solo interruptor en Ajustes los calla todos. No hay ningún otro sonido
-/// (ni casillas, ni botones, ni copiar, ni cambios de paso).
+/// Los cuatro sonidos de la app: una conexión lograda, algo que falló, el sello al llegar a «Listo» y, desde el
+/// 6 oct 2026 (petición de Rafa), un toque suave al pulsar «Siguiente» en el asistente. Breves (≤ 450 ms), a volumen
+/// bajo y generados por nosotros (`Sounds/*.wav`). **Encendidos de fábrica**; un solo interruptor en Ajustes los calla
+/// todos. No hay ningún otro sonido (ni casillas, ni «Atrás», ni copiar).
 @MainActor
 enum Sounds {
     enum Cue: String, CaseIterable {
@@ -13,6 +13,8 @@ enum Sounds {
         case failed = "fallo"
         /// El agente está listo.
         case seal = "sello"
+        /// «Siguiente» en el asistente: una sola nota suave con un roce de papel. No suena al volver atrás.
+        case step = "paso"
     }
 
     /// ≈ −12 dB sobre el volumen del sistema, que además manda (y su silencio también).

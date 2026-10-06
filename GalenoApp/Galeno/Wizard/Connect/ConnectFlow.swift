@@ -222,7 +222,9 @@ final class ConnectFlow: ObservableObject {
         var syncPoll: Double = 3
         /// Lecturas seguidas sin cambio para dar la sincronización por estable.
         var syncStableReads = 3
-        var syncMax: Double = 180
+        /// Tope de seguridad de la espera (6 oct 2026: el usuario espera a que **termine**; no hay botón para seguir
+        /// antes). Solo evita quedarse para siempre si algo se cuelga; una cuenta grande cabe de sobra.
+        var syncMax: Double = 600
         /// Cada cuánto se mira si el conector de Claude ya quedó conectado, y hasta cuándo.
         var connectorPoll: Double = 3
         var connectorMax: Double = 300
@@ -507,7 +509,7 @@ final class ConnectFlow: ObservableObject {
 
     // MARK: - Conectores de la cuenta de Claude (Gmail, Google Drive, Docs, Sheets, Calendar)
 
-    /// Qué conector se está conectando ahora, para decírselo al usuario («Google Docs · 2 de 3»).
+    /// Qué conector se está conectando ahora, para decírselo al usuario («Google Docs»).
     struct ConnectorProgress: Equatable {
         var name: String
         var index: Int
@@ -1113,14 +1115,6 @@ final class ConnectFlow: ObservableObject {
 
         if Task.isCancelled { return }
         finishWhatsApp(settled: stableReads >= timing.syncStableReads)
-    }
-
-    /// "Seguir mientras sincroniza": WhatsApp ya está vinculado y `sync` sigue en segundo
-    /// plano; lo que falte llegará solo.
-    func continueWhileSyncing() {
-        guard case .syncing = phase else { return }
-        cancelWork()
-        finishWhatsApp(settled: false)
     }
 
     private func finishWhatsApp(settled: Bool) {

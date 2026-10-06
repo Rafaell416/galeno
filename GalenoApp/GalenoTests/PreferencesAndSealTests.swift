@@ -23,8 +23,9 @@ final class PreferencesAndSealTests: XCTestCase {
         XCTAssertFalse(Sounds.isEnabled, "el interruptor de Ajustes los calla")
     }
 
-    func testThereAreExactlyThreeSoundsAndTheyAreShortAndQuiet() throws {
-        XCTAssertEqual(Sounds.Cue.allCases.map(\.rawValue).sorted(), ["conexion", "fallo", "sello"], "no se añaden otros")
+    func testThereAreExactlyFourSoundsAndTheyAreShortAndQuiet() throws {
+        XCTAssertEqual(
+            Sounds.Cue.allCases.map(\.rawValue).sorted(), ["conexion", "fallo", "paso", "sello"], "no se añaden otros")
         for cue in Sounds.Cue.allCases {
             let url = try XCTUnwrap(Sounds.url(for: cue), "\(cue) no está en el bundle")
             let sound = try XCTUnwrap(NSSound(contentsOf: url, byReference: true))
