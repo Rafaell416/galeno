@@ -438,7 +438,7 @@ Con una carpeta de skill escrita por el usuario (un `SKILL.md` con frontmatter) 
 
 | ID | Caso | Esperado | Idioma |
 |---|---|---|---|
-| D-1 | Pulsar «Siguiente» (o ↩) en cada paso. | Un toque suave y corto; también al «Crear». No suena al pulsar «Atrás» ni al terminar en «Listo» (ahí suena el sello). Apagado en Ajustes → Sonidos, no suena. | ES+EN |
+| D-1 | Pulsar «Siguiente» (o ↩) en cada paso, **desde las tres pantallas del onboarding** (también «Saltar» y «Empezar»). | Un toque suave y corto; también al «Crear». No suena al pulsar «Atrás» ni al terminar en «Listo» (ahí suena el sello). Apagado en Ajustes → Sonidos, no suena. | ES+EN |
 | D-2 | Conectar Gmail, Drive y Calendar (tres conectores). | La tira de arriba muestra solo los logos, unidos por una línea punteada, tenues hasta conectarse; **ningún «1 de 3» ni «2 de 5»**, ni en la tira ni bajo el spinner (solo el nombre del conector en curso). El «Paso N de 7» del asistente es el único número. | ES+EN |
 | D-3 | Paso Reglas con Notion, Jira y Google conectados. | Cada escritura tiene dos radios («Que me pregunte» / «Que lo haga solo»), una bajo la otra, y bajo su nombre una frase que cambia con lo elegido. De fábrica, «Que lo haga solo» (Claude Design, «Que me pregunte»). El `AGENTS.md`/`settings.json` generados lo reflejan. | ES+EN |
 
