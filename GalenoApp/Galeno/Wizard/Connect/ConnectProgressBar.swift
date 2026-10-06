@@ -1,8 +1,9 @@
 import GalenoCore
 import SwiftUI
 
-/// "2 de 5 conectadas" y los logos de las herramientas, que se van encendiendo
-/// conforme se conectan (`docs/03` §3).
+/// Los logos de las herramientas, unidos por una línea punteada, que se van encendiendo conforme se conectan
+/// (`docs/03` §3). **Sin cuenta escrita** («2 de 5», «1 de 3»; 6 oct 2026, petición de Rafa): competía con el
+/// «Paso 5 de 7» del asistente, que es el único progreso que se numera. La cuenta queda solo para VoiceOver.
 struct ConnectProgressBar: View {
     @ObservedObject var flow: ConnectFlow
     @EnvironmentObject private var wizard: WizardState
@@ -15,19 +16,21 @@ struct ConnectProgressBar: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        HStack(spacing: Space.s8) {
-            SmallCapsText(
-                string: Localized.string("connect.progress %lld %lld", flow.connectedCount, flow.total, locale: locale),
-                size: 13, tracking: 0.12
-            )
-            .foregroundStyle(Color.ink700)
-            .lineLimit(1)
-            // «2 de 5 conectadas» cuenta con el rodillo de dígitos.
-            .contentTransition(.numericText())
-            .animation(.easeOut(duration: Motion.micro), value: flow.connectedCount)
-            .padding(.trailing, Space.s8)
-
-            ForEach(flow.tools) { tool in
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            ForEach(Array(flow.tools.enumerated()), id: \.element) { index, tool in
+                if index > 0 {
+                    // El hilo que une un icono con el siguiente: en tinta una vez que el de la izquierda está
+                    // conectado; en gris mientras no.
+                    DottedLine()
+                        .stroke(
+                            (flow.statuses[flow.tools[index - 1]] ?? .selected) == .connected
+                                ? Color.ink700 : Color.parchment400,
+                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [0.1, 5]))
+                        .frame(width: 30, height: 2)
+                        .animation(.easeOut(duration: 0.2), value: flow.statuses[flow.tools[index - 1]])
+                        .accessibilityHidden(true)
+                }
                 // Cada icono lleva a su conexión (demo de Aquiles, 5 oct 2026: quiso pasar de una a otra
                 // pulsándolos). La que ya está conectada y la de ahora no hacen nada.
                 Button { flow.jump(to: tool) } label: { chip(for: tool) }
@@ -41,7 +44,7 @@ struct ConnectProgressBar: View {
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("connect.progress \(flow.connectedCount) \(flow.total)"))
+        .accessibilityLabel(Text(verbatim: Localized.string("connect.progress %lld %lld", flow.connectedCount, flow.total, locale: locale)))
     }
 
     private func statusLabel(for tool: Tool) -> Text {
@@ -91,10 +94,21 @@ struct ConnectProgressBar: View {
             }
         }
         .contentShape(Rectangle())
-        .opacity(status == .skipped ? 0.35 : status == .connected || isCurrent ? 1 : 0.55)
+        // Apagados hasta que se conectan: los que faltan se ven, pero tenues.
+        .opacity(status == .skipped ? 0.3 : status == .connected || isCurrent ? 1 : 0.4)
         // «Encender»: el logo conectado pasa a tinta plena en 200 ms.
         .animation(.easeOut(duration: 0.2), value: status)
         .animation(.easeOut(duration: Motion.micro), value: isCurrent)
+    }
+}
+
+/// Una raya horizontal, para dibujarla punteada.
+private struct DottedLine: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return path
     }
 }
 

@@ -197,8 +197,6 @@ struct ConnectionScreen: View {
             PrimaryButton("connect.retry") { flow.retry() }
         case .needsOwnApp:
             PrimaryButton("connect.later") { flow.skip() }
-        case .syncing:
-            PrimaryButton("connect.whatsapp.continueInBackground") { flow.continueWhileSyncing() }
         default:
             EmptyView()
         }
@@ -252,7 +250,8 @@ private struct BrowserHint: View {
 
 private struct WorkingPanel: View {
     let step: ConnectFlow.Step
-    /// El conector de la cuenta de Claude que se está conectando: «Google Docs · 2 de 3».
+    /// El conector de la cuenta de Claude que se está conectando: «Google Docs». Sin «2 de 3»: el único progreso que
+    /// se numera es el del asistente.
     var connector: ConnectFlow.ConnectorProgress?
     @ObservedObject var flow: ConnectFlow
     @Environment(\.locale) private var locale
@@ -266,14 +265,7 @@ private struct WorkingPanel: View {
                 .padding(.bottom, 10)
                 .opacity(visible ? 1 : 0)
             if let connector {
-                SmallCapsText(
-                    string: connector.total > 1
-                        ? Localized.string(
-                            "connect.connector.progress %@ %lld %lld", connector.name, connector.index, connector.total,
-                            locale: locale)
-                        : connector.name,
-                    size: 13, tracking: 0.12
-                )
+                SmallCapsText(string: connector.name, size: 13, tracking: 0.12)
                 .foregroundStyle(Color.ink700)
                 .id(connector.name)
                 .transition(.opacity)

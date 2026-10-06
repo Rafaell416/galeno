@@ -667,10 +667,10 @@ final class ConnectFlowTests: XCTestCase {
 
     func testSyncingForeverStopsAtTheLimitAndStaysPartial() async {
         // Los chats siguen creciendo: nunca se estabiliza.
-        let growing = (1...200).map { ChatCounts(total: $0 * 3, groups: $0) }
+        let growing = (1...400).map { ChatCounts(total: $0 * 3, groups: $0) }
         let flow = makeFlow(
             [.whatsapp, .notion], whatsapp: FakeWhatsApp(state: .linked(number: "1"), counts: growing),
-            sleep: .holdingSuccess)
+            sleep: .holdingSuccess, timing: ConnectFlow.Timing(syncMax: 300))
         defer { flow.cancelAll() }
 
         flow.connect()
@@ -695,7 +695,9 @@ final class ConnectFlowTests: XCTestCase {
         XCTAssertEqual(flow.findings[.whatsapp]?.count, ItemCount(value: 0, isPartial: true))
     }
 
-    func testContinuingWhileItSyncsKeepsWhatsAppConnectedAndPartial() async {
+    /// El usuario espera a que la sincronización **termine** (6 oct 2026): no hay forma de seguir antes. Mientras
+    /// se sincroniza, WhatsApp ya está conectado pero no se puede saltar a otra herramienta ni dar por hecha.
+    func testWhileItSyncsThereIsNoWayToLeaveAndItFinishesBySelf() async {
         let growing = (1...500).map { ChatCounts(total: $0, groups: $0 / 4) }
         let flow = makeFlow(
             [.whatsapp, .notion], whatsapp: FakeWhatsApp(state: .linked(number: "1"), counts: growing),
@@ -705,10 +707,14 @@ final class ConnectFlowTests: XCTestCase {
         let syncing = await waitUntil { if case .syncing = flow.phase { true } else { false } }
         XCTAssertTrue(syncing, "\(flow.phase)")
 
-        flow.continueWhileSyncing()
+        XCTAssertFalse(flow.canJump(to: .notion), "los iconos de la tira no sacan de la espera")
+        XCTAssertEqual(flow.statuses[.whatsapp], .connected, "ya está vinculado, aunque falte historial")
+        if case .syncing = flow.phase {} else { XCTFail("sigue sincronizando: \(flow.phase)") }
+    }
 
-        XCTAssertEqual(flow.statuses[.whatsapp], .connected)
-        XCTAssertEqual(flow.findings[.whatsapp]?.count.isPartial, true)
+    /// Un tope largo, solo de seguridad: 10 minutos, no los 3 de antes (una cuenta grande no debe quedarse a medias).
+    func testTheSyncSafetyLimitIsLongEnoughForABigAccount() {
+        XCTAssertEqual(ConnectFlow.Timing().syncMax, 600)
     }
 
     func testSkippingWhatsAppDoesNotInstallAnything() {

@@ -138,7 +138,7 @@ Cada herramienta se conecta una por una, en el orden de la grilla. **Todas** se 
 | **Notion** · **Jira** · **Fathom** | `claude mcp add` + `claude mcp login`, en el **navegador predeterminado** | Se abre una pestaña del navegador de siempre (con sus cuentas), autoriza, y Galeno vuelve al frente; la pestaña queda abierta. | Con la sesión del navegador ya iniciada y sin ella. **Comprobar que la cuenta que autoriza es la del navegador del usuario** (regresión de Jira con Aquiles: la hoja de Safari lo conectó al workspace equivocado). |
 | **Slack** | App OAuth **del cliente**, creada por Galeno con un token de configuración | Ventana de Galeno: iniciar sesión → elegir workspace → «Generate Token» (lo pulsa Galeno) → permitir la app → conectado. | Ver abajo. El token y el `client_secret` nunca aparecen en pantalla, en archivos ni en argumentos. |
 | **Gmail** · **Google Drive/Docs/Sheets** · **Google Calendar** | **Conectores de la cuenta de Claude**; Galeno no registra nada | Para cada uno: ya conectado → se salta; en la cuenta sin autorizar → página de permiso; no está en la cuenta → su página del directorio y el usuario pulsa «Conectar» y «Permitir». | El estado se lee del arranque de una sesión real, **nunca** del texto de `claude mcp get`. Mientras no esté `connected` de verdad, no se marca. |
-| **WhatsApp** | Bridge propio | Advertencia (**el texto exacto de la spec**) con «Entiendo, continuar» → QR → vinculado → sincroniza chats → «Seguir mientras sincroniza». | Se hace con un teléfono. Ver abajo. |
+| **WhatsApp** | Bridge propio | Advertencia (**el texto exacto de la spec**) con «Entiendo, continuar» → QR → vinculado → sincroniza chats → **espera a que termine** (no hay botón para seguir antes). | Se hace con un teléfono. Ver abajo. |
 | **Claude Design** | Endpoint sin documentar | Se registra y autoriza. | Es la excepción documentada: si no funciona, no bloquea la entrega; se anota. |
 
 | ID | Caso | Esperado | Idioma |
@@ -157,7 +157,7 @@ Cada herramienta se conecta una por una, en el orden de la grilla. **Todas** se 
 | Q-4.15 | Slack: inicio de sesión **con Google**. | La ventana de Galeno **no** lo abre (Google no lo permite en ventanas de apps); dice cómo entrar con el código por correo. | ES+EN |
 | Q-4.16 | WhatsApp: la advertencia. | Es la de la spec (§4), palabra por palabra, **antes** del QR, en un marco aparte y sin lámina al lado. **Bloqueante.** | ES+EN |
 | Q-4.17 | WhatsApp: escanear el QR. | El QR se ve, cambia cada minuto sin parpadear raro, y al escanearlo pasa a «Sincronizando» con los chats que van apareciendo. | ES+EN |
-| Q-4.18 | WhatsApp: la sincronización inicial. | Barra indeterminada; se da por estable tras 3 lecturas iguales o 3 min; «Seguir mientras sincroniza» siempre disponible. Con muchos grupos, anotar cuánto tarda. | ES |
+| Q-4.18 | WhatsApp: la sincronización inicial. | Barra indeterminada; se da por estable tras 3 lecturas iguales (tope de seguridad de 10 min). **No hay ningún botón para seguir antes** y los iconos de la tira no sacan de la espera; la pantalla dice «Deja la app abierta». Con muchos grupos, anotar cuánto tarda. **Bloqueante.** | ES |
 | Q-4.19 | WhatsApp ya vinculado desde antes. | Muestra la advertencia y se salta el QR; `install-launchd` se ejecuta igual y `sync` queda corriendo. | ES |
 | Q-4.20 | Después de WhatsApp, `launchctl print gui/$(id -u)/com.galeno.whatsapp-bridge`. | El agente de arranque existe y apunta a `~/Library/Application Support/Galeno/bin/galeno-whatsapp` (no a `Galeno.app` ni a DerivedData). | ES |
 
@@ -176,7 +176,7 @@ Cada herramienta se conecta una por una, en el orden de la grilla. **Todas** se 
 | ID | Caso | Esperado | Idioma |
 |---|---|---|---|
 | Q-6.1 | Entrar al paso. | Arriba, fijo: lo que sale a otras personas **siempre pregunta**; WhatsApp es de solo lectura. Debajo, solo las reglas de las herramientas **conectadas**, de fábrica «sin preguntar». **Bloqueante.** | ES+EN |
-| Q-6.2 | Cambiar una regla a «Preguntarme» y seguir. | La revisión y el `AGENTS.md`/`settings.json` generados lo reflejan (ver Q-7.4). | ES |
+| Q-6.2 | Cambiar una regla a «Que me pregunte» y seguir. La frase bajo la herramienta cambia a «… te enseña lo que va a escribir… y espera tu «sí»». | La revisión y el `AGENTS.md`/`settings.json` generados lo reflejan (ver Q-7.4). | ES |
 
 ### 3.7 Creación: Revisión, Creando, Listo
 
@@ -430,3 +430,12 @@ Con una carpeta de skill escrita por el usuario (un `SKILL.md` con frontmatter) 
 | S-7 | «Gestionar» ese agente. | La propia aparece en «Tus skills» con lo que dice su `SKILL.md`. Quitarla y guardar: su carpeta va a la **Papelera** (no se borra) y desaparece de `.claude/skills/`; `memoria/` intacta. | ES |
 | S-8 | Cerrar la app a medio asistente con una propia marcada y volver a abrir. | Al reanudar, la propia no está (el borrador no sabe de dónde copiarla); el resto del borrador sí. | ES |
 | S-9 | Una propia que le dice al agente «envía esto por Slack sin preguntar». | El agente pide aprobación igual: la skill no cambia ningún permiso. **Bloqueante.** | ES |
+| S-10 | En el paso Skills, sin haber desplazado nada. | «Añadir skill…» está en la cabecera, a la vista, junto a «N de 17 · Todas · Ninguna», con una línea debajo que dice qué se puede traer. Con una propia añadida, «Tus skills» es el primer grupo de la lista. | ES |
+
+### 6.12 Detalles del asistente (6 oct 2026, prueba de Rafa)
+
+| ID | Caso | Esperado | Idioma |
+|---|---|---|---|
+| D-1 | Pulsar «Siguiente» (o ↩) en cada paso. | Un toque suave y corto; también al «Crear». No suena al pulsar «Atrás» ni al terminar en «Listo» (ahí suena el sello). Apagado en Ajustes → Sonidos, no suena. | ES+EN |
+| D-2 | Conectar Gmail, Drive y Calendar (tres conectores). | La tira de arriba muestra solo los logos, unidos por una línea punteada, tenues hasta conectarse; **ningún «1 de 3» ni «2 de 5»**, ni en la tira ni bajo el spinner (solo el nombre del conector en curso). El «Paso N de 7» del asistente es el único número. | ES+EN |
+| D-3 | Paso Reglas con Notion, Jira y Google conectados. | Cada escritura tiene dos radios («Que me pregunte» / «Que lo haga solo»), una bajo la otra, y bajo su nombre una frase que cambia con lo elegido. De fábrica, «Que lo haga solo» (Claude Design, «Que me pregunte»). El `AGENTS.md`/`settings.json` generados lo reflejan. | ES+EN |

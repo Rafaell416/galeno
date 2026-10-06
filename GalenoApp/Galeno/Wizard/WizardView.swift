@@ -207,6 +207,8 @@ private struct NavigationBar: View {
                 if wizard.isLastStep {
                     if let finishWizard { finishWizard() } else { NSApplication.shared.terminate(nil) }
                 } else {
+                    // Un toque suave al avanzar (también con ↩): «Listo» ya tiene su sello.
+                    Sounds.play(.step)
                     wizard.next()
                 }
             } label: {

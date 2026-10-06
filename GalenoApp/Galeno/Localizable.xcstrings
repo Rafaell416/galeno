@@ -341,23 +341,6 @@
         }
       }
     },
-    "connect.connector.progress %@ %lld %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · %2$lld of %3$lld"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · %2$lld de %3$lld"
-          }
-        }
-      }
-    },
     "connect.connector.reopen" : {
       "comment" : "A button that reopens the connector page.",
       "extractionState" : "manual",
@@ -2610,23 +2593,6 @@
         }
       }
     },
-    "connect.whatsapp.continueInBackground" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue while it syncs"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seguir mientras sincroniza"
-          }
-        }
-      }
-    },
     "connect.whatsapp.qr.generating" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2752,13 +2718,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The first time can take a few minutes. You can carry on without waiting: syncing continues in the background."
+            "value" : "The first time can take a few minutes. Keep the app open: we carry on as soon as it finishes."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La primera vez puede tardar unos minutos. Puedes seguir sin esperar: la sincronización continúa en segundo plano."
+            "value" : "La primera vez puede tardar unos minutos. Deja la app abierta: seguimos en cuanto termine."
           }
         }
       }
@@ -8817,13 +8783,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Don't ask"
+            "value" : "Let it do it on its own"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sin preguntar"
+            "value" : "Que lo haga solo"
           }
         }
       }
@@ -8834,13 +8800,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ask me"
+            "value" : "Ask me first"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Preguntarme"
+            "value" : "Que me pregunte"
           }
         }
       }
@@ -8994,6 +8960,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tú decides"
+          }
+        }
+      }
+    },
+    "rules.askNote %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ shows you what it will write in %2$@ and waits for your “yes”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ te enseña lo que va a escribir en %2$@ y espera tu «sí»."
           }
         }
       }
@@ -9157,13 +9140,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Three short, soft sounds: when a tool connects, if something fails, and on reaching “Done”."
+            "value" : "Short, soft sounds: on “Next”, when a tool connects, if something fails, and on reaching “Done”."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tres sonidos breves y suaves: al conectar una herramienta, si algo falla y al llegar a «Listo»."
+            "value" : "Sonidos breves y suaves: al pulsar «Siguiente», al conectar una herramienta, si algo falla y al llegar a «Listo»."
           }
         }
       }
@@ -9769,13 +9752,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A folder with SKILL.md or a .md file from your Mac. It is yours: it changes no permission."
+            "value" : "Have your own skills? Add them: a folder with SKILL.md or a .md file from your Mac. They are yours and change no permission."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Una carpeta con SKILL.md o un archivo .md de tu Mac. Es tuya: no cambia ningún permiso."
+            "value" : "¿Tienes tus propias skills? Añádelas: una carpeta con SKILL.md o un archivo .md de tu Mac. Son tuyas y no cambian ningún permiso."
           }
         }
       }

@@ -145,47 +145,73 @@ extension InternalWrite {
     }
 }
 
+/// Una escritura que se puede decidir: qué hace, **qué significa lo elegido** (una frase que siempre está a la vista y
+/// cambia con la opción) y dos opciones con nombre propio, una bajo la otra. Reemplaza al selector «Preguntarme /
+/// Sin preguntar» (6 oct 2026, petición de Rafa: no se entendía qué quería decir cada lado ni cuál venía puesto).
 private struct WriteRuleRow: View {
     @EnvironmentObject private var wizard: WizardState
+    @Environment(\.galenoReduceMotion) private var reduceMotion
     let write: InternalWrite
-    /// Al elegir «Sin preguntar» se dice, un momento, qué significa.
-    @State private var showsNote = false
 
     private var toolName: String { write.toolDisplayName }
+    private var agentName: String { wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var policy: ApprovalPolicy { wizard.policy(for: write) }
 
     var body: some View {
-        HStack(alignment: .center, spacing: Space.s12) {
-            VStack(alignment: .leading, spacing: 0) {
+        HStack(alignment: .top, spacing: Space.s16) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(LocalizedStringKey("rules.write." + write.rawValue))
                     .font(Typo.list)
                     .foregroundStyle(Color.ink900)
-                if showsNote {
-                    Text("rules.allowNote \(wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines)) \(toolName)")
-                        .font(Typo.text(13))
-                        .foregroundStyle(Color.seal700)
-                        .transition(.pageTurn)
+                // Lo que pasa con lo elegido, siempre: sin esto había que adivinarlo.
+                Group {
+                    // De fábrica las escrituras internas van sin preguntar: la frase no alarma, solo dice lo que pasa.
+                    if policy == .allow {
+                        Text("rules.allowNote \(agentName) \(toolName)").foregroundStyle(Color.ink700)
+                    } else {
+                        Text("rules.askNote \(agentName) \(toolName)").foregroundStyle(Color.ink500)
+                    }
                 }
+                .id(policy)
+                .transition(.opacity)
+                .font(Typo.text(13))
+                .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
-            InkSegmented(
-                selection: Binding(
-                    get: { wizard.policy(for: write) },
-                    set: { policy in
-                        wizard.setPolicy(policy, for: write)
-                        showsNote = policy == .allow
-                    }),
-                options: [ApprovalPolicy.ask, ApprovalPolicy.allow], accented: [.allow]
-            ) { policy in
-                Text(policy == .ask ? "rules.policy.ask" : "rules.policy.allow")
+            VStack(alignment: .leading, spacing: 6) {
+                PolicyOption(title: "rules.policy.ask", isOn: policy == .ask) { wizard.setPolicy(.ask, for: write) }
+                PolicyOption(title: "rules.policy.allow", isOn: policy == .allow) { wizard.setPolicy(.allow, for: write) }
             }
+            .accessibilityElement(children: .contain)
             .accessibilityLabel(Text(LocalizedStringKey("rules.write." + write.rawValue)))
         }
-        .animation(.pageTurn, value: showsNote)
-        .task(id: showsNote) {
-            guard showsNote else { return }
-            try? await Task.sleep(for: .seconds(3))
-            showsNote = false
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: policy)
+    }
+}
+
+/// Una de las dos opciones: un círculo de 14 pt —relleno de tinta si es la elegida— y su nombre. Se elige entre dos, y
+/// el círculo lo dice sin explicación.
+private struct PolicyOption: View {
+    let title: LocalizedStringKey
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Circle()
+                    .strokeBorder(isOn ? Color.ink900 : Color.ink700, lineWidth: 1.5)
+                    .background(Circle().fill(isOn ? Color.ink900 : Color.clear).padding(3.5))
+                    .frame(width: 15, height: 15)
+                Text(title)
+                    .font(Typo.text(14, isOn ? .medium : .regular))
+                    .foregroundStyle(isOn ? Color.ink900 : Color.ink700)
+                    .lineLimit(1)
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
     }
 }
 
