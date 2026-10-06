@@ -16,10 +16,11 @@ public struct SelectedSkill: Codable, Hashable, Sendable, Identifiable {
 
 /// El origen de una skill.
 ///
-/// En v0.0.1 solo hay dos niveles, los dos revisados por nosotros antes de
-/// entrar al catálogo: no existe ninguna puerta por la que entre código sin
-/// revisar. "Trae la tuya" —pegar un link de GitHub— llega en v0.2 con su
-/// propio guardrail.
+/// Dos niveles del catálogo, los dos revisados por nosotros antes de entrar: no
+/// existe ninguna puerta por la que entre código de terceros sin revisar. "Trae la
+/// tuya" —pegar un link de GitHub— sigue fuera. Lo que sí entra, con alcance
+/// acotado (decisión de Rafa, 6 oct 2026, `docs/03` §6.3), son las **propias** del
+/// usuario: archivos de su propio Mac, para su propio agente.
 public enum SkillSource: String, Codable, CaseIterable, Sendable {
     /// Las nuestras, en `skills/`. Escritas en inglés, con la instrucción de
     /// responder en el idioma del usuario.
@@ -27,4 +28,12 @@ public enum SkillSource: String, Codable, CaseIterable, Sendable {
     /// De terceros, seleccionadas y revisadas por nosotros, con crédito y link
     /// a su autor.
     case curated
+    /// Del propio usuario: una carpeta con `SKILL.md` (o un `.md` suelto) que
+    /// trajo de su Mac. Vive en `skills-propias/<id>/` dentro de la carpeta del
+    /// agente (``OwnSkills``) —el motor nunca la toca al regenerar, como
+    /// `memoria/`— y se instala desde ahí a `.claude/skills/<id>/`. Nada
+    /// remoto, ni de terceros, ni catálogo. Una skill propia no cambia ningún
+    /// permiso: las reglas `deny`, el `ask` y los hooks aplican aunque la skill
+    /// diga lo contrario, y enviar sigue preguntando.
+    case own
 }

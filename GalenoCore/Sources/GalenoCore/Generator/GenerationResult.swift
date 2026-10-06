@@ -46,6 +46,9 @@ public enum GenerationError: Error, Equatable {
     case missingSkill(id: String, source: SkillSource, expectedAt: String)
     /// Un id de skill que escribiría fuera de la carpeta destino.
     case unsafeSkillIdentifier(String)
+    /// Dos skills marcadas con el mismo id (una propia y una del catálogo, por
+    /// ejemplo): irían a la misma carpeta.
+    case duplicateSkill(String)
     /// El nombre del agente está vacío o es solo espacios.
     case emptyAgentName
     /// Esta herramienta exige que el cliente traiga su propia app OAuth, y la
@@ -62,6 +65,8 @@ extension GenerationError: CustomStringConvertible {
             "No encontré la skill \"\(id)\" (\(source.rawValue)). Se esperaba en \(expectedAt)."
         case let .unsafeSkillIdentifier(id):
             "El id de skill \"\(id)\" escribiría fuera de la carpeta destino."
+        case let .duplicateSkill(id):
+            "Hay dos skills con el id \"\(id)\"; ponle otro nombre a la tuya."
         case .emptyAgentName:
             "El agente necesita un nombre."
         case let .missingOAuthClient(tool):

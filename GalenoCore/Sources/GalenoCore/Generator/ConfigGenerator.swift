@@ -124,7 +124,8 @@ public struct ConfigGenerator: Sendable {
             planned.append(Planned(path: subagent.path, contents: subagent.contents))
         }
 
-        let skills = try SkillsInstaller.validateAll(config.skills, from: options.skillsDirectory)
+        let skills = try SkillsInstaller.validateAll(
+            config.skills, from: options.skillsDirectory, ownSkillsDirectory: OwnSkills.directory(in: destination))
 
         // MARK: 2. Escribir
 

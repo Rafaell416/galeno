@@ -2,9 +2,10 @@ import Foundation
 
 /// Copia las skills seleccionadas a `.claude/skills/`.
 ///
-/// Origen: `<skillsDirectory>/<galeno|curated>/<id>/`. Destino:
-/// `.claude/skills/<id>/`. Se copia la carpeta entera, no solo `SKILL.md`: una
-/// skill puede traer plantillas o ejemplos al lado.
+/// Origen: `<skillsDirectory>/<galeno|curated>/<id>/` para las del catálogo, y
+/// `<agente>/skills-propias/<id>/` para las propias del usuario (``OwnSkills``).
+/// Destino: `.claude/skills/<id>/`. Se copia la carpeta entera, no solo
+/// `SKILL.md`: una skill puede traer plantillas o ejemplos al lado.
 enum SkillsInstaller {
     /// Rechaza un id que escribiría fuera de la carpeta destino.
     ///
@@ -28,19 +29,33 @@ enum SkillsInstaller {
     }
 
     /// Valida todas las skills **antes** de escribir nada: que el id sea
-    /// seguro y que exista su `SKILL.md`. Así un error no deja la carpeta
-    /// destino a medias.
+    /// seguro, que no haya dos con el mismo id (irían a la misma carpeta) y que
+    /// exista su `SKILL.md`. Así un error no deja la carpeta destino a medias.
+    ///
+    /// - Parameter ownSkillsDirectory: de dónde salen las propias del usuario
+    ///   (`skills-propias/` dentro de la carpeta del agente).
     static func validateAll(
         _ skills: [SelectedSkill],
         from skillsDirectory: URL,
+        ownSkillsDirectory: URL,
         fileManager: FileManager = .default
     ) throws -> [Validated] {
-        try skills.map { skill in
+        let ids = skills.map(\.id)
+        if let repeated = Dictionary(grouping: ids, by: { $0 }).first(where: { $1.count > 1 })?.key {
+            throw GenerationError.duplicateSkill(repeated)
+        }
+        return try skills.map { skill in
             try validate(skill.id)
 
-            let source = skillsDirectory
-                .appending(path: skill.source.rawValue, directoryHint: .isDirectory)
-                .appending(path: skill.id, directoryHint: .isDirectory)
+            let source: URL =
+                switch skill.source {
+                case .galeno, .curated:
+                    skillsDirectory
+                        .appending(path: skill.source.rawValue, directoryHint: .isDirectory)
+                        .appending(path: skill.id, directoryHint: .isDirectory)
+                case .own:
+                    ownSkillsDirectory.appending(path: skill.id, directoryHint: .isDirectory)
+                }
 
             guard fileManager.fileExists(atPath: source.appending(path: "SKILL.md").path) else {
                 throw GenerationError.missingSkill(

@@ -269,6 +269,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   app: `make -C whatsapp-bridge universal` (una fase de Run Script lo copia a `Resources`). Los textos de
   dopamina se escriben nativos en cada idioma, no traducidos literalmente.
 - Las skills nuestras se escriben en inglés, con la instrucción de idioma arriba.
+- **Skills propias del usuario** (`docs/03` §6.3): viven en `skills-propias/<id>/` de la carpeta del agente
+  (`OwnSkills`), que es del usuario como `memoria/`: el motor **nunca** la escribe ni la borra; solo instala desde
+  ahí las marcadas (`SkillSource.own`) a `.claude/skills/`. La app las copia al crear o guardar
+  (`AgentInstaller.install(ownSkills:ownSkillsToTrash:)`, `OwnSkillImporter`): solo archivos locales del selector,
+  nada se descarga ni se ejecuta, y quitar una la manda a la Papelera. El agente no puede editarlas
+  (`protectedPaths`). No añadir ninguna forma de traerlas por enlace, catálogo ni descarga sin preguntar a Rafa.
 - UI: el rediseño B1 «El impresor» (`docs/04` §12) manda en la app. Ventana estándar de macOS,
   SF Symbols y tokens de color de `docs/04`, pero **con fuentes embebidas** (Cormorant y EB Garamond,
   vía `Typo` en `Typography.swift`; New York solo como respaldo), **controles propios** de tinta
@@ -370,7 +376,10 @@ Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezc
 4. Empaquetar Python, Node o cualquier runtime en la app.
 5. Dar a los subagentes generados Bash o edición de código, o dejar que el agente
    generado escriba archivos fuera de `memoria/`.
-6. Abrir una puerta a código no revisado ("trae tu skill", plugins de terceros sin revisar).
+6. Abrir una puerta a código no revisado ("trae tu skill" por enlace, plugins o catálogos de terceros sin
+   revisar). **Única excepción, decidida por Rafa (6 oct 2026):** las skills **propias** del usuario —archivos de
+   su propio Mac, elegidos en el selector, copiados a `skills-propias/` de su agente (`docs/03` §6.3)—. Nada
+   remoto, y una skill propia no cambia ningún permiso.
 7. Reabrir una decisión cerrada: nombre, precio, los tres roles (producto, marketing, comercial;
    un cuarto rol es reabrirla), solo Mac, Swift, Go para WhatsApp, solo Claude Code.
 8. Construir algo fuera de v0.0.1: separación garantizada de contexto entre agentes,

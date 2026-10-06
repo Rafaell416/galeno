@@ -51,6 +51,11 @@ final class WizardState: ObservableObject {
     @Published var projectDescription = ""
     @Published var connections: [ToolConnection] = []
     @Published var skills: [SelectedSkill] = []
+    /// Las skills propias del usuario (`docs/03` §6.3): las que ya están en `skills-propias/` del agente y las que
+    /// trajo en esta sesión, que se copian al crear o guardar. Solo archivos de su Mac; nada remoto.
+    @Published private(set) var ownSkills: [OwnSkillEntry] = []
+    /// Las propias que quitó y ya estaban en la carpeta: van a la Papelera al guardar.
+    private var ownSkillsToTrash: [String] = []
     @Published var sendingRules: SendingRules = .default
 
     /// Lo que la pantalla 2 encontró. No va en el `AgentConfig`: es del Mac.
@@ -170,7 +175,10 @@ final class WizardState: ObservableObject {
                     return connection
                 }
             role = config.role
-            skills = config.skills
+            // Las propias se leen de la carpeta del agente: una marcada que ya no está ahí no se puede instalar.
+            ownSkills = OwnSkills.list(in: record.folder).map { OwnSkillEntry(skill: $0) }
+            let ownIDs = Set(ownSkills.map(\.id))
+            skills = config.skills.filter { $0.source != .own || ownIDs.contains($0.id) }
             skillsInitialized = true  // lo que tiene el agente manda, no la selección de fábrica
             sendingRules = config.sendingRules
             step = .tools
@@ -229,7 +237,8 @@ final class WizardState: ObservableObject {
         agentName = draft.agentName
         projectDescription = draft.projectDescription
         connections = draft.connections
-        skills = draft.skills
+        // Una propia vive solo en memoria hasta que se crea el agente: un borrador no sabe de dónde copiarla.
+        skills = draft.skills.filter { $0.source != .own }
         skillsInitialized = draft.skillsInitialized
         if draft.skillsInitialized { skillsRole = role }
         sendingRules = draft.sendingRules
@@ -795,6 +804,54 @@ final class WizardState: ObservableObject {
         skills.contains { $0.id == id && $0.source == source }
     }
 
+    // MARK: Skills propias (docs/03 §6.3)
+
+    /// El grupo que las muestra aparte de las del catálogo («Tus skills»).
+    static let ownSkillGroupID = "own"
+
+    /// Las tarjetas de las propias, para el paso «Skills» y la revisión. Lo que dicen sale de su `SKILL.md`.
+    var ownSkillCards: [CatalogSkill] {
+        ownSkills.map { entry in
+            CatalogSkill(
+                id: entry.id, group: Self.ownSkillGroupID,
+                name: LocalizedText(es: entry.skill.name, en: entry.skill.name),
+                summary: LocalizedText(es: entry.skill.summary, en: entry.skill.summary), origin: .own)
+        }
+    }
+
+    /// Trae una skill del Mac del usuario (una carpeta con `SKILL.md` o un `.md`). Queda marcada. Nada se copia
+    /// hasta crear o guardar el agente; si no se pudo, dice por qué.
+    @discardableResult
+    func addOwnSkill(from url: URL) -> OwnSkillProblem? {
+        let skill: OwnSkill
+        do {
+            skill = try OwnSkillImporter.inspect(url)
+        } catch OwnSkillImporter.Failure.noSkillFile {
+            return .noSkillFile
+        } catch OwnSkillImporter.Failure.invalidName {
+            return .invalidName
+        } catch {
+            return .unreadable
+        }
+        // Dos skills con el mismo id irían a la misma carpeta: el catálogo manda, y la propia cambia de nombre.
+        if case .loaded(let catalog) = skillCatalog, catalog.cards.contains(where: { $0.id == skill.id }) {
+            return .duplicate(skill.id)
+        }
+        if ownSkills.contains(where: { $0.id == skill.id }) { return .duplicate(skill.id) }
+        ownSkills.append(OwnSkillEntry(skill: skill, pendingSource: url))
+        ownSkillsToTrash.removeAll { $0 == skill.id }
+        if !isSkillSelected(skill.id, source: .own) { skills.append(SelectedSkill(id: skill.id, source: .own)) }
+        return nil
+    }
+
+    /// Quita una propia. Si ya estaba en la carpeta del agente, va a la Papelera al guardar.
+    func removeOwnSkill(_ id: String) {
+        guard let index = ownSkills.firstIndex(where: { $0.id == id }) else { return }
+        if ownSkills[index].pendingSource == nil { ownSkillsToTrash.append(id) }
+        ownSkills.remove(at: index)
+        skills.removeAll { $0.id == id && $0.source == .own }
+    }
+
     func toggleSkill(_ id: String, source: SkillSource) {
         // Una curada sin su contenido todavía no se instala: marcarla haría fallar la generación.
         if source == .curated, !isSkillSelected(id, source: .curated) {
@@ -836,13 +893,26 @@ final class WizardState: ObservableObject {
         let installer = connectServices.installer
         let existing = generatedAgent?.id
         let context = contextItems.map(\.file)
+        let imports = ownSkills.compactMap { entry in
+            entry.pendingSource.map { AgentInstaller.OwnSkillImport(id: entry.id, source: $0) }
+        }
+        let trash = ownSkillsToTrash
         let flow = GenerationFlow(sleep: connectServices.sleep) {
-            try installer.install(config, existingAgentID: existing, importedContext: context)
+            try installer.install(
+                config, existingAgentID: existing, importedContext: context, ownSkills: imports, ownSkillsToTrash: trash)
         }
         generation = flow
         generationObserver = flow.$outcome.compactMap { $0 }.sink { [weak self] outcome in
-            self?.generatedAgent = outcome.record
-            self?.lastGeneration = outcome.result
+            guard let self else { return }
+            generatedAgent = outcome.record
+            lastGeneration = outcome.result
+            // Ya están en la carpeta del agente: volver a generar no las copia otra vez ni manda nada a la Papelera.
+            ownSkills = ownSkills.map { entry in
+                var entry = entry
+                entry.pendingSource = nil
+                return entry
+            }
+            ownSkillsToTrash = []
         }
         flow.start()
     }
@@ -902,5 +972,23 @@ final class WizardState: ObservableObject {
             skills: skills,
             sendingRules: sendingRules
         )
+    }
+}
+
+/// Por qué no se pudo traer una skill propia.
+enum OwnSkillProblem: Equatable {
+    case noSkillFile
+    case invalidName
+    case unreadable
+    /// Ya hay una skill (del catálogo o propia) con ese id.
+    case duplicate(String)
+
+    func message(locale: Locale) -> String {
+        switch self {
+        case .noSkillFile: Localized.string("skills.own.error.noSkillFile", locale: locale)
+        case .invalidName: Localized.string("skills.own.error.invalidName", locale: locale)
+        case .unreadable: Localized.string("skills.own.error.unreadable", locale: locale)
+        case .duplicate(let id): Localized.string("skills.own.error.duplicate %@", id, locale: locale)
+        }
     }
 }

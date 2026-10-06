@@ -18,12 +18,22 @@ nonisolated struct AgentInstaller: Sendable {
         var result: GenerationResult
     }
 
+    /// Una skill propia que el usuario trajo de su Mac y hay que copiar a `skills-propias/` del agente.
+    struct OwnSkillImport: Sendable, Equatable {
+        var id: String
+        var source: URL
+    }
+
     /// - Parameter existingAgentID: el agente que ya se generó en esta sesión, si se vuelve a
     ///   generar (el usuario regresó a cambiar algo).
     /// - Parameter importedContext: material que el usuario trajo; el motor lo deja en `memoria/contexto/`
     ///   sin pisar nada de lo que ya haya.
+    /// - Parameter ownSkills: las skills propias que trajo en esta sesión; se copian a su carpeta antes de
+    ///   generar, porque el motor las instala desde ahí (`docs/03` §6.3).
+    /// - Parameter ownSkillsToTrash: las propias que quitó y ya estaban en la carpeta: van a la Papelera.
     func install(
-        _ config: AgentConfig, existingAgentID: UUID? = nil, importedContext: [ContextFile] = []
+        _ config: AgentConfig, existingAgentID: UUID? = nil, importedContext: [ContextFile] = [],
+        ownSkills: [OwnSkillImport] = [], ownSkillsToTrash: [String] = []
     ) throws -> Outcome {
         var installation = try store.load() ?? GalenoInstallation(language: config.language)
         installation.language = config.language
@@ -52,6 +62,11 @@ nonisolated struct AgentInstaller: Sendable {
         } else {
             record = installation.addAgent(config, agentsRoot: agentsRoot)
         }
+
+        // Las skills propias son del usuario: se copian a su carpeta (el motor solo lee de ahí) y las que
+        // quitó van a la Papelera, nunca se borran.
+        for skill in ownSkills { try OwnSkillImporter.copy(skill.source, id: skill.id, into: record.folder) }
+        for id in ownSkillsToTrash { try OwnSkillImporter.trash(id: id, in: record.folder) }
 
         // El motor recibe la config con el estado y el `client_id` tomados de la instalación.
         guard let resolved = installation.resolvedConfig(for: record.id) else {

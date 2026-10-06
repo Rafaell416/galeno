@@ -322,7 +322,7 @@ relevante; ellos devuelven un borrador y solo el principal envía, con aprobaci�
 | Slack con identidad de bot propia (el agente envía con su nombre, no con el del usuario) | v0.0.2 |
 | Tareas programadas de alcance acotado (envíos solo como borrador) | v0.0.1, tras el rediseño (`docs/03` §3b) |
 | Tareas programadas con envío desatendido | v0.2 |
-| Skills externas, "trae la tuya" (link de GitHub) | v0.2, con su guardrail |
+| Skills externas, "trae la tuya" (link de GitHub) | v0.2, con su guardrail. Las propias del usuario (archivos de su Mac) ya entran (6 oct 2026, `docs/03` §6.3) |
 | Plantillas dev / legal / salud | v0.3+ |
 | Config para Codex / Cursor / Grok | v0.3+ |
 | Marketplace de skills | futuro |
@@ -731,8 +731,12 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
   roja 1 intacta: el puente no cambia). Prospectos de sus propios chats y, si pide un segmento, de la
   web, con el número solo si lo publica la propia empresa. Detalle en `docs/03` §6.3. **Sin probar
   con trabajo real.**
-- **Cargar sus propias skills.** Está cerrado a propósito (línea roja 6, «trae tu skill»): una skill
-  son instrucciones para el agente y hoy solo entran las nuestras y las curadas.
+- **Cargar sus propias skills.** **Decidido y construido con alcance acotado (Rafa, 6 oct 2026; rama
+  `feat/skills-propias`):** solo archivos del propio usuario, de su Mac, elegidos en el selector del paso
+  «Skills» («Tus skills» → «Añadir skill…»); viven en `skills-propias/` del agente, carpeta que el motor
+  no toca; el agente no puede editarlas y no cambian ningún permiso. Nada remoto ni de terceros: «trae tu
+  skill» por enlace sigue cerrado (línea roja 6). Detalle en `docs/03` §6.3. **Sin probar con una skill
+  real de Simon.**
 
 **Comprobado en el demo, en el Mac de Simon (un Mac limpio):**
 

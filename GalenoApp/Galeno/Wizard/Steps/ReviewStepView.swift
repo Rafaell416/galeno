@@ -67,7 +67,7 @@ struct ReviewStepView: View {
 
     private var selectedSkillNames: [String] {
         guard case .loaded(let catalog) = wizard.skillCatalog else { return [] }
-        return catalog.cards
+        return (catalog.cards + wizard.ownSkillCards)
             .filter { wizard.isSkillSelected($0.id, source: $0.source) }
             .map { $0.name.text(in: wizard.language) }
     }
@@ -75,7 +75,9 @@ struct ReviewStepView: View {
     private var skillsCard: some View {
         let names = selectedSkillNames
         let total: Int = {
-            if case .loaded(let catalog) = wizard.skillCatalog { return wizard.visibleSkills(in: catalog).count }
+            if case .loaded(let catalog) = wizard.skillCatalog {
+                return wizard.visibleSkills(in: catalog).count + wizard.ownSkillCards.count
+            }
             return names.count
         }()
         let title =
