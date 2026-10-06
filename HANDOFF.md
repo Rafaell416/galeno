@@ -724,6 +724,13 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
   de solo lecturas), y las skills `/tareas-recurrentes`, `daily-briefing` y `weekly-wrap` dicen cómo
   programarse. **Sin probar a mano una tarea real en la app de Claude.** El envío desatendido sigue
   en v0.2.
+- **Prospección por WhatsApp.** **Decidido y construido (Rafa, 6 oct 2026; rama `feat/prospeccion`):**
+  la skill nuestra `/prospeccion` (grupo «Comercial», marcada de fábrica para ese rol) deja cada mañana
+  un archivo local en `memoria/informes/` con una fila por prospecto y un enlace `wa.me` que abre
+  WhatsApp con el mensaje escrito; **Simon pulsa enviar**. Rafa decidió que eso no es enviar (línea
+  roja 1 intacta: el puente no cambia). Prospectos de sus propios chats y, si pide un segmento, de la
+  web, con el número solo si lo publica la propia empresa. Detalle en `docs/03` §6.3. **Sin probar
+  con trabajo real.**
 - **Cargar sus propias skills.** Está cerrado a propósito (línea roja 6, «trae tu skill»): una skill
   son instrucciones para el agente y hoy solo entran las nuestras y las curadas.
 

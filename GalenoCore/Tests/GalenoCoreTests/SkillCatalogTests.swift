@@ -99,7 +99,7 @@ final class SkillCatalogTests: XCTestCase {
     func testTheRealCatalogIsValidAndMatchesTheSkillsOnDisk() throws {
         let value = try SkillCatalog.load(from: repoSkills)
 
-        XCTAssertEqual(value.galeno.count, 17, "las 17 skills de docs/03 §6.1")
+        XCTAssertEqual(value.galeno.count, 18, "las 17 skills de producto de docs/03 §6.1 y /prospeccion (comercial)")
         XCTAssertEqual(value.missingFiles(in: repoSkills), [], "cada skill disponible tiene su SKILL.md")
         for skill in value.galeno {
             XCTAssertFalse(skill.name.es.isEmpty || skill.name.en.isEmpty || skill.summary.es.isEmpty || skill.summary.en.isEmpty, skill.id)
@@ -328,12 +328,15 @@ final class SkillCatalogTests: XCTestCase {
 
     // MARK: Roles
 
-    /// Cada rol trae marcadas las skills de sus grupos. Producto sigue con las 17 nuestras, ni una más.
+    /// Cada rol trae marcadas las skills de sus grupos. Producto sigue con las 17 nuestras de sus grupos, ni una más:
+    /// `/prospeccion` es nuestra pero es de comercial.
     func testEachRoleBringsItsOwnSkills() throws {
         let value = try SkillCatalog.load(from: repoSkills)
         let product = value.defaultSelection(for: .productManager)
-        XCTAssertEqual(Set(product.map(\.id)), Set(value.galeno.map(\.id)))
+        let oursForProduct = value.galeno.filter { AgentRole.productManager.skillGroups.contains($0.group) }
+        XCTAssertEqual(Set(product.map(\.id)), Set(oursForProduct.map(\.id)))
         XCTAssertEqual(product.count, 17)
+        XCTAssertFalse(product.contains { $0.id == "prospeccion" }, "la prospección por WhatsApp es de comercial")
 
         let marketing = Set(value.defaultSelection(for: .marketing).map(\.id))
         XCTAssertTrue(marketing.isSuperset(of: ["campaign-plan", "brand-review", "discover-brand", "acta", "reporte-dia"]))
@@ -344,7 +347,8 @@ final class SkillCatalogTests: XCTestCase {
         let sales = value.defaultSelection(for: .sales)
         XCTAssertTrue(Set(sales.map(\.id)).isSuperset(of: ["call-summary", "lead-triage", "acta", "seguimiento"]))
         XCTAssertFalse(sales.contains { $0.id == "campaign-plan" || $0.id == "tickets" })
-        XCTAssertEqual(sales.count, 24, "16 de comercial, 5 de reportes y 3 de reuniones")
+        XCTAssertEqual(sales.count, 25, "16 de comercial de Anthropic, /prospeccion nuestra, 5 de reportes y 3 de reuniones")
+        XCTAssertEqual(sales.first { $0.id == "prospeccion" }?.source, .galeno)
         // Cada una se instala desde su carpeta: las de terceros, desde `curated/`.
         XCTAssertEqual(sales.first { $0.id == "call-summary" }?.source, .curated)
         XCTAssertEqual(sales.first { $0.id == "acta" }?.source, .galeno)
@@ -406,17 +410,22 @@ final class SkillCatalogTests: XCTestCase {
             XCTAssertFalse(card.sendsToOthers, "\(card.id): escribe borradores, no envía")
         }
 
-        // Comercial: las que pueden terminar en un correo lo dicen en su tarjeta («siempre te pide aprobación»).
+        // Comercial: primero la nuestra (`/prospeccion`, 6 oct 2026) y luego las de Anthropic; las que pueden terminar en
+        // un correo lo dicen en su tarjeta («siempre te pide aprobación»).
         let sales = try XCTUnwrap(value.groups.first { $0.id == "sales" })
         let salesCards = value.skills(in: sales)
         XCTAssertEqual(
             salesCards.map(\.id),
             [
+                "prospeccion",
                 "call-summary", "call-prep", "draft-outreach", "inbox-sweep", "daily-briefing", "schedule-meeting",
                 "customer-voice", "account-plan", "close-plan", "handle-objection", "stakeholder-map", "account-context",
                 "create-an-asset", "weekly-wrap", "lead-triage", "account-tiering",
             ])
-        for card in salesCards {
+        let ours = try XCTUnwrap(salesCards.first)
+        XCTAssertNil(ours.credit, "la prospección es nuestra")
+        XCTAssertEqual(ours.source, .galeno)
+        for card in salesCards.dropFirst() {
             XCTAssertEqual(card.credit?.author, "Anthropic", card.id)
             XCTAssertEqual(card.credit?.license, "Apache-2.0", card.id)
             XCTAssertEqual(card.sendsToOthers, Self.sends.contains(card.id), card.id)

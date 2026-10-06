@@ -839,6 +839,52 @@
           ]
         }
       }
+    },
+    {
+      "id": "prospeccion",
+      "group": "sales",
+      "name": {
+        "es": "Prospección por WhatsApp",
+        "en": "WhatsApp prospecting"
+      },
+      "summary": {
+        "es": "A quién escribirle hoy y por qué, con el mensaje listo y un botón que abre WhatsApp con el mensaje escrito. Tú lo envías.",
+        "en": "Who to write to today and why, with the message ready and a button that opens WhatsApp with it typed in. You send it."
+      },
+      "writes": [],
+      "needsAny": [
+        "whatsapp"
+      ],
+      "ask": {
+        "es": "A quién le escribo hoy",
+        "en": "Who should I write to today"
+      },
+      "example": {
+        "input": {
+          "es": "los chats que se enfriaron esta semana y lo que el proyecto dice del producto",
+          "en": "the chats that went quiet this week and what the project says about the product"
+        },
+        "output": {
+          "es": [
+            "# Prospección · 6 de octubre",
+            "| Quién | Por qué ahora | Abrir |",
+            "| Clínica Dental Norte | Pidió precio el martes y nadie respondió | Abrir en WhatsApp |",
+            "| Andrés (grupo Odontólogos) | Preguntó quién hace software de agenda | Abrir en WhatsApp |",
+            "> Hola, Andrés. Vi tu pregunta en el grupo: nosotros hacemos justo eso. ¿Te muestro en 15 minutos esta semana?"
+          ],
+          "en": [
+            "# Prospecting · October 6",
+            "| Who | Why now | Open |",
+            "| North Dental Clinic | Asked for a price on Tuesday and nobody answered | Open in WhatsApp |",
+            "| Andrés (Dentists group) | Asked who makes scheduling software | Open in WhatsApp |",
+            "> Hi Andrés, I saw your question in the group: that is exactly what we do. Can I show you in 15 minutes this week?"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Nunca envía nada: el botón abre WhatsApp con el mensaje escrito y tú decides.",
+        "en": "It never sends anything: the button opens WhatsApp with the message typed in, and you decide."
+      }
     }
   ],
   "curated": [
