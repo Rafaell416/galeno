@@ -2,10 +2,11 @@ import AppKit
 import GalenoCore
 import SwiftUI
 
-/// Ajustes (⌘,): apariencia, menos movimiento, los sonidos y el grano. Nada de esto sale
+/// Ajustes (⌘,): apariencia, menos movimiento, los sonidos, el grano y las actualizaciones. Nada de esto sale
 /// de la máquina ni cambia lo que el agente puede hacer.
 struct SettingsView: View {
     @ObservedObject var app: AppModel
+    @ObservedObject var updates: UpdatesModel
     @AppStorage(Prefs.appearance) private var appearance = AppearanceChoice.system.rawValue
     @AppStorage(Prefs.reduceMotion) private var reduceMotion = false
     @AppStorage(Prefs.sounds) private var sounds = true
@@ -38,6 +39,26 @@ struct SettingsView: View {
                 row("settings.motion", "settings.motion.hint", isOn: $reduceMotion)
                 row("settings.sound", "settings.sound.hint", isOn: $sounds)
                 row("settings.grain", "settings.grain.hint", isOn: $grain)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                SmallCapsLabel("settings.updates", size: 13)
+                    .foregroundStyle(Color.ink700)
+                Text(verbatim: Localized.string("settings.updates.version %@", UpdatesModel.version, locale: locale))
+                    .font(Typo.text(15))
+                    .foregroundStyle(Color.ink900)
+                    .textSelection(.enabled)
+                if updates.isEnabled {
+                    Button("settings.updates.check") { updates.checkForUpdates() }
+                        .buttonStyle(LinkTextStyle())
+                        .disabled(!updates.canCheck)
+                } else {
+                    // Dicho tal cual: una compilación sin appcast no se va a actualizar sola.
+                    Text("settings.updates.off")
+                        .font(Typo.text(13))
+                        .foregroundStyle(Color.ink500)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .padding(.horizontal, 32)

@@ -476,3 +476,17 @@ Con una carpeta de skill escrita por el usuario (un `SKILL.md` con frontmatter) 
 | M-9 | Asistente → paso del rol. | Cada tarjeta lleva el retrato de su personaje y su nombre en versalitas bajo el rol; elegir uno le pone el doble anillo. | ES, EN |
 | M-10 ★ | Modo oscuro, en mesa y en el paso del rol. | Todo en oscuro, sin ningún recuadro claro: la mesa de madera y las figuras algo apagadas, con las manos y el papel sobre el tablero. En claro, la misma mesa sobre el pergamino con su sombra. | ES |
 
+### 6.15 Actualizaciones con Sparkle (6 oct 2026, `docs/03` §4f, `docs/RELEASE.md`)
+
+Las filas U-3 a U-6 necesitan un appcast publicado de verdad: no se pueden correr hasta que exista el sitio.
+
+| # | Qué hacer | Qué debe pasar | Idioma |
+|---|---|---|---|
+| U-1 | Con la dirección de relleno: abrir el menú Galeno y Ajustes. | «Buscar actualizaciones…» sale apagado. Ajustes dice la versión («Galeno 1.0 (1)») y «Esta compilación no busca actualizaciones sola». Nada se pide a la red. | ES, EN |
+| U-2 | `scripts/build-release.sh` con la dirección de relleno. | Se niega antes de compilar y dice por qué; con `--sin-actualizaciones` entrega, avisando de que esa app no se actualizará sola. | — |
+| U-3 ★ | Instalar la versión N, publicar la N+1 (disco subido y appcast publicado) y abrir la N. | Al abrir, sin tocar nada, aparece la ventana de Sparkle con la versión nueva y sus notas, que dicen la versión del bridge y si cambió. «Instalar» la descarga, la reemplaza y reabre Galeno en la N+1, con los agentes de antes. | ES |
+| U-4 | En la N+1, «Buscar actualizaciones…». | «Estás al día». | ES |
+| U-5 | Mirar la petición al appcast (un proxy, o el registro del servidor). | Un GET sin parámetros en la dirección; la cabecera lleva `Galeno/<versión> Sparkle/<versión>` y nada del Mac ni del usuario. | — |
+| U-6 | Cambiar un byte del disco ya publicado y volver a buscar desde la N. | Sparkle se niega a instalarlo: la firma no corresponde. | — |
+| U-7 | Tras actualizar con WhatsApp vinculado, abrir Salud. | La versión del bridge es la de la app nueva, y WhatsApp sigue vinculado. | ES |
+

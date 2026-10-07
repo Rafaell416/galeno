@@ -13,6 +13,7 @@ enum WindowMetrics {
 struct GalenoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var app = AppModel()
+    @StateObject private var updates = UpdatesModel.live()
 
     var body: some Scene {
         // `Window` y no `WindowGroup`: una sola ventana, nunca una segunda.
@@ -23,11 +24,12 @@ struct GalenoApp: App {
         .defaultPosition(.center)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            UpdateCommands(updates: updates)
             StepCommands(app: app)
         }
 
         Settings {
-            SettingsView(app: app)
+            SettingsView(app: app, updates: updates)
         }
         .windowResizability(.contentSize)
     }
@@ -74,6 +76,18 @@ private struct RootView: View {
         .environment(\.locale, Locale(identifier: app.language.rawValue))
         .frame(width: WindowMetrics.width, height: WindowMetrics.height)
         .background(WindowConfigurator())
+    }
+}
+
+/// «Buscar actualizaciones…», en el menú de la app, bajo «Acerca de»: donde lo busca cualquiera en un Mac.
+private struct UpdateCommands: Commands {
+    @ObservedObject var updates: UpdatesModel
+
+    var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            Button("menu.updates.check") { updates.checkForUpdates() }
+                .disabled(!updates.canCheck)
+        }
     }
 }
 
