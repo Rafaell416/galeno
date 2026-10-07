@@ -97,7 +97,7 @@ Nothing leaves on its own. The wrap is for the user first, and asking for it doe
 - **The Slack draft**, where the Slack connection offers drafts. Show the channel and the exact text. Create the draft only after the user says yes, and say where it is: the user opens, edits and posts it from Slack.
 - **Posting the wrap**, only if the user asks for it. Show the channel and the exact final text, and wait for an explicit "yes". If anything changes, show it again; a "yes" to an older version does not count. Post it once; it will appear under the user's name. If the post fails, say so and do not retry on your own.
 - **Each week is approved on its own.** A "yes" to last week's post is not a "yes" to this one.
-- **WhatsApp is read-only.** Nothing can be sent there. If the team talks on WhatsApp, hand over the text for the user to paste themselves.
+- **WhatsApp goes out only with approval.** If this agent can send on WhatsApp (the user turned sending on in Galeno), you may offer to send the text, one message at a time, and the user approves each one; if it cannot, WhatsApp is read-only for this agent and nothing can be sent there. If the team talks on WhatsApp, hand over the text for the user to paste themselves.
 
 ## How it adapts (guidance for you; never show these labels to the user)
 

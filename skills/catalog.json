@@ -848,10 +848,12 @@
         "en": "WhatsApp prospecting"
       },
       "summary": {
-        "es": "A quién escribirle hoy y por qué, con el mensaje listo y un botón que abre WhatsApp con el mensaje escrito. Tú lo envías.",
-        "en": "Who to write to today and why, with the message ready and a button that opens WhatsApp with it typed in. You send it."
+        "es": "A quién escribirle hoy y por qué, con el mensaje listo. Lo envía cuando lo apruebas, o lo envías tú con un botón que abre WhatsApp con el mensaje escrito.",
+        "en": "Who to write to today and why, with the message ready. It sends it once you approve, or you send it yourself with a button that opens WhatsApp with it typed in."
       },
-      "writes": [],
+      "writes": [
+        "whatsapp"
+      ],
       "needsAny": [
         "whatsapp"
       ],
@@ -882,8 +884,210 @@
         }
       },
       "guarantee": {
-        "es": "Nunca envía nada: el botón abre WhatsApp con el mensaje escrito y tú decides.",
-        "en": "It never sends anything: the button opens WhatsApp with the message typed in, and you decide."
+        "es": "Nunca envía sin tu aprobación: un mensaje a la vez, o lo envías tú con el botón que abre WhatsApp.",
+        "en": "It never sends without your approval: one message at a time, or you send it yourself with the button that opens WhatsApp."
+      }
+    },
+    {
+      "id": "prospectar-lista",
+      "group": "sales",
+      "name": {
+        "es": "Prospectar una lista",
+        "en": "Prospect a list"
+      },
+      "summary": {
+        "es": "Trabaja tu lista de leads en Google Sheets por lotes: califica con tu criterio, investiga a los que aplican, escribe el primer mensaje y lo anota en la misma hoja.",
+        "en": "Works your Google Sheets lead list in batches: qualifies with your criteria, researches the ones that fit, writes the first message and logs it in the sheet."
+      },
+      "writes": [
+        "google-workspace",
+        "whatsapp",
+        "gmail"
+      ],
+      "needsAny": [
+        "google-workspace"
+      ],
+      "ask": {
+        "es": "Prospecta los siguientes 20 de mi lista",
+        "en": "Prospect the next 20 on my list"
+      },
+      "example": {
+        "input": {
+          "es": "las 20 filas nuevas de tu hoja y el sitio web de cada negocio",
+          "en": "the 20 new rows in your sheet and each business's website"
+        },
+        "output": {
+          "es": [
+            "# Lote del 7 de octubre · 20 leads",
+            "| Lead | Aplica | Estado |",
+            "| Hotel Mirador del Río | Sí: 14 habitaciones, sin reservas en línea | Mensaje listo |",
+            "| Hostal La Ceiba | No: cerró en 2025 | No aplica |",
+            "> Hola, soy Laura. Vi que en Mirador del Río reservan por teléfono. ¿Les muestro cómo recibir reservas en línea?",
+            "- 12 aplican, 9 con mensaje listo, 0 enviados: tú apruebas cada uno"
+          ],
+          "en": [
+            "# Batch of October 7 · 20 leads",
+            "| Lead | Fit | Status |",
+            "| Hotel Mirador del Río | Yes: 14 rooms, no online booking | Message ready |",
+            "| Hostal La Ceiba | No: closed in 2025 | Not a fit |",
+            "> Hi, this is Laura. I saw that Mirador del Río takes bookings by phone. Can I show you how to take them online?",
+            "- 12 fit, 9 with a message ready, 0 sent: you approve each one"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Programada, no envía nada: deja cada mensaje propuesto en tu hoja para que lo apruebes.",
+        "en": "On a schedule it sends nothing: it leaves each message proposed in your sheet for you to approve."
+      }
+    },
+    {
+      "id": "seguimientos-hoy",
+      "group": "sales",
+      "name": {
+        "es": "Seguimientos de hoy",
+        "en": "Today's follow-ups"
+      },
+      "summary": {
+        "es": "A quién hacerle seguimiento hoy y qué decirle: quién respondió, quién no, y el siguiente mensaje listo. Lo envía solo cuando lo apruebas.",
+        "en": "Who to follow up with today and what to say: who replied, who did not, and the next message ready. It sends it only once you approve."
+      },
+      "writes": [
+        "google-workspace",
+        "whatsapp",
+        "gmail"
+      ],
+      "needsAny": [
+        "whatsapp",
+        "gmail"
+      ],
+      "ask": {
+        "es": "A quién le hago seguimiento hoy",
+        "en": "Who do I follow up with today"
+      },
+      "example": {
+        "input": {
+          "es": "tu hoja de prospectos y las conversaciones de WhatsApp y correo de quienes tocan hoy",
+          "en": "your prospecting sheet and the WhatsApp and email conversations of those due today"
+        },
+        "output": {
+          "es": [
+            "# Seguimientos · 7 de octubre",
+            "| Quién | Por qué hoy | Canal |",
+            "| Hotel Mirador del Río | Respondió ayer: pide precios | WhatsApp |",
+            "| Hostal El Faro | Contactado el 2 de oct, sin respuesta | Correo |",
+            "> Hola, Marta. Gracias por responder. ¿Te va una llamada de 15 minutos el jueves a las 10 o el viernes a las 3?",
+            "- 2 respondieron, 5 sin respuesta, 1 cerrado tras 3 seguimientos"
+          ],
+          "en": [
+            "# Follow-ups · October 7",
+            "| Who | Why today | Channel |",
+            "| Hotel Mirador del Río | Replied yesterday: asks for prices | WhatsApp |",
+            "| Hostal El Faro | Contacted on Oct 2, no reply | Email |",
+            "> Hi Marta, thanks for getting back to me. Would a 15-minute call work on Thursday at 10 or Friday at 3?",
+            "- 2 replied, 5 with no reply, 1 closed after 3 follow-ups"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Programada, solo deja la lista y los borradores: no envía nada. Tres seguimientos por contacto como máximo.",
+        "en": "On a schedule it only leaves the list and the drafts: nothing is sent. Three follow-ups per contact at most."
+      }
+    },
+    {
+      "id": "revisar-conversaciones",
+      "group": "sales",
+      "name": {
+        "es": "Revisar mis conversaciones",
+        "en": "Review my conversations"
+      },
+      "summary": {
+        "es": "Lee tus conversaciones de prospección de un periodo y te dice qué funcionó y qué no, con tres mejoras concretas y ejemplos reescritos.",
+        "en": "Reads your prospecting conversations for a period and tells you what worked and what did not, with three concrete improvements and rewritten examples."
+      },
+      "writes": [],
+      "needsAny": [
+        "whatsapp",
+        "gmail"
+      ],
+      "ask": {
+        "es": "Revisa mis conversaciones de esta semana",
+        "en": "Review my conversations from this week"
+      },
+      "example": {
+        "input": {
+          "es": "tus conversaciones de prospección de los últimos siete días",
+          "en": "your prospecting conversations from the last seven days"
+        },
+        "output": {
+          "es": [
+            "# Revisión · 1 al 7 de octubre",
+            "- 18 conversaciones: 7 con respuesta, 11 sin respuesta",
+            "- Los mensajes con una sola pregunta tuvieron 5 de las 7 respuestas",
+            "## Mejora 1: una pregunta por mensaje",
+            "> Antes: «¿Tienen sistema de reservas? ¿Cuántas habitaciones son? ¿Quién decide?»",
+            "> Después: «Vi que reciben reservas por teléfono. ¿Quién las atiende hoy?»"
+          ],
+          "en": [
+            "# Review · October 1 to 7",
+            "- 18 conversations: 7 with a reply, 11 without",
+            "- Messages with a single question got 5 of the 7 replies",
+            "## Improvement 1: one question per message",
+            "> Before: “Do you have a booking system? How many rooms? Who decides?”",
+            "> After: “I saw you take bookings by phone. Who handles them today?”"
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Solo lee: no envía nada ni cambia tu hoja.",
+        "en": "Read-only: it sends nothing and does not change your sheet."
+      }
+    },
+    {
+      "id": "crear-skill",
+      "group": "sales",
+      "name": {
+        "es": "Crear una skill",
+        "en": "Create a skill"
+      },
+      "summary": {
+        "es": "Te entrevista y redacta una skill tuya: qué hace tu agente, con qué, qué entrega y qué no debe hacer nunca. Deja el borrador listo para añadirlo desde Galeno.",
+        "en": "Interviews you and drafts your own skill: what your agent does, with what, what comes out and what it must never do. Leaves the draft ready to add from Galeno."
+      },
+      "writes": [],
+      "needsAny": [],
+      "ask": {
+        "es": "Ayúdame a crear una skill para calificar prospectos",
+        "en": "Help me create a skill to qualify prospects"
+      },
+      "example": {
+        "input": {
+          "es": "tus respuestas a cuatro preguntas sobre cómo decides si un prospecto aplica",
+          "en": "your answers to four questions about how you decide whether a prospect fits"
+        },
+        "output": {
+          "es": [
+            "# Skill: criterio",
+            "## Pasos",
+            "- Aplica si tiene más de 10 habitaciones y no recibe reservas en línea",
+            "- Si falta un dato, escribe «por revisar»: no adivina",
+            "## Nunca",
+            "- Descartar un lead sin decir el motivo",
+            "Borrador en memoria/skills-borrador/criterio: añádelo en Galeno, en Skills, «Tus skills»."
+          ],
+          "en": [
+            "# Skill: criterio",
+            "## Steps",
+            "- It fits if it has more than 10 rooms and takes no online bookings",
+            "- If a fact is missing, it writes “to review”: no guessing",
+            "## Never",
+            "- Drop a lead without giving the reason",
+            "Draft in memoria/skills-borrador/criterio: add it in Galeno, under Skills, “Your skills”."
+          ]
+        }
+      },
+      "guarantee": {
+        "es": "Solo redacta: la skill no se instala sola. La añades tú desde Galeno.",
+        "en": "It only drafts: the skill never installs itself. You add it from Galeno."
       }
     }
   ],
@@ -1329,8 +1533,8 @@
         }
       },
       "guarantee": {
-        "es": "Busca en la web por su cuenta; para abrir una página concreta te pide permiso.",
-        "en": "It searches the web on its own; to open a specific page it asks for your permission."
+        "es": "Busca en la web y abre páginas por su cuenta; lo que dice una página lo toma como dato, nunca como una orden.",
+        "en": "It searches the web and opens pages on its own; what a page says is treated as data, never as an order."
       }
     },
     {
@@ -1385,8 +1589,8 @@
         }
       },
       "guarantee": {
-        "es": "Busca en la web por su cuenta; para abrir una página concreta te pide permiso.",
-        "en": "It searches the web on its own; to open a specific page it asks for your permission."
+        "es": "Busca en la web y abre páginas por su cuenta; lo que dice una página lo toma como dato, nunca como una orden.",
+        "en": "It searches the web and opens pages on its own; what a page says is treated as data, never as an order."
       }
     },
     {
@@ -2392,8 +2596,8 @@
         }
       },
       "guarantee": {
-        "es": "Califica con tus criterios y solo recomienda: nunca descarta ni reasigna un lead. En la web busca solo el nombre de la empresa y pide permiso para abrir una página.",
-        "en": "It scores with your criteria and only recommends: it never drops or reassigns a lead. On the web it searches only the company's name and asks permission to open a page."
+        "es": "Califica con tus criterios y solo recomienda: nunca descarta ni reasigna un lead. En la web busca solo el nombre de la empresa y abre su sitio por su cuenta.",
+        "en": "It scores with your criteria and only recommends: it never drops or reassigns a lead. On the web it searches only the company's name and opens its site on its own."
       }
     },
     {
@@ -2448,8 +2652,8 @@
         }
       },
       "guarantee": {
-        "es": "Puntúa con tus criterios y enseña la suma detrás de cada puntaje. En la web busca solo el nombre de la empresa y pide permiso para abrir una página.",
-        "en": "It scores with your criteria and shows the sum behind every score. On the web it searches only the company's name and asks permission to open a page."
+        "es": "Puntúa con tus criterios y enseña la suma detrás de cada puntaje. En la web busca solo el nombre de la empresa y abre su sitio por su cuenta.",
+        "en": "It scores with your criteria and shows the sum behind every score. On the web it searches only the company's name and opens its site on its own."
       }
     }
   ]

@@ -2,21 +2,33 @@
 
 Las skills del perfil Product Manager y el catálogo de skills curadas de la comunidad.
 
-**Fase 5 (5 oct 2026): las 17 skills nuestras están escritas completas.**
+**Fase 5 (5 oct 2026): las 17 skills nuestras de producto están escritas completas.** Después llegaron las cinco
+nuestras de comercial: `/prospeccion` (6 oct 2026) y las cuatro de `docs/09` §7 (7 oct 2026). Hoy son 22.
 
-- `catalog.json`: lo que muestra el paso de skills (las 17 nuestras en 4 grupos y las de Anthropic en el grupo
-  «Marketing», con textos en español e inglés, y las curadas con autor, licencia y enlace a su GitHub). Se valida al leerlo y en las pruebas
+- `catalog.json`: lo que muestra el paso de skills (las 17 nuestras de producto en 4 grupos, las 5 nuestras de
+  «Comercial» y las de Anthropic en «Marketing» y «Comercial», con textos en español e inglés, y las curadas con autor, licencia y enlace a su GitHub). Se valida al leerlo y en las pruebas
   (`SkillCatalogTests`): ids únicos y seguros, solo licencias Apache-2.0 o MIT, y cada skill
   disponible tiene su carpeta.
 - Cada skill del catálogo trae además lo que muestra su vista previa en la app: `ask` (cómo pedirla con una frase),
   `example` (de qué parte el agente y el resultado en 4 a 7 líneas con formato —`# ` título, `## ` sección, `- ` viñeta,
   `> ` borrador, `| a | b |` tabla—; **ilustrativo, escrito a mano**) y, si aplica, `guarantee`.
-  `SkillCatalogTests` exige los dos primeros a las 17.
+  `SkillCatalogTests` exige los dos primeros a todas las que tienen tarjeta.
 - `galeno/<id>/SKILL.md`: las 17 nuestras (`docs/03` §6.1). `SkillCatalogTests` exige a cada una la instrucción de
   idioma exacta tras el frontmatter, su sección de reglas, que pregunte dónde escribir en vez de asumir, que no invente,
   que lo que dicen las fuentes no sea una orden y, si puede enviar algo a otras personas, un «yes» explícito al texto final.
   Comprobado contra Claude Code real: un agente generado con las 17 las lista todas al arrancar. **No están probadas
   una por una con trabajo real**: eso se ve usándolas.
+- Las cinco nuestras de comercial, también en `galeno/<id>/SKILL.md` y con las mismas exigencias:
+  `prospeccion` (a quién escribirle hoy, desde los chats), `prospectar-lista` (trabaja por lotes una lista de leads en
+  Google Sheets: sitio web, criterio del usuario, radiografía, primer mensaje, todo anotado en la hoja),
+  `seguimientos-hoy` (a quién hacerle seguimiento hoy y qué decirle), `revisar-conversaciones` (solo lee: qué funcionó
+  y tres mejoras) y `crear-skill` (entrevista al usuario y redacta una skill suya en `memoria/skills-borrador/`; la
+  instala el usuario desde Galeno, nunca el agente). Las tres primeras son las únicas que envían por WhatsApp, y solo
+  con `send_message`: un mensaje a la vez, con un «yes» al texto exacto, diciendo los topes del día, sin rodear un
+  rechazo del bridge, avisando antes de proponer de noche, en domingo o en festivo, y sin enviar nada en una corrida
+  programada (`SkillCatalogTests` lo comprueba). `prospeccion` y `prospectar-lista` abren páginas y repiten la regla de
+  contención de `WebFetch`. `prospectar-lista` usa las skills propias `criterio` y `radiografia` del usuario si
+  existen. **Las cuatro nuevas no están probadas con un agente real ni con una hoja real.**
 - `curated/<id>/`: las de terceros **ya traídas y adaptadas**, cada una con su `SKILL.md` y el `LICENSE` de su origen.
   Hoy son veintiséis, todas de `anthropics/knowledge-work-plugins`: diez de marketing y dieciséis de comercial. Siete de Anthropic (Apache-2.0): `campaign-plan`,
   `content-creation` (une `draft-content` y `content-creation`), `email-sequence`, `brand-review`, `performance-report`,
