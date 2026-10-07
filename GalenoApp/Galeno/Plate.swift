@@ -81,6 +81,8 @@ struct Plate: View {
 /// sobre un disco de pergamino —también en oscuro: el grabado siempre va sobre su papel— con un
 /// anillo fino de tinta. El grande de la bienvenida lleva además un segundo anillo, separado 3 pt.
 struct PortraitMark: View {
+    /// El retrato en `Assets.xcassets`: el de Galeno, o el del personaje de otro rol (`Persona.portrait`).
+    var asset = "retrato-galeno"
     var size: CGFloat = 56
     var doubleRing = false
     /// El anillo exterior se traza en sentido horario, desde arriba (700 ms tras 200 ms), en vez de aparecer.
@@ -94,8 +96,8 @@ struct PortraitMark: View {
     static var isAvailable: Bool { NSImage(named: "retrato-galeno") != nil }
 
     var body: some View {
-        if Self.isAvailable {
-            Image("retrato-galeno")
+        if NSImage(named: asset) != nil {
+            Image(asset)
                 .resizable()
                 .scaledToFill()
                 .saturation(0)

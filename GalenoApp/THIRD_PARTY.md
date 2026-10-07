@@ -63,6 +63,43 @@ la litografía *Claude Galien* de **Vigneron** (lit. de G. Engelmann, siglo XIX)
 Se muestra en grises, en círculo, en la bienvenida y en «Listo». Crédito para «Acerca de»:
 «Retrato: litografía de Vigneron, dominio público.»
 
+### Los personajes de los otros dos roles (6 oct 2026)
+
+Cada rol lo encarna una figura histórica (`Persona`, decisión de Rafa): Galeno para producto, Josiah Wedgwood para
+marketing y Marco Polo para comercial. Sus retratos van igual que el de Galeno (recorte cuadrado de 600 px, en
+grises, en círculo) en el selector de rol y en las tarjetas del home. Las imágenes las aportó Rafa el 6 oct 2026
+sin anotar de qué página bajó cada archivo; lo que sigue es la obra que se identificó al buscarlas, con su licencia
+verificada en el origen:
+
+| Asset | Obra | Origen (identificado, no confirmado por Rafa) | Licencia |
+|---|---|---|---|
+| `retrato-wedgwood` | *Portrait of Josiah Wedgwood after Sir J. Reynolds*, grabado | [Wellcome Collection, w8wn3tey](https://wellcomecollection.org/works/w8wn3tey) (imagen `L0001806`) | **CC BY 4.0**, crédito «Wellcome Collection» (verificado en el API del catálogo). Exige crédito: va en «Acerca de» |
+| `retrato-polo` | Mosaico de Marco Polo, de Salviati (1867), Palazzo Doria-Tursi, Génova | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Marco_Polo_Mosaic_from_Palazzo_Tursi.jpg) | Dominio público (obra de 1867; la reproducción fiel de una obra en dominio público no genera derechos nuevos en EE. UU.; Commons la marca «Public domain») |
+
+Crédito para «Acerca de»: «Retrato de Josiah Wedgwood: Wellcome Collection, CC BY 4.0. Marco Polo: mosaico de
+Salviati (1867), dominio público.» El mosaico es en color y se guarda ya en grises.
+
+### Las figuras de la mesa del home (6 oct 2026)
+
+`Assets.xcassets/figura-galeno`, `figura-wedgwood`, `figura-polo` (PNG de 720 px de alto, con transparencia) y
+`mesa-tablero` (la mesa, a 3x del lienzo) son
+**imágenes generadas con Adobe Firefly** por Rafa el 6 oct 2026, con **Firefly Image 4** (modelo propio de Adobe, no
+uno de socios; lo confirmó Rafa) y la litografía de Vigneron como referencia de estilo. No retratan a nadie a partir de una foto: son figuras de época descritas con palabras (un erudito con
+bonete, un caballero del XVIII con peluca, un mercader veneciano, una mesa larga de madera). Los originales y los
+scripts que los convierten están en `GalenoApp/arte-mesa/` (`LEEME.md`).
+
+Lo que se les hizo, todo en el Mac y sin subir nada: se separó la figura de su fondo (Vision,
+`VNGenerateForegroundInstanceMaskRequest`), se recortó (fuera el óvalo, el falso pie de imprenta y la firma que el
+modelo inventa), se pasó a grises sobre el tono del pergamino, se igualó el tono de las tres, se difuminaron los
+bordes que la imagen cortaba en seco y se preparó la parte de abajo para apoyarse en la mesa (la ropa se disuelve
+hacia la madera; las manos y el papel se quedan). De la mesa, que venía vista por el lado corto y con suelo, se
+enderezó el tablero y se recolocó en la perspectiva diagonal de la app; el canto, las patas y la sombra se pintaron
+con la misma madera. Una imagen generada sin intervención humana no se puede registrar como obra propia en EE. UU.:
+se puede usar, pero no impedir que otro la copie.
+
+La silueta del agente sin carpeta es un dibujo propio hecho en código (`MesaDrawing`), igual que la mesa y las
+figuras de línea que salen si falta una lámina.
+
 ## Icono de la app
 
 `Galeno/Assets.xcassets/AppIcon.appiconset` usa el mismo retrato de Vigneron (dominio público), en su círculo

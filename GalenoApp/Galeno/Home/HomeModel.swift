@@ -13,6 +13,8 @@ enum OpenTarget: String, CaseIterable, Identifiable {
 struct HomeAgent: Identifiable, Equatable {
     let id: UUID
     var name: String
+    /// El rol: decide qué personaje se sienta a la mesa (`Persona`).
+    var role: AgentRole = .productManager
     var projectDescription: String
     /// Las herramientas que lee **hoy**: salen de las conexiones compartidas, así que una que se
     /// desconectó ya no aparece (`GalenoInstallation.resolvedConfig`).
@@ -73,6 +75,12 @@ final class HomeModel: ObservableObject {
     /// Un aviso tras eliminar, si algo de Claude no se pudo mandar a la Papelera.
     @Published private(set) var notice: String?
 
+    /// Cuándo fue la última actividad de cada agente en la app de Claude (`refreshActivity`). La mesa del home solo
+    /// mueve a un personaje si su agente trabajó hace poco: no se finge una actividad que Galeno no conoce.
+    @Published private(set) var activity: [UUID: Date] = [:]
+    /// Hasta cuánto después de su última actividad se ve a un agente «trabajando».
+    static let workingWindow: TimeInterval = 180
+
     /// Dónde está la instalación: el detalle de un agente (`AgentDetailModel`) escribe en la misma.
     let store: InstallationStore
     private let installer: AgentInstaller
@@ -83,6 +91,8 @@ final class HomeModel: ObservableObject {
     /// Cuánto se queda girando el botón tras abrir: hasta que otra app toma el foco (2 s como mucho).
     /// Las pruebas lo reemplazan.
     private let settle: @MainActor () async -> Void
+    /// De dónde sale la última actividad por carpeta: la app de verdad lee las sesiones de la app de Claude.
+    private let activityReader: @Sendable () -> [String: Date]
 
     init(
         store: InstallationStore = InstallationStore(),
@@ -91,7 +101,8 @@ final class HomeModel: ObservableObject {
         claudePath: String? = nil,
         installer: AgentInstaller? = nil,
         remover: AgentRemover = AgentRemover(),
-        settle: @escaping @MainActor () async -> Void = HomeModel.waitForFocusChange
+        settle: @escaping @MainActor () async -> Void = HomeModel.waitForFocusChange,
+        activityReader: @escaping @Sendable () -> [String: Date] = { ClaudeSessionStore().latestActivityByFolder() }
     ) {
         self.store = store
         // Renombrar vuelve a escribir los archivos del agente: con la misma instalación que el home lee.
@@ -105,6 +116,7 @@ final class HomeModel: ObservableObject {
         self.opener = opener
         self.claudePath = claudePath ?? Self.findClaude()
         self.settle = settle
+        self.activityReader = activityReader
         language = WizardState.defaultLanguage(from: Locale.preferredLanguages)
         let stored = defaults.string(forKey: Prefs.openTarget).flatMap(OpenTarget.init(rawValue:))
         openTarget = stored ?? (opener.isClaudeAppAvailable ? .app : .terminal)
@@ -134,6 +146,7 @@ final class HomeModel: ObservableObject {
                 return HomeAgent(
                     id: record.id,
                     name: config.agentName,
+                    role: config.role,
                     projectDescription: config.projectDescription,
                     tools: config.connections.filter { $0.status == .connected }.map(\.tool),
                     folder: record.folder,
@@ -143,6 +156,25 @@ final class HomeModel: ObservableObject {
         } catch {
             state = .unreadable(String(describing: error))
         }
+    }
+
+    /// Vuelve a mirar cuándo trabajó cada agente por última vez. Lee fuera del hilo principal (son muchos archivos
+    /// pequeños) y solo lo pide la mesa, mientras está a la vista.
+    func refreshActivity() async {
+        let reader = activityReader
+        let byFolder = await Task.detached { reader() }.value
+        var fresh: [UUID: Date] = [:]
+        for agent in agents {
+            if let date = byFolder[ClaudeSessionStore.resolved(agent.folder)] { fresh[agent.id] = date }
+        }
+        if fresh != activity { activity = fresh }
+    }
+
+    /// ¿Trabajó este agente hace poco? Es lo único que hace que su personaje escriba.
+    func isWorking(_ agent: HomeAgent, now: Date = Date()) -> Bool {
+        guard agent.folderExists, let last = activity[agent.id] else { return false }
+        let elapsed = now.timeIntervalSince(last)
+        return elapsed >= 0 && elapsed <= Self.workingWindow
     }
 
     /// ¿Abrir este agente en la app de Claude la va a cerrar y reabrir? Se avisa antes de elegir.
@@ -193,6 +225,13 @@ final class HomeModel: ObservableObject {
     }
 
     func closeMenu() { menuOpen = nil }
+
+    /// El menú de un personaje en la mesa (clic derecho). Se abre aunque no haya dónde elegir —sin la app de Claude—,
+    /// porque también lleva «Gestionar». Sin carpeta, o mientras algo se abre, no hay menú.
+    func showMenu(_ agent: HomeAgent) {
+        guard opening == nil, agent.folderExists else { return }
+        menuOpen = agent.id
+    }
 
     /// Cambia dónde abre «Abrir» a secas, sin abrir nada (el detalle del agente: «Ábrelo en»).
     func setOpenTarget(_ target: OpenTarget) {

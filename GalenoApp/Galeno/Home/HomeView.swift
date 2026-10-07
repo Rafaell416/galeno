@@ -1,8 +1,9 @@
 import GalenoCore
 import SwiftUI
 
-/// El home (`docs/03` §3b, B1): los agentes en una tabla a filetes, cada uno con su «Abrir», y abajo
-/// «Nuevo agente». Sin tarjetas ni láminas: un libro de registro.
+/// El home (`docs/03` §3b, B1): los agentes y, abajo, «Nuevo agente». Se ve de dos maneras, a elegir arriba a la
+/// derecha (`HomeLayout`): **la mesa**, con el personaje de cada agente sentado y trabajando (`HomeTableView`), y
+/// **las tarjetas**, que enseñan todo lo demás (qué lee, «Gestionar», una carpeta que falta).
 struct HomeView: View {
     @ObservedObject var model: HomeModel
     let onNewAgent: () -> Void
@@ -14,6 +15,12 @@ struct HomeView: View {
     /// «Salud»: la vista que dice qué conexiones están vivas y cómo va WhatsApp.
     var onHealth: () -> Void = {}
     @Environment(\.locale) private var locale
+    @AppStorage(Prefs.homeLayout) private var layoutChoice = HomeLayout.table.rawValue
+
+    private var layout: HomeLayout { HomeLayout(rawValue: layoutChoice) ?? .table }
+    private var layoutBinding: Binding<HomeLayout> {
+        Binding(get: { layout }, set: { layoutChoice = $0.rawValue })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -93,6 +100,19 @@ struct HomeView: View {
                     .padding(.horizontal, Space.s48)
                     .padding(.bottom, 12)
                 }
+                if layout == .table {
+                    HomeTableView(model: model, onManage: onManage) { layoutChoice = HomeLayout.cards.rawValue }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                } else {
+                    cards.transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: Motion.micro), value: layout)
+        }
+    }
+
+    private var cards: some View {
                 ScrollView {
                     // De dos en dos: en cada par, las dos tarjetas miden lo mismo (la más alta manda).
                     VStack(spacing: 12) {
@@ -113,8 +133,6 @@ struct HomeView: View {
                     .padding(.bottom, Space.s16)
                 }
                 .scrollBounceBehavior(.basedOnSize)
-            }
-        }
     }
 
     /// Los agentes en pares, para las dos columnas de tarjetas.
@@ -133,6 +151,10 @@ struct HomeView: View {
             }
             Spacer(minLength: 12)
             if !model.isUnreadable {
+                InkSegmented(selection: layoutBinding, options: HomeLayout.allCases, padding: 12, fontSize: 13.5) { option in
+                    Text(option == .table ? "home.layout.table" : "home.layout.cards")
+                }
+                .accessibilityLabel(Text("home.layout.label"))
                 Button("home.health", action: onHealth)
                     .buttonStyle(LinkTextStyle())
                     .accessibilityHint(Text("home.health.hint"))
@@ -159,6 +181,9 @@ private struct AgentCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
+                // El personaje de su rol, el mismo que se sienta a la mesa.
+                PortraitMark(asset: agent.role.persona.portrait, size: 26)
+                    .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 5 }
                 Text(verbatim: agent.name)
                     .font(Typo.display(24))
                     .foregroundStyle(agent.folderExists ? Color.ink900 : Color.ink500)

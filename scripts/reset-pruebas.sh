@@ -15,6 +15,9 @@
 #
 # Qué quita:
 #   · los agentes de ~/Galeno (a la Papelera, recuperables) y el registro de Galeno (installation.json, draft.json)
+#   · las conversaciones de esos agentes en Claude (a la Papelera): la carpeta de proyecto de Claude Code de cada uno y las
+#     sesiones de la app de Claude cuya carpeta es un agente de ~/Galeno. Lo mismo que hace «Eliminar» dentro de la app: sin
+#     esto, un agente nuevo con el mismo nombre volvía a la conversación del anterior. Nunca toca ~/.claude.json.
 #   · la sesión de WhatsApp y todo el historial local (Application Support/Galeno/whatsapp) y su servicio de fondo
 #   · los servidores MCP que Galeno registra en Claude Code, con su nombre propio: galeno-slack, galeno-notion… (los de nombre
 #     genérico, solo con --con-genericas)
@@ -65,6 +68,36 @@ if [ -d "$AGENTS_DIR" ] && [ -n "$(ls -A "$AGENTS_DIR" 2>/dev/null)" ]; then
   ls -1 "$AGENTS_DIR" | sed 's/^/    /'
 else
   echo "    (ninguno)"
+fi
+
+# Las conversaciones de esos agentes en Claude. Rutas exactas, no parecidos: la carpeta de proyecto de Claude Code se calcula
+# igual que la nombra Claude (la ruta con cada carácter que no sea letra o cifra cambiado por «-»), solo para los agentes que
+# hay ahora; y de la app de Claude, solo las sesiones cuyo `cwd` es una carpeta directamente dentro de ~/Galeno.
+PROJECTS="$HOME/.claude/projects"
+SESSIONS="$HOME/Library/Application Support/Claude/claude-code-sessions"
+nfc() { printf '%s' "$1" | perl -CS -MUnicode::Normalize -pe '$_ = NFC($_)'; }
+encoded() { printf '%s' "$1" | perl -CS -MUnicode::Normalize -pe '$_ = NFC($_); s/[^A-Za-z0-9]/-/g'; }
+CLAUDE_ITEMS=()
+if [ -d "$AGENTS_DIR" ]; then
+  for dir in "$AGENTS_DIR"/*/; do
+    [ -d "$dir" ] || continue
+    project="$PROJECTS/$(encoded "${dir%/}")"
+    [ -d "$project" ] && CLAUDE_ITEMS+=("$project")
+  done
+fi
+if [ -d "$SESSIONS" ]; then
+  ROOT_NFC="$(nfc "$AGENTS_DIR")"
+  while IFS= read -r file; do
+    cwd="$(plutil -extract cwd raw -o - "$file" 2>/dev/null)" || continue
+    cwd="$(nfc "${cwd%/}")"
+    [ "$(dirname "$cwd")" = "$ROOT_NFC" ] && CLAUDE_ITEMS+=("$file")
+  done < <(find "$SESSIONS" -mindepth 3 -maxdepth 3 -name 'local_*.json' -type f 2>/dev/null)
+fi
+echo "· Conversaciones de esos agentes en Claude (a la Papelera):"
+if [ ${#CLAUDE_ITEMS[@]} -gt 0 ]; then
+  for item in "${CLAUDE_ITEMS[@]}"; do echo "    ${item#"$HOME"/}"; done
+else
+  echo "    (ninguna)"
 fi
 
 echo "· Estado de Galeno en $SUPPORT:"
@@ -124,6 +157,13 @@ if [ -d "$AGENTS_DIR" ] && [ -n "$(ls -A "$AGENTS_DIR" 2>/dev/null)" ]; then
   done
 fi
 
+# 3b. Sus conversaciones en Claude, a la Papelera también (recuperables). Solo las rutas que se listaron arriba.
+for item in ${CLAUDE_ITEMS[@]+"${CLAUDE_ITEMS[@]}"}; do
+  [ -e "$item" ] || continue
+  osascript -e "tell application \"Finder\" to delete POSIX file \"$item\"" >/dev/null 2>&1 \
+    && echo "- a la Papelera: ${item#"$HOME"/}" || echo "! no pude mover a la Papelera: $item"
+done
+
 # 4. El estado de Galeno. Rutas fijas y comprobadas: nunca una variable vacía.
 for item in installation.json draft.json whatsapp bin; do
   target="$SUPPORT/$item"
@@ -136,6 +176,7 @@ defaults delete "$BUNDLE" >/dev/null 2>&1 && echo "- preferencias de la app borr
 rm -rf -- "$HOME/Library/Saved Application State/$BUNDLE.savedState" 2>/dev/null
 
 echo
-echo "Listo. Faltan dos cosas a mano:"
+echo "Listo. Faltan tres cosas a mano:"
 echo "  1. En el teléfono: WhatsApp → Ajustes → Dispositivos vinculados → cierra la sesión de Galeno."
 echo "  2. En api.slack.com/apps: borra la app con el nombre de tu agente si quedó alguna."
+echo "  3. Si la app de Claude está abierta, ciérrala y ábrela: todavía recuerda los servidores y las conversaciones que se quitaron."

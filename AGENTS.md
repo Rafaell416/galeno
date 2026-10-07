@@ -300,6 +300,15 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - El home (`HomeModel`) lee la instalación con `InstallationStore.load()` y no escribe nunca. Ilegible = error visible con
   «Reintentar»: no se sobrescribe ni se vuelve al wizard en silencio. «Abrir» y «Listo» comparten `AgentOpenPolicy`; no
   duplicar la lógica de reiniciar la app de Claude.
+- **La mesa del home y los personajes** (`docs/03` §3b; decisión de Rafa, 6 oct 2026): cada rol tiene su personaje
+  (`Persona`: Galeno, Wedgwood, Marco Polo) y el home se ve como «Mesa» o como «Tarjetas» (`HomeLayout`). La mesa es una
+  **ilustración fija en perspectiva**, no una escena 3D (nada de SceneKit ni sombras renderizadas). **Un personaje solo se
+  mueve si su agente tuvo actividad hace poco** (`HomeModel.isWorking`, de `lastActivityAt`): no añadir movimiento de
+  ambiente, y no leer nada más de la carpeta de la app de Claude para decidirlo. Abrir desde la mesa es el `open` del
+  `HomeModel`; lo que la mesa no enseña (estado, regenerar una carpeta) vive en las tarjetas y no se duplica. Los personajes
+  son cómo se ve un rol: no entran al motor ni a la config generada, y un cuarto personaje es un cuarto rol (línea roja 7).
+  Arte generado con IA solo con un modelo de uso comercial claro (hoy, los propios de Adobe Firefly), anotado en
+  `THIRD_PARTY.md` con modelo y fecha.
 - **El detalle del agente** (`AgentDetailView`, `AgentDetailModel`; diseño «Galeno B1 Agente», 6 oct 2026) es donde se
   gestiona un agente: un clic en su tarjeta o en «Gestionar» lo abre, con cinco secciones (General, Herramientas, Skills, Reglas,
   Contexto) y «Abrir» siempre arriba. Sin pasos ni «Siguiente»: rol, reglas y herramientas se aplican **al momento** (se vuelve a

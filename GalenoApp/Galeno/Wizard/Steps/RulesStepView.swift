@@ -205,8 +205,8 @@ private struct PolicyOption: View {
             HStack(spacing: 8) {
                 Circle()
                     .strokeBorder(isOn ? Color.ink900 : Color.ink700, lineWidth: 1.5)
-                    .background(Circle().fill(isOn ? Color.ink900 : Color.clear).padding(3.5))
-                    .frame(width: 15, height: 15)
+                    .background(Circle().fill(isOn ? Color.ink900 : Color.clear).padding(4))
+                    .frame(width: 16, height: 16)
                 Text(title)
                     .font(Typo.text(14, isOn ? .medium : .regular))
                     .foregroundStyle(isOn ? Color.ink900 : Color.ink700)
