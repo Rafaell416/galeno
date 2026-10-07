@@ -117,7 +117,7 @@ serve espera hasta 30 s el cambio de estado y se lo devuelve a Claude Code
 |---|---|
 | `sent` | Salió. Queda también en el historial (`messages`, `is_from_me = 1`), así que el agente lo ve con las lecturas de siempre. |
 | `queued` | Quedó programado para `scheduled_for`, uno o dos minutos después (por el espaciado). `serve` no espera. |
-| `pending` | Podía salir ya, pero `sync` no lo sacó en 30 s (no está corriendo o no tiene conexión). Sale cuando vuelva. |
+| `pending` | Podía salir ya, pero `sync` no lo sacó en 30 s (no está corriendo o no tiene conexión). Sale cuando vuelva, si es antes de 24 horas; después caduca. |
 | `failed` | WhatsApp no lo aceptó, o el número no tiene WhatsApp. `error` dice por qué. **No se reintenta solo.** |
 | `rejected` | Una guarda lo frenó. `reason` dice cuál. **No se escribe nada en la bandeja.** |
 
@@ -164,7 +164,7 @@ antes de escribir en la bandeja, y `sync` vuelve a comprobar las que dependen de
 - **Si `sync` se detiene a mitad de un envío**, ese mensaje queda `failed` diciendo que no se sabe si llegó. No se
   repite: antes de tocar la red, el mensaje queda reservado con el id con el que va a salir.
 - Sin `sync` corriendo el mensaje se queda `pending` y sale cuando `sync` vuelva, respetando el espaciado y el tope
-  del día. Lo que ya no quepa en el tope de ese día queda `failed` diciendo eso, y no se reintenta.
+  del día. **Si pasan más de 24 horas, caduca** (`failed`): un mensaje aprobado no sale días después. Lo que ya no quepa en el tope de ese día queda `failed` diciendo eso, y no se reintenta.
 
 **Prueba manual** (no hay forma de probar el envío real sin una cuenta): enviar a un segundo número propio; comprobar
 que llega, que aparece en `list_messages`, y que con `sync` detenido queda `pending` y sale al volver.
@@ -234,7 +234,7 @@ stderr). No abre ninguna conexión a WhatsApp y lee todo lo que `sync` guardó:
 
 ## `version`
 
-Imprime solo el número (`0.4.0`), para que la app lo lea sin separar nada. Es independiente de la
+Imprime solo el número (`0.4.1`), para que la app lo lea sin separar nada. Es independiente de la
 versión de la app: el bridge es la capa que más se rompe por causas externas y tiene que poder
 parchearse por su cuenta (`docs/03` §4f). Vive en `version.go` como variable, así que se puede
 fijar al compilar con `-ldflags "-X main.bridgeVersion=…"`. Sube el MINOR cuando cambia lo que

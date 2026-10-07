@@ -128,7 +128,7 @@ final class AgentDetailTests: XCTestCase {
         XCTAssertEqual(detail.toolRows.first { $0.tool == .notion }?.sharedWith, ["Jarvi"])
         XCTAssertEqual(detail.toolRows.first { $0.tool == .jira }?.sharedWith, [])
         XCTAssertNotNil(detail.createdAt, "se lee de la carpeta del agente")
-        XCTAssertEqual(detail.skillCount, 17)
+        XCTAssertEqual(detail.skillCount, 18, "las 17 de producto y /crear-skill")
         XCTAssertFalse(detail.skillsDirty, "sin abrir las cards no hay nada sin guardar")
     }
 
@@ -173,7 +173,7 @@ final class AgentDetailTests: XCTestCase {
         XCTAssertEqual(try storedConfig().role, .marketing)
         XCTAssertNotEqual(try file("AGENTS.md"), before, "el AGENTS.md cambió: se presenta por su rol")
         XCTAssertEqual(try String(contentsOf: memory, encoding: .utf8), "lo que aprendió")
-        XCTAssertEqual(try storedConfig().skills.count, 17, "cambia las skills sugeridas, no las marcadas")
+        XCTAssertEqual(try storedConfig().skills.count, 18, "cambia las skills sugeridas, no las marcadas")
         XCTAssertNil(detail.error)
         // Y lo mismo otra vez no escribe nada.
         let now = try file("AGENTS.md")
@@ -310,15 +310,15 @@ final class AgentDetailTests: XCTestCase {
         detail.discardSkillChanges()
         XCTAssertFalse(detail.skillsDirty)
         XCTAssertTrue(try XCTUnwrap(detail.picker).isSkillSelected("prd", source: .galeno), "volvió a lo guardado")
-        XCTAssertEqual(try storedConfig().skills.count, 17)
+        XCTAssertEqual(try storedConfig().skills.count, 18)
 
         try XCTUnwrap(detail.picker).toggleSkill("prd", source: .galeno)
         detail.saveSkills()
 
         XCTAssertFalse(detail.skillsDirty, "ya está guardado")
-        XCTAssertEqual(try storedConfig().skills.count, 16)
+        XCTAssertEqual(try storedConfig().skills.count, 17)
         XCTAssertFalse(exists(".claude/skills/prd/SKILL.md"))
-        XCTAssertEqual(detail.skillCount, 16)
+        XCTAssertEqual(detail.skillCount, 17)
         XCTAssertTrue(exists(".claude/skills/roadmap/SKILL.md"))
         XCTAssertNotNil(detail.picker, "las cards siguen a la vista, ya desde lo guardado")
     }

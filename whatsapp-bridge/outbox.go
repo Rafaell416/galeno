@@ -151,6 +151,13 @@ func (d *outboxDispatcher) dispatchOutbox(ctx context.Context) {
 		}
 		return
 	}
+	// Lo que lleva más de un día esperando caduca, haya conexión o no: así un
+	// mensaje viejo nunca sale en cuanto vuelve "sync".
+	if _, err := db.Exec(
+		`UPDATE outbox SET status = ?, error = ? WHERE status = ? AND not_before <= ? AND wa_message_id IS NULL`,
+		statusFailed, failureExpired, statusPending, stamp(now.Add(-pendingExpiry))); err != nil {
+		d.logger.Warnf("No se pudo caducar lo que llevaba esperando: %v", err)
+	}
 	if !d.sender.Ready() || now.Before(d.nextAllowed) {
 		return
 	}

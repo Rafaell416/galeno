@@ -46,7 +46,8 @@ func newMCPServer(store *MessageStore, outbox *outboxEnv) *mcp.Server {
 				"when the result is \"rejected\", tell the user the reason and do not try to work around it " +
 				"(do not reword, split, or resend to get past a limit). " +
 				"\"queued\" means it will go out at scheduled_for; \"pending\" means Galeno is not connected to WhatsApp right now " +
-				"and the message will go out when it is. Do not send the same message again in either case.",
+				"and the message will go out when it is, unless that takes more than 24 hours: then it expires and is not sent. " +
+				"Do not send the same message again in either case.",
 			Annotations: &mcp.ToolAnnotations{Title: "Send a WhatsApp message", OpenWorldHint: &openWorld},
 		}, handleSendMessage(*outbox))
 	}
@@ -382,7 +383,7 @@ type SendMessageOutput struct {
 
 const (
 	reasonQueued      = "Scheduled, not sent yet: Galeno leaves a pause between messages. It will go out at scheduled_for if this computer is on. Do not send it again."
-	reasonNotPickedUp = "Not sent yet: Galeno is not connected to WhatsApp right now (the computer may have just woken up, or the sync is not running). It will go out when the connection is back. Tell the user; do not send it again."
+	reasonNotPickedUp = "Not sent yet: Galeno is not connected to WhatsApp right now (the computer may have just woken up, or the sync is not running). It will go out when the connection is back, if that happens within 24 hours; after that it expires and is not sent. Tell the user; do not send it again."
 )
 
 // handleSendMessage valida y deja el mensaje en la bandeja de salida. Un

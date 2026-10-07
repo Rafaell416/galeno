@@ -165,7 +165,7 @@ Cada herramienta se conecta una por una, en el orden de la grilla. **Todas** se 
 
 | ID | Caso | Esperado | Idioma |
 |---|---|---|---|
-| Q-5.1 | Entrar al paso. | Las skills del rol vienen marcadas (producto 17, marketing 18, comercial 29); agrupadas; las que necesitan una herramienta no conectada dicen «todavía no te sirve» sin ocultarse. | ES+EN |
+| Q-5.1 | Entrar al paso. | Las skills del rol vienen marcadas (producto 18, marketing 19, comercial 28); agrupadas; las que necesitan una herramienta no conectada dicen «todavía no te sirve» sin ocultarse. | ES+EN |
 | Q-5.2 | Desmarcar una, volver al rol (sin cambiarlo) y avanzar. | Lo desmarcado **se conserva**. | ES |
 | Q-5.3 | Cambiar de rol y volver. | Llegan las del rol nuevo. | ES |
 | Q-5.4 | «Vista previa» de una skill. | Hoja con el ejemplo animado y el rótulo «Ejemplo ilustrativo · no se ejecuta nada»; las de terceros muestran autor, licencia y enlace al original. Esc la cierra. | ES+EN |
@@ -335,7 +335,7 @@ destinatario. Nunca con el número de otra persona. **Todo este bloque está sin
 | E-8 | Dos envíos seguidos. | El segundo queda **en cola** uno o dos minutos y sale solo; el agente no lo reenvía. | ES |
 | E-9 | En Salud → «Límites», bajar el total a 2 y pedir un tercero. | Rechazado con un mensaje claro; el agente se lo dice al usuario y no busca otro camino. Subir un tope por encima del máximo no se puede. | ES |
 | E-10 | Salud → «Pausar envíos» y pedir un envío. | Rechazado: «envíos en pausa». Lo que estaba en cola se canceló. «Reanudar» lo deja como antes. **Bloqueante.** | ES |
-| E-11 | Detener `sync` (`launchctl bootout gui/$(id -u)/com.galeno.whatsapp-bridge`) y pedir un envío. | Queda **pendiente** y el agente lo dice. Al volver `sync`, sale. | ES |
+| E-11 | Detener `sync` (`launchctl bootout gui/$(id -u)/com.galeno.whatsapp-bridge`) y pedir un envío. | Queda **pendiente** y el agente lo dice. Al volver `sync`, sale. Si pasan **más de 24 horas**, caduca y ya no sale (aparece como fallido). | ES |
 | E-12 | Pedir un envío de noche o en domingo. | El agente **avisa antes** de que es fuera del horario habitual y deja decidir. Galeno no lo bloquea. | ES |
 | E-13 | Un subagente (`tracker`) intenta enviar. | No tiene la herramienta: solo las 9 lecturas. | ES |
 | E-14 | Una tarea programada que intenta enviar por WhatsApp. | No envía: deja el mensaje propuesto en la hoja o en `memoria/pendientes.md`. **Bloqueante.** | ES |
