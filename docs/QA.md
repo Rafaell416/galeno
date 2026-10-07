@@ -165,7 +165,7 @@ Cada herramienta se conecta una por una, en el orden de la grilla. **Todas** se 
 
 | ID | Caso | Esperado | Idioma |
 |---|---|---|---|
-| Q-5.1 | Entrar al paso. | Las skills del rol vienen marcadas (producto 18, marketing 19, comercial 29); agrupadas; las que necesitan una herramienta no conectada dicen «todavía no te sirve» sin ocultarse. | ES+EN |
+| Q-5.1 | Entrar al paso. | Las skills del rol vienen marcadas (producto 18, marketing 19, comercial 28); agrupadas; las que necesitan una herramienta no conectada dicen «todavía no te sirve» sin ocultarse. | ES+EN |
 | Q-5.2 | Desmarcar una, volver al rol (sin cambiarlo) y avanzar. | Lo desmarcado **se conserva**. | ES |
 | Q-5.3 | Cambiar de rol y volver. | Llegan las del rol nuevo. | ES |
 | Q-5.4 | «Vista previa» de una skill. | Hoja con el ejemplo animado y el rótulo «Ejemplo ilustrativo · no se ejecuta nada»; las de terceros muestran autor, licencia y enlace al original. Esc la cierra. | ES+EN |

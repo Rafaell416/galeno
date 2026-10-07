@@ -566,7 +566,7 @@ Claude Design («Galeno B1 Activación») y la base de skills por rol que consig
 manda en estructura y textos pero no en estilo (pedido de Rafa: que siga viéndose como Galeno). Hecho: las tres pantallas
 previas (una vez, se saltan), el paso del rol, el nombre solo, la grilla de herramientas en el orden del rol con las tres primeras
 marcadas, la cabecera «Paso N de 6» y las skills por rol. **Decisiones tomadas al construir, por confirmar con Rafa:** «Reportes» y
-«Reuniones» son comunes a los tres roles (producto 18 skills, marketing 19, comercial 29); se ofrecen todas las herramientas de
+«Reuniones» son comunes a los tres roles (producto 18 skills, marketing 19, comercial 28); se ofrecen todas las herramientas de
 hoy, no solo las seis del boceto; la pantalla del rol no dice «se cambia después» porque «Gestionar» no cambia el rol; el idioma
 se cambia con un enlace al pie de las pantallas previas. **Prueba de arranque limpio de Rafa (5 oct 2026, tarde):** el paso 2 se
 quedaba «buscando» para siempre en un Mac sin instalación (venía del PR #32: nadie lanzaba la búsqueda la primera vez; corregido,
@@ -914,10 +914,15 @@ arreglos para que funcionen con lo nuestro: (1) `/prospectar-lista` busca las sk
 por un nombre exacto (buscaba `/radiografia` y `/criterio`; el criterio de Simon va dentro de su radiografía), y si el
 usuario tiene una que escribe el primer contacto, la usa; (2) el `AGENTS.md` generado dice qué hacer con una skill
 propia escrita para otro entorno: guardar en `memoria/` lo que pida dejar en `/mnt/user-data/outputs/`, usar la
-herramienta equivalente, y que **las reglas del agente mandan sobre la skill**. **Sin decidir (Rafa):** su radiografía
-abre la página de contacto y la política de datos, cuyos enlaces salen de la home, y la regla de contención prohíbe
-abrir una dirección encontrada dentro de una página; y recoge celulares de contactos comerciales con nombre desde
-directorios de gremios, que roza la línea roja 1 (el número al que se escribe es el que la empresa publica).
+herramienta equivalente, y que **las reglas del agente mandan sobre la skill**. **Decidido por Rafa ese mismo día:** (a) el agente puede abrir **otra página del mismo sitio** que una dirección
+permitida (contacto, «nosotros», términos); una dirección de otro sitio encontrada dentro de un contenido sigue
+prohibida, y una armada con datos, también. (b) Un **contacto comercial con nombre publicado en un contexto de negocio**
+(el sitio, un gremio, una feria, una ficha legal) cuenta como publicado por la empresa: se le puede escribir; reescribe
+esa parte de la línea roja 1. (c) `draft-outreach` tiene tarjeta pero **no viene marcada** para comercial (`preselected:
+false` en el catálogo), porque se pisa con la skill de primer contacto que un comercial trae; comercial queda en 28
+marcadas. (d) `handle-objection` y `call-prep`: «para después», sin cambios (ya venían marcadas con las demás de
+Anthropic). **Las skills de Simon no se añaden al producto:** son un ejemplo; él las añade al crear su agente, en el
+paso «Skills» → «Tus skills».
 
 **Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
 pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está

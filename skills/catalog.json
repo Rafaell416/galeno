@@ -1932,7 +1932,8 @@
       "guarantee": {
         "es": "En la web busca solo el nombre de la empresa, nunca el de una persona.",
         "en": "On the web it searches only the company's name, never a person's."
-      }
+      },
+      "preselected": false
     },
     {
       "id": "inbox-sweep",

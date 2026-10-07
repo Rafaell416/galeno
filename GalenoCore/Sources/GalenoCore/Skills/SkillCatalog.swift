@@ -109,14 +109,19 @@ public struct CatalogSkill: Codable, Hashable, Sendable, Identifiable {
     /// De dónde se instala, cuando no se deduce del crédito: la tarjeta de una skill propia del usuario
     /// (``OwnSkills``) lleva `.own`. El catálogo no lo trae.
     public var origin: SkillSource?
+    /// `false` = tiene tarjeta en su grupo pero no viene marcada: el usuario la marca si la quiere. Sin el dato,
+    /// viene marcada como las demás de los grupos de su rol.
+    public var preselected: Bool?
 
     public init(
         id: String, group: String, name: LocalizedText, summary: LocalizedText, writes: [Tool] = [],
         needsAny: [Tool] = [], ask: LocalizedText? = nil, example: SkillExample? = nil,
-        guarantee: LocalizedText? = nil, credit: SkillCredit? = nil, origin: SkillSource? = nil
+        guarantee: LocalizedText? = nil, credit: SkillCredit? = nil, origin: SkillSource? = nil,
+        preselected: Bool? = nil
     ) {
         self.credit = credit
         self.origin = origin
+        self.preselected = preselected
         self.id = id
         self.group = group
         self.name = name
@@ -173,6 +178,8 @@ public struct CuratedSkill: Codable, Hashable, Sendable, Identifiable {
     public var ask: LocalizedText?
     public var example: SkillExample?
     public var guarantee: LocalizedText?
+    /// Ver ``CatalogSkill/preselected``.
+    public var preselected: Bool?
 
     public var credit: SkillCredit {
         SkillCredit(author: author, repository: repository, path: path, license: license)
@@ -186,7 +193,7 @@ public struct CuratedSkill: Codable, Hashable, Sendable, Identifiable {
         guard available, let group else { return nil }
         return CatalogSkill(
             id: id, group: group, name: name, summary: summary, writes: writes ?? [], needsAny: needsAny ?? [],
-            ask: ask, example: example, guarantee: guarantee, credit: credit)
+            ask: ask, example: example, guarantee: guarantee, credit: credit, preselected: preselected)
     }
 }
 
@@ -308,11 +315,12 @@ public struct SkillCatalog: Codable, Hashable, Sendable {
         galeno.map { SelectedSkill(id: $0.id, source: .galeno) }
     }
 
-    /// Lo que trae marcado un agente de ese rol: todas las skills con tarjeta de sus grupos
-    /// (`AgentRole.skillGroups`), nuestras o de terceros. Para producto son las 17 nuestras.
+    /// Lo que trae marcado un agente de ese rol: las skills con tarjeta de sus grupos (`AgentRole.skillGroups`),
+    /// nuestras o de terceros, salvo las que el catálogo deja sin marcar (`preselected: false`).
     public func defaultSelection(for role: AgentRole) -> [SelectedSkill] {
         let groups = Set(role.skillGroups)
-        return cards.filter { groups.contains($0.group) }.map { SelectedSkill(id: $0.id, source: $0.source) }
+        return cards.filter { groups.contains($0.group) && $0.preselected != false }
+            .map { SelectedSkill(id: $0.id, source: $0.source) }
     }
 
     /// Las curadas que ya se pueden instalar.
