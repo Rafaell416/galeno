@@ -460,3 +460,19 @@ Con una carpeta de skill escrita por el usuario (un `SKILL.md` con frontmatter) 
 | A-11 | Reglas: cambiar una escritura a «Que me pregunte». | Aplica al momento; el `settings.json` del agente lo refleja; las fijas llevan candado y no se pueden tocar. | ES |
 | A-12 | Contexto: añadir un archivo y quitar otro, «Guardar contexto». | El nuevo queda en `memoria/contexto/` con el siguiente número y **sin pisar** otro; el quitado va a la **Papelera** (recuperable); «Deshacer» antes de guardar lo devuelve; máximo 10. | ES |
 | A-13 | Esc con una hoja, un diálogo o el catálogo abiertos. | Cierra lo de encima; con nada abierto, vuelve a «Tus agentes». | ES |
+
+### 6.14 La mesa del home y los personajes (6 oct 2026, `docs/03` §3b)
+
+| # | Qué hacer | Qué debe pasar | Idioma |
+|---|---|---|---|
+| M-1 ★ | Abrir Galeno con dos o tres agentes de roles distintos. | El home abre en «Mesa»: una mesa en diagonal con un personaje por agente (Galeno, Wedgwood, Marco Polo según el rol) y su nombre encima. Nadie se mueve si no has usado esos agentes en los últimos minutos. | ES |
+| M-2 ★ | Clic en un personaje. | Abre ese agente en Claude, igual que «Abrir» en su tarjeta (vuelve a su conversación); junto al nombre gira un anillo mientras abre. | ES |
+| M-3 | Escribirle algo a un agente en la app de Claude y volver a Galeno antes de 3 minutos. | En menos de 15 s su personaje empieza a escribir (la mano recorre el renglón); a los 3 minutos sin actividad, se queda quieto. Con «Menos movimiento» en Ajustes no se mueve nunca. | ES |
+| M-4 ★ | Pasar el cursor por un personaje y hacer clic en el engranaje que aparece junto a su nombre. Después, clic derecho sobre la figura. | Sin cursor encima no hay engranaje. El engranaje abre el detalle de **ese** agente (y no abre Claude); «Volver» regresa a la mesa. Al pasar el cursor, el renglón de abajo dice su personaje, la descripción y cuánto lee (y «Con actividad reciente» si aplica, o el aviso de que Claude se reiniciará). El clic derecho (o Control-clic) despliega un menú con nuestro estilo —papel, filete de tinta, esquinas rectas, no el menú gris del sistema— con abrir en la app, en Terminal y «Gestionar»; se cierra con Esc o con un clic fuera. | ES |
+| M-5 | Interruptor «Tarjetas» y volver a «Mesa»; cerrar y abrir Galeno. | Las tarjetas salen como siempre, ahora con el retrato del personaje junto al nombre; la elección se recuerda al reabrir. | ES |
+| M-6 | Crear un segundo agente del mismo rol. | Es el mismo personaje en otro sitio, mirando hacia el mismo lado; se distinguen por el nombre. Los que ya estaban no cambian de sitio. | ES |
+| M-7 | Tener siete agentes. | La primera mesa tiene seis; una flecha abajo a la derecha («Mesa 1 de 2») lleva a la segunda, con el séptimo solo. | ES |
+| M-8 | Borrar a mano la carpeta de un agente y volver al home. | Su sitio se ve a trazos, con el nombre apagado; el clic lleva a «Tarjetas», donde se regenera o se quita. | ES |
+| M-9 | Asistente → paso del rol. | Cada tarjeta lleva el retrato de su personaje y su nombre en versalitas bajo el rol; elegir uno le pone el doble anillo. | ES, EN |
+| M-10 ★ | Modo oscuro, en mesa y en el paso del rol. | Todo en oscuro, sin ningún recuadro claro: la mesa de madera y las figuras algo apagadas, con las manos y el papel sobre el tablero. En claro, la misma mesa sobre el pergamino con su sombra. | ES |
+

@@ -4,10 +4,12 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// El ex libris del agente (B1 · paso 3): un sello redondo de doble anillo con su nombre, su rol y
-/// la fecha. Es tipográfico —sin lacre dibujado ni textura— y sirve de identidad del agente: se ve
-/// en el paso 3 y se exporta como icono de la app de Slack.
+/// la fecha, y **el retrato del personaje de su rol** (`Persona`) en el centro. Sin lacre dibujado ni textura. Sirve
+/// de identidad del agente: se ve en el paso 3 y se exporta como icono de la app de Slack.
 ///
-/// Mientras no hay nombre se ve tenue. `fixedLight` lo dibuja siempre en papel claro, para exportarlo.
+/// Mientras no hay nombre se ve tenue. `fixedLight` lo dibuja siempre en papel claro, para exportarlo, y **sin
+/// retrato**: el icono sale de la app y acaba en Slack, y uno de los retratos (Wedgwood, CC BY) exige un crédito que
+/// un icono no puede llevar (`THIRD_PARTY.md`). El exportado sigue siendo solo tipográfico.
 struct SealView: View {
     let name: String
     /// El oficio que va bajo el nombre.
@@ -21,6 +23,9 @@ struct SealView: View {
             ? Color(red: Double((light >> 16) & 0xFF) / 255, green: Double((light >> 8) & 0xFF) / 255, blue: Double(light & 0xFF) / 255)
             : dynamic
     }
+
+    /// En pantalla, el retrato del personaje; en el exportado, o si falta la imagen, el sello tipográfico de siempre.
+    private var showsPortrait: Bool { !fixedLight && role.persona.hasPortrait }
 
     private var date: String {
         let formatter = DateFormatter()
@@ -37,26 +42,36 @@ struct SealView: View {
         VStack(spacing: 0) {
             SmallCapsText(string: Localized.string("agent.seal.exlibris", locale: locale), size: 10, tracking: 0.14)
                 .foregroundStyle(ink500)
+            if showsPortrait {
+                PortraitMark(asset: role.persona.portrait, size: 38)
+                    .padding(.top, 4)
+                    // Cambia con el rol sin saltar.
+                    .id(role)
+                    .transition(.opacity)
+            }
             Text(verbatim: name.isEmpty ? "·" : name)
-                .font(Typo.display(20))
+                .font(Typo.display(showsPortrait ? 18 : 20))
                 .kerning(0.8)
                 .foregroundStyle(ink900)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .frame(maxWidth: 118)
-                .padding(.vertical, 4)
+                .frame(maxWidth: showsPortrait ? 108 : 118)
+                .padding(.vertical, showsPortrait ? 1 : 4)
                 // Cada carácter tecleado aparece con un fade corto (120 ms).
                 .contentTransition(.opacity)
                 .animation(.easeOut(duration: 0.12), value: name)
-            Text(verbatim: "· · ·")
-                .font(Typo.text(10))
-                .kerning(4)
-                .foregroundStyle(seal)
+            // Los tres puntos de lacre separan nombre y oficio cuando no hay retrato que lo haga.
+            if !showsPortrait {
+                Text(verbatim: "· · ·")
+                    .font(Typo.text(10))
+                    .kerning(4)
+                    .foregroundStyle(seal)
+            }
             Text(verbatim: role.title(in: Language(rawValue: locale.language.languageCode?.identifier ?? "") ?? .english))
                 .font(Typo.text(10))
                 .foregroundStyle(ink700)
                 .lineLimit(1)
-                .padding(.top, 3)
+                .padding(.top, showsPortrait ? 0 : 3)
             Text(verbatim: date)
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(ink500)
@@ -68,6 +83,7 @@ struct SealView: View {
         .overlay(Circle().strokeBorder(ink500, lineWidth: 1))
         .opacity(name.isEmpty && !fixedLight ? 0.4 : 1)
         .animation(.easeOut(duration: 0.2), value: name.isEmpty)
+        .animation(.easeOut(duration: 0.2), value: role)
         .accessibilityHidden(true)
     }
 }

@@ -53,6 +53,8 @@ struct RoleStepView: View {
                         wizard.role = role
                     }
                     .focusable()
+                    // El foco lo marca el filete propio de la tarjeta, no el anillo del sistema (que sale en lacre).
+                    .focusEffectDisabled()
                     .focused($focused, equals: role)
                     .onKeyPress(.space) {
                         wizard.role = role
@@ -74,7 +76,7 @@ struct RoleStepView: View {
     }
 }
 
-/// Una tarjeta de rol: dibujo de 48 pt, nombre y una frase. La elegida lleva el filete de tinta, el fondo del
+/// Una tarjeta de rol: el retrato de su personaje (o el dibujo de 48 pt), nombre y una frase. La elegida lleva el filete de tinta, el fondo del
 /// papel marcado y la palomita que se traza, como una herramienta marcada.
 private struct RoleCard: View {
     @EnvironmentObject private var wizard: WizardState
@@ -87,10 +89,24 @@ private struct RoleCard: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
-                ActIcon(name: role.drawing, size: 48, color: isSelected ? .ink900 : .ink700)
-                Text(verbatim: role.title(in: wizard.language))
-                    .font(Typo.display(24))
-                    .foregroundStyle(Color.ink900)
+                // Cada rol trae su personaje, como quien elige el suyo: su retrato y su nombre. Sin retrato en el
+                // catálogo, el dibujo del rol de siempre.
+                if role.persona.hasPortrait {
+                    PortraitMark(asset: role.persona.portrait, size: 72, doubleRing: isSelected)
+                        .frame(width: 80, height: 80)
+                        .opacity(isSelected ? 1 : 0.82)
+                } else {
+                    ActIcon(name: role.drawing, size: 48, color: isSelected ? .ink900 : .ink700)
+                }
+                VStack(spacing: 2) {
+                    Text(verbatim: role.title(in: wizard.language))
+                        .font(Typo.display(24))
+                        .foregroundStyle(Color.ink900)
+                    if role.persona.hasPortrait {
+                        SmallCapsText(string: role.persona.name, size: 12)
+                            .foregroundStyle(Color.ink500)
+                    }
+                }
                 Text(role.summaryKey)
                     .font(Typo.text(14.5))
                     .lineSpacing(1.5)
@@ -99,8 +115,8 @@ private struct RoleCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 18)
-            .padding(.top, 26)
-            .padding(.bottom, 22)
+            .padding(.top, 22)
+            .padding(.bottom, 20)
             .frame(maxWidth: .infinity, minHeight: 208, alignment: .top)
             .background(isSelected || hovering ? Color.parchment100 : Color.clear)
             .overlay(Rectangle().strokeBorder(isSelected ? Color.ink900 : Color.parchment400, lineWidth: 1.5))
@@ -111,7 +127,8 @@ private struct RoleCard: View {
                     .strokeBorder(isSelected ? Color.ink900 : Color.parchment400, lineWidth: 1.5)
                     .overlay {
                         if isSelected {
-                            Circle().fill(Color.ink900).padding(3.5)
+                            // 4 pt de aire, no 3,5: en una pantalla sin Retina medio punto descentra el relleno.
+                            Circle().fill(Color.ink900).padding(4)
                                 .transition(.scale.combined(with: .opacity))
                         }
                     }

@@ -43,6 +43,32 @@ nonisolated struct ClaudeSessionStore: Sendable {
         return found
     }
 
+    /// Cuándo fue la última actividad de cada carpeta (ruta resuelta → fecha), entre sus sesiones no archivadas. Una
+    /// sola pasada por la carpeta de datos y los mismos cuatro campos de siempre; la mesa del home lo usa para saber
+    /// qué agente trabajó hace poco. `lastActivityAt` viene en milisegundos.
+    func latestActivityByFolder() -> [String: Date] {
+        guard let level1 = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+        else { return [:] }
+        var latest: [String: Double] = [:]
+        for dir1 in level1 {
+            for dir2 in (try? FileManager.default.contentsOfDirectory(at: dir1, includingPropertiesForKeys: nil)) ?? [] {
+                for file in (try? FileManager.default.contentsOfDirectory(at: dir2, includingPropertiesForKeys: nil)) ?? []
+                where file.lastPathComponent.hasPrefix("local_") && file.pathExtension == "json" {
+                    guard let data = try? Data(contentsOf: file),
+                        let entry = try? JSONDecoder().decode(Entry.self, from: data),
+                        entry.isArchived != true, let at = entry.lastActivityAt, at > 0
+                    else { continue }
+                    let path = Self.resolved(URL(fileURLWithPath: entry.cwd))
+                    latest[path] = max(latest[path] ?? 0, at)
+                }
+            }
+        }
+        return latest.mapValues { Date(timeIntervalSince1970: $0 / 1000) }
+    }
+
+    /// La ruta con la que se comparan las carpetas: sin `..` ni enlaces.
+    static func resolved(_ folder: URL) -> String { folder.standardizedFileURL.resolvingSymlinksInPath().path }
+
     /// La sesión no archivada de esa carpeta con actividad más reciente.
     func latestSessionID(in folder: URL) -> String? {
         let path = folder.standardizedFileURL.resolvingSymlinksInPath().path

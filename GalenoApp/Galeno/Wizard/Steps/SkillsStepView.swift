@@ -255,6 +255,7 @@ private struct SkillsContent<Header: View>: View {
                 )
                 .id(skill.id)
                 .focusable()
+                .focusEffectDisabled()
                 .focused($focused, equals: skill.id)
                 .onKeyPress(.space) {
                     wizard.toggleSkill(skill.id, source: skill.source)
@@ -283,6 +284,7 @@ private struct SkillsContent<Header: View>: View {
                 )
                 .id(skill.id)
                 .focusable()
+                .focusEffectDisabled()
                 .focused($focused, equals: skill.id)
                 .onKeyPress(.space) {
                     wizard.toggleSkill(skill.id, source: .own)

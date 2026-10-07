@@ -70,4 +70,23 @@ final class ClaudeSessionsTests: XCTestCase {
         try write("local_ok", cwd: folder.path, at: 1)
         XCTAssertEqual(store.latestSessionID(in: folder), "local_ok")
     }
+
+    // MARK: - La última actividad de cada carpeta (la mesa del home)
+
+    /// Una sola pasada: de cada carpeta, la actividad más reciente entre sus sesiones no archivadas. Viene en
+    /// milisegundos, y una sesión archivada o sin fecha no cuenta.
+    func testTheLatestActivityOfEachFolderComesFromItsLiveSessions() throws {
+        try write("local_a", cwd: folder.path, at: 1_700_000_000_000)
+        try write("local_b", cwd: folder.path, at: 1_700_000_300_000)
+        try write("local_c", cwd: folder.path, at: 1_800_000_000_000, archived: true)
+        try write("local_d", cwd: "/Users/prueba/Galeno/Aurora", at: 1_700_000_100_000, level: "u2")
+        try write("local_e", cwd: "/Users/prueba/Galeno/Sin-fecha", at: 0)
+
+        let activity = store.latestActivityByFolder()
+        XCTAssertEqual(activity[ClaudeSessionStore.resolved(folder)], Date(timeIntervalSince1970: 1_700_000_300))
+        XCTAssertEqual(activity["/Users/prueba/Galeno/Aurora"], Date(timeIntervalSince1970: 1_700_000_100))
+        XCTAssertNil(activity["/Users/prueba/Galeno/Sin-fecha"])
+        XCTAssertEqual(activity.count, 2)
+        XCTAssertTrue(ClaudeSessionStore(root: root.appendingPathComponent("no-existe")).latestActivityByFolder().isEmpty)
+    }
 }

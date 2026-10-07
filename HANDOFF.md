@@ -731,6 +731,19 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
   roja 1 intacta: el puente no cambia). Prospectos de sus propios chats y, si pide un segmento, de la
   web, con el número solo si lo publica la propia empresa. Detalle en `docs/03` §6.3. **Sin probar
   con trabajo real.**
+- **La mesa del home y los personajes (6 oct 2026; rama `feat/home-mesa`).** Cada rol tiene su personaje (Galeno,
+  Wedgwood y Marco Polo, que en la app es «Marco»): su retrato sale en el selector de rol, en el ex libris, en las
+  tarjetas y en la cabecera del detalle. El home gana la vista «Mesa» (de fábrica) con un interruptor a «Tarjetas»: una
+  mesa de madera vista en diagonal —un paralelogramo, con la inclinación que eligió Rafa— con el personaje de cada
+  agente apoyado en ella y su nombre encima. Un clic lo abre en Claude; al pasar el cursor aparece un engranaje que
+  abre su detalle, y el clic derecho despliega un menú con nuestro estilo. Seis por mesa y una flecha a la siguiente.
+  Solo escribe quien tuvo actividad en los últimos 3 minutos. La mesa y las figuras son láminas que Rafa generó con
+  Adobe Firefly Image 4, preparadas en el Mac (`GalenoApp/arte-mesa/LEEME.md`). El reset de pruebas ahora también manda
+  a la Papelera las conversaciones de Claude de los agentes, como «Eliminar». **Pendiente:** probarlo a mano (QA 6.14;
+  el clic derecho, el engranaje al pasar el cursor y la mano escribiendo solo se vieron en renders), un Galeno sin el
+  borde ovalado, una variación para dos agentes del mismo rol (hoy solo los distingue el nombre), el crédito CC BY del
+  retrato de Wedgwood en «Acerca de» antes de distribuir, y el retrato en el sello exportado para Slack (hoy no lo lleva
+  por esa licencia).
 - **Correcciones al detalle tras la prueba de Rafa (6 oct 2026; rama `fix/detalle-conectar-y-skills`).** (1) «Añadir
   herramienta» conecta **ahí mismo** (la conexión de siempre encima del detalle; al quedar conectada, la fila entra con un
   destello) en vez de llevar al asistente. (2) Skills: las cards directamente, marcar/desmarcar, «Añadir skill…» y

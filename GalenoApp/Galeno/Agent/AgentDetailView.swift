@@ -117,12 +117,18 @@ struct AgentDetailView: View {
             .foregroundStyle(Color.ink700)
 
             HStack(alignment: .center, spacing: 16) {
-                Text(verbatim: String(model.name.first.map(String.init) ?? "·"))
-                    .font(Typo.display(26))
-                    .foregroundStyle(Color.ink900)
-                    .frame(width: 48, height: 48)
-                    .overlay(Circle().strokeBorder(Color.ink900, lineWidth: 1))
-                    .accessibilityHidden(true)
+                // El retrato del personaje de su rol (cambia al cambiar el rol); sin retrato, la inicial de siempre.
+                if model.role.persona.hasPortrait {
+                    PortraitMark(asset: model.role.persona.portrait, size: 48)
+                        .id(model.role)
+                } else {
+                    Text(verbatim: String(model.name.first.map(String.init) ?? "·"))
+                        .font(Typo.display(26))
+                        .foregroundStyle(Color.ink900)
+                        .frame(width: 48, height: 48)
+                        .overlay(Circle().strokeBorder(Color.ink900, lineWidth: 1))
+                        .accessibilityHidden(true)
+                }
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text(verbatim: model.name)
