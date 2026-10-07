@@ -50,18 +50,20 @@ If the row has a `Sitio web`, use it. If not, search the web: you do not need to
 
 ## 4. Does it fit?
 The criteria are the user's, never yours:
-1. If `/criterio` is one of your skills (the "Your skills" list of your AGENTS.md), apply it.
+1. If one of the user's own skills decides whether a prospect fits, apply it. Look for it in the "Your skills" list of your AGENTS.md by what it does, not by an exact name: it may be called `/criterio`, or the fit may be part of their research skill (a qualification, a set of cuts, disqualifiers).
 2. Otherwise use `memoria/criterio-prospectos.md`.
 3. With neither, stop and ask the user how they decide whether a lead is worth contacting, and offer to save the answer in `memoria/criterio-prospectos.md`. Never invent criteria to keep going.
 
 Decide with what the row says and what the lead's own site shows ("Opening pages", below, says which pages you may open). Write `Aplica` and `Motivo`. A lead that does not fit gets `Estado = no aplica` and goes no further. When what you could see is not enough to decide, that is not a "no": write `por revisar` with what is missing, and list those rows for the user at the end.
 
 ## 5. Research the ones that fit
-If `/radiografia` is one of your skills, use it with the site's address. Otherwise write a short one of your own: what the business offers, to whom, signs of its size, the channels it uses, what it is missing in relation to what the user sells (from `memoria/proyecto.md`), and the sources with the date you looked.
+If one of the user's own skills researches a prospect, use it with the business's name and the site's address. Look for it by what it does, not by an exact name (`/radiografia`, `/radiografia-express-…`, a lead profile); if there are two, use the shorter one unless the user asks for the full version. Otherwise write a short one of your own: what the business offers, to whom, signs of its size, the channels it uses, what it is missing in relation to what the user sells (from `memoria/proyecto.md`), and the sources with the date you looked.
 
 Save it in `memoria/radiografias/<id>-<slug>.md` (the registry number when there is one, and the business's name in lowercase with hyphens) and write that path in `Radiografía`. If there is no site or it could not be opened, the file says so and holds only what the sheet and the search results gave. Never fill the gap from memory.
 
 ## 6. First contact
+If one of the user's own skills writes the first message to a prospect (for example `/primer-contacto-…`), use it, handing it the research you just did, and take the message and the channel from its result: the user wrote it to sound like them. Everything else in this step still applies: where the number comes from, the approval of each send, the limits and what gets written in the sheet. Without such a skill, write it yourself.
+
 Write one message per lead, for that lead: in the user's voice, under 60 words, with one true fact from the research and one clear question. The first line says who the user is and why they are writing, and the message makes it easy to say no. No discounts, deadlines or conditions the user did not give you.
 
 Choose the channel and write it in `Canal`, with the message in `Mensaje propuesto` and `Estado = investigado`:

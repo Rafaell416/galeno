@@ -908,6 +908,17 @@ dijo «no pongamos texto de advertencia todavía». **Pendiente:** Rafa va a pas
 de las nuestras de comercial vienen marcadas y si le sirven un par más. Rafa no tiene un segundo número: el envío se
 prueba escribiéndose a sí mismo y a un grupo suyo.
 
+**Las skills de Simon, leídas (7 oct 2026).** Rafa pasó tres: `radiografia-express-aloha`, `radiografia-red-aloha` y
+`primer-contacto-aloha`. Cada una es un `.md` suelto con sus anexos dentro, y «Añadir skill…» las acepta tal cual. Dos
+arreglos para que funcionen con lo nuestro: (1) `/prospectar-lista` busca las skills propias **por lo que hacen**, no
+por un nombre exacto (buscaba `/radiografia` y `/criterio`; el criterio de Simon va dentro de su radiografía), y si el
+usuario tiene una que escribe el primer contacto, la usa; (2) el `AGENTS.md` generado dice qué hacer con una skill
+propia escrita para otro entorno: guardar en `memoria/` lo que pida dejar en `/mnt/user-data/outputs/`, usar la
+herramienta equivalente, y que **las reglas del agente mandan sobre la skill**. **Sin decidir (Rafa):** su radiografía
+abre la página de contacto y la política de datos, cuyos enlaces salen de la home, y la regla de contención prohíbe
+abrir una dirección encontrada dentro de una página; y recoge celulares de contactos comerciales con nombre desde
+directorios de gremios, que roza la línea roja 1 (el número al que se escribe es el que la empresa publica).
+
 **Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
 pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está
 guardado en la rama `feat/licencias`, sin mergear, por si hace falta una prueba gratis o cobrar una versión mayor. Lo

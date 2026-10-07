@@ -260,10 +260,14 @@ final class SkillCatalogTests: XCTestCase {
         {
             XCTAssertTrue(text.contains(column), column)
         }
-        XCTAssertTrue(text.contains("If `/criterio` is one of your skills"))
+        // Las skills propias se buscan por lo que hacen, no por un nombre exacto: las de Simon se llaman
+        // `radiografia-express-aloha` y `primer-contacto-aloha`, y su criterio va dentro de la radiografía.
+        XCTAssertTrue(text.contains("If one of the user's own skills decides whether a prospect fits, apply it."))
+        XCTAssertTrue(text.contains("by what it does, not by an exact name"))
+        XCTAssertTrue(text.contains("If one of the user's own skills writes the first message to a prospect"))
         XCTAssertTrue(text.contains("`memoria/criterio-prospectos.md`"))
         XCTAssertTrue(text.contains("Never invent criteria"))
-        XCTAssertTrue(text.contains("If `/radiografia` is one of your skills"))
+        XCTAssertTrue(text.contains("If one of the user's own skills researches a prospect, use it"))
         XCTAssertTrue(text.contains("`memoria/radiografias/<id>-<slug>.md`"))
         XCTAssertTrue(text.contains("Twenty by default"))
         XCTAssertTrue(text.contains("more than 50"))
