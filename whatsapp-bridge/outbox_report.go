@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"go.mau.fi/whatsmeow/types"
 )
 
 // Subcomando "outbox --json": lo que la app enseña en su vista de salud
@@ -28,8 +31,10 @@ type outboxReport struct {
 type outboxReportLimits struct {
 	DailyTotal       int `json:"daily_total"`
 	DailyNewChats    int `json:"daily_new_chats"`
+	DailyGroups      int `json:"daily_groups"`
 	MaxDailyTotal    int `json:"max_daily_total"`
 	MaxDailyNewChats int `json:"max_daily_new_chats"`
+	MaxDailyGroups   int `json:"max_daily_groups"`
 }
 
 // outboxReportToday es lo que cuenta para los topes de hoy: lo que ya salió
@@ -38,6 +43,7 @@ type outboxReportToday struct {
 	Sent     int `json:"sent"`
 	Pending  int `json:"pending"`
 	NewChats int `json:"new_chats"`
+	Groups   int `json:"groups"`
 }
 
 type outboxReportItem struct {
@@ -61,15 +67,17 @@ func buildOutboxReport(store *MessageStore, stateDir string, now time.Time) (out
 		Limits: outboxReportLimits{
 			DailyTotal:       limits.DailyTotal,
 			DailyNewChats:    limits.DailyNewChats,
+			DailyGroups:      limits.DailyGroups,
 			MaxDailyTotal:    maxDailyTotal,
 			MaxDailyNewChats: maxDailyNewChats,
+			MaxDailyGroups:   maxDailyGroups,
 		},
 		Recent: []outboxReportItem{},
 	}
 
 	dayStart, dayEnd := dayBounds(now)
 	rows, err := store.db.Query(
-		`SELECT status, is_new_chat FROM outbox
+		`SELECT status, is_new_chat, chat_jid FROM outbox
 		 WHERE status IN (?, ?) AND COALESCE(sent_at, not_before) >= ? AND COALESCE(sent_at, not_before) < ?`,
 		statusPending, statusSent, stamp(dayStart), stamp(dayEnd))
 	if err != nil {
@@ -78,7 +86,8 @@ func buildOutboxReport(store *MessageStore, stateDir string, now time.Time) (out
 	for rows.Next() {
 		var status string
 		var isNewChat bool
-		if err := rows.Scan(&status, &isNewChat); err != nil {
+		var chatJID string
+		if err := rows.Scan(&status, &isNewChat, &chatJID); err != nil {
 			rows.Close()
 			return outboxReport{}, err
 		}
@@ -89,6 +98,9 @@ func buildOutboxReport(store *MessageStore, stateDir string, now time.Time) (out
 		}
 		if isNewChat {
 			report.Today.NewChats++
+		}
+		if strings.HasSuffix(chatJID, "@"+types.GroupServer) {
+			report.Today.Groups++
 		}
 	}
 	if err := rows.Close(); err != nil {

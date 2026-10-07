@@ -17,7 +17,7 @@
 | Motor | **Solo genera configuración de Claude Code** (Codex/Cursor/Grok: después) |
 | Modelo de negocio | **Pago único: USD 200** (precio inicial) |
 | Marketplace de skills | **A futuro**, no en v0.0.1 |
-| WhatsApp | **Lectura libre y envío con aprobación** (decisión de Rafa, 7 oct 2026, `docs/09`; antes solo lectura, con el envío para v0.2). Un solo envío, `send_message`, texto a una persona, con guardas en el bridge |
+| WhatsApp | **Lectura libre y envío con aprobación** (decisión de Rafa, 7 oct 2026, `docs/09`; antes solo lectura, con el envío para v0.2). Un solo envío, `send_message`, texto a una persona o a un grupo del usuario, con guardas en el bridge |
 | Varios proyectos | **Un agente por proyecto**, cada uno en su carpeta (`~/Galeno/<agente>/`). En v0.0.1 se pueden crear varios; la **separación garantizada de contexto** entre ellos es v0.2. Ver §3b |
 | Envío de mensajes | Por **Slack, email y WhatsApp** (este último solo por `send_message`, siempre con aprobación y con topes en el código; `docs/09` §4) |
 | Secretos del usuario | **Nunca tocan infraestructura propia.** Todo local |
@@ -258,9 +258,11 @@ El wizard termina, pero el producto no. Un agente de Galeno es **una carpeta** (
 
 **Cambio del 7 oct 2026 (decisión de Rafa, `docs/09-plan-simon-envio-y-prospeccion.md`):** WhatsApp pasa de solo lectura a **lectura libre y envío con aprobación**. Lo pidió el flujo de Simon (prospección desde una hoja y seguimientos diarios): el primer contacto sale por WhatsApp o correo, y el `wa.me` de `/prospeccion` se queda como respaldo. Hasta la 0.3.0 del bridge no existe código de envío; desde la 0.4.0 existe **uno solo**, con estas reglas.
 
-- **Un solo envío: `send_message`.** Texto, a **una** persona (`@s.whatsapp.net`). Nunca a grupos, difusiones, estados ni newsletters; nunca adjuntos, audios ni stickers. `send_file` y `send_audio_message` siguen eliminados.
+- **Un solo envío: `send_message`.** Texto, a **una** persona o a **un** grupo en el que el usuario ya está. Nunca a listas de difusión, estados ni canales; nunca adjuntos, audios ni stickers. `send_file` y `send_audio_message` siguen eliminados.
+- **Grupos, con el nombre a la vista (decisión de Rafa, 7 oct 2026).** El plan original no enviaba a grupos; Rafa lo pidió ese mismo día. Solo valen los grupos que ya están entre los chats sincronizados. Como al aprobar el usuario ve lo que pidió el agente, y de un grupo eso es un identificador que no dice nada, `send_message` exige el nombre del grupo y el bridge lo rechaza si no coincide con el guardado: lo que el usuario lee al aprobar es el grupo al que de verdad va el mensaje. Tienen su propio tope diario (10, techo 20) y además cuentan para el total.
 - **Siempre con aprobación.** `send_message` va en `ask` y lo cubre el hook de aprobación, como Slack y Gmail. Una tarea programada **no envía**: deja el mensaje propuesto y el usuario lo aprueba en su primera sesión. Los subagentes nunca reciben la herramienta.
-- **Las guardas viven en el bridge, no en el prompt** (`docs/09` §4.4): topes diarios (40 en total, 15 chats nuevos) con un techo fijo en el código que el usuario puede bajar y nunca subir; horario de oficina (L–V 8–19, sáb 8–13; fuera de eso queda en cola); espaciado aleatorio de 45–120 s; el mismo texto a más de 3 chats se rechaza; 1.000 caracteres como mucho; y una pausa total (`send-paused`). El horario se apoya en la Ley 2300 de 2023; Rafa lo valida con un abogado antes de vender a más usuarios.
+- **Las guardas viven en el bridge, no en el prompt** (`docs/09` §4.4): topes diarios (40 en total, 15 chats nuevos) con un techo fijo en el código que el usuario puede bajar y nunca subir; espaciado aleatorio de 45–120 s; el mismo texto a más de 3 chats se rechaza; 1.000 caracteres como mucho; y una pausa total (`send-paused`), que además cancela lo que estaba en cola.
+- **Sin guarda de horario ni de festivos (decisión de Rafa, 7 oct 2026).** El plan original solo enviaba de lunes a viernes de 8 a 19 y sábados de 8 a 13. Rafa decidió que Galeno no discrimine por hora ni por día: lo decide el usuario, que aprueba cada mensaje. **A cambio se le avisa**: el agente lo dice antes de proponer un mensaje de noche, en domingo o en festivo, y la advertencia de la app lo menciona. La Ley 2300 de 2023 limita el horario de los contactos comerciales en Colombia; Rafa lo valida con un abogado antes de vender a más usuarios.
 - **Por una bandeja de salida, no por otra conexión.** `serve` (el que lanza Claude Code) no se conecta a WhatsApp: escribe en `outbox` (SQLite) y `sync`, la única conexión viva, despacha. Dos conexiones del mismo dispositivo es justo lo que se evitó.
 - **La herramienta solo aparece si la config la pide.** `serve` a secas ofrece las 9 lecturas; `send_message` solo existe con `serve --with-send`, que el motor escribe en el `.mcp.json` junto con la regla `ask` y el hook de aprobación. La config generada antes del envío permitía el servidor entero (`mcp__whatsapp__*`): sin esta compuerta, un agente creado antes y un bridge actualizado enviarían sin preguntar. Un agente viejo sigue siendo de solo lectura hasta que se regenera.
 - **El agente ve todos los chats sincronizados, incluidos los personales.** No hay filtro por chat (ver §3b). La app tiene que decirlo con claridad en la pantalla "elige qué leer": lo que el usuario elige es en qué se enfoca el agente, no lo que puede leer.
@@ -271,7 +273,7 @@ El wizard termina, pero el producto no. Un agente de Galeno es **una carpeta** (
   - **Alternativas en TypeScript, evaluadas y descartadas** por la decisión de Go: `exomind-tmi/whatsapp-mcp` (Baileys; buen diseño de daemon único + shims) e `ionutsss1/whatsapp-mcp`. Más maduros que joaohts, pero obligarían a empaquetar Node.
   - **`joaohts/whatsapp-mcp` (MIT) solo como referencia de UX**, no de código: 0 estrellas, 0 forks, pre-alpha, un solo autor. Tomar sus ideas (QR en pantalla, toggles por herramienta, variante DMG), no heredar código sin probar.
 - **Re-vinculación:** el protocolo rota la sesión ~cada 20 días; la app debe avisar y ofrecer re-escanear.
-- **Por qué los topes y la aprobación, y no solo lectura:** el riesgo de ban se dispara con el envío automatizado y en frío. Que cada mensaje lo apruebe una persona, con topes, horario, espaciado y sin grupos, lo acerca a lo que hace un humano con WhatsApp Web; no lo elimina, y la advertencia lo dice. La recomendación a los usuarios es que la prospección en frío vaya **primero por correo** cuando haya correo.
+- **Por qué los topes y la aprobación, y no solo lectura:** el riesgo de ban se dispara con el envío automatizado y en frío. Que cada mensaje lo apruebe una persona, con topes y espaciado, y sin difusiones, lo acerca a lo que hace un humano con WhatsApp Web; no lo elimina, y la advertencia lo dice. La recomendación a los usuarios es que la prospección en frío vaya **primero por correo** cuando haya correo.
 
 ---
 
@@ -611,7 +613,7 @@ El nivel "trae la tuya" (pegar un link de GitHub) se pospone. Cuando se añada, 
 
 | Riesgo | Mitigación |
 |---|---|
-| Ban de WhatsApp a un usuario | Aprobación por mensaje, topes y horario en el código, sin grupos ni difusión, pausa, advertencia explícita, correo primero para el frío, y sin promesa de "seguro" (`docs/09` §10) |
+| Ban de WhatsApp a un usuario | Aprobación por mensaje, topes y espaciado en el código, sin listas de difusión, grupos solo con su nombre comprobado, pausa, advertencia explícita, correo primero para el frío, y sin promesa de "seguro" (`docs/09` §10) |
 | Tokens expuestos | Nunca en texto plano; referencias a env; nunca en servidores propios |
 | Agente envía algo mal a un cliente | Todo envío externo en `ask` + hook de aprobación |
 | Apple bloquea la app (Gatekeeper) | Firmar y notarizar el DMG desde el inicio; el binario Go embebido también debe firmarse |

@@ -56,8 +56,8 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprintln(os.Stderr, `galeno-whatsapp — puente de WhatsApp: lee, y envía texto a una persona solo con
-aprobación (fork de lharries/whatsapp-mcp).
+	fmt.Fprintln(os.Stderr, `galeno-whatsapp — puente de WhatsApp: lee, y envía texto a una persona o a un grupo
+solo con aprobación (fork de lharries/whatsapp-mcp).
 
 Uso:
   galeno-whatsapp pair             Vincula este Mac con tu WhatsApp (muestra un QR)

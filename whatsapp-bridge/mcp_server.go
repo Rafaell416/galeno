@@ -35,9 +35,14 @@ func newMCPServer(store *MessageStore, outbox *outboxEnv) *mcp.Server {
 		openWorld := true
 		mcp.AddTool(server, &mcp.Tool{
 			Name: "send_message",
-			Description: "Send ONE WhatsApp text message to ONE person. The user approves every message before it goes out. " +
-				"Text only: no files, images, audio or stickers, and never to groups, broadcast lists or channels. " +
-				"Daily limits, office hours and a pause between messages are enforced by Galeno to protect the user's number: " +
+			Description: "Send ONE WhatsApp text message to ONE person, or to ONE group the user is already in. " +
+				"The user approves every message before it goes out. " +
+				"Text only: no files, images, audio or stickers, and never to broadcast lists, statuses or channels. " +
+				"For a group, pass its JID (from list_chats) in recipient AND its exact name in group_name: " +
+				"the user reads that name when approving, and Galeno rejects the message if it is not the name of that group. " +
+				"Galeno does not restrict the day or the hour. Before proposing a message late at night, on a Sunday or on a holiday, " +
+				"tell the user it is outside usual business hours and let them decide. " +
+				"Daily limits and a pause between messages are enforced by Galeno to protect the user's number: " +
 				"when the result is \"rejected\", tell the user the reason and do not try to work around it " +
 				"(do not reword, split, or resend to get past a limit). " +
 				"\"queued\" means it will go out at scheduled_for; \"pending\" means Galeno is not connected to WhatsApp right now " +
@@ -357,7 +362,8 @@ func handleDownloadMedia(store *MessageStore) func(context.Context, *mcp.CallToo
 // MARK: - send_message
 
 type SendMessageInput struct {
-	Recipient string `json:"recipient" jsonschema:"the person's phone number in international format, digits only, no + (for example 573001112233), or a JID ending in @s.whatsapp.net"`
+	Recipient string `json:"recipient" jsonschema:"a person: phone number in international format, digits only, no + (for example 573001112233), or a JID ending in @s.whatsapp.net. A group: its JID ending in @g.us, from list_chats"`
+	GroupName string `json:"group_name,omitempty" jsonschema:"only when recipient is a group: the exact name of that group, as list_chats shows it. Leave empty for a person"`
 	Message   string `json:"message" jsonschema:"the text to send, up to 1000 characters"`
 }
 
@@ -375,8 +381,8 @@ type SendMessageOutput struct {
 }
 
 const (
-	reasonQueued      = "Scheduled, not sent yet: Galeno spaces messages out and only sends in office hours. It will go out at scheduled_for if this computer is on. Do not send it again."
-	reasonNotPickedUp = "Not sent yet: Galeno is not connected to WhatsApp right now (the computer may have just woken up, or the sync is not running). It will go out when the connection is back, in office hours. Tell the user; do not send it again."
+	reasonQueued      = "Scheduled, not sent yet: Galeno leaves a pause between messages. It will go out at scheduled_for if this computer is on. Do not send it again."
+	reasonNotPickedUp = "Not sent yet: Galeno is not connected to WhatsApp right now (the computer may have just woken up, or the sync is not running). It will go out when the connection is back. Tell the user; do not send it again."
 )
 
 // handleSendMessage valida y deja el mensaje en la bandeja de salida. Un
@@ -384,7 +390,7 @@ const (
 // de protocolo: el agente tiene que poder leer por qué y contárselo al usuario.
 func handleSendMessage(outbox outboxEnv) func(context.Context, *mcp.CallToolRequest, SendMessageInput) (*mcp.CallToolResult, SendMessageOutput, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in SendMessageInput) (*mcp.CallToolResult, SendMessageOutput, error) {
-		queued, err := outbox.enqueue(in.Recipient, in.Message)
+		queued, err := outbox.enqueue(in.Recipient, in.GroupName, in.Message)
 		if err != nil {
 			return nil, SendMessageOutput{}, err
 		}

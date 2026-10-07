@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"go.mau.fi/whatsmeow"
@@ -17,8 +18,9 @@ import (
 //
 // Este es el ÚNICO archivo del bridge donde puede aparecer client.SendMessage(
 // (lo comprueban el guardia de CI y TestSendCallOnlyInOutbox). Solo sale texto,
-// a una persona: no hay adjuntos, ni audios, ni grupos, ni «leído», ni
-// «escribiendo…». Añadir cualquiera de esos es una línea roja (AGENTS.md).
+// a una persona o a un grupo del usuario: no hay adjuntos, ni audios, ni listas
+// de difusión, ni estados, ni canales, ni «leído», ni «escribiendo…». Añadir
+// cualquiera de esos es una línea roja (AGENTS.md).
 
 // messageSender es lo que el despacho necesita de WhatsApp. En producción lo
 // cumple liveClient; las pruebas usan uno simulado, sin red.
@@ -31,6 +33,8 @@ type messageSender interface {
 	NewMessageID() string
 	// IsOnWhatsApp pregunta si un número tiene WhatsApp y devuelve su JID.
 	IsOnWhatsApp(ctx context.Context, phone string) (types.JID, bool, error)
+	// CheckGroup falla si el grupo ya no existe o el usuario ya no está en él.
+	CheckGroup(ctx context.Context, group types.JID) error
 	SendText(ctx context.Context, to types.JID, id, body string) (time.Time, error)
 }
 
@@ -72,6 +76,11 @@ func (c *liveClient) IsOnWhatsApp(ctx context.Context, phone string) (types.JID,
 		}
 	}
 	return types.JID{}, false, nil
+}
+
+func (c *liveClient) CheckGroup(ctx context.Context, group types.JID) error {
+	_, err := c.client.GetGroupInfo(ctx, group)
+	return err
 }
 
 func (c *liveClient) SendText(ctx context.Context, to types.JID, id, body string) (time.Time, error) {
@@ -155,12 +164,6 @@ func (d *outboxDispatcher) dispatchOutbox(ctx context.Context) {
 		return
 	}
 
-	// Fuera de horario: lo que tocaba pasa a la siguiente apertura.
-	if !inOfficeHours(now) {
-		d.postponeDue(now, nextOpening(now))
-		return
-	}
-
 	// El mínimo entre dos mensajes vale también contra lo que diga la base.
 	var lastSent sql.NullTime
 	err = db.QueryRow(`SELECT sent_at FROM outbox WHERE status = ? ORDER BY sent_at DESC LIMIT 1`, statusSent).
@@ -174,8 +177,8 @@ func (d *outboxDispatcher) dispatchOutbox(ctx context.Context) {
 	}
 
 	// El tope del día cuenta lo que ya salió hoy. Si se llenó (mensajes
-	// atrasados de otro día que se suman a los de hoy), el resto pasa a la
-	// primera apertura de otro día.
+	// atrasados de otro día que se suman a los de hoy), el que sobra no sale:
+	// queda como fallido, diciendo por qué, y decide el usuario.
 	dayStart, dayEnd := dayBounds(now)
 	var sentToday int
 	err = db.QueryRow(`SELECT COUNT(*) FROM outbox WHERE status = ? AND sent_at >= ? AND sent_at < ?`,
@@ -184,8 +187,11 @@ func (d *outboxDispatcher) dispatchOutbox(ctx context.Context) {
 		d.logger.Warnf("No se pudo contar los envíos de hoy: %v", err)
 		return
 	}
-	if sentToday >= loadOutboxLimits(d.env.stateDir).DailyTotal {
-		d.postponeDue(now, nextOpening(dayEnd))
+	if limit := loadOutboxLimits(d.env.stateDir).DailyTotal; sentToday >= limit {
+		if _, err := db.Exec(`UPDATE outbox SET status = ?, error = ? WHERE id = ? AND status = ?`,
+			statusFailed, fmt.Sprintf(failureDailyLimit, limit), item.id, statusPending); err != nil {
+			d.logger.Warnf("No se pudo anotar el mensaje %d que pasó del tope: %v", item.id, err)
+		}
 		return
 	}
 
@@ -217,15 +223,6 @@ func (d *outboxDispatcher) nextDue(now time.Time) (outboxItem, bool, error) {
 	return item, true, nil
 }
 
-// postponeDue mueve lo que ya tocaba a una hora posterior.
-func (d *outboxDispatcher) postponeDue(now, until time.Time) {
-	_, err := d.env.store.db.Exec(`UPDATE outbox SET not_before = ? WHERE status = ? AND not_before <= ?`,
-		stamp(until), statusPending, stamp(now))
-	if err != nil {
-		d.logger.Warnf("No se pudo reprogramar la bandeja de salida: %v", err)
-	}
-}
-
 // sendOutboxItem saca un mensaje y anota qué pasó. No reintenta: si falla,
 // queda como fallido con su error y decide el usuario.
 func (d *outboxDispatcher) sendOutboxItem(ctx context.Context, item outboxItem) {
@@ -253,24 +250,39 @@ func (d *outboxDispatcher) sendOutboxItem(ctx context.Context, item outboxItem) 
 	}
 
 	requested, err := types.ParseJID(item.chatJID)
-	if err != nil || requested.Server != types.DefaultUserServer {
+	if err != nil {
 		fail(failureNotAPerson)
 		return
 	}
 
+	// Otra vez, justo antes de salir: solo a una persona o a un grupo.
+	var target types.JID
 	lookupCtx, cancelLookup := context.WithTimeout(ctx, 20*time.Second)
-	target, onWhatsApp, err := d.sender.IsOnWhatsApp(lookupCtx, requested.User)
-	cancelLookup()
-	if err != nil {
-		fail("Could not check the number on WhatsApp: " + err.Error())
-		return
-	}
-	if !onWhatsApp {
-		fail(failureNotOnWA)
-		return
-	}
-	// Otra vez, justo antes de salir: solo a una persona.
-	if target.Server != types.DefaultUserServer {
+	defer cancelLookup()
+	switch requested.Server {
+	case types.GroupServer:
+		// Que el grupo siga existiendo y el usuario siga dentro.
+		if err := d.sender.CheckGroup(lookupCtx, requested); err != nil {
+			fail(failureGroup + err.Error())
+			return
+		}
+		target = requested
+	case types.DefaultUserServer:
+		found, onWhatsApp, err := d.sender.IsOnWhatsApp(lookupCtx, requested.User)
+		if err != nil {
+			fail("Could not check the number on WhatsApp: " + err.Error())
+			return
+		}
+		if !onWhatsApp {
+			fail(failureNotOnWA)
+			return
+		}
+		if found.Server != types.DefaultUserServer {
+			fail(failureNotAPerson)
+			return
+		}
+		target = found
+	default:
 		fail(failureNotAPerson)
 		return
 	}

@@ -146,17 +146,27 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - El bridge todavía **no descarga adjuntos** (`download_media` solo mira lo que ya está en disco). Su mensaje y el `AGENTS.md`
   generado lo dicen tal cual; no volver a un texto que mande a «reintentar».
 - **El envío existe desde la 0.4.0 (decisión de Rafa, 7 oct 2026; `docs/09` §4), y es uno solo:** `send_message`, texto,
-  a **una** persona, por una **bandeja de salida** en SQLite que `serve` escribe y `sync` despacha (nunca una segunda
-  conexión a WhatsApp). Siempre pide aprobación: va en `ask` y lo cubre el hook. **Las guardas viven en el código del
-  bridge, no en el prompt**, para que ni el agente ni un prompt las salten: solo chats `@s.whatsapp.net` (nunca grupos,
-  difusiones, estados ni newsletters), tope diario total (40) y de chats nuevos (15) con un techo fijo en el código
-  (80 y 25) que `send-limits.json` nunca sube, horario de oficina (L–V 8–19, sáb 8–13; fuera de eso queda `queued`),
-  espaciado aleatorio de 45–120 s, el mismo texto a más de 3 chats se rechaza, 1.000 caracteres como mucho, y el archivo
-  `send-paused` lo para todo (y cancela lo que estaba en cola: al quitar la pausa no sale de golpe lo acumulado). No se
-  añade ningún otro envío: ni `send_file`, ni `send_audio_message`, ni adjuntos, audios o stickers, ni detrás de un flag.
-  `client.SendMessage(` solo en `outbox.go` (CI, `TestSendCallOnlyInOutbox` y `TestOnlyAllowedSendSymbols`). `sync` vuelve
-  a mirar las guardas que dependen del momento (horario, espaciado, tope, pausa) y **nunca reintenta solo**: un envío que
-  falla o que quedó a medias se queda `failed`.
+  a **una** persona o a **un** grupo del usuario, por una **bandeja de salida** en SQLite que `serve` escribe y `sync`
+  despacha (nunca una segunda conexión a WhatsApp). Siempre pide aprobación: va en `ask` y lo cubre el hook. **Las guardas
+  viven en el código del bridge, no en el prompt**, para que ni el agente ni un prompt las salten: nunca listas de
+  difusión, estados ni canales; tope diario total (40), de chats nuevos (15) y de grupos (10) con un techo fijo en el
+  código (80, 25 y 20) que `send-limits.json` nunca sube; espaciado aleatorio de 45–120 s; el mismo texto a más de 3 chats
+  se rechaza; 1.000 caracteres como mucho; y el archivo `send-paused` lo para todo (y cancela lo que estaba en cola: al
+  quitar la pausa no sale de golpe lo acumulado). No se añade ningún otro envío: ni `send_file`, ni `send_audio_message`,
+  ni adjuntos, audios o stickers, ni detrás de un flag. `client.SendMessage(` solo en `outbox.go` (CI,
+  `TestSendCallOnlyInOutbox` y `TestOnlyAllowedSendSymbols`). `sync` vuelve a mirar las guardas que dependen del momento
+  (espaciado, tope, pausa) y **nunca reintenta solo**: un envío que falla, que quedó a medias o que pasó del tope se
+  queda `failed`.
+- **Grupos (decisión de Rafa, 7 oct 2026; el plan original no los traía):** solo los que ya están entre los chats
+  sincronizados del usuario, y **con el nombre comprobado**. Al aprobar, el usuario ve lo que pidió el agente, y de un
+  grupo eso es un identificador (`120363…@g.us`) que no dice nada: por eso `send_message` exige `group_name` y el bridge
+  lo rechaza si no es el nombre guardado de ese grupo (`outboxEnv.groupGuard`). No quitar esa comprobación ni aceptar un
+  grupo sin nombre: es lo que hace que la aprobación valga para un grupo.
+- **No hay guarda de horario ni de festivos (decisión de Rafa, 7 oct 2026; el plan original traía L–V 8–19 y sáb 8–13):**
+  el bridge no decide a qué hora ni qué día se escribe; lo decide el usuario, que aprueba cada mensaje. **A cambio, se le
+  avisa**: la descripción de `send_message` y el `AGENTS.md` generado le piden al agente decirlo antes de proponer un
+  mensaje de noche, en domingo o en festivo, y la advertencia de la app lo menciona (la Ley 2300 de 2023 limita el
+  horario de los contactos comerciales en Colombia; Rafa lo valida con un abogado).
 - **`send_message` solo existe si `serve` se lanza con `--with-send`**, y el motor lo escribe en el `.mcp.json` **en la
   misma generación** en que escribe la regla `ask` y el hook. No quitar esa compuerta ni encenderla por defecto: la config
   generada antes del envío permite el servidor entero (`mcp__whatsapp__*`), así que una carpeta de agente vieja con un
@@ -437,10 +447,11 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 
 Parar y preguntar a Rafa antes de hacer cualquiera de estas cosas, aunque parezca razonable:
 
-1. Enviar por WhatsApp **sin aprobación humana, de forma desatendida, a grupos o listas, con adjuntos, o saltando los
-   topes del bridge**. El envío existe (decisión de Rafa, 7 oct 2026, `docs/09`) y solo por `send_message`, que siempre
-   pide aprobación. Añadir otra herramienta de envío, otro canal de salida del bridge, o cualquier forma de subir los
-   techos del código es reabrir esta línea. El número al que se escribe sale del identificador del chat o del contacto
+1. Enviar por WhatsApp **sin aprobación humana, de forma desatendida, a listas de difusión, estados o canales, a un grupo
+   sin su nombre comprobado, con adjuntos, o saltando los topes del bridge**. El envío existe (decisión de Rafa, 7 oct
+   2026, `docs/09`) y solo por `send_message`, que siempre pide aprobación; a grupos del usuario también, desde ese mismo
+   día. Añadir otra herramienta de envío, otro canal de salida del bridge, o cualquier forma de subir los techos del
+   código es reabrir esta línea. El número al que se escribe sale del identificador del chat o del contacto
    que una empresa publica para sus clientes; nunca el de una persona sacado de la web (`docs/03` §6.3). El enlace
    `wa.me` de `/prospeccion` queda como respaldo (chats `@lid`, topes alcanzados o preferencia del usuario).
 2. Hacer que un token o un dato del usuario salga de su máquina hacia servidores nuestros.

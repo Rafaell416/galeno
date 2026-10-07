@@ -222,8 +222,9 @@ tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
    La app orquesta OAuth y escribe archivos locales; no almacena ni transmite credenciales
    ajenas. Nunca en texto plano en la config: referencias a variables de entorno.
 2. **WhatsApp envía solo con aprobación, y con guardas en el código** (desde el 7 oct 2026; antes, sin envío por
-   estructura de código). Un solo envío, `send_message`, texto a una persona, por una bandeja de salida; va en `ask`
-   y lo cubre el hook; topes, horario, espaciado y pausa viven en el bridge, no en el prompt; `send_file` y
+   estructura de código). Un solo envío, `send_message`, texto a una persona o a un grupo del usuario, por una bandeja de
+   salida; va en `ask` y lo cubre el hook; topes, espaciado y pausa viven en el bridge, no en el prompt (sin guarda de
+   horario: decisión de Rafa, 7 oct 2026); `send_file` y
    `send_audio_message` siguen eliminados; los subagentes nunca lo reciben; una tarea programada nunca envía.
 3. **Aprobación humana para todo envío externo** (Slack, email): regla `ask` + hook.
    Por defecto, nada externo sale sin preguntar.
@@ -353,7 +354,7 @@ relevante; ellos devuelven un borrador y solo el principal envía, con aprobaci�
 
 | Riesgo | Mitigación |
 |---|---|
-| Ban de WhatsApp a un usuario | Aprobación por mensaje, topes y horario en el código, sin grupos, pausa, advertencia explícita, correo primero para el frío; sin promesa de "seguro" (`docs/09` §10) |
+| Ban de WhatsApp a un usuario | Aprobación por mensaje, topes y espaciado en el código, sin listas de difusión, grupos solo con su nombre comprobado, pausa, advertencia explícita, correo primero para el frío; sin promesa de "seguro" (`docs/09` §10) |
 | Tokens expuestos | Nunca en texto plano ni en servidores propios |
 | El agente envía algo mal a un cliente | Envíos externos en `ask` + hook de aprobación |
 | Gatekeeper bloquea la app | Firmar y notarizar desde el inicio, incluido el binario Go |
@@ -386,8 +387,10 @@ tamaño exacto. Detalle en `docs/04` §12 («Pantallas»).
   prueban añadiéndolas como skills propias (`skills-propias/`), no entran al catálogo. Sigue abierta: (2) el texto nuevo
   de la advertencia de WhatsApp, que se propone en el PR 4 y lo aprueba Rafa. Nuevas, del PR 2: ¿la pausa debe cancelar
   lo que estaba en cola (así quedó, como dice el plan) o solo retenerlo?; ¿un mensaje que lleva días `pending` porque el
-  Mac estuvo apagado debe caducar en vez de salir al volver?; los **festivos** no se miran en el horario. Además: **el
-  horario de contactos se apoya en la Ley 2300 de 2023 y Rafa lo valida con un abogado** antes de vender a más usuarios.
+  Mac estuvo apagado debe caducar en vez de salir al volver?; y el tope diario de grupos (quedó en 10, techo 20, propuesto y sin objeción). **Decidido el
+  7 oct:** grupos sí; sin guarda de horario ni festivos, con aviso al usuario; quien ya tiene Galeno activa el envío
+  aceptando la advertencia nueva. Además: **la Ley 2300 de 2023 limita el horario de los contactos comerciales y Rafa
+  lo valida con un abogado** antes de vender a más usuarios.
 
 - **Variables de entorno de los tokens:** dónde se guardan los valores a los que apunta `.mcp.json`.
 - **Pagos:** falta la compra (Stripe) y cómo se entrega el enlace de descarga. Sin licencias en v0.0.1 (decisión de
@@ -727,7 +730,8 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
 **Peticiones del usuario (necesitan decisión de Rafa: tocan líneas rojas):**
 
 - **Enviar por WhatsApp. Decidido (Rafa, 7 oct 2026; `docs/09-plan-simon-envio-y-prospeccion.md`):** sí, con
-  aprobación por mensaje y guardas en el bridge (topes, horario, espaciado, sin grupos, pausa). Reabre la línea roja 1
+  aprobación por mensaje y guardas en el bridge (topes, espaciado, pausa; ese mismo día Rafa añadió los grupos del
+  usuario y quitó la guarda de horario, ver «PR 2» abajo). Reabre la línea roja 1
   a propósito; `WebFetch` pasa a `allow` solo para el rol comercial. Cinco PRs en orden: docs (este), bridge 0.4.0,
   motor, app, skills; después, la instalación de Simon.
 
@@ -865,6 +869,17 @@ horario, espaciado, tope y pausa al sacar cada mensaje (varios atrasados no sale
 nuevo también corre en `go test` (`TestSendCallOnlyInOutbox`), porque Actions sigue sin correr. **Sin probar contra
 WhatsApp de verdad**: falta la prueba manual de Rafa con su segundo número. **Para el PR 4:** al actualizar el bridge
 hay que reiniciar `sync` (el LaunchAgent sigue con el binario viejo y no despacha la bandeja).
+
+**Tres cambios de Rafa al plan, el mismo 7 oct 2026 (van en el PR 2; anotados arriba de `docs/09`).** (1) **Grupos:**
+`send_message` también envía a un grupo del usuario. Solo a los que están entre sus chats, con `group_name` comprobado
+contra el nombre guardado (al aprobar se ve un identificador que no dice nada; el nombre es lo que el usuario lee), con
+tope propio de 10 al día (techo 20) y contando para el total. Difusiones, estados y canales siguen fuera. Reescribe la
+línea roja 1. (2) **Sin guarda de horario ni de festivos:** Galeno no discrimina por hora ni por día; a cambio se le
+avisa al usuario (la descripción de la herramienta ya se lo pide al agente; **falta** el texto en el `AGENTS.md`
+generado, PR 3, y en la advertencia de la app, PR 4). Lo que pasa del tope del día al despachar ya no se mueve a otro
+día: queda `failed`. (3) **Quien ya tiene Galeno** (tres personas, con agentes de solo lectura): el envío **no** se
+activa solo al actualizar. La app detecta los agentes con WhatsApp creados antes del envío, enseña la advertencia
+nueva y, al aceptar, regenera esas carpetas (`memoria/` no se toca) y reinicia `sync`. Es trabajo de los PRs 3 y 4.
 
 **Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
 pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está

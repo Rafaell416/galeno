@@ -5,6 +5,22 @@
 **Autoriza:** Rafa. Este documento **cambia decisiones cerradas** y abre ramas y PRs para hacerlo.
 Lo que dice aquí manda sobre `AGENTS.md` y `docs/03` **solo después de que el PR 1 se mergee**. Hasta entonces, nada de envío.
 
+> **Enmiendas de Rafa (7 oct 2026, después de escribir el plan).** El texto de abajo se deja como se escribió; donde
+> choca con esto, **manda esto**, y ya está en `AGENTS.md` y en `docs/03` §4:
+>
+> 1. **Se envía también a grupos** (cambia §0 «Sin difusiones ni grupos» y §4.4). Solo a los que ya están entre los
+>    chats del usuario, con el nombre del grupo comprobado por el bridge, y con tope propio (10 al día, techo 20).
+>    Listas de difusión, estados y canales siguen fuera.
+> 2. **No hay guarda de horario ni de festivos** (cambia §4.4 y §4.5). El bridge no discrimina por hora ni por día; al
+>    usuario se le avisa (el agente antes de proponer, y la advertencia de la app).
+> 3. **`send_message` solo existe con `serve --with-send`** (añade a §4.3). La config generada antes del envío permite
+>    el servidor entero, y sin esa compuerta un agente ya creado enviaría sin preguntar.
+> 4. **`WebFetch` va para los tres roles**, no solo comercial (cambia §5.2).
+> 5. **Las skills de Simon son suyas**: las entrega él y se prueban como skills propias (cambia §7 y §11).
+> 6. **Quien ya tiene Galeno** (tres personas) activa el envío aceptando la advertencia nueva; no se activa solo al
+>    actualizar (añade a §6).
+> 7. Los topes por defecto se quedan en 40 al día y 15 chats nuevos.
+
 ---
 
 ## 0. Contexto: por qué existe este plan
