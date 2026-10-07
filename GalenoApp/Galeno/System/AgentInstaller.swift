@@ -42,9 +42,13 @@ nonisolated struct AgentInstaller: Sendable {
         // quedaron conectadas; una saltada solo si nadie la había conectado antes, para no
         // dejar "desconectada" una herramienta que otro agente ya usa.
         for connection in config.connections {
+            // Que el usuario aceptó el envío por WhatsApp es de la conexión, no de un agente: guardar un agente
+            // cuya config no lo trae no lo borra.
             let shared = SharedConnection(
                 tool: connection.tool, status: connection.status,
-                oauthClientID: connection.oauthClientID, serverNamePrefix: connection.serverNamePrefix)
+                oauthClientID: connection.oauthClientID, serverNamePrefix: connection.serverNamePrefix,
+                sendingAccepted: connection.sendingAccepted
+                    ?? installation.connection(for: connection.tool)?.sendingAccepted)
             switch connection.status {
             case .connected:
                 installation.setConnection(shared)

@@ -87,7 +87,21 @@ struct HomeView: View {
                 header
                     .padding(.horizontal, Space.s48)
                     .padding(.top, 28)
-                    .padding(.bottom, model.notice == nil ? 16 : 10)
+                    .padding(.bottom, model.notice == nil && !model.sendingOffer ? 16 : 10)
+                if model.notice == nil, model.sendingOffer {
+                    NoticePanel(kind: .ochre) {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text("home.sending.offer").font(Typo.text(14)).foregroundStyle(Color.ink900)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 12)
+                            Button("home.sending.offer.open", action: onHealth).buttonStyle(LinkTextStyle())
+                            Button("home.sending.offer.later") { model.dismissSendingOffer() }
+                                .buttonStyle(LinkTextStyle())
+                        }
+                    }
+                    .padding(.horizontal, Space.s48)
+                    .padding(.bottom, 12)
+                }
                 if let notice = model.notice {
                     NoticePanel(kind: .ochre) {
                         HStack(alignment: .firstTextBaseline) {

@@ -37,6 +37,8 @@ type fakeWhatsApp struct {
 	offline       bool
 	notOnWhatsApp map[string]bool
 	lookupErr     error
+	groupErr      error
+	groupChecks   int
 	deliveryErr   error
 	lookups       int
 	delivered     []delivery
@@ -60,6 +62,11 @@ func (f *fakeWhatsApp) IsOnWhatsApp(_ context.Context, phone string) (types.JID,
 		return types.JID{}, false, nil
 	}
 	return types.NewJID(phone, types.DefaultUserServer), true, nil
+}
+
+func (f *fakeWhatsApp) CheckGroup(_ context.Context, group types.JID) error {
+	f.groupChecks++
+	return f.groupErr
 }
 
 func (f *fakeWhatsApp) SendText(_ context.Context, to types.JID, id, body string) (time.Time, error) {
@@ -123,12 +130,32 @@ func (o *testOutbox) knownChat(t *testing.T, jid string) {
 
 func (o *testOutbox) mustEnqueue(t *testing.T, recipient, body string) enqueueResult {
 	t.Helper()
-	result, err := o.env.enqueue(recipient, body)
+	result, err := o.env.enqueue(recipient, "", body)
 	if err != nil {
 		t.Fatalf("enqueue(%q): %v", recipient, err)
 	}
 	return result
 }
+
+func (o *testOutbox) mustEnqueueGroup(t *testing.T, jid, name, body string) enqueueResult {
+	t.Helper()
+	result, err := o.env.enqueue(jid, name, body)
+	if err != nil {
+		t.Fatalf("enqueue(%q, %q): %v", jid, name, err)
+	}
+	return result
+}
+
+// knownGroup deja un grupo entre los chats del usuario, con su nombre.
+func (o *testOutbox) knownGroup(t *testing.T, jid, name string) {
+	t.Helper()
+	if _, err := o.env.store.db.Exec(`INSERT INTO chats (jid, name, last_message_time) VALUES (?, ?, ?)`,
+		jid, name, wednesdayMorning.Add(-24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func groupJID(i int) string { return fmt.Sprintf("1203630212345678%02d@g.us", i) }
 
 func (o *testOutbox) rows(t *testing.T) int {
 	t.Helper()
@@ -180,7 +207,9 @@ func TestOnlyOnePersonCanBeARecipient(t *testing.T) {
 		{"JID de persona", "573001112233@s.whatsapp.net", "573001112233@s.whatsapp.net", ""},
 		{"@lid conocido pasa a su número", "98765432101234@lid", "573001112233@s.whatsapp.net", ""},
 		{"@lid desconocido", "11111111111111@lid", "", reasonUnknownLID},
-		{"grupo", "120363021234567890@g.us", "", reasonGroup},
+		{"grupo", "120363021234567890@g.us", "120363021234567890@g.us", ""},
+		{"grupo de los de antes", "573001112233-1600000000@g.us", "573001112233-1600000000@g.us", ""},
+		{"grupo sin identificador", "@g.us", "", reasonBadNumber},
 		{"lista de difusión", "1234567890@broadcast", "", reasonBroadcast},
 		{"estados", "status@broadcast", "", reasonBroadcast},
 		{"canal", "120363999999999999@newsletter", "", reasonNewsletter},
@@ -204,11 +233,9 @@ func TestOnlyOnePersonCanBeARecipient(t *testing.T) {
 	}
 }
 
-func TestGroupsBroadcastsAndChannelsAreRejectedAndNothingIsWritten(t *testing.T) {
+func TestBroadcastsStatusesAndChannelsAreRejectedAndNothingIsWritten(t *testing.T) {
 	o := newTestOutbox(t, wednesdayMorning)
-	for _, recipient := range []string{
-		"120363021234567890@g.us", "1234567890@broadcast", "status@broadcast", "120363999999999999@newsletter",
-	} {
+	for _, recipient := range []string{"1234567890@broadcast", "status@broadcast", "120363999999999999@newsletter"} {
 		result := o.mustEnqueue(t, recipient, "Hola")
 		if !result.Rejected || result.Reason == "" {
 			t.Errorf("%s: se esperaba un rechazo con razón, salió %+v", recipient, result)
@@ -216,6 +243,139 @@ func TestGroupsBroadcastsAndChannelsAreRejectedAndNothingIsWritten(t *testing.T)
 	}
 	if n := o.rows(t); n != 0 {
 		t.Errorf("un rechazo no escribe nada; hay %d filas", n)
+	}
+}
+
+// MARK: - Grupos
+
+// El usuario aprueba mirando lo que pidió el agente, y de un grupo eso es un
+// identificador que no le dice nada. El nombre que acompaña al envío tiene que
+// ser el del grupo de verdad.
+func TestAGroupNeedsItsRealNameSoTheUserSeesWhichOneItIs(t *testing.T) {
+	o := newTestOutbox(t, wednesdayMorning)
+	o.knownGroup(t, groupJID(1), "Equipo Cliente A")
+	o.knownGroup(t, groupJID(2), "Group 120363021234567802")
+	o.knownGroup(t, groupJID(3), "")
+
+	cases := []struct {
+		name, jid, groupName, wantWhy string
+	}{
+		{"un grupo que no está entre los chats", groupJID(9), "Equipo Cliente A", reasonUnknownGroup},
+		{"sin nombre", groupJID(1), "", fmt.Sprintf(reasonGroupNameMissing, "Equipo Cliente A")},
+		{"con el nombre de otro grupo", groupJID(1), "Familia", fmt.Sprintf(reasonGroupNameMismatch, "Equipo Cliente A")},
+		{"un grupo guardado con nombre de relleno", groupJID(2), "Group 120363021234567802", reasonUnnamedGroup},
+		{"un grupo guardado sin nombre", groupJID(3), "Lo que sea", reasonUnnamedGroup},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result := o.mustEnqueueGroup(t, c.jid, c.groupName, "Hola equipo")
+			if !result.Rejected || result.Reason != c.wantWhy {
+				t.Errorf("se esperaba %q, salió %+v", c.wantWhy, result)
+			}
+		})
+	}
+	if n := o.rows(t); n != 0 {
+		t.Fatalf("un rechazo no escribe nada; hay %d filas", n)
+	}
+
+	// Con su nombre (sin mirar mayúsculas ni espacios) entra, y no cuenta
+	// como chat nuevo.
+	result := o.mustEnqueueGroup(t, groupJID(1), "  equipo cliente a ", "Hola equipo")
+	if result.Rejected || result.ChatJID != groupJID(1) {
+		t.Fatalf("con el nombre correcto debía entrar: %+v", result)
+	}
+	var isNewChat bool
+	if err := o.env.store.db.QueryRow(`SELECT is_new_chat FROM outbox WHERE id = ?`, result.ID).Scan(&isNewChat); err != nil || isNewChat {
+		t.Errorf("un grupo no es un chat nuevo: %v, %v", isNewChat, err)
+	}
+
+	// Y un nombre de grupo junto a una persona se rechaza: el usuario leería
+	// un grupo y el mensaje iría a otra parte.
+	if result := o.mustEnqueueGroup(t, phone(1), "Equipo Cliente A", "Hola"); result.Reason != reasonNameOnPerson {
+		t.Errorf("nombre de grupo con una persona: %+v", result)
+	}
+}
+
+func TestAMessageToAGroupGoesOutAndIsWrittenToTheHistory(t *testing.T) {
+	o := newTestOutbox(t, wednesdayMorning)
+	o.knownGroup(t, groupJID(1), "Equipo Cliente A")
+	queued := o.mustEnqueueGroup(t, groupJID(1), "Equipo Cliente A", "Hola equipo")
+
+	o.sync.dispatchOutbox(context.Background())
+
+	if len(o.whatsapp.delivered) != 1 || o.whatsapp.delivered[0].to != groupJID(1) {
+		t.Fatalf("entregas = %+v", o.whatsapp.delivered)
+	}
+	// A un grupo no se le pregunta si «tiene WhatsApp»: se mira que siga ahí.
+	if o.whatsapp.groupChecks != 1 || o.whatsapp.lookups != 0 {
+		t.Errorf("comprobaciones de grupo %d, de número %d", o.whatsapp.groupChecks, o.whatsapp.lookups)
+	}
+	if out := o.status(t, queued.ID); out.Status != statusSent {
+		t.Errorf("estado = %+v", out)
+	}
+	var mine int
+	var name string
+	o.env.store.db.QueryRow(`SELECT COUNT(*) FROM messages WHERE chat_jid = ? AND is_from_me = 1`, groupJID(1)).Scan(&mine)
+	o.env.store.db.QueryRow(`SELECT name FROM chats WHERE jid = ?`, groupJID(1)).Scan(&name)
+	if mine != 1 || name != "Equipo Cliente A" {
+		t.Errorf("historial: %d mensajes míos, chat %q", mine, name)
+	}
+}
+
+func TestAGroupTheUserIsNoLongerInFails(t *testing.T) {
+	o := newTestOutbox(t, wednesdayMorning)
+	o.knownGroup(t, groupJID(1), "Equipo Cliente A")
+	o.whatsapp.groupErr = errors.New("403 forbidden")
+	queued := o.mustEnqueueGroup(t, groupJID(1), "Equipo Cliente A", "Hola equipo")
+
+	o.sync.dispatchOutbox(context.Background())
+
+	if out := o.status(t, queued.ID); out.Status != statusFailed || out.Error != failureGroup+"403 forbidden" {
+		t.Errorf("estado = %+v", out)
+	}
+	if len(o.whatsapp.delivered) != 0 {
+		t.Errorf("no debía enviarse: %+v", o.whatsapp.delivered)
+	}
+}
+
+func TestGroupsHaveTheirOwnDailyLimitAndCountForTheTotal(t *testing.T) {
+	o := newTestOutbox(t, wednesdayMorning)
+	o.writeLimits(t, `{"daily_total": 3, "daily_new_chats": 25, "daily_groups": 2}`)
+	for i := 1; i <= 3; i++ {
+		o.knownGroup(t, groupJID(i), fmt.Sprintf("Grupo %d", i))
+	}
+
+	for i := 1; i <= 2; i++ {
+		if result := o.mustEnqueueGroup(t, groupJID(i), fmt.Sprintf("Grupo %d", i), fmt.Sprintf("Aviso %d", i)); result.Rejected {
+			t.Fatalf("grupo %d: %+v", i, result)
+		}
+	}
+	result := o.mustEnqueueGroup(t, groupJID(3), "Grupo 3", "Aviso 3")
+	if !result.Rejected || !strings.Contains(result.Reason, "groups reached: 2 of 2") {
+		t.Errorf("el tercer grupo debía rechazarse: %+v", result)
+	}
+	// A una persona todavía se puede, y con ese se llena el total.
+	if result := o.mustEnqueue(t, phone(1), "Hola"); result.Rejected {
+		t.Errorf("a una persona: %+v", result)
+	}
+	if result := o.mustEnqueue(t, phone(2), "Hola a ti también"); !strings.Contains(result.Reason, "3 of 3") {
+		t.Errorf("los grupos cuentan para el total: %+v", result)
+	}
+}
+
+// El mismo aviso no se reparte por muchos grupos.
+func TestTheSameTextToMoreThanThreeGroupsIsRejected(t *testing.T) {
+	o := newTestOutbox(t, wednesdayMorning)
+	for i := 1; i <= 4; i++ {
+		o.knownGroup(t, groupJID(i), fmt.Sprintf("Grupo %d", i))
+	}
+	for i := 1; i <= 3; i++ {
+		if result := o.mustEnqueueGroup(t, groupJID(i), fmt.Sprintf("Grupo %d", i), "Mañana hay promoción"); result.Rejected {
+			t.Fatalf("grupo %d: %+v", i, result)
+		}
+	}
+	if result := o.mustEnqueueGroup(t, groupJID(4), "Grupo 4", "Mañana hay promoción"); result.Reason != reasonRepeated {
+		t.Errorf("el cuarto grupo debía rechazarse: %+v", result)
 	}
 }
 
@@ -315,19 +475,19 @@ func TestLimitsCannotBeRaisedAboveTheCeiling(t *testing.T) {
 		return loadOutboxLimits(dir)
 	}
 
-	if got := loadOutboxLimits(dir); got != (outboxLimits{defaultDailyTotal, defaultDailyNewChats}) {
+	if got := loadOutboxLimits(dir); got != (outboxLimits{defaultDailyTotal, defaultDailyNewChats, defaultDailyGroups}) {
 		t.Errorf("sin archivo = %+v", got)
 	}
-	if got := write(`{"daily_total": 5000, "daily_new_chats": 5000}`); got != (outboxLimits{maxDailyTotal, maxDailyNewChats}) {
+	if got := write(`{"daily_total": 5000, "daily_new_chats": 5000, "daily_groups": 5000}`); got != (outboxLimits{maxDailyTotal, maxDailyNewChats, maxDailyGroups}) {
 		t.Errorf("por encima del techo = %+v", got)
 	}
-	if got := write(`{"daily_total": 10, "daily_new_chats": 3}`); got != (outboxLimits{10, 3}) {
+	if got := write(`{"daily_total": 10, "daily_new_chats": 3, "daily_groups": 1}`); got != (outboxLimits{10, 3, 1}) {
 		t.Errorf("bajados = %+v", got)
 	}
-	if got := write(`{"daily_total": -1}`); got != (outboxLimits{defaultDailyTotal, defaultDailyNewChats}) {
+	if got := write(`{"daily_total": -1}`); got != (outboxLimits{defaultDailyTotal, defaultDailyNewChats, defaultDailyGroups}) {
 		t.Errorf("negativo o ausente = %+v", got)
 	}
-	if got := write(`esto no es json`); got != (outboxLimits{defaultDailyTotal, defaultDailyNewChats}) {
+	if got := write(`esto no es json`); got != (outboxLimits{defaultDailyTotal, defaultDailyNewChats, defaultDailyGroups}) {
 		t.Errorf("ilegible = %+v", got)
 	}
 }
@@ -347,68 +507,41 @@ func TestTheCeilingHoldsWhenTheFileAsksForMore(t *testing.T) {
 	}
 }
 
-// MARK: - Horario y espaciado
+// MARK: - Espaciado y día
 
-func TestOfficeHours(t *testing.T) {
-	at := func(day, hour, minute int) time.Time { return time.Date(2026, 10, day, hour, minute, 0, 0, bogota) }
-	// Octubre de 2026: el 5 es lunes, el 9 viernes, el 10 sábado, el 11 domingo.
-	cases := []struct {
-		name string
-		when time.Time
-		want time.Time
-	}{
-		{"miércoles en horario", at(7, 10, 0), at(7, 10, 0)},
-		{"miércoles antes de abrir", at(7, 7, 59), at(7, 8, 0)},
-		{"miércoles justo al abrir", at(7, 8, 0), at(7, 8, 0)},
-		{"miércoles al cerrar", at(7, 19, 0), at(8, 8, 0)},
-		{"viernes de noche", at(9, 21, 30), at(10, 8, 0)},
-		{"sábado por la mañana", at(10, 12, 59), at(10, 12, 59)},
-		{"sábado por la tarde", at(10, 13, 0), at(12, 8, 0)},
-		{"domingo", at(11, 11, 0), at(12, 8, 0)},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := nextOpening(c.when); !got.Equal(c.want) {
-				t.Errorf("nextOpening = %s, se esperaba %s", got, c.want)
-			}
-			if inOfficeHours(c.when) != c.when.Equal(c.want) {
-				t.Errorf("inOfficeHours(%s) no cuadra con nextOpening", c.when)
-			}
-		})
-	}
-}
-
-func TestOutsideOfficeHoursTheMessageWaitsForTheNextOpening(t *testing.T) {
-	saturdayAfternoon := time.Date(2026, 10, 10, 14, 0, 0, 0, bogota)
-	o := newTestOutbox(t, saturdayAfternoon)
+// El bridge no decide a qué hora ni qué día se puede escribir (decisión de
+// Rafa, 7 oct 2026): lo decide el usuario, que aprueba cada mensaje.
+func TestTheDayAndTheHourDoNotHoldAMessageBack(t *testing.T) {
+	sundayNight := time.Date(2026, 10, 11, 23, 0, 0, 0, bogota)
+	o := newTestOutbox(t, sundayNight)
 
 	result := o.mustEnqueue(t, phone(1), "Hola")
-	monday := time.Date(2026, 10, 12, 8, 0, 0, 0, bogota)
-	if result.Rejected || result.DueNow || !result.NotBefore.Equal(monday) {
-		t.Fatalf("se esperaba en cola para el lunes a las 8: %+v", result)
+	if result.Rejected || !result.DueNow || !result.NotBefore.Equal(sundayNight) {
+		t.Fatalf("un domingo de noche también sale ya: %+v", result)
 	}
-
-	// "sync" tampoco lo saca antes de tiempo.
 	o.sync.dispatchOutbox(context.Background())
-	if len(o.whatsapp.delivered) != 0 || o.status(t, result.ID).Status != statusPending {
-		t.Errorf("no debía salir fuera de horario")
+	if len(o.whatsapp.delivered) != 1 || o.status(t, result.ID).Status != statusSent {
+		t.Errorf("debía salir: %+v", o.whatsapp.delivered)
 	}
 }
 
-// Lo que se pide un viernes por la noche cuenta para el tope del sábado.
+// Un mensaje que por el espaciado sale pasada la medianoche cuenta para el
+// tope de mañana, no para el de hoy.
 func TestLimitsCountForTheDayTheMessageGoesOut(t *testing.T) {
-	fridayNight := time.Date(2026, 10, 9, 20, 0, 0, 0, bogota)
-	o := newTestOutbox(t, fridayNight)
-	o.writeLimits(t, `{"daily_total": 2, "daily_new_chats": 25}`)
+	justBeforeMidnight := time.Date(2026, 10, 7, 23, 59, 30, 0, bogota)
+	o := newTestOutbox(t, justBeforeMidnight)
+	o.writeLimits(t, `{"daily_total": 1, "daily_new_chats": 25}`)
 
-	for i := 0; i < 2; i++ {
-		if result := o.mustEnqueue(t, phone(i), fmt.Sprintf("Mensaje %d", i)); result.Rejected {
-			t.Fatalf("mensaje %d: %+v", i, result)
-		}
+	if result := o.mustEnqueue(t, phone(0), "El de hoy"); result.Rejected || !result.DueNow {
+		t.Fatalf("el de hoy: %+v", result)
 	}
-	result := o.mustEnqueue(t, phone(2), "Mensaje 2")
-	if !result.Rejected || !strings.Contains(result.Reason, "2026-10-10") {
-		t.Errorf("el tercero debía rechazarse por el tope del sábado: %+v", result)
+	tomorrow := o.mustEnqueue(t, phone(1), "El de mañana")
+	if tomorrow.Rejected || tomorrow.NotBefore.Day() != 8 {
+		t.Fatalf("el segundo sale mañana y cabe en el tope de mañana: %+v", tomorrow)
+	}
+	result := o.mustEnqueue(t, phone(2), "Otro de mañana")
+	if !result.Rejected || !strings.Contains(result.Reason, "2026-10-08") {
+		t.Errorf("el tercero debía rechazarse por el tope de mañana: %+v", result)
 	}
 }
 
@@ -488,7 +621,9 @@ func TestSpacingHoldsAcrossARestartOfSync(t *testing.T) {
 	}
 }
 
-func TestOverdueMessagesBeyondTheDailyLimitMoveToAnotherDay(t *testing.T) {
+// Mensajes atrasados de otro día que se suman a los de hoy: lo que pasa del
+// tope no sale, y queda dicho por qué.
+func TestOverdueMessagesBeyondTheDailyLimitAreNotSent(t *testing.T) {
 	o := newTestOutbox(t, wednesdayMorning)
 	o.writeLimits(t, `{"daily_total": 1, "daily_new_chats": 25}`)
 	o.mustEnqueue(t, phone(1), "El de hoy")
@@ -508,14 +643,20 @@ func TestOverdueMessagesBeyondTheDailyLimitMoveToAnotherDay(t *testing.T) {
 	if len(o.whatsapp.delivered) != 1 {
 		t.Fatalf("con tope 1 solo debía salir uno hoy: %+v", o.whatsapp.delivered)
 	}
-	var notBefore time.Time
-	if err := o.env.store.db.QueryRow(`SELECT not_before FROM outbox WHERE status = ?`, statusPending).
-		Scan(&notBefore); err != nil {
+	var status, failure string
+	if err := o.env.store.db.QueryRow(`SELECT status, error FROM outbox WHERE status != ?`, statusSent).
+		Scan(&status, &failure); err != nil {
 		t.Fatal(err)
 	}
-	thursday := time.Date(2026, 10, 8, 8, 0, 0, 0, bogota)
-	if !notBefore.Equal(thursday) {
-		t.Errorf("el que sobra debía pasar al jueves a las 8, quedó en %s", notBefore.In(bogota))
+	if status != statusFailed || failure != fmt.Sprintf(failureDailyLimit, 1) {
+		t.Errorf("el que sobra = %s, %q", status, failure)
+	}
+
+	// Y no vuelve a intentarse al día siguiente.
+	o.advance(24 * time.Hour)
+	o.sync.dispatchOutbox(ctx)
+	if len(o.whatsapp.delivered) != 1 {
+		t.Errorf("el que pasó del tope no sale después: %+v", o.whatsapp.delivered)
 	}
 }
 
@@ -731,11 +872,21 @@ func callSendMessage(t *testing.T, o *testOutbox, recipient, message string) Sen
 	return out
 }
 
+func callSendToGroup(t *testing.T, o *testOutbox, jid, name, message string) SendMessageOutput {
+	t.Helper()
+	_, out, err := handleSendMessage(o.env)(context.Background(), nil,
+		SendMessageInput{Recipient: jid, GroupName: name, Message: message})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
 func TestSendMessageReportsWhatHappened(t *testing.T) {
 	t.Run("rechazado: con razón y sin escribir nada", func(t *testing.T) {
 		o := newTestOutbox(t, wednesdayMorning)
-		out := callSendMessage(t, o, "120363021234567890@g.us", "Hola")
-		if out.Status != statusRejected || out.Reason != reasonGroup || out.OutboxID != 0 || o.rows(t) != 0 {
+		out := callSendMessage(t, o, "1234567890@broadcast", "Hola")
+		if out.Status != statusRejected || out.Reason != reasonBroadcast || out.OutboxID != 0 || o.rows(t) != 0 {
 			t.Errorf("salida = %+v", out)
 		}
 	})
@@ -766,12 +917,26 @@ func TestSendMessageReportsWhatHappened(t *testing.T) {
 		}
 	})
 
-	t.Run("en cola: fuera de horario, con la hora estimada y sin esperar", func(t *testing.T) {
-		o := newTestOutbox(t, time.Date(2026, 10, 11, 11, 0, 0, 0, bogota))
+	t.Run("en cola: por el espaciado, con la hora estimada y sin esperar", func(t *testing.T) {
+		o := newTestOutbox(t, wednesdayMorning)
+		o.mustEnqueue(t, phone(1), "El primero")
 		o.env.wait = time.Hour
-		out := callSendMessage(t, o, phone(1), "Hola")
-		if out.Status != statusQueued || out.ScheduledFor != "2026-10-12T08:00:00-05:00" || out.Reason != reasonQueued {
+		out := callSendMessage(t, o, phone(2), "El segundo")
+		if out.Status != statusQueued || out.ScheduledFor != "2026-10-07T10:01:00-05:00" || out.Reason != reasonQueued {
 			t.Errorf("salida = %+v", out)
+		}
+	})
+
+	t.Run("a un grupo: con su nombre", func(t *testing.T) {
+		o := newTestOutbox(t, wednesdayMorning)
+		o.knownGroup(t, groupJID(1), "Equipo Cliente A")
+		if out := callSendToGroup(t, o, groupJID(1), "Otro grupo", "Hola"); out.Status != statusRejected ||
+			out.Reason != fmt.Sprintf(reasonGroupNameMismatch, "Equipo Cliente A") {
+			t.Errorf("con otro nombre = %+v", out)
+		}
+		out := callSendToGroup(t, o, groupJID(1), "Equipo Cliente A", "Hola")
+		if out.Status != statusPending || out.ChatJID != groupJID(1) {
+			t.Errorf("con su nombre = %+v", out)
 		}
 	})
 
@@ -891,12 +1056,14 @@ func TestTheOutboxIsAddedToAnExistingDatabase(t *testing.T) {
 
 func TestOutboxReportCountsTodayAndLeavesTheTextOut(t *testing.T) {
 	o := newTestOutbox(t, wednesdayMorning)
-	o.writeLimits(t, `{"daily_total": 30, "daily_new_chats": 500}`)
+	o.writeLimits(t, `{"daily_total": 30, "daily_new_chats": 500, "daily_groups": 4}`)
 	known := phone(50) + "@s.whatsapp.net"
 	o.knownChat(t, known)
+	o.knownGroup(t, groupJID(1), "Equipo Cliente A")
 
 	o.mustEnqueue(t, phone(1), "Texto que no debe salir en el informe")
 	o.mustEnqueue(t, known, "Seguimiento")
+	o.mustEnqueueGroup(t, groupJID(1), "Equipo Cliente A", "Aviso al grupo")
 	o.sync.dispatchOutbox(context.Background())
 	o.pause(t)
 
@@ -904,14 +1071,18 @@ func TestOutboxReportCountsTodayAndLeavesTheTextOut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.Paused || report.Limits != (outboxReportLimits{30, maxDailyNewChats, maxDailyTotal, maxDailyNewChats}) {
+	if !report.Paused || report.Limits != (outboxReportLimits{
+		DailyTotal: 30, DailyNewChats: maxDailyNewChats, DailyGroups: 4,
+		MaxDailyTotal: maxDailyTotal, MaxDailyNewChats: maxDailyNewChats, MaxDailyGroups: maxDailyGroups,
+	}) {
 		t.Errorf("pausa y topes = %v, %+v", report.Paused, report.Limits)
 	}
-	if report.Today != (outboxReportToday{Sent: 1, Pending: 1, NewChats: 1}) || report.PendingTotal != 1 {
+	if report.Today != (outboxReportToday{Sent: 1, Pending: 2, NewChats: 1, Groups: 1}) || report.PendingTotal != 2 {
 		t.Errorf("hoy = %+v, pendientes %d", report.Today, report.PendingTotal)
 	}
-	if len(report.Recent) != 2 || report.Recent[0].Status != statusPending || report.Recent[1].Status != statusSent ||
-		report.Recent[1].SentAt == nil || *report.Recent[1].SentAt != "2026-10-07T10:00:00-05:00" {
+	if len(report.Recent) != 3 || report.Recent[0].ChatJID != groupJID(1) || report.Recent[1].Status != statusPending ||
+		report.Recent[2].Status != statusSent || report.Recent[2].SentAt == nil ||
+		*report.Recent[2].SentAt != "2026-10-07T10:00:00-05:00" {
 		t.Errorf("recientes = %+v", report.Recent)
 	}
 	data, _ := json.Marshal(report)

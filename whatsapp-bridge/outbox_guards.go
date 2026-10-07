@@ -26,6 +26,10 @@ const (
 	defaultDailyNewChats = 15
 	maxDailyTotal        = 80
 	maxDailyNewChats     = 25
+	// Un mensaje a un grupo lo lee mucha gente a la vez: tiene su propio tope,
+	// además de contar para el total.
+	defaultDailyGroups = 10
+	maxDailyGroups     = 20
 
 	// Entre un mensaje y el siguiente pasa un rato al azar dentro de este rango.
 	minSpacing = 45 * time.Second
@@ -47,12 +51,15 @@ const (
 type outboxLimits struct {
 	DailyTotal    int `json:"daily_total"`
 	DailyNewChats int `json:"daily_new_chats"`
+	DailyGroups   int `json:"daily_groups"`
 }
 
 // loadOutboxLimits lee send-limits.json. Si no existe o no se entiende, valen
 // los topes por defecto; un valor por encima del techo se queda en el techo.
 func loadOutboxLimits(stateDir string) outboxLimits {
-	limits := outboxLimits{DailyTotal: defaultDailyTotal, DailyNewChats: defaultDailyNewChats}
+	limits := outboxLimits{
+		DailyTotal: defaultDailyTotal, DailyNewChats: defaultDailyNewChats, DailyGroups: defaultDailyGroups,
+	}
 
 	data, err := os.ReadFile(filepath.Join(stateDir, limitsFilename))
 	if err != nil {
@@ -61,12 +68,14 @@ func loadOutboxLimits(stateDir string) outboxLimits {
 	var file struct {
 		DailyTotal    *int `json:"daily_total"`
 		DailyNewChats *int `json:"daily_new_chats"`
+		DailyGroups   *int `json:"daily_groups"`
 	}
 	if err := json.Unmarshal(data, &file); err != nil {
 		return limits
 	}
 	limits.DailyTotal = clampLimit(file.DailyTotal, defaultDailyTotal, maxDailyTotal)
 	limits.DailyNewChats = clampLimit(file.DailyNewChats, defaultDailyNewChats, maxDailyNewChats)
+	limits.DailyGroups = clampLimit(file.DailyGroups, defaultDailyGroups, maxDailyGroups)
 	return limits
 }
 
@@ -101,46 +110,10 @@ func clampSpacing(spacing time.Duration) time.Duration {
 	return spacing
 }
 
-// MARK: - Horario de oficina
-
-// officeWindow devuelve a qué hora abre y cierra un día, en la hora local de
-// quien lo pregunta. Lunes a viernes de 8:00 a 19:00, sábado de 8:00 a 13:00,
-// domingo cerrado. Son los valores por defecto de docs/09 §4.4 (se apoyan en
-// la Ley 2300 de 2023 de Colombia; los festivos no se miran).
-func officeWindow(day time.Time) (open, close time.Time, ok bool) {
-	at := func(hour int) time.Time {
-		return time.Date(day.Year(), day.Month(), day.Day(), hour, 0, 0, 0, day.Location())
-	}
-	switch day.Weekday() {
-	case time.Sunday:
-		return time.Time{}, time.Time{}, false
-	case time.Saturday:
-		return at(8), at(13), true
-	default:
-		return at(8), at(19), true
-	}
-}
-
-func inOfficeHours(t time.Time) bool {
-	open, close, ok := officeWindow(t)
-	return ok && !t.Before(open) && t.Before(close)
-}
-
-// nextOpening devuelve t si cae en horario, y si no, la siguiente apertura.
-func nextOpening(t time.Time) time.Time {
-	for day := t; ; day = startOfDay(day).AddDate(0, 0, 1) {
-		open, close, ok := officeWindow(day)
-		if !ok {
-			continue
-		}
-		if day.Before(open) {
-			return open
-		}
-		if day.Before(close) {
-			return day
-		}
-	}
-}
+// No hay guarda de horario ni de festivos (decisión de Rafa, 7 oct 2026): el
+// bridge no decide a qué hora ni qué día se puede escribir. Lo decide el
+// usuario, que aprueba cada mensaje; a él se le avisa (la descripción de
+// send_message, el AGENTS.md generado y la advertencia de la app).
 
 func startOfDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
@@ -157,26 +130,37 @@ func dayBounds(t time.Time) (start, end time.Time) {
 // Razones de rechazo. Las lee el agente, así que le dicen qué pasó y qué
 // contarle al usuario; ninguna le sugiere cómo rodear la guarda.
 const (
-	reasonPaused      = "Sending is paused: the user turned on \"Pausar envíos\" in Galeno. Nothing was sent. Tell the user; do not retry until they turn it off."
-	reasonGroup       = "This is a group. Galeno only sends WhatsApp messages to one person at a time, never to groups. Nothing was sent."
-	reasonBroadcast   = "This is a broadcast list or a status. Galeno only sends WhatsApp messages to one person at a time. Nothing was sent."
-	reasonNewsletter  = "This is a channel. Galeno only sends WhatsApp messages to one person at a time. Nothing was sent."
-	reasonNotAPerson  = "This recipient is not a person's WhatsApp number. Nothing was sent."
-	reasonBadNumber   = "The recipient must be a phone number in international format, digits only (8 to 15 digits, country code included, no +), or a JID ending in @s.whatsapp.net. Nothing was sent."
-	reasonUnknownLID  = "This chat is identified by a hidden id (@lid) and its phone number is not known on this computer. Ask the user for the person's phone number. Nothing was sent."
-	reasonEmptyText   = "The message is empty. Nothing was sent."
-	reasonTooLong     = "The message is longer than 1000 characters. Shorten it; do not split it into several messages. Nothing was sent."
-	reasonRepeated    = "The same text already went to 3 other people today. Galeno does not send one text to many people: write each message for the person who gets it. Nothing was sent."
-	reasonDailyTotal  = "Daily limit reached: %d of %d WhatsApp messages for %s. Nothing was sent. The limit protects the user's number from being blocked; do not try to work around it. Tell the user what is left to send."
-	reasonDailyNew    = "Daily limit for new contacts reached: %d of %d first messages to people with no previous chat, for %s. Nothing was sent. You can still write to people the user already talks to. The limit protects the user's number from being blocked; do not try to work around it."
-	failureInterrupt  = "The bridge stopped while this message was going out, so it is not known whether it arrived. Check the chat before writing again."
-	failureNotOnWA    = "This number is not on WhatsApp."
-	failureNotAPerson = "WhatsApp did not return a personal number for this recipient."
+	reasonPaused            = "Sending is paused: the user turned on \"Pausar envíos\" in Galeno. Nothing was sent. Tell the user; do not retry until they turn it off."
+	reasonBroadcast         = "This is a broadcast list or a status. Galeno only sends WhatsApp messages to one person or to one group the user is in. Nothing was sent."
+	reasonNewsletter        = "This is a channel. Galeno only sends WhatsApp messages to one person or to one group the user is in. Nothing was sent."
+	reasonNotAPerson        = "This recipient is not a person's WhatsApp number or a group. Nothing was sent."
+	reasonBadNumber         = "The recipient must be a phone number in international format, digits only (8 to 15 digits, country code included, no +), a JID ending in @s.whatsapp.net, or the JID of a group (@g.us) taken from list_chats. Nothing was sent."
+	reasonUnknownLID        = "This chat is identified by a hidden id (@lid) and its phone number is not known on this computer. Ask the user for the person's phone number. Nothing was sent."
+	reasonUnknownGroup      = "This group is not among the user's WhatsApp chats on this computer. Galeno only writes to groups the user is already in. Nothing was sent."
+	reasonUnnamedGroup      = "Galeno does not know this group's name yet, so the user could not see which group they are approving. Nothing was sent."
+	reasonGroupNameMissing  = "To write to a group, also pass its name in group_name: the user has to see which group it is before approving. This group is called %q. Nothing was sent."
+	reasonGroupNameMismatch = "group_name does not match: the group with this id is called %q. Make sure it is the group the user means. Nothing was sent."
+	reasonNameOnPerson      = "group_name is only for groups, and this recipient is a person. Leave it empty. Nothing was sent."
+	reasonEmptyText         = "The message is empty. Nothing was sent."
+	reasonTooLong           = "The message is longer than 1000 characters. Shorten it; do not split it into several messages. Nothing was sent."
+	reasonRepeated          = "The same text already went to 3 other chats today. Galeno does not send one text to many chats: write each message for whoever gets it. Nothing was sent."
+	reasonDailyTotal        = "Daily limit reached: %d of %d WhatsApp messages for %s. Nothing was sent. The limit protects the user's number from being blocked; do not try to work around it. Tell the user what is left to send."
+	reasonDailyNew          = "Daily limit for new contacts reached: %d of %d first messages to people with no previous chat, for %s. Nothing was sent. You can still write to people the user already talks to. The limit protects the user's number from being blocked; do not try to work around it."
+	reasonDailyGroups       = "Daily limit for groups reached: %d of %d messages to groups for %s. Nothing was sent. You can still write to one person at a time. The limit protects the user's number from being blocked; do not try to work around it."
+	failureInterrupt        = "The bridge stopped while this message was going out, so it is not known whether it arrived. Check the chat before writing again."
+	failureNotOnWA          = "This number is not on WhatsApp."
+	failureNotAPerson       = "WhatsApp did not return a personal number for this recipient."
+	failureGroup            = "Could not reach this group on WhatsApp (the user may no longer be in it): "
+	failureDailyLimit       = "Not sent: the daily limit of %d WhatsApp messages had already been reached when this message's turn came. Tell the user; do not send it again without asking them."
 )
 
 // resolveRecipient convierte lo que pasó el agente (un número o un JID) en el
-// JID de una persona. Si no lo es, devuelve por qué. Un chat @lid se pasa a su
-// número con lo que whatsmeow ya tiene guardado: consultarlo es local.
+// JID de una persona o de un grupo (decisión de Rafa, 7 oct 2026). Si no es
+// ninguna de las dos cosas (una lista de difusión, los estados, un canal),
+// devuelve por qué. Un chat @lid se pasa a su número con lo que whatsmeow ya
+// tiene guardado: consultarlo es local. Que el grupo sea uno del usuario y que
+// su nombre sea el que el usuario va a ver al aprobar lo comprueba groupGuard
+// (outbox_enqueue.go).
 func resolveRecipient(raw string, lookup aliasLookup) (types.JID, string) {
 	raw = strings.TrimSpace(raw)
 	user := raw
@@ -200,7 +184,10 @@ func resolveRecipient(raw string, lookup aliasLookup) (types.JID, string) {
 			}
 			user = parsed.User
 		case types.GroupServer:
-			return types.JID{}, reasonGroup
+			if jid.User == "" || strings.Trim(jid.User, "0123456789-") != "" {
+				return types.JID{}, reasonBadNumber
+			}
+			return jid.ToNonAD(), ""
 		case types.BroadcastServer:
 			return types.JID{}, reasonBroadcast
 		case types.NewsletterServer:

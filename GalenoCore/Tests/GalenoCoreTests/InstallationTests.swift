@@ -241,8 +241,19 @@ final class InstallationTests: XCTestCase {
         let text = try String(contentsOf: mcp, encoding: .utf8)
         XCTAssertFalse(text.contains("slack"))
         XCTAssertTrue(text.contains("notion"))
+        // El hook sigue, por WhatsApp (lo que no sea una de sus lecturas pregunta), pero ya no nombra a Slack.
+        let settings = record.folder.appending(path: ".claude/settings.json")
+        XCTAssertFalse(try String(contentsOf: settings, encoding: .utf8).contains("slack"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: hook.path))
+        XCTAssertFalse(result.removedFiles.contains(SettingsRenderer.hookPath))
+
+        // Y sin WhatsApp no queda nada que aprobar: el hook se va.
+        value.setConnection(SharedConnection(tool: .whatsapp, status: .skipped))
+        let withoutWhatsApp = try generator.generate(
+            try XCTUnwrap(value.resolvedConfig(for: record.id)),
+            into: record.folder, options: SnapshotSupport.options)
         XCTAssertFalse(FileManager.default.fileExists(atPath: hook.path))
-        XCTAssertTrue(result.removedFiles.contains(SettingsRenderer.hookPath))
+        XCTAssertTrue(withoutWhatsApp.removedFiles.contains(SettingsRenderer.hookPath))
     }
 
     func testAToolWithoutASharedConnectionStaysAsTheAgentHadIt() throws {

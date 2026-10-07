@@ -91,7 +91,7 @@ extension AgentConfig {
     }
 
     /// Las conexiones efectivamente conectadas, con todo lo que las describe.
-    var connectedConnections: [ToolConnection] {
+    public var connectedConnections: [ToolConnection] {
         connections.filter { $0.status == .connected }
     }
 

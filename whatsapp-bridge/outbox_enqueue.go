@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
+
+	"go.mau.fi/whatsmeow/types"
 )
 
 // Lo que hace "serve" cuando el agente pide un envío: comprobar todas las
@@ -49,7 +52,7 @@ const (
 	statusFailed   = "failed"
 	statusRejected = "rejected"
 	// statusQueued no se guarda: es lo que "serve" responde cuando el mensaje
-	// quedó programado para más tarde (por horario o por espaciado).
+	// quedó programado para un poco más tarde (por el espaciado).
 	statusQueued = "queued"
 )
 
@@ -77,7 +80,10 @@ func rejected(reason string) enqueueResult {
 
 // enqueue comprueba las guardas y, si pasan, deja el mensaje en la bandeja.
 // Un rechazo no escribe nada.
-func (env outboxEnv) enqueue(recipient, body string) (enqueueResult, error) {
+//
+// groupName solo se usa cuando el destinatario es un grupo, y entonces es
+// obligatorio: es lo que el usuario lee al aprobar.
+func (env outboxEnv) enqueue(recipient, groupName, body string) (enqueueResult, error) {
 	if outboxPaused(env.stateDir) {
 		return rejected(reasonPaused), nil
 	}
@@ -85,6 +91,14 @@ func (env outboxEnv) enqueue(recipient, body string) (enqueueResult, error) {
 	if reason != "" {
 		return rejected(reason), nil
 	}
+	reason, err := env.groupGuard(jid, groupName)
+	if err != nil {
+		return enqueueResult{}, err
+	}
+	if reason != "" {
+		return rejected(reason), nil
+	}
+	isGroup := jid.Server == types.GroupServer
 	text, reason := checkBody(body)
 	if reason != "" {
 		return rejected(reason), nil
@@ -101,8 +115,7 @@ func (env outboxEnv) enqueue(recipient, body string) (enqueueResult, error) {
 	}
 	defer tx.Rollback()
 
-	// Cuándo puede salir: después del último mensaje más un rato al azar, y
-	// dentro del horario de oficina.
+	// Cuándo puede salir: después del último mensaje más un rato al azar.
 	notBefore := now
 	last, hasLast, err := lastScheduled(tx)
 	if err != nil {
@@ -113,10 +126,10 @@ func (env outboxEnv) enqueue(recipient, body string) (enqueueResult, error) {
 			notBefore = earliest
 		}
 	}
-	notBefore = nextOpening(notBefore.In(now.Location()))
+	notBefore = notBefore.In(now.Location())
 
 	// Los topes son del día en que el mensaje sale, no del día en que se pidió:
-	// lo que se pide un viernes por la noche cuenta para el lunes.
+	// uno que por el espaciado sale pasada la medianoche cuenta para mañana.
 	dayStart, dayEnd := dayBounds(notBefore)
 	scheduled, err := scheduledBetween(tx, dayStart, dayEnd)
 	if err != nil {
@@ -128,9 +141,25 @@ func (env outboxEnv) enqueue(recipient, body string) (enqueueResult, error) {
 		return rejected(fmt.Sprintf(reasonDailyTotal, len(scheduled), limits.DailyTotal, dayLabel)), nil
 	}
 
-	isNewChat, err := env.isNewChat(tx, chatJID)
-	if err != nil {
-		return enqueueResult{}, err
+	if isGroup {
+		groups := 0
+		for _, item := range scheduled {
+			if strings.HasSuffix(item.chatJID, "@"+types.GroupServer) {
+				groups++
+			}
+		}
+		if groups >= limits.DailyGroups {
+			return rejected(fmt.Sprintf(reasonDailyGroups, groups, limits.DailyGroups, dayLabel)), nil
+		}
+	}
+
+	// Un grupo nunca es un "chat nuevo": solo se escribe a los que ya están
+	// entre los chats del usuario.
+	isNewChat := false
+	if !isGroup {
+		if isNewChat, err = env.isNewChat(tx, chatJID); err != nil {
+			return enqueueResult{}, err
+		}
 	}
 	if isNewChat {
 		newChats := 0
@@ -171,6 +200,45 @@ func (env outboxEnv) enqueue(recipient, body string) (enqueueResult, error) {
 	}
 
 	return enqueueResult{ID: id, ChatJID: chatJID, NotBefore: notBefore, DueNow: !notBefore.After(now)}, nil
+}
+
+// groupGuard es lo que hace falta para escribirle a un grupo. El usuario
+// aprueba cada envío mirando lo que el agente pidió, y de un grupo eso es un
+// identificador (120363…@g.us) que no le dice nada. Por eso el agente tiene que
+// pasar también el nombre, y aquí se comprueba contra el que está guardado: lo
+// que el usuario lee al aprobar es el grupo al que de verdad va el mensaje.
+//
+// Solo valen los grupos que ya están entre los chats del usuario.
+func (env outboxEnv) groupGuard(jid types.JID, groupName string) (string, error) {
+	given := normalizedBody(groupName)
+	if jid.Server != types.GroupServer {
+		if given != "" {
+			return reasonNameOnPerson, nil
+		}
+		return "", nil
+	}
+
+	var name sql.NullString
+	err := env.store.db.QueryRow(`SELECT name FROM chats WHERE jid = ?`, jid.String()).Scan(&name)
+	if err == sql.ErrNoRows {
+		return reasonUnknownGroup, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	// "Group <id>" es el nombre de relleno que se guarda cuando no se pudo
+	// leer el de verdad (events.go): no le dice al usuario qué grupo es.
+	stored := normalizedBody(name.String)
+	if stored == "" || stored == normalizedBody("Group "+jid.User) {
+		return reasonUnnamedGroup, nil
+	}
+	if given == "" {
+		return fmt.Sprintf(reasonGroupNameMissing, name.String), nil
+	}
+	if given != stored {
+		return fmt.Sprintf(reasonGroupNameMismatch, name.String), nil
+	}
+	return "", nil
 }
 
 // lastScheduled es la hora del último mensaje enviado o por enviar.

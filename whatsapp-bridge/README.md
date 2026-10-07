@@ -1,10 +1,10 @@
 # whatsapp-bridge
 
 Un único binario Go: el puente de WhatsApp (`whatsmeow`, QR, SQLite) y un servidor MCP, con nueve subcomandos.
-**Lee todo lo que `sync` guardó y, desde la 0.4.0, envía por un solo camino:** `send_message`, texto a una persona,
-siempre con la aprobación del usuario, por una bandeja de salida y con guardas en el código (decisión de Rafa,
-7 oct 2026; diseño en `docs/09-plan-simon-envio-y-prospeccion.md` §4). No hay adjuntos, audios, grupos, «leído» ni
-«escribiendo…», y no los habrá.
+**Lee todo lo que `sync` guardó y, desde la 0.4.0, envía por un solo camino:** `send_message`, texto a una persona o a
+un grupo del usuario, siempre con la aprobación del usuario, por una bandeja de salida y con guardas en el código
+(decisión de Rafa, 7 oct 2026; diseño en `docs/09-plan-simon-envio-y-prospeccion.md` §4, con sus enmiendas). No hay
+adjuntos, audios, listas de difusión, estados, canales, «leído» ni «escribiendo…», y no los habrá.
 
 ```bash
 galeno-whatsapp pair             # Vincula este Mac con tu WhatsApp (muestra un QR)
@@ -110,13 +110,13 @@ Claude Code ──stdio──▶ serve --with-send: send_message ──INSERT─
 serve espera hasta 30 s el cambio de estado y se lo devuelve a Claude Code
 ```
 
-**Entrada:** `recipient` (un número en formato internacional, solo dígitos, o un JID `@s.whatsapp.net`) y `message`
-(texto). **Salida:** `{status, chat_jid, sent_at, scheduled_for, outbox_id, error, reason}`.
+**Entrada:** `recipient` (un número en formato internacional, solo dígitos; un JID `@s.whatsapp.net`; o el JID
+`@g.us` de un grupo), `group_name` (solo para un grupo: su nombre exacto) y `message` (texto). **Salida:** `{status, chat_jid, sent_at, scheduled_for, outbox_id, error, reason}`.
 
 | `status` | Qué pasó |
 |---|---|
 | `sent` | Salió. Queda también en el historial (`messages`, `is_from_me = 1`), así que el agente lo ve con las lecturas de siempre. |
-| `queued` | Quedó programado para `scheduled_for` (por horario o por espaciado). `serve` no espera. |
+| `queued` | Quedó programado para `scheduled_for`, uno o dos minutos después (por el espaciado). `serve` no espera. |
 | `pending` | Podía salir ya, pero `sync` no lo sacó en 30 s (no está corriendo o no tiene conexión). Sale cuando vuelva. |
 | `failed` | WhatsApp no lo aceptó, o el número no tiene WhatsApp. `error` dice por qué. **No se reintenta solo.** |
 | `rejected` | Una guarda lo frenó. `reason` dice cuál. **No se escribe nada en la bandeja.** |
@@ -134,29 +134,37 @@ antes de escribir en la bandeja, y `sync` vuelve a comprobar las que dependen de
 
 | Guarda | Valor | Dónde |
 |---|---|---|
-| Solo una persona: `@s.whatsapp.net`. Se rechazan grupos, listas de difusión, estados y canales | fijo | `serve`, y otra vez `sync` justo antes de salir |
+| Solo una persona (`@s.whatsapp.net`) o un grupo (`@g.us`). Se rechazan listas de difusión, estados y canales | fijo | `serve`, y otra vez `sync` justo antes de salir |
+| Grupo: tiene que estar entre los chats del usuario, y `group_name` tiene que ser su nombre guardado | fijo | `serve` |
+| Grupo: que siga existiendo y el usuario siga dentro (`GetGroupInfo`); si no, `failed` | fijo | `sync` |
 | Un chat `@lid` se pasa a su número con lo que whatsmeow tiene guardado (local); si no se conoce, se rechaza | fijo | `serve` |
 | Número de 8 a 15 dígitos | fijo | `serve` |
 | Que el número tenga WhatsApp (`IsOnWhatsApp`); si no, `failed` | fijo | `sync` |
 | Tope diario total | **40** (techo **80**) | `serve`; `sync` lo vuelve a mirar |
 | Tope diario de chats nuevos (sin mensajes previos con esa persona) | **15** (techo **25**) | `serve` |
-| Horario de oficina, hora local del Mac: L–V 8:00–19:00, sáb 8:00–13:00 | fijo | `serve` programa; `sync` no saca nada fuera de horario |
+| Tope diario de mensajes a grupos (además cuentan para el total) | **10** (techo **20**) | `serve` |
 | Espaciado entre envíos: 45–120 s al azar | fijo | `serve` programa; `sync` nunca baja de 45 s |
 | El mismo texto (sin mirar mayúsculas ni espacios) a más de 3 chats en un día | fijo | `serve` |
 | Largo máximo: 1.000 caracteres | fijo | `serve` |
 | Pausa total: archivo `send-paused` | — | `serve` rechaza; `sync` no envía y cancela lo que había en cola |
 
-- **Los topes son del día en que el mensaje sale**, no del día en que se pidió: lo que se pide un viernes por la
-  noche cuenta para el sábado. Cuentan lo enviado y lo que está en cola para ese día.
-- **`send-limits.json`** (`{"daily_total": 40, "daily_new_chats": 15}`) y **`send-paused`** viven en el directorio de
+- **El nombre del grupo es parte de la aprobación.** El usuario aprueba mirando lo que pidió el agente, y de un grupo
+  eso es un identificador (`120363…@g.us`) que no le dice nada. Por eso `send_message` exige `group_name`, y el bridge
+  rechaza el mensaje si no es el nombre guardado de ese grupo (sin mirar mayúsculas ni espacios), si el grupo no está
+  entre los chats, o si se guardó sin nombre. Un `group_name` junto a una persona también se rechaza.
+- **No hay guarda de horario ni de festivos** (decisión de Rafa, 7 oct 2026). El bridge no decide a qué hora ni qué
+  día se escribe: lo decide el usuario al aprobar. La descripción de la herramienta le pide al agente avisarle antes
+  de proponer un mensaje de noche, en domingo o en festivo.
+- **Los topes son del día en que el mensaje sale**, no del día en que se pidió: uno que por el espaciado sale pasada
+  la medianoche cuenta para mañana. Cuentan lo enviado y lo que está en cola para ese día.
+- **`send-limits.json`** (`{"daily_total": 40, "daily_new_chats": 15, "daily_groups": 10}`) y **`send-paused`** viven en el directorio de
   estado. Los escribe la app; el agente no puede escribir ahí. Un valor por encima del techo se queda en el techo, y
   un archivo ausente o ilegible vale por los topes por defecto.
 - **En pausa, lo que estaba en cola se cancela** (`rejected`): al quitar la pausa no sale de golpe lo acumulado.
 - **Si `sync` se detiene a mitad de un envío**, ese mensaje queda `failed` diciendo que no se sabe si llegó. No se
   repite: antes de tocar la red, el mensaje queda reservado con el id con el que va a salir.
-- **Los festivos no se miran**: el horario es solo por día de la semana.
-- Sin `sync` corriendo el mensaje se queda `pending` y sale cuando `sync` vuelva, en horario y respetando el
-  espaciado y el tope del día (lo que no quepa pasa al siguiente día hábil).
+- Sin `sync` corriendo el mensaje se queda `pending` y sale cuando `sync` vuelva, respetando el espaciado y el tope
+  del día. Lo que ya no quepa en el tope de ese día queda `failed` diciendo eso, y no se reintenta.
 
 **Prueba manual** (no hay forma de probar el envío real sin una cuenta): enviar a un segundo número propio; comprobar
 que llega, que aparece en `list_messages`, y que con `sync` detenido queda `pending` y sale al volver.
@@ -172,8 +180,9 @@ Solo lee, y no abre ninguna conexión a WhatsApp. No incluye el texto de los men
 ```json
 {
   "paused": false,
-  "limits": { "daily_total": 40, "daily_new_chats": 15, "max_daily_total": 80, "max_daily_new_chats": 25 },
-  "today": { "sent": 12, "pending": 3, "new_chats": 7 },
+  "limits": { "daily_total": 40, "daily_new_chats": 15, "daily_groups": 10,
+              "max_daily_total": 80, "max_daily_new_chats": 25, "max_daily_groups": 20 },
+  "today": { "sent": 12, "pending": 3, "new_chats": 7, "groups": 2 },
   "pending_total": 3,
   "recent": [
     { "id": 15, "chat_jid": "573001112233@s.whatsapp.net", "status": "pending", "is_new_chat": true,
@@ -183,7 +192,7 @@ Solo lee, y no abre ninguna conexión a WhatsApp. No incluye el texto de los men
 ```
 
 `today` es lo que cuenta para los topes de hoy (`sent` + `pending` contra `daily_total`; `new_chats` contra
-`daily_new_chats`). `recent` son los últimos 50, del más nuevo al más viejo, con `sent_at` y `error` cuando los hay.
+`daily_new_chats`; `groups` contra `daily_groups`). `recent` son los últimos 50, del más nuevo al más viejo, con `sent_at` y `error` cuando los hay.
 Sin `--json` es un error de uso (código 2).
 
 ## `chats --json`: la lista para "elige qué leer"

@@ -12,6 +12,8 @@ struct HealthView: View {
     private var language: Language { Language(rawValue: locale.identifier) ?? .spanish }
     /// Cerrando la sesión o dejando `sync` listo: salir a medias dejaría WhatsApp a medio vincular.
     private var isBusyRelinking: Bool { model.relink == .closing || model.relink == .finishing }
+    /// El panel de «Límites», abierto con los topes que había al abrirlo.
+    @State private var editingLimits: WhatsAppOutbox.Limits?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,7 +34,7 @@ struct HealthView: View {
             HStack {
                 Button("health.back", action: back)
                     .buttonStyle(InkButtonStyle(.secondary, padding: 22))
-                    .disabled(isBusyRelinking)
+                    .disabled(isBusyRelinking || model.activation == .working)
                 Spacer(minLength: 0)
                 Button("health.refresh") { model.refresh() }
                     .buttonStyle(InkButtonStyle(.primary, padding: 26, isLoading: model.isChecking))
@@ -48,11 +50,30 @@ struct HealthView: View {
             if model.relink != .idle {
                 RelinkPanelView(model: model)
                     .transition(.opacity)
+            } else if model.activation != .idle {
+                SendingActivationPanel(model: model)
+                    .transition(.opacity)
+            } else if let limits = editingLimits {
+                SendLimitsPanel(limits: limits, cancel: { editingLimits = nil }) { total, newChats, groups in
+                    model.setSendLimits(dailyTotal: total, dailyNewChats: newChats, dailyGroups: groups)
+                    editingLimits = nil
+                }
+                .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: Motion.micro), value: model.relink)
+        .animation(.easeOut(duration: Motion.micro), value: model.activation)
+        .animation(.easeOut(duration: Motion.micro), value: editingLimits)
         .onExitCommand {
-            if model.relink != .idle { model.cancelRelink() } else { back() }
+            if model.relink != .idle {
+                model.cancelRelink()
+            } else if model.activation != .idle {
+                model.cancelActivateSending()
+            } else if editingLimits != nil {
+                editingLimits = nil
+            } else {
+                back()
+            }
         }
         .onAppear { model.refresh() }
         .onDisappear { model.stop() }
@@ -138,7 +159,65 @@ struct HealthView: View {
                 Spacer(minLength: 0)
             }
             .padding(.top, 2)
+            if health.isLinked { sendingLines(health) }
         }
+    }
+
+    /// Los envíos: «Activar» para quien vinculó cuando Galeno solo leía; y para quien ya lo aceptó, cuánto salió
+    /// hoy contra los topes, la pausa y los límites.
+    @ViewBuilder
+    private func sendingLines(_ health: HealthModel.WhatsAppHealth) -> some View {
+        Rectangle().fill(Color.parchment300).frame(height: 1).padding(.top, 4)
+        if !health.sendingAccepted {
+            Text("health.sending.off").font(Typo.text(14)).foregroundStyle(Color.ink700)
+                .fixedSize(horizontal: false, vertical: true)
+            if model.canActivateSending {
+                HStack {
+                    Button("health.sending.activate") { model.askActivateSending() }
+                        .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 16))
+                        .disabled(model.activation != .idle || model.relink != .idle)
+                    Spacer(minLength: 0)
+                }
+            }
+        } else if let outbox = health.outbox {
+            Fact(
+                "health.sending.today", value: sendingText(outbox),
+                tone: outbox.isPaused ? .warn : .neutral)
+            if outbox.pendingTotal > 0 {
+                Fact(
+                    "health.sending.pending",
+                    value: Localized.string("health.sending.pending.count %lld", outbox.pendingTotal, locale: locale),
+                    tone: .neutral)
+            }
+            Text(LocalizedStringKey(outbox.isPaused ? "health.sending.paused" : "health.sending.hint"))
+                .font(Typo.text(13)).foregroundStyle(outbox.isPaused ? Color.ochre700 : Color.ink500)
+                .fixedSize(horizontal: false, vertical: true)
+            if model.sendingSaveFailed {
+                Text("health.sending.saveFailed").font(Typo.text(13)).foregroundStyle(Color.ochre700)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 10) {
+                Button(LocalizedStringKey(outbox.isPaused ? "health.sending.resume" : "health.sending.pause")) {
+                    model.setSendingPaused(!outbox.isPaused)
+                }
+                .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 16, isLoading: model.isSavingSending))
+                Button("health.sending.limits") { editingLimits = outbox.limits }
+                    .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 16))
+                Spacer(minLength: 0)
+            }
+            .disabled(model.isSavingSending)
+        } else {
+            Text("health.sending.noAnswer").font(Typo.text(14)).foregroundStyle(Color.ink700)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// «12 de 40 · nuevos 7 de 15 · grupos 2 de 10».
+    private func sendingText(_ outbox: WhatsAppOutbox) -> String {
+        Localized.string(
+            "health.sending.today.value %lld %lld %lld %lld %lld %lld",
+            outbox.usedToday, outbox.limits.dailyTotal, outbox.newChatsToday, outbox.limits.dailyNewChats,
+            outbox.groupsToday, outbox.limits.dailyGroups, locale: locale)
     }
 
     /// «Puente 0.3.0», a la derecha del rótulo. Sin respuesta del puente no hay versión que mostrar.
@@ -360,6 +439,151 @@ private struct ConnectionLine: View {
     }
 
     private func issueKey(_ issue: HealthModel.ReconnectIssue) -> String { issue.messageKey }
+}
+
+// MARK: - Activar los envíos
+
+/// «Activar envíos»: la advertencia (la misma que al vincular) y un solo botón. Va sobre el fondo atenuado, como
+/// el re-vincular.
+struct SendingActivationPanel: View {
+    @ObservedObject var model: HealthModel
+
+    var body: some View {
+        ZStack {
+            Color.ink900.opacity(0.30)
+                .contentShape(Rectangle())
+                .onTapGesture { model.cancelActivateSending() }
+            VStack(alignment: .leading, spacing: 14) {
+                switch model.activation {
+                case .idle:
+                    EmptyView()
+                case .confirming:
+                    Text("health.sending.activate.title").font(Typo.display(26)).foregroundStyle(Color.ink900)
+                    Text("health.sending.activate.body").font(Typo.text(14.5)).foregroundStyle(Color.ink700)
+                        .fixedSize(horizontal: false, vertical: true)
+                    WhatsAppWarning(title: "health.sending.activate.warning.title")
+                case .working:
+                    HStack(spacing: 10) {
+                        InkSpinner(size: 16)
+                        Text("health.sending.activate.working").font(Typo.text(15)).foregroundStyle(Color.ink900)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
+                case .failed:
+                    Text("health.sending.activate.failed.title").font(Typo.display(26)).foregroundStyle(Color.ink900)
+                    Text("health.sending.activate.failed.body").font(Typo.text(14.5)).foregroundStyle(Color.ink700)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(spacing: 10) {
+                    Spacer(minLength: 0)
+                    switch model.activation {
+                    case .confirming:
+                        Button("wizard.cancel") { model.cancelActivateSending() }
+                            .buttonStyle(InkButtonStyle(.secondary, padding: 20))
+                        Button("health.sending.activate.confirm") { model.confirmActivateSending() }
+                            .buttonStyle(InkButtonStyle(.primary, padding: 22))
+                            .keyboardShortcut(.defaultAction)
+                    case .failed:
+                        Button("health.relink.close") { model.cancelActivateSending() }
+                            .buttonStyle(InkButtonStyle(.secondary, padding: 20))
+                        Button("health.relink.retry") { model.askActivateSending() }
+                            .buttonStyle(InkButtonStyle(.primary, padding: 22))
+                    case .idle, .working:
+                        EmptyView()
+                    }
+                }
+                .padding(.top, 4)
+            }
+            .padding(24)
+            .frame(width: 520, alignment: .leading)
+            .background(Color.parchment50)
+            .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.ink900, lineWidth: 1.5))
+        }
+    }
+}
+
+// MARK: - Los límites
+
+/// «Límites»: los tres topes del día. Se pueden bajar, y subir solo hasta el techo que trae el bridge.
+struct SendLimitsPanel: View {
+    let limits: WhatsAppOutbox.Limits
+    let cancel: () -> Void
+    let save: (Int, Int, Int) -> Void
+
+    @State private var total: Int
+    @State private var newChats: Int
+    @State private var groups: Int
+    @Environment(\.locale) private var locale
+
+    init(limits: WhatsAppOutbox.Limits, cancel: @escaping () -> Void, save: @escaping (Int, Int, Int) -> Void) {
+        self.limits = limits
+        self.cancel = cancel
+        self.save = save
+        _total = State(initialValue: limits.dailyTotal)
+        _newChats = State(initialValue: limits.dailyNewChats)
+        _groups = State(initialValue: limits.dailyGroups)
+    }
+
+    var body: some View {
+        ZStack {
+            Color.ink900.opacity(0.30)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: cancel)
+            VStack(alignment: .leading, spacing: 14) {
+                Text("health.limits.title").font(Typo.display(26)).foregroundStyle(Color.ink900)
+                Text("health.limits.body").font(Typo.text(14.5)).foregroundStyle(Color.ink700)
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(spacing: 8) {
+                    row("health.limits.total", value: $total, range: 1...limits.maxDailyTotal)
+                    row("health.limits.newChats", value: $newChats, range: 1...limits.maxDailyNewChats)
+                    row("health.limits.groups", value: $groups, range: 0...limits.maxDailyGroups)
+                }
+                HStack(spacing: 10) {
+                    Spacer(minLength: 0)
+                    Button("wizard.cancel", action: cancel)
+                        .buttonStyle(InkButtonStyle(.secondary, padding: 20))
+                    Button("health.limits.save") { save(total, newChats, groups) }
+                        .buttonStyle(InkButtonStyle(.primary, padding: 22))
+                        .keyboardShortcut(.defaultAction)
+                }
+                .padding(.top, 4)
+            }
+            .padding(24)
+            .frame(width: 460, alignment: .leading)
+            .background(Color.parchment50)
+            .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.ink900, lineWidth: 1.5))
+        }
+    }
+
+    /// «Mensajes al día   −  40  +   (máximo 80)».
+    private func row(_ key: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
+        HStack(spacing: 10) {
+            Text(LocalizedStringKey(key)).font(Typo.text(15)).foregroundStyle(Color.ink900)
+            Spacer(minLength: 8)
+            Button {
+                value.wrappedValue = max(range.lowerBound, value.wrappedValue - 1)
+            } label: {
+                Image(systemName: "minus").frame(width: 14, height: 14)
+            }
+            .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 8))
+            .disabled(value.wrappedValue <= range.lowerBound)
+            .accessibilityLabel(Text("health.limits.less"))
+            Text(verbatim: "\(value.wrappedValue)")
+                .font(Typo.text(16, .semibold)).foregroundStyle(Color.ink900)
+                .monospacedDigit()
+                .frame(width: 34)
+            Button {
+                value.wrappedValue = min(range.upperBound, value.wrappedValue + 1)
+            } label: {
+                Image(systemName: "plus").frame(width: 14, height: 14)
+            }
+            .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 8))
+            .disabled(value.wrappedValue >= range.upperBound)
+            .accessibilityLabel(Text("health.limits.more"))
+            Text(verbatim: Localized.string("health.limits.max %lld", range.upperBound, locale: locale))
+                .font(Typo.text(13)).foregroundStyle(Color.ink500)
+                .frame(width: 92, alignment: .leading)
+        }
+    }
 }
 
 // MARK: - Re-vincular WhatsApp

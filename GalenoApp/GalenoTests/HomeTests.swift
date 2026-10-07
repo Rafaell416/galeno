@@ -86,6 +86,35 @@ final class HomeTests: XCTestCase {
         for _ in 0..<200 where !condition() { try? await Task.sleep(for: .milliseconds(10)) }
     }
 
+    // MARK: - El aviso de los envíos por WhatsApp
+
+    /// A quien ya tenía WhatsApp vinculado de solo lectura se le ofrece activar el envío: una vez, y solo a él.
+    func testTheSendingOfferIsOnlyForSomeoneWhoLinkedWhatsAppBeforeItCouldSend() throws {
+        try install([("Hermes", [.whatsapp]), ("Hera", [.notion])])
+        let model = makeModel()
+        model.reload()
+        XCTAssertTrue(model.sendingOffer)
+
+        model.dismissSendingOffer()
+        XCTAssertFalse(model.sendingOffer)
+        model.reload()
+        XCTAssertFalse(model.sendingOffer, "«Ahora no» se recuerda")
+    }
+
+    func testThereIsNoSendingOfferOnceItWasAcceptedOrWithoutWhatsApp() throws {
+        var installation = try install([("Hermes", [.whatsapp])])
+        installation.setConnection(SharedConnection(tool: .whatsapp, status: .connected, sendingAccepted: true))
+        try store.save(installation)
+        let accepted = makeModel()
+        accepted.reload()
+        XCTAssertFalse(accepted.sendingOffer)
+
+        try install([("Hera", [.notion])])
+        let withoutWhatsApp = makeModel()
+        withoutWhatsApp.reload()
+        XCTAssertFalse(withoutWhatsApp.sendingOffer)
+    }
+
     // MARK: - Qué lista
 
     func testWithoutAnInstallationThereIsNothingToList() {

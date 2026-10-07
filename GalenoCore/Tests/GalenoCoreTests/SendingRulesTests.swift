@@ -15,13 +15,14 @@ final class SendingRulesTests: XCTestCase {
         }
     }
 
-    /// El bridge de WhatsApp no envía, así que WhatsApp ni siquiera es un envío
-    /// que haya que gobernar. Si alguien añade el caso, esta prueba falla.
-    func testWhatsAppIsNotAnExternalSend() {
+    /// Los envíos externos que existen. WhatsApp entró el 7 oct 2026 (`docs/09`) y, como los demás, no
+    /// tiene forma de ir sin aprobación. Añadir un caso aquí es añadir un canal de salida: se hace a propósito.
+    func testTheExternalSendsAreExactlyThese() {
         XCTAssertEqual(
             ExternalSend.allCases.map(\.rawValue).sorted(),
-            ["calendar-event", "email", "slack-message"]
+            ["calendar-event", "email", "slack-message", "whatsapp-message"]
         )
+        XCTAssertEqual(Tool.whatsapp.externalSend, .whatsappMessage)
     }
 
     func testDefaultAllowsEveryInternalWriteExceptDesign() {

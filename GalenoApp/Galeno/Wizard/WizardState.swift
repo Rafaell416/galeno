@@ -605,7 +605,8 @@ final class WizardState: ObservableObject {
                         ToolConnection(
                             tool: needed, status: .connected,
                             sources: needed.selectableSourceKinds.isEmpty ? .everything : .nothing,
-                            oauthClientID: known.oauthClientID, serverNamePrefix: known.serverNamePrefix))
+                            oauthClientID: known.oauthClientID, serverNamePrefix: known.serverNamePrefix,
+                            sendingAccepted: known.sendingAccepted))
                 } else {
                     // Una conexión nueva se registra con el nombre propio de Galeno (`galeno-notion`): así lo que
                     // Galeno cierra o quita nunca es de otro proyecto del usuario.
@@ -676,6 +677,9 @@ final class WizardState: ObservableObject {
     func setConnectionStatus(_ tool: Tool, _ status: ConnectionStatus) {
         for index in connections.indices where connections[index].tool == tool {
             connections[index].status = status
+            // WhatsApp solo llega a «conectado» aquí después de «Entiendo, continuar» en su advertencia, que dice
+            // que el agente puede enviar con aprobación: eso es aceptar el envío (`ToolConnection.sendingAccepted`).
+            if tool == .whatsapp, status == .connected { connections[index].sendingAccepted = true }
         }
         if tool == .googleWorkspace {
             for index in connections.indices where connections[index].tool == .googleMeet {
@@ -888,8 +892,17 @@ final class WizardState: ObservableObject {
         sendingRules.setPolicy(policy, for: write)
     }
 
-    /// Las herramientas conectadas por las que el agente puede hablarle a otras personas.
-    var externalSendTools: [Tool] { connectedTools.filter { $0.externalSend != nil } }
+    /// ¿Tiene este agente WhatsApp solo para leer? Es el de quien lo vinculó antes de que Galeno enviara y todavía
+    /// no aceptó el envío (se activa en Salud). Decide si las reglas dicen «nunca envía por WhatsApp».
+    var whatsAppIsReadOnly: Bool {
+        connections.contains { $0.tool == .whatsapp && $0.status == .connected && !$0.sendsToOthers }
+    }
+
+    /// Las herramientas conectadas por las que el agente puede hablarle a otras personas. WhatsApp solo cuenta
+    /// si el usuario aceptó el envío: sin eso, ese agente solo lo lee.
+    var externalSendTools: [Tool] {
+        connections.filter { $0.status == .connected && $0.sendsToOthers }.map(\.tool)
+    }
 
     // MARK: Paso 9: generar
 

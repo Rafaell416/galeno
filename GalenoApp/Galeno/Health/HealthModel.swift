@@ -116,6 +116,10 @@ final class HealthModel: ObservableObject {
         /// `nil` si el bridge no contestó.
         var status: WhatsAppStatus?
         var sync: WhatsAppSyncState
+        /// ¿Aceptó el usuario que su agente envíe por WhatsApp? Quien lo vinculó cuando solo leía, todavía no.
+        var sendingAccepted = false
+        /// La bandeja de salida, si el envío está aceptado y el bridge contestó.
+        var outbox: WhatsAppOutbox?
 
         var isLinked: Bool { status?.isLinked == true }
 
@@ -136,6 +140,22 @@ final class HealthModel: ObservableObject {
     @Published private(set) var usesWhatsApp = false
     @Published private(set) var relink: RelinkPhase = .idle
 
+    /// «Activar envíos»: para quien vinculó WhatsApp cuando Galeno solo leía. El envío no se enciende solo al
+    /// actualizar la app: se le enseña la advertencia nueva y lo decide él.
+    enum SendingActivation: Equatable {
+        case idle
+        /// Leyendo la advertencia.
+        case confirming
+        /// Dejando el bridge al día y volviendo a escribir los agentes.
+        case working
+        case failed
+    }
+
+    @Published private(set) var activation: SendingActivation = .idle
+    /// Guardando la pausa o los límites.
+    @Published private(set) var isSavingSending = false
+    @Published private(set) var sendingSaveFailed = false
+
     // MARK: - Skills
 
     @Published private(set) var isUpdatingSkills = false
@@ -146,6 +166,11 @@ final class HealthModel: ObservableObject {
     // MARK: - Dependencias
 
     private let store: InstallationStore
+    /// Con qué se vuelven a escribir los agentes al activar el envío. `nil`: esta vista no puede activarlo.
+    private var installer: AgentInstaller?
+    /// Los agentes a los que se les acaba de dar el envío: quien los tenga abiertos arrancó sin él.
+    private var agentsChanged: @MainActor ([UUID]) -> Void
+    private var whatsappSendingAccepted = false
     private let makeMCP: @MainActor (String) -> any MCPConnecting
     private let claudePath: String?
     private let whatsappBridge: any WhatsAppLinking
@@ -178,6 +203,8 @@ final class HealthModel: ObservableObject {
 
     init(
         store: InstallationStore = InstallationStore(),
+        installer: AgentInstaller? = nil,
+        agentsChanged: @escaping @MainActor ([UUID]) -> Void = { _ in },
         locateClaude: @Sendable () -> String? = HealthModel.locateClaude,
         makeMCP: @escaping @MainActor (String) -> any MCPConnecting = { ClaudeMCPClient(claudePath: $0) },
         whatsapp: any WhatsAppLinking = WhatsAppBridge.live(),
@@ -194,6 +221,8 @@ final class HealthModel: ObservableObject {
     ) {
         self.playSound = playSound
         self.store = store
+        self.installer = installer
+        self.agentsChanged = agentsChanged
         self.claudePath = locateClaude()
         self.makeMCP = makeMCP
         self.whatsappBridge = whatsapp
@@ -234,6 +263,7 @@ final class HealthModel: ObservableObject {
 
         let tools = connected.map(\.tool).filter { $0 != .whatsapp && ConnectTarget(tool: $0, namePrefix: prefixes[$0]) != nil }
         usesWhatsApp = connected.contains { $0.tool == .whatsapp }
+        whatsappSendingAccepted = connected.first { $0.tool == .whatsapp }?.sendingAccepted == true
         connections = tools.map { ConnectionRow(tool: $0, state: .checking) }
 
         // WhatsApp contesta en un instante; `claude mcp list` puede tardar: no se hace esperar a uno por el otro.
@@ -299,7 +329,105 @@ final class HealthModel: ObservableObject {
         async let status = whatsappBridge.status()
         async let sync = whatsappBridge.syncState()
         let (found, state) = await (status, sync)
-        whatsapp = WhatsAppHealth(status: found, sync: state)
+        let outbox = whatsappSendingAccepted && found?.isLinked == true ? await whatsappBridge.outbox() : nil
+        whatsapp = WhatsAppHealth(
+            status: found, sync: state, sendingAccepted: whatsappSendingAccepted, outbox: outbox)
+    }
+
+    // MARK: - WhatsApp: envíos
+
+    /// ¿Puede esta vista activar el envío? Hace falta con qué volver a escribir los agentes.
+    var canActivateSending: Bool { installer != nil }
+
+    /// Le da a esta vista con qué activar el envío: el instalador que comparte la instalación del home, y a quién
+    /// avisar de los agentes que cambiaron (para que «Abrir» reinicie la conversación que arrancó sin el envío).
+    func enableSendingActivation(installer: AgentInstaller, agentsChanged: @escaping @MainActor ([UUID]) -> Void) {
+        self.installer = installer
+        self.agentsChanged = agentsChanged
+    }
+
+    /// «Activar envíos…»: enseña la advertencia y pide confirmar.
+    func askActivateSending() {
+        guard canActivateSending, activation == .idle || activation == .failed else { return }
+        activation = .confirming
+    }
+
+    func cancelActivateSending() {
+        guard activation == .confirming || activation == .failed else { return }
+        activation = .idle
+    }
+
+    /// «Entiendo, activar». El bridge se deja al día y `sync` se reinicia con él (el de antes no saca la bandeja
+    /// de salida); el envío queda aceptado en la instalación y se vuelve a escribir cada agente que usa WhatsApp,
+    /// para que le lleguen a la vez la herramienta y la regla que pide aprobación. `memoria/` no se toca.
+    func confirmActivateSending() {
+        guard activation == .confirming else { return }
+        activation = .working
+        Task { [weak self] in
+            guard let self else { return }
+            let done = await self.activateSending()
+            self.activation = done ? .idle : .failed
+        }
+    }
+
+    /// Lo mismo, esperable (las pruebas).
+    func activateSending() async -> Bool {
+        do {
+            try await whatsappBridge.prepare()
+            if whatsapp?.isLinked == true { try await whatsappBridge.installLaunchd() }
+            try recordSendingAccepted()
+        } catch {
+            return false
+        }
+        await checkWhatsApp()
+        return true
+    }
+
+    /// Anota en la instalación que el usuario aceptó el envío y vuelve a escribir los agentes que usan WhatsApp.
+    private func recordSendingAccepted() throws {
+        guard let installer, var installation = try installer.store.load(),
+            var shared = installation.connection(for: .whatsapp)
+        else { throw WhatsAppBridgeError.unexpectedOutput("no hay WhatsApp en la instalación") }
+        shared.sendingAccepted = true
+        installation.setConnection(shared)
+        try installer.store.save(installation)
+
+        let users = installation.agents.filter {
+            installation.resolvedConfig(for: $0.id)?.connectedTools.contains(.whatsapp) == true
+        }
+        for user in users {
+            if let resolved = installation.resolvedConfig(for: user.id) {
+                _ = try installer.install(resolved, existingAgentID: user.id)
+            }
+        }
+        whatsappSendingAccepted = true
+        agentsChanged(users.map(\.id))
+    }
+
+    /// «Pausar envíos» / «Reanudar envíos».
+    func setSendingPaused(_ paused: Bool) {
+        saveSending { try await $0.setSendingPaused(paused) }
+    }
+
+    /// «Límites»: baja los topes del día. Nunca por encima del techo que trae el bridge.
+    func setSendLimits(dailyTotal: Int, dailyNewChats: Int, dailyGroups: Int) {
+        guard let limits = whatsapp?.outbox?.limits else { return }
+        let total = min(max(1, dailyTotal), limits.maxDailyTotal)
+        let newChats = min(max(1, dailyNewChats), limits.maxDailyNewChats)
+        let groups = min(max(0, dailyGroups), limits.maxDailyGroups)
+        saveSending { try await $0.setSendLimits(dailyTotal: total, dailyNewChats: newChats, dailyGroups: groups) }
+    }
+
+    private func saveSending(_ change: @escaping @Sendable (any WhatsAppLinking) async throws -> Void) {
+        guard !isSavingSending else { return }
+        isSavingSending = true
+        sendingSaveFailed = false
+        Task { [weak self] in
+            guard let self else { return }
+            do { try await change(self.whatsappBridge) } catch { self.sendingSaveFailed = true }
+            await self.checkWhatsApp()
+            self.isSavingSending = false
+        }
     }
 
     // MARK: - Reconectar una herramienta
@@ -471,7 +599,7 @@ final class HealthModel: ObservableObject {
 
     // MARK: - WhatsApp: re-vincular
 
-    /// «Re-vincular» (o «Vincular», si no había sesión): enseña la advertencia de siempre y pide confirmar.
+    /// «Re-vincular» (o «Vincular», si no había sesión): enseña la advertencia y pide confirmar.
     func askRelink() {
         guard relink == .idle || relink == .done || isRelinkFailed else { return }
         relink = .confirming
@@ -541,6 +669,8 @@ final class HealthModel: ObservableObject {
             await checkWhatsApp()
             return
         }
+        // Volvió a pasar por la advertencia, que es la que dice que el agente puede enviar: eso es aceptarlo.
+        if installer != nil, !whatsappSendingAccepted { try? recordSendingAccepted() }
         await checkWhatsApp()
         relink = .done
     }

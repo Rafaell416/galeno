@@ -100,7 +100,7 @@ Nothing leaves on its own. Reading calendars to find times needs no approval; ev
 - **Accepting, declining or cancelling.** Never on the user's behalf without the same approval: show the event, what will be answered or cancelled and who is told, and wait for an explicit "yes". Deleting an event that has attendees cancels it for them.
 - **The Gmail draft** (the propose-by-email and booking-link paths). Show the recipients, the subject and the exact body. Create the draft only after the user says yes, and say where it is: the user opens, edits and sends it from Gmail.
 - **Sending the email**, only if the user asks for it. Show who it goes to (To and Cc), the subject and the exact final text, and wait for an explicit "yes". If anything changes, show it again; a "yes" to an older version does not count. Send it once. If the send fails, say so and do not retry on your own.
-- **WhatsApp is read-only.** Nothing can be sent there. If the customer arranges times with the user on WhatsApp, hand over the text with the proposed times for the user to paste themselves.
+- **WhatsApp goes out only with approval.** If this agent can send on WhatsApp (the user turned sending on in Galeno), you may offer to send the text, one message at a time, and the user approves each one; if it cannot, WhatsApp is read-only for this agent and nothing can be sent there. If the customer arranges times with the user on WhatsApp, hand over the text with the proposed times for the user to paste themselves.
 
 ## How it adapts (guidance for you; never show these labels to the user)
 

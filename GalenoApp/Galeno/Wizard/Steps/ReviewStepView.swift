@@ -102,7 +102,7 @@ struct ReviewStepView: View {
             wizard.jump(to: .rules)
         } content: {
             VStack(alignment: .leading, spacing: 3) {
-                if wizard.connectedTools.contains(.whatsapp) {
+                if wizard.whatsAppIsReadOnly {
                     bullet(Text("rules.never.label") + Text(verbatim: ": ") + Text("rules.never.title"))
                 }
                 bullet(Text("rules.always.label") + Text(verbatim: ": ") + Text("rules.external.title"))

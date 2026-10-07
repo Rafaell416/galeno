@@ -9,6 +9,10 @@
 /// solo las de lectura. De ahí la regla: un subagente nunca recibe el servidor
 /// de una herramienta que pueda enviarle algo a otra persona (Slack, Gmail).
 /// Enviar es cosa del agente principal, que es donde el usuario ve y aprueba.
+///
+/// WhatsApp es el único de esos cuyas herramientas sí conocemos (el bridge es
+/// nuestro): los subagentes reciben sus 9 lecturas por nombre exacto y **nunca**
+/// `send_message` (`docs/09` §5.1).
 enum SubagentsRenderer {
     static let directory = ".claude/agents"
 
@@ -21,7 +25,8 @@ enum SubagentsRenderer {
     /// conexiones del usuario.
     static func grantedServers(in config: AgentConfig) -> [String] {
         config.connectedConnections
-            .filter { $0.tool.externalSend == nil }
+            // WhatsApp entra aunque envíe: de él reciben solo las lecturas (`grantedTools`).
+            .filter { $0.tool.externalSend == nil || $0.tool == .whatsapp }
             .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
             .map(\.serverName)
     }
@@ -30,27 +35,39 @@ enum SubagentsRenderer {
     /// concedidos. Sin terminal, sin edición de archivos, sin `Agent` y sin
     /// `Skill`: lo que no está aquí no existe para el subagente.
     static func grantedTools(in config: AgentConfig) -> [String] {
-        let servers = config.connectedConnections
-            .filter { $0.tool.externalSend == nil }
-            .flatMap { MCPServerCatalog.definitions(for: $0, whatsAppBridgePath: "") }
-        return SettingsRenderer.allowedReadTools
-            + servers.flatMap { server -> [String] in
-                // Sin listas, el servidor entero. Con listas (Google Drive), solo lo que lee y lo que
-                // escribe bajo la regla del usuario: compartir y la papelera no existen para un subagente.
-                guard !server.readOnlyTools.isEmpty else { return ["mcp__\(server.serverName)"] }
-                return (server.readOnlyTools + server.writeTools).map { "mcp__\(server.serverName)__\($0)" }
+        SettingsRenderer.allowedReadTools
+            + config.connectedConnections.flatMap { connection -> [String] in
+                let servers = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
+                if connection.tool == .whatsapp {
+                    // Solo lo que lee, por nombre. Enviar es del agente principal, con aprobación.
+                    return servers.flatMap { server in
+                        server.readOnlyTools.map { "mcp__\(server.serverName)__\($0)" }
+                    }
+                }
+                guard connection.tool.externalSend == nil else { return [] }
+                return servers.flatMap { server -> [String] in
+                    // Sin listas, el servidor entero. Con listas (Google Drive), solo lo que lee y lo que
+                    // escribe bajo la regla del usuario: compartir y la papelera no existen para un subagente.
+                    guard !server.readOnlyTools.isEmpty else { return ["mcp__\(server.serverName)"] }
+                    return (server.readOnlyTools + server.writeTools).map { "mcp__\(server.serverName)__\($0)" }
+                }
             }
     }
 
     static func render(_ config: AgentConfig) -> [File] {
         let tools = grantedTools(in: config).joined(separator: ", ")
-        let cannotReachSendingTools = config.connectedTools.contains { $0.externalSend != nil }
+        let cannotReachSendingTools = config.connectedTools.contains { $0.externalSend != nil && $0 != .whatsapp }
+        let readsWhatsApp = config.connectedTools.contains(.whatsapp)
 
         return definitions.map { definition in
             var body = [languageInstruction(config.language), "", definition.body]
             if cannotReachSendingTools {
                 body.append("")
                 body.append(noSendingToolsNote)
+            }
+            if readsWhatsApp {
+                body.append("")
+                body.append(whatsAppReadOnlyNote)
             }
 
             let contents = """
@@ -82,6 +99,11 @@ enum SubagentsRenderer {
         You cannot send messages or email, and you cannot read Slack or email yourself. Work \
         from what the task gives you; if you need something from those tools, say so in your \
         answer instead of guessing.
+        """
+
+    private static let whatsAppReadOnlyNote = """
+        You can read WhatsApp, and you can never send a WhatsApp message: sending is for the main \
+        agent, with the user's approval. If something has to be sent, return the text and who it is for.
         """
 
     private struct Definition {

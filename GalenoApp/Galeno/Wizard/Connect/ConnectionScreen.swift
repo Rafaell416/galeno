@@ -777,9 +777,13 @@ private struct RemovalConfirmPanel: View {
 /// continuar: "Tú decides si continuar". El texto es el de la spec y no se toca
 /// sin que Rafa lo apruebe (`AGENTS.md`).
 struct WhatsAppWarning: View {
+    /// El rótulo de encima. El texto de la advertencia es siempre el mismo; lo que cambia es el momento
+    /// («Antes de vincular», o «Antes de activar» para quien ya estaba vinculado).
+    var title = "connect.whatsapp.warning.title"
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SmallCapsLabel("connect.whatsapp.warning.title", size: 13, tracking: 0.14)
+            SmallCapsLabel(title, size: 13, tracking: 0.14)
                 .foregroundStyle(Color.seal700)
             Text("connect.whatsapp.warning.body")
                 .font(Typo.text(15.5))

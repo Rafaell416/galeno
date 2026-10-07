@@ -462,6 +462,213 @@ final class HealthTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(model.whatsapp).isLinked)
     }
 
+    // MARK: - WhatsApp: activar los envíos
+
+    private final class Changed { var agents: [UUID] = [] }
+
+    private func contents(_ record: AgentRecord, _ path: String) throws -> String {
+        try String(contentsOf: record.folder.appendingPathComponent(path), encoding: .utf8)
+    }
+
+    private func whatsAppIsAccepted() throws -> Bool? {
+        try XCTUnwrap(try installer.store.load()).connection(for: .whatsapp)?.sendingAccepted
+    }
+
+    /// Quien vinculó WhatsApp cuando Galeno solo leía no recibe el envío al actualizar: su agente sigue leyendo
+    /// y nada pregunta por la bandeja de salida.
+    func testSomeoneWhoLinkedWhenGalenoOnlyReadKeepsReadingOnly() async throws {
+        let agent = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        bridge.reportedOutbox = FakeWhatsApp.emptyOutbox
+        let model = makeModel(whatsapp: bridge)
+
+        await model.check()
+
+        let health = try XCTUnwrap(model.whatsapp)
+        XCTAssertFalse(health.sendingAccepted)
+        XCTAssertNil(health.outbox)
+        XCTAssertFalse(bridge.calls.contains("outbox"))
+        XCTAssertFalse(try contents(agent, ".mcp.json").contains("--with-send"))
+        XCTAssertFalse(try contents(agent, ".claude/settings.json").contains("send_message"))
+        // Sin con qué volver a escribir los agentes, esta vista no ofrece activarlo.
+        XCTAssertFalse(model.canActivateSending)
+        model.askActivateSending()
+        XCTAssertEqual(model.activation, .idle)
+    }
+
+    /// «Activar envíos»: nada cambia hasta confirmar; al confirmar, `sync` se reinicia con el bridge nuevo y se
+    /// vuelve a escribir cada agente que usa WhatsApp, con la herramienta y la regla que pide aprobación a la vez.
+    func testActivatingSendingRestartsSyncAndRewritesTheAgentsThatUseWhatsApp() async throws {
+        let withWhatsApp = try install(
+            [ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)], name: "Hermes")
+        let without = try install(
+            [ToolConnection(tool: .notion, status: .connected, sources: .everything)], name: "Hera")
+        let memory = withWhatsApp.folder.appendingPathComponent("memoria/proyecto.md")
+        try Data("lo que aprendió\n".utf8).write(to: memory)
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        bridge.reportedSync = .running
+        bridge.reportedOutbox = FakeWhatsApp.emptyOutbox
+        let changed = Changed()
+        let model = makeModel(whatsapp: bridge)
+        model.enableSendingActivation(installer: installer) { changed.agents = $0 }
+        await model.check()
+
+        model.askActivateSending()
+        XCTAssertEqual(model.activation, .confirming)
+        XCTAssertNil(try whatsAppIsAccepted(), "nada se guarda hasta confirmar")
+        XCTAssertFalse(bridge.calls.contains("installLaunchd"))
+
+        model.confirmActivateSending()
+        let done = await waitUntil { model.activation == .idle }
+
+        XCTAssertTrue(done)
+        XCTAssertEqual(try whatsAppIsAccepted(), true)
+        // Primero el bridge al día, después `sync` con él: el de antes no saca la bandeja de salida.
+        let calls = bridge.calls.filter { ["prepare", "installLaunchd"].contains($0) }
+        let restart = try XCTUnwrap(calls.firstIndex(of: "installLaunchd"))
+        XCTAssertGreaterThan(restart, 0)
+        XCTAssertEqual(calls[restart - 1], "prepare")
+        XCTAssertEqual(calls.filter { $0 == "installLaunchd" }.count, 1)
+
+        XCTAssertTrue(try contents(withWhatsApp, ".mcp.json").contains("--with-send"))
+        let settings = try contents(withWhatsApp, ".claude/settings.json")
+        let rules = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(settings.utf8)) as? [String: Any])["permissions"] as? [String: [String]]
+        XCTAssertEqual(rules?["ask"], ["mcp__whatsapp__send_message"])
+        XCTAssertFalse(rules?["allow"]?.contains { $0.contains("send_message") || $0 == "mcp__whatsapp__*" } ?? true)
+        XCTAssertTrue(try contents(withWhatsApp, "AGENTS.md").contains("envías solo con aprobación"))
+        XCTAssertEqual(try String(contentsOf: memory, encoding: .utf8), "lo que aprendió\n", "la memoria no se toca")
+
+        XCTAssertFalse(try contents(without, ".mcp.json").contains("whatsapp"))
+        XCTAssertEqual(changed.agents, [withWhatsApp.id], "solo el que usa WhatsApp cambió")
+
+        let health = try XCTUnwrap(model.whatsapp)
+        XCTAssertTrue(health.sendingAccepted)
+        XCTAssertEqual(health.outbox, FakeWhatsApp.emptyOutbox)
+    }
+
+    func testIfTheBridgeCannotBeMadeReadyNothingIsActivated() async throws {
+        let agent = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
+        let bridge = FakeWhatsApp(prepareError: .bridgeMissing)
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        let model = makeModel(whatsapp: bridge)
+        model.enableSendingActivation(installer: installer) { _ in XCTFail("ningún agente cambió") }
+        await model.check()
+
+        model.askActivateSending()
+        model.confirmActivateSending()
+        let failed = await waitUntil { model.activation == .failed }
+
+        XCTAssertTrue(failed)
+        XCTAssertNil(try whatsAppIsAccepted())
+        XCTAssertFalse(try contents(agent, ".mcp.json").contains("--with-send"))
+        model.cancelActivateSending()
+        XCTAssertEqual(model.activation, .idle)
+    }
+
+    /// Volver a vincular pasa por la advertencia, que es la que dice que el agente puede enviar: eso es aceptarlo.
+    func testRelinkingAcceptsSending() async throws {
+        let agent = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 19)
+        let model = makeModel(whatsapp: bridge)
+        model.enableSendingActivation(installer: installer) { _ in }
+        await model.check()
+
+        model.askRelink()
+        model.confirmRelink()
+        let done = await waitUntil { model.relink == .done }
+
+        XCTAssertTrue(done)
+        XCTAssertEqual(try whatsAppIsAccepted(), true)
+        XCTAssertTrue(try contents(agent, ".mcp.json").contains("--with-send"))
+        XCTAssertEqual(model.whatsapp?.sendingAccepted, true)
+    }
+
+    private func installWithSendingAccepted() throws -> AgentRecord {
+        try install([
+            ToolConnection(tool: .whatsapp, status: .connected, sources: .everything, sendingAccepted: true)
+        ])
+    }
+
+    func testSentTodayComesFromTheBridge() async throws {
+        _ = try installWithSendingAccepted()
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        var outbox = FakeWhatsApp.emptyOutbox
+        outbox.sentToday = 12
+        outbox.pendingToday = 3
+        outbox.newChatsToday = 7
+        outbox.groupsToday = 2
+        outbox.pendingTotal = 3
+        bridge.reportedOutbox = outbox
+        let model = makeModel(whatsapp: bridge)
+
+        await model.check()
+
+        let health = try XCTUnwrap(model.whatsapp)
+        XCTAssertTrue(health.sendingAccepted)
+        XCTAssertEqual(health.outbox?.usedToday, 15, "lo enviado y lo que está en cola cuentan para el tope")
+        XCTAssertEqual(health.outbox?.newChatsToday, 7)
+    }
+
+    func testPausingAndResumingGoThroughTheBridge() async throws {
+        _ = try installWithSendingAccepted()
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        bridge.reportedOutbox = FakeWhatsApp.emptyOutbox
+        let model = makeModel(whatsapp: bridge)
+        await model.check()
+
+        model.setSendingPaused(true)
+        let paused = await waitUntil { model.whatsapp?.outbox?.isPaused == true && !model.isSavingSending }
+        XCTAssertTrue(paused)
+
+        model.setSendingPaused(false)
+        let resumed = await waitUntil { model.whatsapp?.outbox?.isPaused == false && !model.isSavingSending }
+        XCTAssertTrue(resumed)
+        XCTAssertEqual(bridge.calls.filter { $0.hasPrefix("pause:") }, ["pause:true", "pause:false"])
+        XCTAssertFalse(model.sendingSaveFailed)
+    }
+
+    /// Los topes se pueden bajar; por encima del techo que trae el bridge no sube nadie.
+    func testLimitsNeverGoAboveTheCeiling() async throws {
+        _ = try installWithSendingAccepted()
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        bridge.reportedOutbox = FakeWhatsApp.emptyOutbox
+        let model = makeModel(whatsapp: bridge)
+        await model.check()
+
+        model.setSendLimits(dailyTotal: 5000, dailyNewChats: 5000, dailyGroups: 5000)
+        let raised = await waitUntil { bridge.calls.contains { $0.hasPrefix("limits:") } && !model.isSavingSending }
+        XCTAssertTrue(raised)
+        XCTAssertEqual(bridge.calls.last { $0.hasPrefix("limits:") }, "limits:80,25,20")
+
+        model.setSendLimits(dailyTotal: 10, dailyNewChats: 3, dailyGroups: 0)
+        let lowered = await waitUntil { model.whatsapp?.outbox?.limits.dailyTotal == 10 && !model.isSavingSending }
+        XCTAssertTrue(lowered)
+        XCTAssertEqual(bridge.calls.last { $0.hasPrefix("limits:") }, "limits:10,3,0")
+    }
+
+    func testAChangeThatCannotBeSavedIsSaid() async throws {
+        _ = try installWithSendingAccepted()
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        bridge.reportedOutbox = FakeWhatsApp.emptyOutbox
+        bridge.failSendingChanges = .unexpectedOutput("disco lleno")
+        let model = makeModel(whatsapp: bridge)
+        await model.check()
+
+        model.setSendingPaused(true)
+        let said = await waitUntil { model.sendingSaveFailed && !model.isSavingSending }
+
+        XCTAssertTrue(said)
+        XCTAssertEqual(model.whatsapp?.outbox?.isPaused, false, "se enseña lo que hay, no lo que se quiso")
+    }
+
     func testRelinkClosesTheOldSessionThenPairsThenRestartsSync() async throws {
         _ = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
         let bridge = FakeWhatsApp(pairEvents: [.qr(Data([1, 2, 3])), .succeeded])

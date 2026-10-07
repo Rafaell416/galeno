@@ -153,6 +153,10 @@ public enum MCPServerCatalog {
         whatsAppBridgePath: String
     ) -> [MCPServerDefinition] {
         definitions(for: connection.tool, whatsAppBridgePath: whatsAppBridgePath).map { definition in
+            // WhatsApp: el envío solo entra si el usuario aceptó la advertencia que lo dice.
+            if connection.tool == .whatsapp, connection.sendingAccepted == true {
+                return whatsAppWithSending(definition)
+            }
             // Un conector de claude.ai no se registra: su nombre lo pone Claude y no admite prefijo.
             if case .claudeConnector = definition.transport { return definition }
             guard let prefix = connection.serverNamePrefix, !prefix.isEmpty else { return definition }
@@ -331,6 +335,37 @@ public enum MCPServerCatalog {
         "updateConfluenceContent",
     ]
 
+    /// Las 9 lecturas del bridge de WhatsApp, por su nombre exacto (`whatsapp-bridge/mcp_server.go`). Van sin
+    /// preguntar; cualquier otra herramienta del servidor pide aprobación.
+    static let whatsAppReadOnlyTools = [
+        "download_media",
+        "get_chat",
+        "get_contact_chats",
+        "get_direct_chat_by_contact",
+        "get_last_interaction",
+        "get_message_context",
+        "list_chats",
+        "list_messages",
+        "search_contacts",
+    ]
+
+    /// La única que envía (bridge 0.4.0). Siempre pide aprobación.
+    static let whatsAppWriteTools = ["send_message"]
+
+    /// El argumento con el que el bridge ofrece `send_message`. Sin él sirve solo las lecturas.
+    static let whatsAppSendArgument = "--with-send"
+
+    /// WhatsApp con envío: el bridge se lanza con `--with-send` y `send_message` entra a las herramientas de
+    /// escritura **a la vez**, para que la regla `ask` y el hook se escriban en la misma generación que el
+    /// argumento que hace existir la herramienta (`docs/09`, enmienda 3). Nunca una cosa sin la otra.
+    private static func whatsAppWithSending(_ definition: MCPServerDefinition) -> MCPServerDefinition {
+        guard case let .stdio(command, arguments) = definition.transport else { return definition }
+        var sending = definition
+        sending.transport = .stdio(command: command, arguments: arguments + [whatsAppSendArgument])
+        sending.writeTools = whatsAppWriteTools
+        return sending
+    }
+
     /// Siempre piden aprobación, diga lo que diga la regla de Jira. `executeDestructive` borra para siempre
     /// (tickets, comentarios, adjuntos). `executeWrite` ejecuta **cualquier** herramienta diferida de escritura,
     /// y entre ellas las hay que le llegan a otras personas o publican (compartir un video de Loom, abrir un
@@ -343,13 +378,14 @@ public enum MCPServerCatalog {
     ) -> [MCPServerDefinition] {
         switch tool {
         case .whatsapp:
-            // El único local: el binario Go que la app empaqueta y supervisa.
-            // Es de solo lectura por estructura: no tiene herramientas de envío.
+            // El único local: el binario Go que la app empaqueta y supervisa. Así, a secas, solo lee:
+            // el envío lo añade `whatsAppWithSending` para quien lo aceptó.
             return [
                 MCPServerDefinition(
                     serverName: "whatsapp",
                     transport: .stdio(command: whatsAppBridgePath, arguments: ["serve"]),
-                    endpointIsVerified: true
+                    endpointIsVerified: true,
+                    readOnlyTools: whatsAppReadOnlyTools
                 )
             ]
 

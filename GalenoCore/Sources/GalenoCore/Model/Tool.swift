@@ -68,13 +68,13 @@ extension Tool {
 
     /// Si el agente puede escribir o enviar algo por esta herramienta.
     ///
-    /// WhatsApp es `false` por línea roja: su MCP no tiene herramientas de
-    /// envío, así que no es una capacidad que se pueda activar. Las de
-    /// transcripción son `false` porque sus MCP oficiales son de solo lectura.
+    /// WhatsApp envía desde el 7 oct 2026 (`docs/09`), pero solo en la conexión de un usuario que
+    /// aceptó la advertencia que lo dice: mirar `ToolConnection.allowsWriting`, que es el que cuenta.
+    /// Las de transcripción son `false` porque sus MCP oficiales son de solo lectura.
     public var allowsWriting: Bool {
         switch self {
-        case .slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign, .googleCalendar: true
-        case .whatsapp, .fireflies, .granola, .fathom, .googleMeet: false
+        case .whatsapp, .slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign, .googleCalendar: true
+        case .fireflies, .granola, .fathom, .googleMeet: false
         }
     }
 
@@ -97,14 +97,15 @@ extension Tool {
 
     /// El envío externo que pasa por esta herramienta, si lo hay.
     ///
-    /// Son los dos canales por los que el agente le habla a otras personas, y
+    /// Son los canales por los que el agente le habla a otras personas, y
     /// por eso siempre requieren aprobación humana.
     public var externalSend: ExternalSend? {
         switch self {
+        case .whatsapp: .whatsappMessage
         case .slack: .slackMessage
         case .gmail: .email
         case .googleCalendar: .calendarEvent
-        case .whatsapp, .notion, .googleWorkspace, .jira,
+        case .notion, .googleWorkspace, .jira,
             .fireflies, .granola, .fathom, .googleMeet, .claudeDesign:
             nil
         }

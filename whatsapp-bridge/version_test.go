@@ -73,7 +73,10 @@ func TestSubcommandsTheAppUses(t *testing.T) {
 		if err := json.Unmarshal([]byte(stdout), &report); err != nil {
 			t.Fatalf("no es JSON: %v\n%s", err, stdout)
 		}
-		wantLimits := outboxReportLimits{defaultDailyTotal, defaultDailyNewChats, maxDailyTotal, maxDailyNewChats}
+		wantLimits := outboxReportLimits{
+			DailyTotal: defaultDailyTotal, DailyNewChats: defaultDailyNewChats, DailyGroups: defaultDailyGroups,
+			MaxDailyTotal: maxDailyTotal, MaxDailyNewChats: maxDailyNewChats, MaxDailyGroups: maxDailyGroups,
+		}
 		if report.Paused || report.Limits != wantLimits || report.Today != (outboxReportToday{}) || report.PendingTotal != 0 {
 			t.Errorf("informe = %+v", report)
 		}

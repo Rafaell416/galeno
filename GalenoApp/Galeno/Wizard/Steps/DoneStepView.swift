@@ -200,7 +200,7 @@ struct DoneContent: View {
         let allowed = writes.filter { wizard.policy(for: $0) == .allow }.map(\.toolDisplayName)
         let asked = writes.filter { wizard.policy(for: $0) == .ask }.map(\.toolDisplayName)
         var parts: [Text] = []
-        if wizard.connectedTools.contains(.whatsapp) { parts.append(Text("pact.never")) }
+        if wizard.whatsAppIsReadOnly { parts.append(Text("pact.never")) }
         parts.append(Text("pact.always"))
         if !allowed.isEmpty { parts.append(Text("pact.allow \(allowed.joined(separator: ", "))")) }
         if !asked.isEmpty { parts.append(Text("pact.ask \(asked.joined(separator: ", "))")) }

@@ -74,6 +74,9 @@ final class HomeModel: ObservableObject {
     @Published private(set) var dialogError: String?
     /// Un aviso tras eliminar, si algo de Claude no se pudo mandar a la Papelera.
     @Published private(set) var notice: String?
+    /// ¿Ofrecer «activar los envíos por WhatsApp»? Solo a quien ya tenía WhatsApp vinculado de solo lectura y
+    /// todavía no lo aceptó ni cerró el aviso. Se activa en Salud, tras leer la advertencia.
+    @Published private(set) var sendingOffer = false
 
     /// Cuándo fue la última actividad de cada agente en la app de Claude (`refreshActivity`). La mesa del home solo
     /// mueve a un personaje si su agente trabajó hace poco: no se finge una actividad que Galeno no conoce.
@@ -83,7 +86,7 @@ final class HomeModel: ObservableObject {
 
     /// Dónde está la instalación: el detalle de un agente (`AgentDetailModel`) escribe en la misma.
     let store: InstallationStore
-    private let installer: AgentInstaller
+    let installer: AgentInstaller
     private let remover: AgentRemover
     private let defaults: UserDefaults
     let opener: any AgentOpening
@@ -138,9 +141,17 @@ final class HomeModel: ObservableObject {
         do {
             guard let installation = try store.load() else {
                 state = .empty
+                sendingOffer = false
                 return
             }
             language = installation.language
+            // Quien vinculó WhatsApp cuando Galeno solo leía: se le ofrece activar el envío, una vez.
+            let whatsapp = installation.connection(for: .whatsapp)
+            sendingOffer = whatsapp?.status == .connected && whatsapp?.sendingAccepted != true
+                && !defaults.bool(forKey: Prefs.sendingOfferDismissed)
+                && installation.agents.contains {
+                    installation.resolvedConfig(for: $0.id)?.connectedTools.contains(.whatsapp) == true
+                }
             let rows = installation.agents.map { record -> HomeAgent in
                 let config = installation.resolvedConfig(for: record.id) ?? record.config
                 return HomeAgent(
@@ -287,6 +298,12 @@ final class HomeModel: ObservableObject {
         guard !isWorking else { return }
         dialog = nil
         dialogError = nil
+    }
+
+    /// «Ahora no» en el aviso de los envíos: no vuelve a salir. Se puede activar igual desde Salud.
+    func dismissSendingOffer() {
+        defaults.set(true, forKey: Prefs.sendingOfferDismissed)
+        sendingOffer = false
     }
 
     func dismissNotice() { notice = nil }

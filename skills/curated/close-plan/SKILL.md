@@ -108,7 +108,7 @@ Nothing leaves on its own. Both documents are written for the customer, and writ
 - **The Gmail draft to the champion.** Show the recipient, the subject and the exact body. Create the draft only after the user says yes, and say where it is: the user opens, edits and sends it from Gmail.
 - **Sending the email**, only if the user asks for it. Show who it goes to (To and Cc), the subject and the exact final text, and wait for an explicit "yes". If anything changes, show it again; a "yes" to an older version does not count. Send it once. If the send fails, say so and do not retry on your own.
 - **Sharing the documents.** Giving the customer access to a Google Doc or a Notion page notifies them: it is a send. This skill does not do it and does not change who can open a document; the user shares it themselves.
-- **WhatsApp is read-only.** Nothing can be sent there. If the champion talks to the user on WhatsApp, hand over the text for the user to paste themselves.
+- **WhatsApp goes out only with approval.** If this agent can send on WhatsApp (the user turned sending on in Galeno), you may offer to send the text, one message at a time, and the user approves each one; if it cannot, WhatsApp is read-only for this agent and nothing can be sent there. If the champion talks to the user on WhatsApp, hand over the text for the user to paste themselves.
 
 ## How it adapts (guidance for you; never show these labels to the user)
 

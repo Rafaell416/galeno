@@ -37,6 +37,7 @@ final class AppModel: ObservableObject {
             WizardState(preferredLanguages: [$0.language.rawValue], startingFrom: $0, editing: $1)
         },
         makeHealth: @escaping @MainActor (Language) -> HealthModel = { language in
+            // El home le da después con qué activar el envío por WhatsApp (`openHealth`).
             HealthModel(language: { language })
         },
         makeAgentDetail: @escaping @MainActor (UUID, AgentDetailModel.Section, HomeModel, Language) -> AgentDetailModel = {
@@ -46,7 +47,11 @@ final class AppModel: ObservableObject {
             installer.store = home.store
             return AgentDetailModel(
                 agentID: id, section: section, home: home,
-                health: HealthModel(store: home.store, language: { language }), installer: installer)
+                health: HealthModel(
+                    store: home.store, installer: installer,
+                    agentsChanged: { agents in agents.forEach { home.noteToolsChanged($0) } },
+                    language: { language }),
+                installer: installer)
         }
     ) {
         self.home = home
@@ -142,7 +147,11 @@ final class AppModel: ObservableObject {
     /// «Salud»: qué conexiones están vivas y cómo va WhatsApp. Solo se entra desde el home, con la instalación legible.
     func openHealth() {
         guard screen == .home, !home.isUnreadable else { return }
-        health = makeHealth(home.language)
+        let model = makeHealth(home.language)
+        model.enableSendingActivation(installer: home.installer) { [home] agents in
+            agents.forEach { home.noteToolsChanged($0) }
+        }
+        health = model
         screen = .health
     }
 

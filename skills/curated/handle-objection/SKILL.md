@@ -111,7 +111,7 @@ Nothing leaves on its own. Each of these is a separate last step, and asking how
 
 - **The Gmail draft.** Show the recipient, the subject and the exact body. Create the draft only after the user says yes, and say where it is: the user opens, edits and sends it from Gmail.
 - **Sending the reply**, only if the user asks for it. Show who it goes to (To and Cc), the subject and the exact final text, and wait for an explicit "yes". If anything changes, show it again; a "yes" to an older version does not count. Send it once. If the send fails, say so and do not retry on your own.
-- **WhatsApp is read-only.** Nothing can be sent there. If the objection came on WhatsApp, hand over the reply for the user to paste themselves.
+- **WhatsApp goes out only with approval.** If this agent can send on WhatsApp (the user turned sending on in Galeno), you may offer to send the text, one message at a time, and the user approves each one; if it cannot, WhatsApp is read-only for this agent and nothing can be sent there. If the objection came on WhatsApp, hand over the reply for the user to paste themselves.
 
 ## How it adapts (guidance for you; never show these labels to the user)
 

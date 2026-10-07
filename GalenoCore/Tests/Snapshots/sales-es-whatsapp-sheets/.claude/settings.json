@@ -1,0 +1,126 @@
+{
+  "effortLevel" : "low",
+  "hooks" : {
+    "PreToolUse" : [
+      {
+        "hooks" : [
+          {
+            "command" : "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/require-external-approval.sh\"",
+            "type" : "command"
+          }
+        ],
+        "matcher" : "^mcp__whatsapp__(?!(?:download_media|get_chat|get_contact_chats|get_direct_chat_by_contact|get_last_interaction|get_message_context|list_chats|list_messages|search_contacts)$).*|^mcp__claude_ai_Gmail__(?!(?:get_draft|get_message|get_thread|list_drafts|list_labels|search_threads|create_draft|update_draft)$).*|^mcp__claude_ai_Google_Drive__(?!(?:download_file_content|get_file_metadata|get_file_permissions|list_recent_files|read_file_content|search_files|copy_file|create_file|update_file)$).*|^mcp__claude_ai_Google_Docs__(?!(?:read_doc|update_doc)$).*|^mcp__claude_ai_Google_Sheets__(?!(?:get_spreadsheet|get_values|append_values|batch_clear_values|copy_sheet_to_another_spreadsheet|insert_dimension|update_formulas|update_spreadsheet|update_values)$).*|^mcp__claude_ai_Google_Calendar__(?!(?:get_event|list_calendars|list_events|search_events|suggest_time)$).*|^mcp__[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__(?!(?:append_values|batch_clear_values|copy_file|copy_sheet_to_another_spreadsheet|create_draft|create_file|download_file_content|get_draft|get_event|get_file_metadata|get_file_permissions|get_message|get_spreadsheet|get_thread|get_values|insert_dimension|list_calendars|list_drafts|list_events|list_labels|list_recent_files|read_doc|read_file_content|search_events|search_files|search_threads|suggest_time|update_doc|update_draft|update_file|update_formulas|update_spreadsheet|update_values)$).*"
+      },
+      {
+        "hooks" : [
+          {
+            "command" : "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/allow-connector-reads.sh\"",
+            "type" : "command"
+          }
+        ],
+        "matcher" : "^mcp__[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__(?:download_file_content|get_draft|get_event|get_file_metadata|get_file_permissions|get_message|get_spreadsheet|get_thread|get_values|list_calendars|list_drafts|list_events|list_labels|list_recent_files|read_doc|read_file_content|search_events|search_files|search_threads|suggest_time)$"
+      },
+      {
+        "hooks" : [
+          {
+            "command" : "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/allow-connector-reads.sh\"",
+            "type" : "command"
+          }
+        ],
+        "matcher" : "^mcp__[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__(?:create_draft|update_draft)$"
+      }
+    ]
+  },
+  "permissions" : {
+    "allow" : [
+      "Edit(/memoria/**)",
+      "Glob",
+      "Grep",
+      "Read",
+      "WebFetch",
+      "WebSearch",
+      "mcp__claude_ai_Gmail__create_draft",
+      "mcp__claude_ai_Gmail__get_draft",
+      "mcp__claude_ai_Gmail__get_message",
+      "mcp__claude_ai_Gmail__get_thread",
+      "mcp__claude_ai_Gmail__list_drafts",
+      "mcp__claude_ai_Gmail__list_labels",
+      "mcp__claude_ai_Gmail__search_threads",
+      "mcp__claude_ai_Gmail__update_draft",
+      "mcp__claude_ai_Google_Calendar__get_event",
+      "mcp__claude_ai_Google_Calendar__list_calendars",
+      "mcp__claude_ai_Google_Calendar__list_events",
+      "mcp__claude_ai_Google_Calendar__search_events",
+      "mcp__claude_ai_Google_Calendar__suggest_time",
+      "mcp__claude_ai_Google_Docs__read_doc",
+      "mcp__claude_ai_Google_Docs__update_doc",
+      "mcp__claude_ai_Google_Drive__copy_file",
+      "mcp__claude_ai_Google_Drive__create_file",
+      "mcp__claude_ai_Google_Drive__download_file_content",
+      "mcp__claude_ai_Google_Drive__get_file_metadata",
+      "mcp__claude_ai_Google_Drive__get_file_permissions",
+      "mcp__claude_ai_Google_Drive__list_recent_files",
+      "mcp__claude_ai_Google_Drive__read_file_content",
+      "mcp__claude_ai_Google_Drive__search_files",
+      "mcp__claude_ai_Google_Drive__update_file",
+      "mcp__claude_ai_Google_Sheets__append_values",
+      "mcp__claude_ai_Google_Sheets__batch_clear_values",
+      "mcp__claude_ai_Google_Sheets__copy_sheet_to_another_spreadsheet",
+      "mcp__claude_ai_Google_Sheets__get_spreadsheet",
+      "mcp__claude_ai_Google_Sheets__get_values",
+      "mcp__claude_ai_Google_Sheets__insert_dimension",
+      "mcp__claude_ai_Google_Sheets__update_formulas",
+      "mcp__claude_ai_Google_Sheets__update_spreadsheet",
+      "mcp__claude_ai_Google_Sheets__update_values",
+      "mcp__whatsapp__download_media",
+      "mcp__whatsapp__get_chat",
+      "mcp__whatsapp__get_contact_chats",
+      "mcp__whatsapp__get_direct_chat_by_contact",
+      "mcp__whatsapp__get_last_interaction",
+      "mcp__whatsapp__get_message_context",
+      "mcp__whatsapp__list_chats",
+      "mcp__whatsapp__list_messages",
+      "mcp__whatsapp__search_contacts"
+    ],
+    "ask" : [
+      "mcp__claude_ai_Gmail__apply_sensitive_message_label",
+      "mcp__claude_ai_Gmail__apply_sensitive_thread_label",
+      "mcp__claude_ai_Gmail__create_label",
+      "mcp__claude_ai_Gmail__delete_draft",
+      "mcp__claude_ai_Gmail__delete_label",
+      "mcp__claude_ai_Gmail__forward",
+      "mcp__claude_ai_Gmail__label_message",
+      "mcp__claude_ai_Gmail__label_thread",
+      "mcp__claude_ai_Gmail__mark_message_spam",
+      "mcp__claude_ai_Gmail__mark_thread_spam",
+      "mcp__claude_ai_Gmail__reply",
+      "mcp__claude_ai_Gmail__send_message",
+      "mcp__claude_ai_Gmail__trash_message",
+      "mcp__claude_ai_Gmail__trash_thread",
+      "mcp__claude_ai_Gmail__unlabel_message",
+      "mcp__claude_ai_Gmail__unlabel_thread",
+      "mcp__claude_ai_Gmail__unmark_message_spam",
+      "mcp__claude_ai_Gmail__unmark_thread_spam",
+      "mcp__claude_ai_Gmail__untrash_message",
+      "mcp__claude_ai_Gmail__untrash_thread",
+      "mcp__claude_ai_Gmail__update_label",
+      "mcp__claude_ai_Gmail__update_message_labels",
+      "mcp__claude_ai_Google_Calendar__create_event",
+      "mcp__claude_ai_Google_Calendar__delete_event",
+      "mcp__claude_ai_Google_Calendar__respond_to_event",
+      "mcp__claude_ai_Google_Calendar__update_event",
+      "mcp__claude_ai_Google_Drive__share_file",
+      "mcp__claude_ai_Google_Drive__trash_file",
+      "mcp__whatsapp__send_message"
+    ],
+    "deny" : [
+      "Bash",
+      "NotebookEdit",
+      "Edit(/AGENTS.md)",
+      "Edit(/CLAUDE.md)",
+      "Edit(/.mcp.json)",
+      "Edit(/.claude/**)",
+      "Edit(/skills-propias/**)"
+    ]
+  }
+}

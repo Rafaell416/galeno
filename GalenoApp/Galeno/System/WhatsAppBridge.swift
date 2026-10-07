@@ -5,7 +5,7 @@ import Foundation
 /// Lo que `galeno-whatsapp` imprime y la app reconoce.
 ///
 /// `pair` y `status` a secas se entienden por su texto, que está en español. La vista de salud
-/// usa `status --json` (desde la 0.3.0) y `chats --json`. Todo lo que depende de esos textos vive
+/// usa `status --json` (desde la 0.3.0), `chats --json` y `outbox --json` (desde la 0.4.0). Todo lo que depende de esos textos vive
 /// aquí, en un solo lugar y con pruebas, para que un cambio en el bridge se note enseguida.
 nonisolated enum BridgeText {
     /// `status`: "Vinculado como 573001234567." / "Sin vincular. Corre: galeno-whatsapp pair"
@@ -70,6 +70,34 @@ nonisolated enum WhatsAppSession {
     }
 }
 
+/// La bandeja de salida (`outbox --json`, bridge 0.4.0): cuánto se envió hoy, los topes y si está en pausa.
+/// No trae el texto de ningún mensaje.
+nonisolated struct WhatsAppOutbox: Equatable, Sendable {
+    /// Los topes diarios. Los `max…` son el techo que el bridge lleva en su código: la app deja bajar un tope,
+    /// nunca subirlo por encima de eso (y si lo intentara, el bridge lo ignora).
+    struct Limits: Equatable, Sendable {
+        var dailyTotal: Int
+        var dailyNewChats: Int
+        var dailyGroups: Int
+        var maxDailyTotal: Int
+        var maxDailyNewChats: Int
+        var maxDailyGroups: Int
+    }
+
+    var isPaused: Bool
+    var limits: Limits
+    /// Lo que ya salió hoy y lo que está en cola para hoy: los dos cuentan para los topes.
+    var sentToday: Int
+    var pendingToday: Int
+    var newChatsToday: Int
+    var groupsToday: Int
+    /// Todo lo que espera en la bandeja, sea para hoy o no.
+    var pendingTotal: Int
+
+    /// Lo que cuenta contra el tope total de hoy.
+    var usedToday: Int { sentToday + pendingToday }
+}
+
 nonisolated enum WhatsAppBridgeError: Error, Equatable, Sendable {
     case bridgeMissing
     case installFailed(String)
@@ -97,12 +125,25 @@ nonisolated protocol WhatsAppLinking: Sendable {
     /// Cierra la sesión: detiene `sync`, le avisa a WhatsApp (`unlink`) y deja el Mac sin vincular, listo para
     /// un `pair` nuevo. **No borra** el historial ya sincronizado.
     func unlink() async throws
+    /// El estado de la bandeja de salida. `nil` si el bridge no contestó o es anterior a la 0.4.0.
+    func outbox() async -> WhatsAppOutbox?
+    /// «Pausar envíos»: mientras esté en pausa no sale nada, y lo que estaba en cola se cancela.
+    func setSendingPaused(_ paused: Bool) async throws
+    /// Baja (o devuelve a su valor) los topes diarios. Nunca por encima del techo del bridge.
+    func setSendLimits(dailyTotal: Int, dailyNewChats: Int, dailyGroups: Int) async throws
 }
 
 extension WhatsAppLinking {
     func status() async -> WhatsAppStatus? { nil }
     func syncState() async -> WhatsAppSyncState { .notInstalled }
     func unlink() async throws { throw WhatsAppBridgeError.unexpectedOutput("unlink no disponible") }
+    func outbox() async -> WhatsAppOutbox? { nil }
+    func setSendingPaused(_ paused: Bool) async throws {
+        throw WhatsAppBridgeError.unexpectedOutput("pausa no disponible")
+    }
+    func setSendLimits(dailyTotal: Int, dailyNewChats: Int, dailyGroups: Int) async throws {
+        throw WhatsAppBridgeError.unexpectedOutput("límites no disponibles")
+    }
 }
 
 // MARK: - El binario
@@ -295,6 +336,48 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
         }
     }
 
+    // MARK: La bandeja de salida
+
+    /// Los dos archivos que el bridge mira en su directorio de estado (`outbox_guards.go`). Los escribe la app;
+    /// el agente no puede: solo escribe en `memoria/` de su carpeta.
+    static let pauseFilename = "send-paused"
+    static let limitsFilename = "send-limits.json"
+
+    func outbox() async -> WhatsAppOutbox? {
+        // Solo stdout: stderr lleva los logs y rompería el JSON.
+        guard let result = await runner.run(binaryPath, arguments: ["outbox", "--json"], timeout: 15),
+            result.status == 0
+        else { return nil }
+        return Self.parseOutbox(jsonOutput: result.output)
+    }
+
+    func setSendingPaused(_ paused: Bool) async throws {
+        let file = stateDirectory.appendingPathComponent(Self.pauseFilename)
+        do {
+            if paused {
+                try FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
+                try Data().write(to: file, options: .atomic)
+            } else if FileManager.default.fileExists(atPath: file.path) {
+                try FileManager.default.removeItem(at: file)
+            }
+        } catch {
+            throw WhatsAppBridgeError.unexpectedOutput("no se pudo \(paused ? "pausar" : "reanudar") los envíos")
+        }
+    }
+
+    func setSendLimits(dailyTotal: Int, dailyNewChats: Int, dailyGroups: Int) async throws {
+        // Los nombres son los de `send-limits.json` en el bridge.
+        let limits = ["daily_total": max(0, dailyTotal), "daily_new_chats": max(0, dailyNewChats),
+            "daily_groups": max(0, dailyGroups)]
+        do {
+            try FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
+            let data = try JSONSerialization.data(withJSONObject: limits, options: [.sortedKeys])
+            try data.write(to: stateDirectory.appendingPathComponent(Self.limitsFilename), options: .atomic)
+        } catch {
+            throw WhatsAppBridgeError.unexpectedOutput("no se pudieron guardar los límites")
+        }
+    }
+
     /// El LaunchAgent de `launchd.go` (`launchAgentLabel`).
     static let launchAgentLabel = "com.galeno.whatsapp-bridge"
 
@@ -352,6 +435,43 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
             number: report.number,
             linkedAt: report.linked_at.flatMap { $0 > 0 ? Date(timeIntervalSince1970: $0) : nil },
             bridgeVersion: report.version)
+    }
+
+    /// `{"paused":false,"limits":{…},"today":{"sent":12,"pending":3,"new_chats":7,"groups":2},"pending_total":3,…}`.
+    /// Sin `limits` o sin `today` no se da por entendido: sería otro programa o un bridge viejo.
+    static func parseOutbox(jsonOutput: String) -> WhatsAppOutbox? {
+        struct Report: Decodable {
+            struct Limits: Decodable {
+                var daily_total: Int
+                var daily_new_chats: Int
+                var daily_groups: Int
+                var max_daily_total: Int
+                var max_daily_new_chats: Int
+                var max_daily_groups: Int
+            }
+            struct Today: Decodable {
+                var sent: Int
+                var pending: Int
+                var new_chats: Int
+                var groups: Int
+            }
+            var paused: Bool
+            var limits: Limits
+            var today: Today
+            var pending_total: Int
+        }
+        guard let data = jsonOutput.data(using: .utf8),
+            let report = try? JSONDecoder().decode(Report.self, from: data)
+        else { return nil }
+        return WhatsAppOutbox(
+            isPaused: report.paused,
+            limits: WhatsAppOutbox.Limits(
+                dailyTotal: report.limits.daily_total, dailyNewChats: report.limits.daily_new_chats,
+                dailyGroups: report.limits.daily_groups, maxDailyTotal: report.limits.max_daily_total,
+                maxDailyNewChats: report.limits.max_daily_new_chats, maxDailyGroups: report.limits.max_daily_groups),
+            sentToday: report.today.sent, pendingToday: report.today.pending,
+            newChatsToday: report.today.new_chats, groupsToday: report.today.groups,
+            pendingTotal: report.pending_total)
     }
 
     /// `launchctl print gui/<uid>/<label>`: sale con 0 y `state = running` si corre; con 0 y otro estado, cargado

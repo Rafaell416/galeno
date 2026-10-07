@@ -17,6 +17,11 @@ final class SnapshotTests: GeneratorTestCase {
         try SnapshotSupport.assertMatchesSnapshot(generated: destination, named: "pm-en-8-tools")
     }
 
+    func testSalesSpanishWhatsAppAndSheets() throws {
+        try generate(GeneratorFixtures.salesSpanishWhatsAppSheets)
+        try SnapshotSupport.assertMatchesSnapshot(generated: destination, named: "sales-es-whatsapp-sheets")
+    }
+
     /// Generar dos veces sobre la misma carpeta debe dar exactamente lo mismo.
     /// La app puede volver a correr el wizard sobre una carpeta ya configurada.
     func testGeneratingTwiceIsIdempotent() throws {
