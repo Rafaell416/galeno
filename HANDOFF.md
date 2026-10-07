@@ -380,11 +380,14 @@ tamaño exacto. Detalle en `docs/04` §12 («Pantallas»).
 
 ## 12. Puntos abiertos (no decididos en los docs)
 
-- **Del plan de Simon (`docs/09` §11; no bloquean el PR 1):** (1) ¿los topes por defecto —40 en total, 15 chats nuevos al
-  día— valen para Simon?; (2) ¿se aprueba el texto nuevo de la advertencia de WhatsApp (§6 del plan) o se ajusta?;
-  (3) ¿`WebFetch` solo para comercial, o también para marketing?; (4) ¿quién es el dueño de `radiografia`? Si la
-  escribió Simon, queda como skill propia suya y no entra al catálogo. Además: **el horario de contactos se apoya en la
-  Ley 2300 de 2023 y Rafa lo valida con un abogado** antes de vender a más usuarios.
+- **Del plan de Simon (`docs/09` §11).** Respondidas por Rafa el 7 oct 2026: (1) los topes por defecto se quedan en
+  **40 al día** (15 chats nuevos); (3) **`WebFetch` va para los tres roles**, no solo comercial (cambia el PR 3 y la regla
+  de `AGENTS.md`, que hoy todavía dice «solo comercial»); (4) **las skills de Simon son suyas**: él las entrega y se
+  prueban añadiéndolas como skills propias (`skills-propias/`), no entran al catálogo. Sigue abierta: (2) el texto nuevo
+  de la advertencia de WhatsApp, que se propone en el PR 4 y lo aprueba Rafa. Nuevas, del PR 2: ¿la pausa debe cancelar
+  lo que estaba en cola (así quedó, como dice el plan) o solo retenerlo?; ¿un mensaje que lleva días `pending` porque el
+  Mac estuvo apagado debe caducar en vez de salir al volver?; los **festivos** no se miran en el horario. Además: **el
+  horario de contactos se apoya en la Ley 2300 de 2023 y Rafa lo valida con un abogado** antes de vender a más usuarios.
 
 - **Variables de entorno de los tokens:** dónde se guardan los valores a los que apunta `.mcp.json`.
 - **Pagos:** falta la compra (Stripe) y cómo se entrega el enlace de descarga. Sin licencias en v0.0.1 (decisión de
@@ -835,7 +838,7 @@ verificada, historial conservado, cambio de versión del bridge detectado). **Si
 de punta a punta —una app instalada que vea una versión nueva, la descargue y se reemplace—, porque no hay sitio donde
 publicar el appcast. **La dirección del appcast es de relleno** hasta la Fase 9: con ella la app no busca
 actualizaciones y el script se niega a entregar salvo con `--sin-actualizaciones`. El bridge ya tenía su subcomando
-`version` (va por la 0.3.0) y Salud ya lo mostraba.
+`version` (iba por la 0.3.0; con el envío, 0.4.0) y Salud ya lo mostraba.
 
 **Cambio de planes: envío por WhatsApp y prospección de Simon (7 oct 2026; rama `docs/envio-whatsapp-decision`, PR 1
 de 5).** Rafa autorizó `docs/09-plan-simon-envio-y-prospeccion.md`, que cambia dos decisiones cerradas: **WhatsApp
@@ -848,6 +851,20 @@ bridge 0.4.0 (bandeja, guardas, `outbox --json`, guardia de CI nuevo), PR 3 moto
 «Límites»; **el texto de la advertencia lo aprueba Rafa**), PR 5 skills (`prospectar-lista`, `seguimientos-hoy`,
 `revisar-conversaciones`, `crear-skill`, ajuste de `prospeccion`), y la instalación de Simon (§8 del plan). Preguntas
 abiertas para Rafa en §12.
+
+**PR 2 del plan: el bridge envía (7 oct 2026; rama `feat/bridge-envio`, bridge 0.3.0 → 0.4.0).** `send_message` existe
+y pasa por la bandeja de salida: `serve` valida todas las guardas y escribe en `outbox` (`outbox_enqueue.go`,
+`outbox_guards.go`); `sync` la despacha con la única llamada a whatsmeow que envía (`outbox.go`) y guarda el mensaje en
+el historial. Subcomando nuevo `outbox --json` para la vista de salud (sin el texto de los mensajes). **Una cosa que el
+plan no traía y que hacía falta:** la herramienta solo aparece con `serve --with-send`. La config generada hasta hoy
+permite el servidor entero (`mcp__whatsapp__*`), así que sin esa compuerta cualquier agente ya creado enviaría **sin
+preguntar** en cuanto se actualizara el bridge; el PR 3 escribe `--with-send` en el `.mcp.json` junto con la regla `ask` y
+el hook. Otras tres decisiones que el plan dejaba abiertas y quedaron del lado seguro: `sync` vuelve a comprobar
+horario, espaciado, tope y pausa al sacar cada mensaje (varios atrasados no salen de golpe); un envío interrumpido queda
+`failed` y no se repite; y un chat `@lid` se pasa a su número con el almacén local de whatsmeow. El guardia de CI
+nuevo también corre en `go test` (`TestSendCallOnlyInOutbox`), porque Actions sigue sin correr. **Sin probar contra
+WhatsApp de verdad**: falta la prueba manual de Rafa con su segundo número. **Para el PR 4:** al actualizar el bridge
+hay que reiniciar `sync` (el LaunchAgent sigue con el binario viejo y no despacha la bandeja).
 
 **Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
 pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está

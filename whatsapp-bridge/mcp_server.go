@@ -8,10 +8,12 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Las 9 herramientas de lectura, puerto de whatsapp-mcp-server/main.py.
-// Ninguna llama a client.SendMessage ni a client.Upload: el bridge no tiene
-// con qué, y estas 9 son exactamente las de upstream menos send_message,
-// send_file y send_audio_message (líneas rojas, AGENTS.md).
+// Las 9 herramientas de lectura, puerto de whatsapp-mcp-server/main.py, y una
+// sola de envío, send_message (docs/09 §4.3). send_file y send_audio_message
+// de upstream no existen aquí y no se añaden (líneas rojas, AGENTS.md).
+//
+// Nada en este archivo habla con WhatsApp: send_message deja el mensaje en la
+// bandeja de salida y lo saca "sync" (outbox.go).
 
 // Valores por defecto de Python que Go no tiene (ver nota en el plan): se
 // aplican cuando el campo llega en su valor cero.
@@ -24,8 +26,25 @@ const (
 	defaultSortBy        = "last_active"
 )
 
-func newMCPServer(store *MessageStore) *mcp.Server {
+// newMCPServer arma el servidor. Con outbox en nil solo hay lecturas; con una
+// bandeja se añade send_message (ver runServe: --with-send).
+func newMCPServer(store *MessageStore, outbox *outboxEnv) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "galeno-whatsapp", Version: bridgeVersion}, nil)
+
+	if outbox != nil {
+		openWorld := true
+		mcp.AddTool(server, &mcp.Tool{
+			Name: "send_message",
+			Description: "Send ONE WhatsApp text message to ONE person. The user approves every message before it goes out. " +
+				"Text only: no files, images, audio or stickers, and never to groups, broadcast lists or channels. " +
+				"Daily limits, office hours and a pause between messages are enforced by Galeno to protect the user's number: " +
+				"when the result is \"rejected\", tell the user the reason and do not try to work around it " +
+				"(do not reword, split, or resend to get past a limit). " +
+				"\"queued\" means it will go out at scheduled_for; \"pending\" means Galeno is not connected to WhatsApp right now " +
+				"and the message will go out when it is. Do not send the same message again in either case.",
+			Annotations: &mcp.ToolAnnotations{Title: "Send a WhatsApp message", OpenWorldHint: &openWorld},
+		}, handleSendMessage(*outbox))
+	}
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "search_contacts",
@@ -332,6 +351,70 @@ func handleDownloadMedia(store *MessageStore) func(context.Context, *mcp.CallToo
 			return nil, DownloadMediaOutput{Success: false, Message: err.Error()}, nil
 		}
 		return nil, DownloadMediaOutput{Success: true, Message: "Media downloaded successfully", FilePath: absPath}, nil
+	}
+}
+
+// MARK: - send_message
+
+type SendMessageInput struct {
+	Recipient string `json:"recipient" jsonschema:"the person's phone number in international format, digits only, no + (for example 573001112233), or a JID ending in @s.whatsapp.net"`
+	Message   string `json:"message" jsonschema:"the text to send, up to 1000 characters"`
+}
+
+type SendMessageOutput struct {
+	// sent | queued | pending | failed | rejected
+	Status       string `json:"status"`
+	ChatJID      string `json:"chat_jid,omitempty"`
+	SentAt       string `json:"sent_at,omitempty"`
+	ScheduledFor string `json:"scheduled_for,omitempty"`
+	OutboxID     int64  `json:"outbox_id,omitempty"`
+	// Error es lo que respondió WhatsApp cuando el envío falló; Reason, por
+	// qué Galeno no lo envió o cuándo lo hará.
+	Error  string `json:"error,omitempty"`
+	Reason string `json:"reason,omitempty"`
+}
+
+const (
+	reasonQueued      = "Scheduled, not sent yet: Galeno spaces messages out and only sends in office hours. It will go out at scheduled_for if this computer is on. Do not send it again."
+	reasonNotPickedUp = "Not sent yet: Galeno is not connected to WhatsApp right now (the computer may have just woken up, or the sync is not running). It will go out when the connection is back, in office hours. Tell the user; do not send it again."
+)
+
+// handleSendMessage valida y deja el mensaje en la bandeja de salida. Un
+// rechazo es un resultado normal (status "rejected" con su razón), no un error
+// de protocolo: el agente tiene que poder leer por qué y contárselo al usuario.
+func handleSendMessage(outbox outboxEnv) func(context.Context, *mcp.CallToolRequest, SendMessageInput) (*mcp.CallToolResult, SendMessageOutput, error) {
+	return func(ctx context.Context, req *mcp.CallToolRequest, in SendMessageInput) (*mcp.CallToolResult, SendMessageOutput, error) {
+		queued, err := outbox.enqueue(in.Recipient, in.Message)
+		if err != nil {
+			return nil, SendMessageOutput{}, err
+		}
+		if queued.Rejected {
+			return nil, SendMessageOutput{Status: statusRejected, Reason: queued.Reason}, nil
+		}
+
+		out := SendMessageOutput{Status: statusQueued, ChatJID: queued.ChatJID, OutboxID: queued.ID}
+		if !queued.DueNow {
+			out.ScheduledFor = queued.NotBefore.Format(time.RFC3339)
+			out.Reason = reasonQueued
+			return nil, out, nil
+		}
+
+		outcome, err := outbox.awaitOutcome(ctx, queued.ID)
+		if err != nil {
+			return nil, SendMessageOutput{}, err
+		}
+		out.Status = outcome.Status
+		switch outcome.Status {
+		case statusSent:
+			out.SentAt = outcome.SentAt.In(queued.NotBefore.Location()).Format(time.RFC3339)
+		case statusPending:
+			out.Reason = reasonNotPickedUp
+		case statusRejected:
+			out.Reason = outcome.Error
+		default:
+			out.Error = outcome.Error
+		}
+		return nil, out, nil
 	}
 }
 

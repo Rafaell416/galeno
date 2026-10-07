@@ -41,16 +41,27 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
 
-      # Línea roja: el bridge de WhatsApp nunca tiene herramientas de envío.
-      # Si este paso falla, alguien las reintrodujo. El patrón busca los
-      # identificadores reales del puente (whatsmeow + el handler HTTP), no
-      # los nombres de las herramientas del servidor MCP en Python de upstream
-      # (send_message/send_file/send_audio_message): esos nunca aparecen en
-      # este código, así que ese patrón no habría servido de nada aquí.
-      - name: sin herramientas de envío
+      # Línea roja: el bridge envía por un solo camino (docs/09 §4.5). La
+      # llamada a whatsmeow que envía solo puede estar en outbox.go, que es
+      # donde "sync" despacha la bandeja de salida con todas sus guardas. Si
+      # aparece en otro archivo, alguien abrió un segundo camino de envío.
+      # El patrón busca los identificadores reales del puente, no los nombres
+      # de las herramientas MCP. La misma comprobación corre en "go test"
+      # (TestSendCallOnlyInOutbox), para que salte también en local.
+      - name: el envío solo vive en outbox.go
         run: |
-          if grep -rnE 'client\.SendMessage\(|client\.Upload\(|/api/send|MarkRead|SendPresence|SendChatPresence' . --include="*.go"; then
-            echo "::error::El bridge de WhatsApp es de solo lectura: no puede tener herramientas de envío."
+          if grep -rnE 'client\.SendMessage\(' . --include="*.go" | grep -vE '(^|/)outbox\.go:'; then
+            echo "::error::client.SendMessage( solo puede aparecer en whatsapp-bridge/outbox.go."
+            exit 1
+          fi
+
+      # Lo que el bridge no hace nunca, en ningún archivo: subir archivos
+      # (adjuntos, audios), el servidor HTTP de envío de upstream, marcar como
+      # leído y avisar «en línea» o «escribiendo…».
+      - name: sin adjuntos, leídos ni presencia
+        run: |
+          if grep -rnE 'client\.Upload\(|/api/send|MarkRead|SendPresence|SendChatPresence' . --include="*.go"; then
+            echo "::error::El bridge de WhatsApp solo envía texto: sin adjuntos, sin marcar leído y sin avisos de presencia."
             exit 1
           fi
 
