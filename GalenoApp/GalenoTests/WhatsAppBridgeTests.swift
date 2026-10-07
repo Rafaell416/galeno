@@ -277,6 +277,122 @@ final class WhatsAppBridgeTests: XCTestCase {
         XCTAssertFalse(log.lowercased().contains("send"))
     }
 
+    // MARK: - Al arrancar la app tras una actualización
+
+    func testRefreshDoesNothingWhenWhatsAppWasNeverInstalled() async throws {
+        let sandbox = try Sandbox()
+        let launchd = FakeRunner([Sandbox.launchctlPrint: ok("\tstate = running\n")])
+        let bridge = sandbox.makeBridgeToRefresh(packaged: try sandbox.makeLoggingBridge(version: "0.4.0"), launchd: launchd)
+
+        let outcome = await bridge.refreshAfterAppUpdate()
+
+        XCTAssertEqual(outcome, .notInstalled)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sandbox.installed.path), "no se instala lo que nadie pidió")
+        XCTAssertEqual(launchd.calls, [])
+        XCTAssertEqual(sandbox.loggedCalls, [], "ni siquiera se le pregunta la versión al empaquetado")
+    }
+
+    func testRefreshDoesNothingWhenTheInstalledCopyIsAlreadyTheAppsVersion() async throws {
+        let sandbox = try Sandbox()
+        try await sandbox.install(version: "0.3.0")
+        try sandbox.markInstalledCopy()
+        let launchd = FakeRunner([Sandbox.launchctlPrint: ok("\tstate = running\n")])
+        let bridge = sandbox.makeBridgeToRefresh(packaged: try sandbox.makeLoggingBridge(version: "0.3.0"), launchd: launchd)
+
+        let outcome = await bridge.refreshAfterAppUpdate()
+
+        XCTAssertEqual(outcome, .upToDate)
+        XCTAssertTrue(try sandbox.installedCopyIsStillMarked(), "la copia no se vuelve a escribir")
+        XCTAssertEqual(launchd.calls, [], "sin cambio de versión no se mira ni se toca launchd")
+        XCTAssertEqual(sandbox.loggedCalls.filter { !$0.hasSuffix(":version") }, [])
+    }
+
+    func testRefreshReplacesTheCopyAndRestartsSyncWhenItWasLoaded() async throws {
+        // Cargado en launchd, corra o no en este momento.
+        for state in ["state = running", "state = not running"] {
+            let sandbox = try Sandbox()
+            try await sandbox.install(version: "0.3.0")
+            let session = try sandbox.writeSessionAndHistory()
+            let launchd = FakeRunner([Sandbox.launchctlPrint: ok("\t\(state)\n")])
+            let bridge = sandbox.makeBridgeToRefresh(packaged: try sandbox.makeLoggingBridge(version: "0.4.0"), launchd: launchd)
+
+            let outcome = await bridge.refreshAfterAppUpdate()
+
+            XCTAssertEqual(outcome, .updated(sync: .restarted), state)
+            let version = try await sandbox.run(sandbox.installed, "version")
+            XCTAssertEqual(version, "0.4.0")
+            // Lo reinicia la copia nueva, una sola vez, y es lo único que se le pide además de la versión.
+            XCTAssertEqual(sandbox.loggedCalls.filter { !$0.hasSuffix(":version") }, ["0.4.0:install-launchd"], state)
+            XCTAssertEqual(launchd.calls, [Sandbox.launchctlPrint], "a launchd solo se le pregunta")
+            XCTAssertEqual(try sandbox.readSessionAndHistory(), session, "ni la sesión ni el historial se tocan")
+        }
+    }
+
+    func testRefreshReplacesTheCopyButLeavesSyncAloneWhenItWasNotLoaded() async throws {
+        let sandbox = try Sandbox()
+        try await sandbox.install(version: "0.3.0")
+        let launchd = FakeRunner([Sandbox.launchctlPrint: CommandResult(status: 113, output: "Could not find service")])
+        let bridge = sandbox.makeBridgeToRefresh(packaged: try sandbox.makeLoggingBridge(version: "0.4.0"), launchd: launchd)
+
+        let outcome = await bridge.refreshAfterAppUpdate()
+
+        XCTAssertEqual(outcome, .updated(sync: .notLoaded))
+        let version = try await sandbox.run(sandbox.installed, "version")
+        XCTAssertEqual(version, "0.4.0")
+        XCTAssertEqual(sandbox.loggedCalls.filter { !$0.hasSuffix(":version") }, [], "no se deja corriendo lo que nadie dejó corriendo")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sandbox.state.appendingPathComponent("launchd").path))
+    }
+
+    func testRefreshKeepsTheInstalledCopyWhenTheAppBringsNoWorkingBridge() async throws {
+        let sandbox = try Sandbox()
+        try await sandbox.install(version: "0.3.0")
+        try sandbox.markInstalledCopy()
+        let launchd = FakeRunner([Sandbox.launchctlPrint: ok("\tstate = running\n")])
+        let broken = sandbox.root.appendingPathComponent("no-contesta")
+        try "#!/bin/sh\nexit 1\n".write(to: broken, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: broken.path)
+
+        for packaged in [nil, broken] {
+            let outcome = await sandbox.makeBridgeToRefresh(packaged: packaged, launchd: launchd).refreshAfterAppUpdate()
+
+            XCTAssertEqual(outcome, .failed)
+        }
+        XCTAssertTrue(try sandbox.installedCopyIsStillMarked())
+        XCTAssertEqual(launchd.calls, [])
+    }
+
+    func testRefreshRetriesTheRestartSoSyncIsNotLeftUnloaded() async throws {
+        let sandbox = try Sandbox()
+        try await sandbox.install(version: "0.3.0")
+        try sandbox.failNextLaunchdInstalls(1)
+        let launchd = FakeRunner([Sandbox.launchctlPrint: ok("\tstate = running\n")])
+        let bridge = sandbox.makeBridgeToRefresh(packaged: try sandbox.makeLoggingBridge(version: "0.4.0"), launchd: launchd)
+
+        let outcome = await bridge.refreshAfterAppUpdate()
+
+        XCTAssertEqual(outcome, .updated(sync: .restarted))
+        XCTAssertEqual(
+            sandbox.loggedCalls.filter { !$0.hasSuffix(":version") }, ["0.4.0:install-launchd", "0.4.0:install-launchd"])
+    }
+
+    func testRefreshReportsARestartThatNeverWorked() async throws {
+        let sandbox = try Sandbox()
+        try await sandbox.install(version: "0.3.0")
+        try sandbox.failNextLaunchdInstalls(99)
+        let launchd = FakeRunner([Sandbox.launchctlPrint: ok("\tstate = running\n")])
+        let bridge = sandbox.makeBridgeToRefresh(packaged: try sandbox.makeLoggingBridge(version: "0.4.0"), launchd: launchd)
+
+        let outcome = await bridge.refreshAfterAppUpdate()
+
+        XCTAssertEqual(outcome, .updated(sync: .failed), "la copia sí quedó al día; no lanza ni se cuelga")
+        XCTAssertEqual(sandbox.loggedCalls.filter { $0.hasSuffix(":install-launchd") }.count, 3)
+    }
+
+    func testTheLaunchRefreshDoesNotRunWhenTheAppHostsTheTests() {
+        XCTAssertFalse(WhatsAppBridge.refreshesAtLaunch(environment: ["XCTestConfigurationFilePath": "/tmp/x.xctestconfiguration"]))
+        XCTAssertTrue(WhatsAppBridge.refreshesAtLaunch(environment: ["HOME": "/Users/alguien"]))
+    }
+
     // MARK: - Ayudas
 
     private func eventually(timeout: TimeInterval = 5, _ condition: () -> Bool) async -> Bool {
@@ -353,6 +469,75 @@ private final class Sandbox {
         return WhatsAppBridge(
             installer: BridgeInstaller(source: source, destination: installed),
             stateDirectory: state, pollInterval: .milliseconds(80), pairTimeout: 60)
+    }
+
+    // MARK: Para el refresco al arrancar
+
+    /// Lo que `syncState()` le pregunta a launchd.
+    static var launchctlPrint: String { "/bin/launchctl print gui/\(getuid())/com.galeno.whatsapp-bridge" }
+
+    /// Un bridge de una versión dada que anota `<versión>:<subcomando>` cada vez que lo llaman. Solo sabe decir su
+    /// versión e «instalar» el servicio; `launchd-fails` dice cuántas veces seguidas falla eso antes de funcionar.
+    func makeLoggingBridge(version: String) throws -> URL {
+        let script = """
+            #!/bin/sh
+            S="\(state.path)"
+            echo "\(version):$1" >> "$S/refresh.log"
+            case "$1" in
+              version) echo \(version) ;;
+              install-launchd)
+                left=$(cat "$S/launchd-fails" 2>/dev/null || echo 0)
+                if [ "$left" -gt 0 ]; then echo $((left - 1)) > "$S/launchd-fails"; echo "Bootstrap failed: 5" 1>&2; exit 1; fi
+                touch "$S/launchd" ;;
+              *) echo "subcomando desconocido" 1>&2; exit 1 ;;
+            esac
+            """
+        let url = root.appendingPathComponent("packaged-\(version)-\(UUID().uuidString)")
+        try script.write(to: url, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        return url
+    }
+
+    /// Deja instalada la copia de una versión, como la dejó la app anterior, y olvida lo que se anotó al hacerlo.
+    func install(version: String) async throws {
+        try await BridgeInstaller(source: try makeLoggingBridge(version: version), destination: installed).ensureInstalled()
+        try? FileManager.default.removeItem(at: state.appendingPathComponent("refresh.log"))
+    }
+
+    func makeBridgeToRefresh(packaged: URL?, launchd: FakeRunner) -> WhatsAppBridge {
+        WhatsAppBridge(
+            installer: BridgeInstaller(source: packaged, destination: installed), runner: launchd,
+            stateDirectory: state, syncRestartRetryDelay: .milliseconds(10))
+    }
+
+    var loggedCalls: [String] {
+        let log = (try? String(contentsOf: state.appendingPathComponent("refresh.log"), encoding: .utf8)) ?? ""
+        return log.split(whereSeparator: \.isNewline).map(String.init)
+    }
+
+    func failNextLaunchdInstalls(_ count: Int) throws {
+        try "\(count)\n".write(to: state.appendingPathComponent("launchd-fails"), atomically: true, encoding: .utf8)
+    }
+
+    // Una fecha imposible en la copia: si se vuelve a copiar, desaparece.
+    func markInstalledCopy() throws {
+        try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 0)], ofItemAtPath: installed.path)
+    }
+
+    func installedCopyIsStillMarked() throws -> Bool {
+        let modified = try FileManager.default.attributesOfItem(atPath: installed.path)[.modificationDate] as? Date
+        return modified == Date(timeIntervalSince1970: 0)
+    }
+
+    /// Los archivos que el bridge guarda en su carpeta (`cli.go`): la sesión y el historial.
+    func writeSessionAndHistory() throws -> [Data] {
+        try Data("sesion".utf8).write(to: state.appendingPathComponent("whatsmeow.db"))
+        try Data("historial".utf8).write(to: state.appendingPathComponent("messages.db"))
+        return try readSessionAndHistory()
+    }
+
+    func readSessionAndHistory() throws -> [Data] {
+        try ["whatsmeow.db", "messages.db"].map { try Data(contentsOf: state.appendingPathComponent($0)) }
     }
 
     func run(_ executable: URL, _ argument: String) async throws -> String {

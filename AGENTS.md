@@ -323,7 +323,9 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   a buscar donde no es. En «Conectar», los iconos de la tira llevan a cada conexión (`ConnectFlow.jump`): la que se deja a
   medias no queda saltada y se vuelve a ella antes de terminar.
 - El bridge se usa desde su copia estable en `~/Library/Application Support/Galeno/bin/`, no
-  desde dentro de `Galeno.app` ni de DerivedData (`BridgeInstaller`). Compilarlo antes que la
+  desde dentro de `Galeno.app` ni de DerivedData (`BridgeInstaller`). Al arrancar, la app pone esa copia en la versión
+  que trae y reinicia `sync` si estaba cargado (`refreshAfterAppUpdate`, `docs/03` §4f): es como llega un parche del
+  bridge. Sin copia instalada no hace nada, nunca vincula ni toca la sesión o `messages.db`, y no corre bajo las pruebas. Compilarlo antes que la
   app: `make -C whatsapp-bridge universal` (una fase de Run Script lo copia a `Resources`). Los textos de
   dopamina se escriben nativos en cada idioma, no traducidos literalmente.
 - Las skills nuestras se escriben en inglés, con la instrucción de idioma arriba.

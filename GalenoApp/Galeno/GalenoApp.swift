@@ -123,6 +123,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppearanceChoice.stored.apply()
+        // Tras una actualización, el bridge instalado y `sync` pasan a la versión que trae la app (`docs/03` §4f).
+        WhatsAppBridge.refreshAtLaunch()
         closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: nil, queue: .main
         ) { note in

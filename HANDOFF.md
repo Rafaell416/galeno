@@ -130,7 +130,7 @@ Galeno.app  (Swift / SwiftUI)
 | Capa | Qué contiene | Cómo se actualiza |
 |---|---|---|
 | 1 · App Mac | Wizard, UI, motor de config | **Sparkle**: appcast en el servidor, build firmado, un clic. Soporta deltas |
-| 2 · Bridge de WhatsApp | `whatsmeow` + MCP (lectura y `send_message` con aprobación) | Viaja dentro de la .app, así que llega con Sparkle. **Versión propia**, para sacar un parche urgente sin re-releasear la app. Es la capa que más se rompe por causas externas (Meta) |
+| 2 · Bridge de WhatsApp | `whatsmeow` + MCP (lectura y `send_message` con aprobación) | Viaja dentro de la .app, así que llega con Sparkle; al abrir, la app pasa la copia instalada y `sync` a la versión que trae. **Versión propia**, para sacar un parche urgente sin re-releasear la app. Es la capa que más se rompe por causas externas (Meta) |
 | 3 · Skills, catálogo y config | Skills PM, catálogo curado, prompts, plantillas | **Remoto, sin reinstalar**: se descargan al configurar el agente, y la app ofrece "actualizar skills". Fallback local si no hay internet |
 
 - **Sparkle firma con clave EdDSA propia**, además de la notarización de Apple. La clave
@@ -905,6 +905,22 @@ guardado en la rama `feat/licencias`, sin mergear, por si hace falta una prueba 
 que se acepta a cambio: quien tenga el instalador, o dé con la dirección del appcast de Sparkle, puede usar Galeno sin
 pagar. **Una licencia, si llega a haberla, cubre agentes ilimitados.** La clave privada que se generó sigue en
 `~/.galeno-signing/` del Mac de Rafa, fuera del repo.
+
+**El bridge nuevo le llega solo a quien ya tiene WhatsApp (6 oct 2026).** Antes, tras una actualización de la app, la
+copia estable del bridge (`~/Library/Application Support/Galeno/bin/`) y el servicio `sync` seguían en la versión vieja
+hasta que el usuario abría Salud: un parche urgente no llegaba solo. Ahora, **al arrancar**
+(`WhatsAppBridge.refreshAfterAppUpdate`, llamado desde `AppDelegate`; no corre bajo las pruebas), si hay copia instalada
+y su `version` difiere de la empaquetada, la app la reemplaza con `BridgeInstaller` y, solo si el LaunchAgent estaba
+cargado, corre `install-launchd` con la copia nueva (hasta tres intentos) para reiniciar `sync`. Sin copia instalada no
+hace nada; no vincula, no toca la sesión ni `messages.db`; falla en silencio y Salud sigue diagnosticando. El resultado
+queda en el registro del sistema (categoría `bridge`), sin datos del usuario. **Comprobado:** con dobles (un bridge de
+script y un `launchctl` falso), los casos sin copia, misma versión, versión distinta con y sin servicio cargado, bridge
+empaquetado que no contesta y reinicio que falla. **Sin probar:** contra un WhatsApp real —que `sync` de verdad muera y
+vuelva con el binario nuevo sin perder la sesión ni quedar dos conexiones a la vez—, ni tras una actualización real de
+Sparkle. Si los tres intentos de `install-launchd` fallan, `sync` puede quedar sin cargar hasta el próximo inicio de
+sesión: Salud lo enseña, pero hoy no ofrece un botón para volver a arrancarlo sin re-vincular. Pendiente también: si
+alguien abre Salud en el instante en que la app arranca, Salud puede reemplazar la copia primero y el arranque ya no
+reinicia `sync` (ve la misma versión); se corrige solo en el siguiente inicio de sesión del Mac.
 
 ---
 
