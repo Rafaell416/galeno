@@ -62,7 +62,7 @@ subagentes, skills, hooks, MCP) con los guardrails ya puestos.
 | Plataforma | **Solo Mac** (firme; no portabilidad a Windows) |
 | App | **Swift + SwiftUI nativa**. Es la única interfaz del usuario |
 | Motor | **Interno**: librería que genera la config; el usuario nunca lo ve. Solo genera config de **Claude Code**. Se construye en paralelo a la app, no antes |
-| WhatsApp | **Solo lectura por estructura de código**, sobre fork de `lharries/whatsapp-mcp` (MIT). Se eliminan las 3 herramientas de envío y el servidor MCP se **porta de Python a Go** dentro del binario del puente: un solo ejecutable Go. Nunca empaquetar Python |
+| WhatsApp | **Lectura libre y envío con aprobación** (decisión de Rafa, 7 oct 2026, `docs/09`; antes solo lectura por estructura de código). Fork de `lharries/whatsapp-mcp` (MIT) con el servidor MCP portado a Go: 9 lecturas y, desde la 0.4.0, `send_message` por una bandeja de salida con topes en el código. `send_file` y `send_audio_message` siguen eliminados |
 | Email | **Gmail** (OAuth oficial de Google) |
 | Transcripciones | **MCP oficiales hospedados**, directo de la fuente: Fireflies, Granola, Fathom. Google Meet vía el MCP de Google Drive |
 | Envío de mensajes | Solo **Slack y email**, por APIs oficiales, con aprobación |
@@ -83,7 +83,7 @@ y `docs/02` conservan, marcado como *Descartado*, lo que el plan original propon
 | Carcasa en Tauri | Swift + SwiftUI |
 | Motor CLI primero, y venderlo o validarlo como CLI | Motor interno, en paralelo a la app; se valida con la app |
 | Freemium o suscripción | Pago único USD 200 |
-| WhatsApp sin lectura, solo salida por Business API | WhatsApp solo lectura (no oficial, con advertencia); sin envío |
+| WhatsApp sin lectura, solo salida por Business API | WhatsApp no oficial, con advertencia: lectura libre y, desde el 7 oct 2026, envío de texto a una persona con aprobación y topes |
 | Transcripciones vía export a Notion/Docs | MCP oficial de cada proveedor |
 | Skills adaptadas al español | Skills en inglés + instrucción de idioma |
 | Un solo agente para todos los proyectos | Un agente por proyecto |
@@ -108,7 +108,7 @@ Galeno.app  (Swift / SwiftUI)
   ├── Wizard y UX            → SwiftUI nativo (pantallas de dopamina, QR en pantalla)
   ├── Generador de config    → el motor; escribe AGENTS.md, .claude/*, .mcp.json   (FileManager)
   ├── WhatsApp               → lanza y supervisa un binario Go empaquetado          (Process)
-  │                             puente whatsmeow + SQLite + servidor MCP read-only
+  │                             puente whatsmeow + SQLite + servidor MCP (lectura y send_message)
   │                             "sync" (conexión persistente, vía launchd) y "serve"
   │                             (MCP por sesión, sin conexión propia) son subcomandos
   │                             separados — nunca dos conexiones simultáneas
@@ -130,7 +130,7 @@ Galeno.app  (Swift / SwiftUI)
 | Capa | Qué contiene | Cómo se actualiza |
 |---|---|---|
 | 1 · App Mac | Wizard, UI, motor de config | **Sparkle**: appcast en el servidor, build firmado, un clic. Soporta deltas |
-| 2 · Bridge de WhatsApp | `whatsmeow` + MCP read-only | Viaja dentro de la .app, así que llega con Sparkle. **Versión propia**, para sacar un parche urgente sin re-releasear la app. Es la capa que más se rompe por causas externas (Meta) |
+| 2 · Bridge de WhatsApp | `whatsmeow` + MCP (lectura y `send_message` con aprobación) | Viaja dentro de la .app, así que llega con Sparkle. **Versión propia**, para sacar un parche urgente sin re-releasear la app. Es la capa que más se rompe por causas externas (Meta) |
 | 3 · Skills, catálogo y config | Skills PM, catálogo curado, prompts, plantillas | **Remoto, sin reinstalar**: se descargan al configurar el agente, y la app ofrece "actualizar skills". Fallback local si no hay internet |
 
 - **Sparkle firma con clave EdDSA propia**, además de la notarización de Apple. La clave
@@ -153,7 +153,7 @@ Galeno.app  (Swift / SwiftUI)
 | `.claude/settings.json` | Reglas deny/ask/allow: envíos externos en `ask`, nada de ejecutar código, `Edit(/memoria/**)` en `allow`, y en `deny` por nombre lo que el motor genera fuera de `memoria/` |
 | `memoria/` | Notas del proyecto que mantiene el agente. El motor la crea si falta y nunca la sobrescribe |
 | `.mcp.json` | Los MCP conectados. Tokens como referencias a variables de entorno, nunca en texto plano |
-| `.claude/agents/` | `scribe`, `tracker`, `reporter`: solo lectura + Notion/Jira; sin Bash ni Edit de código |
+| `.claude/agents/` | `scribe`, `tracker`, `reporter`: solo lectura + Notion/Jira; sin Bash ni Edit de código; de WhatsApp solo las 9 lecturas por nombre, nunca `send_message` |
 | `.claude/hooks/` | Hook de aprobación para todo envío externo |
 | `.claude/skills/` | Las skills que el usuario dejó marcadas, tomadas de la fuente remota versionada (o del fallback local) |
 
@@ -221,16 +221,16 @@ tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
 1. **Los tokens nunca van a infraestructura propia.** Todo queda en la máquina del usuario.
    La app orquesta OAuth y escribe archivos locales; no almacena ni transmite credenciales
    ajenas. Nunca en texto plano en la config: referencias a variables de entorno.
-2. **WhatsApp sin envío, por estructura de código.** El MCP no tiene herramientas de
-   envío: se eliminan `send_message`, `send_file` y `send_audio_message` del fork. Ni un
-   prompt malicioso ni el propio agente pueden enviar. No es una regla de configuración:
-   el código no existe.
+2. **WhatsApp envía solo con aprobación, y con guardas en el código** (desde el 7 oct 2026; antes, sin envío por
+   estructura de código). Un solo envío, `send_message`, texto a una persona, por una bandeja de salida; va en `ask`
+   y lo cubre el hook; topes, horario, espaciado y pausa viven en el bridge, no en el prompt; `send_file` y
+   `send_audio_message` siguen eliminados; los subagentes nunca lo reciben; una tarea programada nunca envía.
 3. **Aprobación humana para todo envío externo** (Slack, email): regla `ask` + hook.
    Por defecto, nada externo sale sin preguntar.
 4. **Transparencia sobre WhatsApp.** La pantalla de vinculación dice que es un dispositivo
-   vinculado por el protocolo de WhatsApp Web, no oficial, de solo lectura, con riesgo bajo
-   pero real de restricción de la cuenta, que todo corre local, y que el usuario decide.
-   Nunca se promete que es "seguro".
+   vinculado por el protocolo de WhatsApp Web, no oficial; que el agente lee y envía solo con la aprobación de cada
+   mensaje; que hay un riesgo real de restricción o bloqueo del número, que los topes reducen y no eliminan; que todo
+   corre local; y que el usuario decide. El texto exacto lo aprueba Rafa (`docs/09` §6). Nunca se promete que es "seguro".
 5. **Ningún código no revisado entra al agente.** Solo skills nuestras y curadas.
 6. **Licencias:** conservar los avisos MIT del fork de lharries. No usar
    `deanpeters/Product-Manager-Skills` (CC BY-NC-SA, no comercial).
@@ -242,7 +242,9 @@ tangible, y nunca pasan más de ~2 minutos sin una recompensa visual.
 
 - **Base:** fork de `lharries/whatsapp-mcp` (MIT). Original: puente en Go (`whatsmeow`,
   QR, SQLite) + servidor MCP en Python con 12 herramientas, 3 de envío.
-- **Hecho:** las 3 de envío eliminadas (no comentadas); el MCP portado a Go dentro del
+- **Cambio del 7 oct 2026 (`docs/09`):** vuelve **un** envío, `send_message`, en la 0.4.0 del bridge, por bandeja de
+  salida y con guardas en el código (§4 de `docs/03`). Lo que sigue: las dos de envío de archivos y audio eliminadas.
+- **Hecho (hasta la 0.3.0):** las 3 de envío eliminadas (no comentadas); el MCP portado a Go dentro del
   mismo binario, con el SDK oficial (`modelcontextprotocol/go-sdk`); subcomandos
   `pair`/`sync`/`serve`/`status`/`install-launchd`; estado en
   `~/Library/Application Support/Galeno/whatsapp/`; build universal arm64+amd64. `pair`
@@ -339,7 +341,7 @@ relevante; ellos devuelven un borrador y solo el principal envía, con aprobaci�
 1. **Motor interno** — genera toda la config a partir de las respuestas del wizard.
 2. **App Swift/SwiftUI, en paralelo** — el wizard. Validación temprana con los 2 PMs del
    equipo usando la app (aunque tenga dos pantallas y sea fea), no un CLI.
-3. **MCP de WhatsApp read-only** — ver §6.
+3. **MCP de WhatsApp** — ver §6 (lectura; envío con aprobación desde la 0.4.0).
 4. **Pagos y distribución** — pago único; DMG firmado y notarizado. El binario Go embebido
    también se firma. **Sparkle desde el primer build**: una app que sale sin él no sabe
    actualizarse, y montarlo con usuarios ya instalados obliga a contactarlos uno por uno.
@@ -351,7 +353,7 @@ relevante; ellos devuelven un borrador y solo el principal envía, con aprobaci�
 
 | Riesgo | Mitigación |
 |---|---|
-| Ban de WhatsApp a un usuario | Read-only + advertencia explícita + sin promesa de "seguro" |
+| Ban de WhatsApp a un usuario | Aprobación por mensaje, topes y horario en el código, sin grupos, pausa, advertencia explícita, correo primero para el frío; sin promesa de "seguro" (`docs/09` §10) |
 | Tokens expuestos | Nunca en texto plano ni en servidores propios |
 | El agente envía algo mal a un cliente | Envíos externos en `ask` + hook de aprobación |
 | Gatekeeper bloquea la app | Firmar y notarizar desde el inicio, incluido el binario Go |
@@ -377,6 +379,12 @@ tamaño exacto. Detalle en `docs/04` §12 («Pantallas»).
 ---
 
 ## 12. Puntos abiertos (no decididos en los docs)
+
+- **Del plan de Simon (`docs/09` §11; no bloquean el PR 1):** (1) ¿los topes por defecto —40 en total, 15 chats nuevos al
+  día— valen para Simon?; (2) ¿se aprueba el texto nuevo de la advertencia de WhatsApp (§6 del plan) o se ajusta?;
+  (3) ¿`WebFetch` solo para comercial, o también para marketing?; (4) ¿quién es el dueño de `radiografia`? Si la
+  escribió Simon, queda como skill propia suya y no entra al catálogo. Además: **el horario de contactos se apoya en la
+  Ley 2300 de 2023 y Rafa lo valida con un abogado** antes de vender a más usuarios.
 
 - **Variables de entorno de los tokens:** dónde se guardan los valores a los que apunta `.mcp.json`.
 - **Pagos:** falta la compra (Stripe) y cómo se entrega el enlace de descarga. Sin licencias en v0.0.1 (decisión de
@@ -715,6 +723,11 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
 
 **Peticiones del usuario (necesitan decisión de Rafa: tocan líneas rojas):**
 
+- **Enviar por WhatsApp. Decidido (Rafa, 7 oct 2026; `docs/09-plan-simon-envio-y-prospeccion.md`):** sí, con
+  aprobación por mensaje y guardas en el bridge (topes, horario, espaciado, sin grupos, pausa). Reabre la línea roja 1
+  a propósito; `WebFetch` pasa a `allow` solo para el rol comercial. Cinco PRs en orden: docs (este), bridge 0.4.0,
+  motor, app, skills; después, la instalación de Simon.
+
 - **Tareas repetitivas** («todos los días a las 8 am, haz tal cosa»). **Decidido y construido (Rafa,
   5 oct 2026; rama `feat/tareas-programadas`):** alcance acotado —leer, escribir en `memoria/`,
   escrituras internas; los envíos quedan de borrador y se aprueban por la mañana—; detalle y
@@ -824,6 +837,18 @@ publicar el appcast. **La dirección del appcast es de relleno** hasta la Fase 9
 actualizaciones y el script se niega a entregar salvo con `--sin-actualizaciones`. El bridge ya tenía su subcomando
 `version` (va por la 0.3.0) y Salud ya lo mostraba.
 
+**Cambio de planes: envío por WhatsApp y prospección de Simon (7 oct 2026; rama `docs/envio-whatsapp-decision`, PR 1
+de 5).** Rafa autorizó `docs/09-plan-simon-envio-y-prospeccion.md`, que cambia dos decisiones cerradas: **WhatsApp
+envía** (una sola herramienta, `send_message`, texto a una persona, siempre con aprobación, por una bandeja de salida que
+`sync` despacha y con topes, horario, espaciado y pausa **en el código del bridge**) y **`WebFetch` va en `allow` para el
+rol comercial**, con una regla de contención en el `AGENTS.md` generado. Este PR solo cambia documentos (`AGENTS.md`,
+`docs/03`, este archivo, el README del bridge); **hasta que se mergee no se escribe código de envío**. Siguen: PR 2
+bridge 0.4.0 (bandeja, guardas, `outbox --json`, guardia de CI nuevo), PR 3 motor (WhatsApp como envío externo,
+`WebFetch` por rol, textos del `AGENTS.md`), PR 4 app (copy, Reglas, Salud con «Enviados hoy», «Pausar envíos» y
+«Límites»; **el texto de la advertencia lo aprueba Rafa**), PR 5 skills (`prospectar-lista`, `seguimientos-hoy`,
+`revisar-conversaciones`, `crear-skill`, ajuste de `prospeccion`), y la instalación de Simon (§8 del plan). Preguntas
+abiertas para Rafa en §12.
+
 **Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
 pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está
 guardado en la rama `feat/licencias`, sin mergear, por si hace falta una prueba gratis o cobrar una versión mayor. Lo
@@ -843,4 +868,5 @@ pagar. **Una licencia, si llega a haberla, cubre agentes ilimitados.** La clave 
 | `docs/04-design-system.md` | Sistema de diseño | Vigente para app y sitio |
 | `docs/QA.md` | Matriz de pruebas de la v0.0.1: cada paso del asistente (caso feliz y errores), «Mac limpio», después del asistente (§3b), resistencia, seguridad y el registro de corridas | Escrita el 5 oct 2026 (Fase 6, paso 1). **Sin recorrer todavía en un usuario limpio** (paso 2) y con la actualización de la app bloqueada hasta Sparkle (Fase 8) |
 | `docs/DEV.md` | Cómo usar `galeno-gen`, la herramienta de desarrollo del motor | Vigente |
+| `docs/09-plan-simon-envio-y-prospeccion.md` | El plan del 7 oct 2026: envío por WhatsApp con aprobación, `WebFetch` para comercial, skills de Simon y tareas programadas; cinco PRs en orden | **Vigente y autorizado por Rafa**; lo que dice ya está en `docs/03` y `AGENTS.md` |
 | `AGENTS.md` | Guía operativa para el agente en este repo | Vigente |
