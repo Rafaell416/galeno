@@ -22,6 +22,24 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
     /// de verdad se registró.
     public var serverNamePrefix: String?
 
+    /// Solo WhatsApp: el usuario aceptó la advertencia que dice que **su agente puede enviar mensajes** con su
+    /// aprobación (la del 7 oct 2026). `nil` es una conexión de antes, hecha con la advertencia que decía «solo
+    /// lectura»: ese agente sigue solo leyendo hasta que el usuario acepte la nueva. Sin esto, actualizar la app
+    /// le daría a alguien un permiso que no dio.
+    public var sendingAccepted: Bool?
+
+    /// ¿Puede el agente escribir o enviar por esta conexión? Lo que dice la herramienta, salvo en WhatsApp,
+    /// donde además hace falta que el usuario haya aceptado el envío (`sendingAccepted`).
+    public var allowsWriting: Bool {
+        tool.allowsWriting && (tool != .whatsapp || sendingAccepted == true)
+    }
+
+    /// ¿Le llega algo a otras personas por esta conexión? Es lo que decide si lleva regla `ask` y hook de
+    /// aprobación. Un WhatsApp de solo lectura no envía nada: no los necesita.
+    public var sendsToOthers: Bool {
+        tool.externalSend != nil && (tool != .whatsapp || sendingAccepted == true)
+    }
+
     /// ¿Registró Galeno este servidor con su nombre propio? Solo de esos puede cerrar la sesión o quitarlos:
     /// un servidor con el nombre genérico (`notion`) pudo ponerlo el usuario y lo usan sus otros proyectos.
     public var galenoOwnsServers: Bool {
@@ -35,13 +53,15 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
         status: ConnectionStatus = .selected,
         sources: SourceSelection = .nothing,
         oauthClientID: String? = nil,
-        serverNamePrefix: String? = nil
+        serverNamePrefix: String? = nil,
+        sendingAccepted: Bool? = nil
     ) {
         self.tool = tool
         self.status = status
         self.sources = sources
         self.oauthClientID = oauthClientID
         self.serverNamePrefix = serverNamePrefix
+        self.sendingAccepted = sendingAccepted
     }
 }
 

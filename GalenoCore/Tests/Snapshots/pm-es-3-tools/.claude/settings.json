@@ -9,7 +9,7 @@
             "type" : "command"
           }
         ],
-        "matcher" : "^mcp__slack__(?!(?:slack_get_reactions|slack_list_channel_members|slack_list_user_channels|slack_read_canvas|slack_read_channel|slack_read_file|slack_read_list|slack_read_thread|slack_read_user_profile|slack_search_channels|slack_search_emojis|slack_search_public|slack_search_public_and_private|slack_search_users)$).*"
+        "matcher" : "^mcp__whatsapp__(?!(?:download_media|get_chat|get_contact_chats|get_direct_chat_by_contact|get_last_interaction|get_message_context|list_chats|list_messages|search_contacts)$).*|^mcp__slack__(?!(?:slack_get_reactions|slack_list_channel_members|slack_list_user_channels|slack_read_canvas|slack_read_channel|slack_read_file|slack_read_list|slack_read_thread|slack_read_user_profile|slack_search_channels|slack_search_emojis|slack_search_public|slack_search_public_and_private|slack_search_users)$).*"
       }
     ]
   },
@@ -19,6 +19,7 @@
       "Glob",
       "Grep",
       "Read",
+      "WebFetch",
       "WebSearch",
       "mcp__notion__*",
       "mcp__slack__slack_get_reactions",
@@ -35,7 +36,15 @@
       "mcp__slack__slack_search_public",
       "mcp__slack__slack_search_public_and_private",
       "mcp__slack__slack_search_users",
-      "mcp__whatsapp__*"
+      "mcp__whatsapp__download_media",
+      "mcp__whatsapp__get_chat",
+      "mcp__whatsapp__get_contact_chats",
+      "mcp__whatsapp__get_direct_chat_by_contact",
+      "mcp__whatsapp__get_last_interaction",
+      "mcp__whatsapp__get_message_context",
+      "mcp__whatsapp__list_chats",
+      "mcp__whatsapp__list_messages",
+      "mcp__whatsapp__search_contacts"
     ],
     "ask" : [
       "mcp__slack__slack_add_list_record",

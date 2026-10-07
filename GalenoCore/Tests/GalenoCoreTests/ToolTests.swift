@@ -3,9 +3,34 @@ import XCTest
 @testable import GalenoCore
 
 final class ToolTests: XCTestCase {
-    /// Línea roja: el MCP de WhatsApp no tiene herramientas de envío.
-    func testWhatsAppCannotWrite() {
-        XCTAssertFalse(Tool.whatsapp.allowsWriting)
+    /// WhatsApp envía desde el 7 oct 2026 (`docs/09`), pero solo en la conexión de quien aceptó la advertencia
+    /// que lo dice. Una conexión de antes (sin el dato) sigue solo leyendo.
+    func testWhatsAppOnlyWritesOnceTheUserAcceptedSending() {
+        XCTAssertTrue(Tool.whatsapp.allowsWriting)
+        for accepted in [nil, false] as [Bool?] {
+            let connection = ToolConnection(tool: .whatsapp, status: .connected, sendingAccepted: accepted)
+            XCTAssertFalse(connection.allowsWriting)
+            XCTAssertFalse(connection.sendsToOthers)
+        }
+        let accepted = ToolConnection(tool: .whatsapp, status: .connected, sendingAccepted: true)
+        XCTAssertTrue(accepted.allowsWriting)
+        XCTAssertTrue(accepted.sendsToOthers)
+
+        // En las demás, el dato no cambia nada.
+        XCTAssertTrue(ToolConnection(tool: .slack, status: .connected).sendsToOthers)
+        XCTAssertFalse(ToolConnection(tool: .fireflies, status: .connected, sendingAccepted: true).allowsWriting)
+    }
+
+    /// Una instalación guardada antes de este cambio no trae el dato: se lee como «no aceptó».
+    func testAConnectionSavedBeforeSendingExistedDecodesAsNotAccepted() throws {
+        let old = Data(#"{"tool":"whatsapp","status":"connected","sources":{"readsEverything":true,"selected":[]}}"#.utf8)
+        let connection = try JSONDecoder().decode(ToolConnection.self, from: old)
+        XCTAssertNil(connection.sendingAccepted)
+        XCTAssertFalse(connection.allowsWriting)
+
+        let shared = try JSONDecoder().decode(
+            SharedConnection.self, from: Data(#"{"tool":"whatsapp","status":"connected"}"#.utf8))
+        XCTAssertNil(shared.sendingAccepted)
     }
 
     func testTranscriptionToolsAreReadOnly() {
@@ -17,7 +42,8 @@ final class ToolTests: XCTestCase {
     func testTheToolsThatWriteAreExactlyTheExpectedOnes() {
         let writers = Tool.allCases.filter(\.allowsWriting)
 
-        XCTAssertEqual(writers, [.slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign, .googleCalendar])
+        XCTAssertEqual(
+            writers, [.whatsapp, .slack, .notion, .googleWorkspace, .gmail, .jira, .claudeDesign, .googleCalendar])
     }
 
     func testWhatsAppConnectsByQRAndTheRestByOAuth() {
@@ -71,10 +97,11 @@ final class ToolTests: XCTestCase {
     }
 
     /// Lo que le llega a otras personas: un mensaje, un correo, o un evento del calendario (los invitados).
-    func testExternalSendIsOnlySlackGmailAndCalendar() {
+    func testExternalSendIsOnlyWhatsAppSlackGmailAndCalendar() {
         let senders = Tool.allCases.filter { $0.externalSend != nil }
 
-        XCTAssertEqual(senders, [.slack, .gmail, .googleCalendar])
+        XCTAssertEqual(senders, [.whatsapp, .slack, .gmail, .googleCalendar])
+        XCTAssertEqual(Tool.whatsapp.externalSend, .whatsappMessage)
         XCTAssertEqual(Tool.googleCalendar.externalSend, .calendarEvent)
         XCTAssertEqual(Tool.slack.externalSend, .slackMessage)
         XCTAssertEqual(Tool.gmail.externalSend, .email)

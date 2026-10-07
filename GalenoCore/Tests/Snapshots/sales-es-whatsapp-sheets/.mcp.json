@@ -1,0 +1,12 @@
+{
+  "mcpServers" : {
+    "whatsapp" : {
+      "args" : [
+        "serve",
+        "--with-send"
+      ],
+      "command" : "/Applications/Galeno.app/Contents/Resources/galeno-whatsapp",
+      "type" : "stdio"
+    }
+  }
+}

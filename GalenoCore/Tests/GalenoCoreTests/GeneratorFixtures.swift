@@ -1,7 +1,34 @@
 @testable import GalenoCore
 
-/// Las dos configs de los snapshots.
+/// Las tres configs de los snapshots.
 enum GeneratorFixtures {
+    /// Español, rol comercial, con el envío por WhatsApp aceptado (`docs/09` §5.4): WhatsApp, Gmail, la hoja y el
+    /// calendario, y las dos skills que prospectan desde una lista. Cubre lo que las otras dos no: `--with-send`
+    /// en el `.mcp.json`, `send_message` en `ask`, el hook cubriendo WhatsApp y los subagentes solo con sus lecturas.
+    static var salesSpanishWhatsAppSheets: AgentConfig {
+        AgentConfig(
+            agentName: "Hermes",
+            language: .spanish,
+            role: .sales,
+            projectDescription: "Software de reservas para hoteles pequeños; prospecto desde la base del RNT.",
+            connections: [
+                ToolConnection(tool: .whatsapp, status: .connected, sources: .everything, sendingAccepted: true),
+                ToolConnection(tool: .gmail, status: .connected, sources: .everything),
+                ToolConnection(
+                    tool: .googleWorkspace,
+                    status: .connected,
+                    sources: .only([Source(id: "1HojaRNT", name: "Prospectos RNT", kind: .folder)])
+                ),
+                ToolConnection(tool: .googleCalendar, status: .connected, sources: .everything),
+            ],
+            skills: [
+                SelectedSkill(id: "prospectar-lista", source: .galeno),
+                SelectedSkill(id: "seguimientos-hoy", source: .galeno),
+            ],
+            sendingRules: .default
+        )
+    }
+
     /// Español, tres herramientas: el caso mínimo realista. Cubre el bridge
     /// local por QR, un servidor de envío externo y uno de escritura interna.
     static var spanishThreeTools: AgentConfig {

@@ -1,6 +1,6 @@
 /// Qué puede hacer el agente sin preguntar (paso 8 del wizard).
 ///
-/// Los envíos externos —un mensaje a Slack, un correo— **siempre** requieren
+/// Los envíos externos —un mensaje a Slack, un correo, un mensaje de WhatsApp— **siempre** requieren
 /// aprobación humana, y este tipo no tiene forma de expresar lo contrario: no
 /// hay propiedad ni constructor que los ponga en ``ApprovalPolicy/allow``. Es
 /// una línea roja del producto, así que vive en el sistema de tipos y no en la
@@ -61,10 +61,10 @@ public enum InternalWrite: String, Codable, CaseIterable, Sendable {
 }
 
 /// Lo que sale hacia afuera, hacia otras personas.
-///
-/// No hay caso de WhatsApp a propósito: el bridge no tiene herramientas de
-/// envío, así que no es una posibilidad que haya que gobernar.
 public enum ExternalSend: String, Codable, CaseIterable, Sendable {
+    /// Un mensaje de WhatsApp a una persona o a un grupo del usuario (decisión de Rafa, 7 oct 2026,
+    /// `docs/09`). Antes no existía el caso: el bridge no tenía con qué enviar.
+    case whatsappMessage = "whatsapp-message"
     case slackMessage = "slack-message"
     case email
     /// Crear, cambiar o borrar un evento, o responder a una invitación: les llega a los invitados.

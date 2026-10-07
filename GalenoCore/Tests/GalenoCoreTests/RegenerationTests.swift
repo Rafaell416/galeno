@@ -106,7 +106,14 @@ final class RegenerationTests: GeneratorTestCase {
         try generate(configA)
         XCTAssertTrue(exists(hookPath))
 
-        let result = try generate(configB)
+        // Sin Slack y sin WhatsApp. WhatsApp lleva hook aunque solo lea: tiene su lista de lecturas, y lo
+        // que no esté en ella (el envío) pregunta siempre.
+        var nothingToApprove = configB
+        for index in nothingToApprove.connections.indices
+        where nothingToApprove.connections[index].tool == .whatsapp {
+            nothingToApprove.connections[index].status = .skipped
+        }
+        let result = try generate(nothingToApprove)
         XCTAssertFalse(exists(hookPath))
         XCTAssertTrue(result.removedFiles.contains(hookPath))
         XCTAssertFalse(try contents(of: ".claude/settings.json").contains("hooks"))

@@ -7,7 +7,7 @@ import Foundation
 /// primera que coincide; la especificidad no cambia nada. Por eso un `allow`
 /// concreto no puede abrir una excepción dentro de un `ask` amplio.
 ///
-/// **Servidores que envían a otras personas (Slack, Gmail).** Leer no pide
+/// **Servidores que envían a otras personas (Slack, Gmail, WhatsApp).** Leer no pide
 /// permiso; enviar o escribir, siempre. Si el catálogo trae la lista verificada de
 /// herramientas de solo lectura del servidor (Slack), esas van a `allow` por su
 /// nombre exacto, las de escritura conocidas a `ask`, y el hook de aprobación
@@ -49,11 +49,14 @@ enum SettingsRenderer {
     /// Buscar en la web no pide permiso (decisión de Rafa, 5 oct 2026): es una herramienta más del agente, a la
     /// vista en «Tus herramientas».
     ///
-    /// **Solo `WebSearch`. `WebFetch` no va aquí a propósito:** abre cualquier dirección, y una dirección puede
-    /// llevar datos (`https://sitio/?q=<lo que leyó>`). Permitirlo sin preguntar sería un envío externo sin
-    /// aprobación (línea roja 3): una página o un documento con instrucciones escondidas podría sacar por ahí lo
-    /// que el agente lee. Abrir una página concreta sigue pidiendo la aprobación del usuario.
-    static let allowedWebTools = ["WebSearch"]
+    /// **`WebFetch` también, para los tres roles (decisión de Rafa, 7 oct 2026, `docs/09`).** Abre cualquier
+    /// dirección, y una dirección puede llevar datos (`https://sitio/?q=<lo que leyó>`): una página o un
+    /// documento con instrucciones escondidas podría intentar sacar por ahí lo que el agente lee. Rafa aceptó
+    /// ese riesgo a propósito, porque sin abrir el sitio de un prospecto el agente no puede investigarlo. Lo que
+    /// lo contiene es una **instrucción, no una barrera técnica**: la regla de contención del `AGENTS.md`
+    /// generado (`AgentsFileRenderer`), que dice qué direcciones se pueden abrir y cuáles nunca. No quitar esa
+    /// regla, y no añadir aquí ninguna otra herramienta que salga a la red.
+    static let allowedWebTools = ["WebFetch", "WebSearch"]
 
     static let hookPath = ".claude/hooks/require-external-approval.sh"
 
@@ -130,9 +133,8 @@ enum SettingsRenderer {
     /// traen listas de herramientas (Google Drive, Docs y Sheets), para lo que no esté en ellas.
     private static func approvalTargets(in config: AgentConfig) -> [ApprovalTarget] {
         config.connectedConnections.flatMap { connection -> [ApprovalTarget] in
-            let tool = connection.tool
             return MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "").compactMap { server in
-                if tool.externalSend != nil {
+                if connection.sendsToOthers {
                     // Los borradores no envían: quedan exentos igual que las lecturas.
                     return ApprovalTarget(server: server, exempt: server.readOnlyTools + server.draftTools)
                 }
@@ -239,7 +241,7 @@ enum SettingsRenderer {
             let writesAsk = tool.internalWrites.contains { config.sendingRules.policy(for: $0) == .ask }
             let free = servers.allSatisfy { server in
                 if !server.readOnlyTools.isEmpty { return true }
-                return tool.externalSend == nil && (tool.internalWrites.isEmpty || !writesAsk)
+                return !connection.sendsToOthers && (tool.internalWrites.isEmpty || !writesAsk)
             }
             return free ? tool : nil
         }
@@ -263,7 +265,7 @@ enum SettingsRenderer {
 
                 if server.readOnlyTools.isEmpty {
                     // Sin lista verificada de lo que solo lee, la regla cubre el servidor entero.
-                    if tool.externalSend != nil {
+                    if connection.sendsToOthers {
                         // Slack sin lista o Gmail: dejar fuera una sola de envío abriría un hueco
                         // por el que saldría un mensaje sin preguntar.
                         ask.append(prefix + "*")
@@ -284,7 +286,7 @@ enum SettingsRenderer {
                 // Las de escritura: en un servidor que envía a otras personas, siempre preguntan;
                 // en uno del propio mundo del usuario (Google Drive), siguen su regla del paso 8.
                 let writes = server.writeTools.map { prefix + $0 }
-                if tool.externalSend != nil || writesAsk {
+                if connection.sendsToOthers || writesAsk {
                     ask.append(contentsOf: writes)
                 } else {
                     allow.append(contentsOf: writes)
