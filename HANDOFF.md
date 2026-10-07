@@ -566,7 +566,7 @@ Claude Design («Galeno B1 Activación») y la base de skills por rol que consig
 manda en estructura y textos pero no en estilo (pedido de Rafa: que siga viéndose como Galeno). Hecho: las tres pantallas
 previas (una vez, se saltan), el paso del rol, el nombre solo, la grilla de herramientas en el orden del rol con las tres primeras
 marcadas, la cabecera «Paso N de 6» y las skills por rol. **Decisiones tomadas al construir, por confirmar con Rafa:** «Reportes» y
-«Reuniones» son comunes a los tres roles (producto 17 skills, marketing 18, comercial 29); se ofrecen todas las herramientas de
+«Reuniones» son comunes a los tres roles (producto 18 skills, marketing 19, comercial 29); se ofrecen todas las herramientas de
 hoy, no solo las seis del boceto; la pantalla del rol no dice «se cambia después» porque «Gestionar» no cambia el rol; el idioma
 se cambia con un enlace al pie de las pantallas previas. **Prueba de arranque limpio de Rafa (5 oct 2026, tarde):** el paso 2 se
 quedaba «buscando» para siempre en un Mac sin instalación (venía del PR #32: nadie lanzaba la búsqueda la primera vez; corregido,
@@ -898,6 +898,15 @@ skill nueva se ha corrido con un agente ni con una hoja reales, y `docs/QA.md` �
 Rafa:** aprobar el texto de la advertencia; si la pausa debe retener en vez de cancelar la cola; si un mensaje
 pendiente debe caducar; el tope de grupos (10, techo 20). **Ojo:** otra sesión tiene sin commitear un trabajo que
 refresca el bridge al abrir la app (toca `WhatsAppBridge.swift` y `GalenoApp.swift`): chocará con este PR al mezclarse.
+
+**Decisiones de Rafa tras el merge (7 oct 2026; rama `feat/caducidad-y-crear-skill`).** El tope de grupos (10, techo
+20) y la pausa que cancela la cola **se quedan como están**. **Un mensaje pendiente caduca a las 24 horas**
+(`pendingExpiry`, bridge 0.4.1). **`/crear-skill` la ven los tres roles**: pasó a un grupo propio del catálogo, «Crea
+las tuyas» (`custom`), que los tres roles traen al final; por eso producto trae 18 skills marcadas y marketing 19. El
+refresco del bridge al abrir la app ya está en `main` (PR 57). **El texto de la advertencia sigue como propuesta:** Rafa
+dijo «no pongamos texto de advertencia todavía». **Pendiente:** Rafa va a pasar las skills de Simon para decidir cuáles
+de las nuestras de comercial vienen marcadas y si le sirven un par más. Rafa no tiene un segundo número: el envío se
+prueba escribiéndose a sí mismo y a un grupo suyo.
 
 **Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
 pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está

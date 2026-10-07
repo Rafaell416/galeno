@@ -134,9 +134,10 @@ final class SkillCatalogTests: XCTestCase {
     private static let sendsOnWhatsApp: Set<String> = ["prospeccion", "prospectar-lista", "seguimientos-hoy"]
 
     /// Las nuestras de comercial, en el orden del catálogo.
-    private static let ourSalesSkills = [
-        "prospeccion", "prospectar-lista", "seguimientos-hoy", "revisar-conversaciones", "crear-skill",
-    ]
+    private static let ourSalesSkills = ["prospeccion", "prospectar-lista", "seguimientos-hoy", "revisar-conversaciones"]
+
+    /// La que sirve a los tres roles: va en su propio grupo, «Crea las tuyas» (decisión de Rafa, 7 oct 2026).
+    private static let skillForEveryRole = "crear-skill"
 
     /// Lo que cada skill nuestra tiene que traer (`docs/03` §6.1): un nombre que cuadra con su carpeta, la instrucción de idioma
     /// exacta justo después del frontmatter, un procedimiento completo y su sección de reglas; que lo que dicen las fuentes no sea
@@ -315,9 +316,9 @@ final class SkillCatalogTests: XCTestCase {
     /// El texto de las tarjetas nuestras de comercial sigue el copy de `docs/04` §12: sin signos de exclamación.
     func testOurSalesCardsHaveNoExclamationMarks() throws {
         let value = try SkillCatalog.load(from: repoSkills)
-        for id in Self.ourSalesSkills {
+        for id in Self.ourSalesSkills + [Self.skillForEveryRole] {
             let skill = try XCTUnwrap(value.galeno.first { $0.id == id }, id)
-            XCTAssertEqual(skill.group, "sales", id)
+            XCTAssertEqual(skill.group, id == Self.skillForEveryRole ? "custom" : "sales", id)
             let texts = [skill.name, skill.summary, skill.ask, skill.guarantee].compactMap { $0 }.flatMap { [$0.es, $0.en] }
                 + (skill.example.map { $0.output.es + $0.output.en + [$0.input.es, $0.input.en] } ?? [])
             for text in texts {
@@ -507,32 +508,40 @@ final class SkillCatalogTests: XCTestCase {
 
     // MARK: Roles
 
-    /// Cada rol trae marcadas las skills de sus grupos. Producto sigue con las 17 nuestras de sus grupos, ni una más:
-    /// `/prospeccion` y las cuatro de `docs/09` §7 son nuestras pero son de comercial.
+    /// Cada rol trae marcadas las skills de sus grupos. Producto sigue con las 17 nuestras de sus grupos y `/crear-skill`,
+    /// que es de los tres: `/prospeccion` y las otras tres de `docs/09` §7 son nuestras pero son de comercial.
     func testEachRoleBringsItsOwnSkills() throws {
         let value = try SkillCatalog.load(from: repoSkills)
         let product = value.defaultSelection(for: .productManager)
         let oursForProduct = value.galeno.filter { AgentRole.productManager.skillGroups.contains($0.group) }
         XCTAssertEqual(Set(product.map(\.id)), Set(oursForProduct.map(\.id)))
-        XCTAssertEqual(product.count, 17)
+        XCTAssertEqual(product.count, 18, "las 17 de producto y /crear-skill")
         XCTAssertFalse(product.contains { Self.ourSalesSkills.contains($0.id) }, "la prospección es de comercial")
 
         let marketing = Set(value.defaultSelection(for: .marketing).map(\.id))
         XCTAssertTrue(marketing.isSuperset(of: ["campaign-plan", "brand-review", "discover-brand", "acta", "reporte-dia"]))
         XCTAssertFalse(marketing.contains("prd"), "los documentos de producto no son de marketing")
         XCTAssertFalse(marketing.contains("call-prep"))
-        XCTAssertEqual(marketing.count, 18, "10 de marketing, 5 de reportes y 3 de reuniones")
+        XCTAssertEqual(marketing.count, 19, "10 de marketing, 5 de reportes, 3 de reuniones y /crear-skill")
 
         let sales = value.defaultSelection(for: .sales)
         XCTAssertTrue(Set(sales.map(\.id)).isSuperset(of: ["call-summary", "lead-triage", "acta", "seguimiento"]))
         XCTAssertFalse(sales.contains { $0.id == "campaign-plan" || $0.id == "tickets" })
-        XCTAssertEqual(sales.count, 29, "16 de comercial de Anthropic, 5 nuestras de comercial, 5 de reportes y 3 de reuniones")
+        XCTAssertEqual(
+            sales.count, 29,
+            "16 de comercial de Anthropic, 4 nuestras de comercial, 5 de reportes, 3 de reuniones y /crear-skill")
         // Las de la lista y los seguimientos del día vienen marcadas de fábrica para comercial (`docs/09` §7.6).
         XCTAssertTrue(Set(sales.map(\.id)).isSuperset(of: ["prospectar-lista", "seguimientos-hoy"]))
         for id in Self.ourSalesSkills {
             XCTAssertEqual(sales.first { $0.id == id }?.source, .galeno, id)
         }
-        XCTAssertFalse(marketing.contains("prospectar-lista") || marketing.contains("crear-skill"))
+        XCTAssertFalse(marketing.contains("prospectar-lista"))
+        // `/crear-skill` la ven y la traen los tres roles, y es nuestra.
+        for role in AgentRole.allCases {
+            let selected = value.defaultSelection(for: role)
+            XCTAssertEqual(selected.first { $0.id == Self.skillForEveryRole }?.source, .galeno, "\(role)")
+            XCTAssertEqual(role.skillGroups.last, "custom", "\(role): va al final, después de lo del oficio")
+        }
         // Cada una se instala desde su carpeta: las de terceros, desde `curated/`.
         XCTAssertEqual(sales.first { $0.id == "call-summary" }?.source, .curated)
         XCTAssertEqual(sales.first { $0.id == "acta" }?.source, .galeno)

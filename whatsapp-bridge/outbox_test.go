@@ -841,6 +841,41 @@ func TestWithoutAConnectionTheMessageWaits(t *testing.T) {
 	}
 }
 
+// Un mensaje aprobado no espera para siempre: si el Mac estuvo apagado más de
+// un día, caduca en vez de salir cuando el usuario ya no lo espera.
+func TestAMessageThatWaitedMoreThanADayExpiresInsteadOfGoingOut(t *testing.T) {
+	o := newTestOutbox(t, wednesdayMorning)
+	o.whatsapp.offline = true
+	old := o.mustEnqueue(t, phone(1), "Hola")
+
+	ctx := context.Background()
+	o.advance(pendingExpiry - time.Hour)
+	o.sync.dispatchOutbox(ctx)
+	if out := o.status(t, old.ID); out.Status != statusPending {
+		t.Fatalf("a las 23 horas todavía espera: %+v", out)
+	}
+	fresh := o.mustEnqueue(t, phone(2), "Otro, de hace un rato")
+
+	// Caduca aunque siga sin conexión: no hace falta WhatsApp para darlo por vencido.
+	o.advance(time.Hour)
+	o.sync.dispatchOutbox(ctx)
+	if out := o.status(t, old.ID); out.Status != statusFailed || out.Error != failureExpired {
+		t.Fatalf("a las 24 horas debía caducar: %+v", out)
+	}
+
+	// Al volver la conexión sale el reciente y el caducado no.
+	o.whatsapp.offline = false
+	o.sync.dispatchOutbox(ctx)
+	o.advance(10 * time.Minute)
+	o.sync.dispatchOutbox(ctx)
+	if len(o.whatsapp.delivered) != 1 || o.whatsapp.delivered[0].body != "Otro, de hace un rato" {
+		t.Errorf("solo debía salir el reciente: %+v", o.whatsapp.delivered)
+	}
+	if out := o.status(t, fresh.ID); out.Status != statusSent {
+		t.Errorf("el reciente = %+v", out)
+	}
+}
+
 // Si "sync" se detuvo a mitad de un envío no se sabe si llegó: no se repite.
 func TestAMessageInterruptedMidDeliveryIsNotRepeated(t *testing.T) {
 	o := newTestOutbox(t, wednesdayMorning)

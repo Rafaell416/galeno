@@ -157,7 +157,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   ni adjuntos, audios o stickers, ni detrás de un flag. `client.SendMessage(` solo en `outbox.go` (CI,
   `TestSendCallOnlyInOutbox` y `TestOnlyAllowedSendSymbols`). `sync` vuelve a mirar las guardas que dependen del momento
   (espaciado, tope, pausa) y **nunca reintenta solo**: un envío que falla, que quedó a medias o que pasó del tope se
-  queda `failed`.
+  queda `failed`. Un mensaje que lleva **más de 24 horas** esperando (el Mac apagado, sin conexión) caduca igual, en vez
+  de salir días después (`pendingExpiry`).
 - **Grupos (decisión de Rafa, 7 oct 2026; el plan original no los traía):** solo los que ya están entre los chats
   sincronizados del usuario, y **con el nombre comprobado**. Al aprobar, el usuario ve lo que pidió el agente, y de un
   grupo eso es un identificador (`120363…@g.us`) que no dice nada: por eso `send_message` exige `group_name` y el bridge

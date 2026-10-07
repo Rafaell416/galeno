@@ -205,7 +205,7 @@ final class WizardStateTests: XCTestCase {
             XCTAssertEqual(state.step, expected)
         }
         XCTAssertTrue(state.isLastStep)
-        XCTAssertEqual(state.generatedAgent?.config.skills.count, 17, "las del rol de producto")
+        XCTAssertEqual(state.generatedAgent?.config.skills.count, 18, "las del rol de producto y /crear-skill")
 
         // Desde «Listo» se vuelve a la revisión, no a «Escribiendo» (que no se puede deshacer):
         // al avanzar otra vez se regenera el mismo agente.

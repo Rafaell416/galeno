@@ -35,6 +35,11 @@ const (
 	minSpacing = 45 * time.Second
 	maxSpacing = 120 * time.Second
 
+	// Un mensaje aprobado que no pudo salir (el Mac apagado, sin conexión) espera
+	// este tiempo y no más: pasado, caduca en vez de salir días después, cuando el
+	// usuario quizá ya escribió a mano (decisión de Rafa, 7 oct 2026).
+	pendingExpiry = 24 * time.Hour
+
 	maxBodyChars = 1000
 	// El mismo texto puede salir a este número de chats en un día; al siguiente
 	// se rechaza. Es lo que distingue un mensaje escrito para alguien de una
@@ -151,6 +156,7 @@ const (
 	failureNotOnWA          = "This number is not on WhatsApp."
 	failureNotAPerson       = "WhatsApp did not return a personal number for this recipient."
 	failureGroup            = "Could not reach this group on WhatsApp (the user may no longer be in it): "
+	failureExpired          = "Not sent: this message waited more than 24 hours for Galeno to be connected to WhatsApp, so it expired. Tell the user; do not send it again without asking them."
 	failureDailyLimit       = "Not sent: the daily limit of %d WhatsApp messages had already been reached when this message's turn came. Tell the user; do not send it again without asking them."
 )
 

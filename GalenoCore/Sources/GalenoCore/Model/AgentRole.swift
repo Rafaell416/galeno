@@ -22,13 +22,13 @@ public enum AgentRole: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    /// Los grupos de skills del catálogo que este rol trae marcados. «Seguimiento y reportes» y «Reuniones y
-    /// descubrimiento» sirven a los tres.
+    /// Los grupos de skills del catálogo que este rol trae marcados. «Seguimiento y reportes», «Reuniones y
+    /// descubrimiento» y «Crea las tuyas» (`/crear-skill`; decisión de Rafa, 7 oct 2026) sirven a los tres.
     public var skillGroups: [String] {
         switch self {
-        case .productManager: ["documents", "work", "reports", "meetings"]
-        case .marketing: ["marketing", "reports", "meetings"]
-        case .sales: ["sales", "reports", "meetings"]
+        case .productManager: ["documents", "work", "reports", "meetings", "custom"]
+        case .marketing: ["marketing", "reports", "meetings", "custom"]
+        case .sales: ["sales", "reports", "meetings", "custom"]
         }
     }
 

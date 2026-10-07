@@ -42,6 +42,13 @@
         "es": "Comercial",
         "en": "Sales"
       }
+    },
+    {
+      "id": "custom",
+      "name": {
+        "es": "Crea las tuyas",
+        "en": "Make your own"
+      }
     }
   ],
   "galeno": [
@@ -1044,7 +1051,7 @@
     },
     {
       "id": "crear-skill",
-      "group": "sales",
+      "group": "custom",
       "name": {
         "es": "Crear una skill",
         "en": "Create a skill"
