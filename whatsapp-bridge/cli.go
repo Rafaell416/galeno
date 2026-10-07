@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -41,6 +42,8 @@ func main() {
 		runInstallLaunchd()
 	case "chats":
 		runChats()
+	case "outbox":
+		runOutbox()
 	case "version", "--version":
 		runVersion()
 	case "-h", "--help", "help":
@@ -53,14 +56,18 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprintln(os.Stderr, `galeno-whatsapp — puente de WhatsApp de solo lectura (fork de lharries/whatsapp-mcp).
+	fmt.Fprintln(os.Stderr, `galeno-whatsapp — puente de WhatsApp: lee, y envía texto a una persona solo con
+aprobación (fork de lharries/whatsapp-mcp).
 
 Uso:
   galeno-whatsapp pair             Vincula este Mac con tu WhatsApp (muestra un QR)
-  galeno-whatsapp sync             Mantiene la conexión a WhatsApp y guarda mensajes;
-                                   pensado para correr de fondo (ver install-launchd)
+  galeno-whatsapp sync             Mantiene la conexión a WhatsApp, guarda mensajes y saca
+                                   los de la bandeja de salida; pensado para correr de fondo
+                                   (ver install-launchd)
   galeno-whatsapp serve            Corre el servidor MCP (stdio); exige estar ya vinculado.
-                                   No conecta a WhatsApp: solo lee lo que sync ya guardó
+                                   No conecta a WhatsApp: solo lee lo que sync ya guardó.
+                                   Con --with-send ofrece además send_message, que deja el
+                                   mensaje en la bandeja de salida para que sync lo saque
   galeno-whatsapp status           Dice si hay una sesión vinculada, sin conectar a WhatsApp
                                    (con --json, además cuándo se vinculó y la versión)
   galeno-whatsapp unlink           Cierra la sesión vinculada (para volver a vincular con pair).
@@ -69,6 +76,8 @@ Uso:
                                    solo al iniciar sesión
   galeno-whatsapp chats --json     Lista los chats guardados (la app arma con esto la
                                    pantalla "elige qué leer"); no conecta a WhatsApp
+  galeno-whatsapp outbox --json    Estado de la bandeja de salida: enviados hoy, topes y
+                                   pausa (lo lee la app); no conecta a WhatsApp
   galeno-whatsapp version          Imprime la versión del bridge
 
 El estado (sesión y mensajes) vive en:
@@ -243,7 +252,7 @@ func runPair() {
 func runSync() {
 	logger := newLogger("Sync", "INFO", true)
 
-	client, messageStore, _, err := openClient(logger)
+	client, messageStore, stateDir, err := openClient(logger)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -269,6 +278,17 @@ func runSync() {
 		os.Exit(1)
 	}
 
+	// La bandeja de salida se despacha aquí y solo aquí: es la única conexión
+	// viva (ver outbox.go).
+	outboxCtx, stopOutbox := context.WithCancel(context.Background())
+	defer stopOutbox()
+	dispatcher := &outboxDispatcher{
+		env:    newOutboxEnv(messageStore, stateDir, client.Store.LIDs, client.Store.Contacts),
+		sender: &liveClient{client: client},
+		logger: logger.Sub("Outbox"),
+	}
+	go dispatcher.run(outboxCtx)
+
 	logger.Infof("Sincronizando. Ctrl+C (o launchd) para detener.")
 
 	exitChan := make(chan os.Signal, 1)
@@ -279,13 +299,27 @@ func runSync() {
 
 // runServe — subcomando "serve": exige sesión existente, pero NUNCA conecta
 // a WhatsApp por su cuenta — esa conexión la sostiene "sync". Solo abre la
-// base local y sirve las 9 herramientas MCP por stdio. Nada de lo que corre
+// base local y sirve las herramientas MCP por stdio. Nada de lo que corre
 // aquí puede escribir a stdout salvo el propio transporte MCP (ver log.go y
 // los comentarios en media.go/events.go).
+//
+// Sin argumentos ofrece las 9 lecturas, igual que antes de la 0.4.0. La
+// herramienta de envío solo aparece con --with-send, y eso es a propósito:
+// la config que Galeno generaba antes del envío permite el servidor entero
+// ("mcp__whatsapp__*"), así que una carpeta de agente vieja con un bridge
+// nuevo enviaría sin preguntar. El motor escribe --with-send en el .mcp.json
+// en la misma generación en la que escribe la regla que pide aprobación.
 func runServe() {
+	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	withSend := flags.Bool("with-send", false, "ofrece también send_message (siempre con aprobación del usuario)")
+	if err := flags.Parse(os.Args[2:]); err != nil {
+		os.Exit(2)
+	}
+
 	logger := newLogger("Serve", "INFO", true)
 
-	client, messageStore, _, err := openClient(logger)
+	client, messageStore, stateDir, err := openClient(logger)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -299,7 +333,12 @@ func runServe() {
 
 	fmt.Fprintln(os.Stderr, "Sirviendo MCP por stdio (sin conexión propia a WhatsApp; usa lo que 'sync' ya guardó)...")
 
-	server := newMCPServer(messageStore)
+	var outbox *outboxEnv
+	if *withSend {
+		env := newOutboxEnv(messageStore, stateDir, client.Store.LIDs, client.Store.Contacts)
+		outbox = &env
+	}
+	server := newMCPServer(messageStore, outbox)
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		fmt.Fprintf(os.Stderr, "El servidor MCP terminó con error: %v\n", err)
 		os.Exit(1)

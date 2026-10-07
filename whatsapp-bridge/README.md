@@ -1,19 +1,22 @@
 # whatsapp-bridge
 
-Un único binario Go: el puente de WhatsApp (`whatsmeow`, QR, SQLite) y un servidor MCP con siete subcomandos.
-**Hasta la 0.3.0 (la actual) es de solo lectura.** Desde la 0.4.0 tendrá **un** envío, `send_message`, por una
-bandeja de salida y con guardas en el código (decisión de Rafa, 7 oct 2026; el diseño está en
-`docs/09-plan-simon-envio-y-prospeccion.md` §4). Lo que sigue describe la 0.3.0; se actualiza con ese cambio.
+Un único binario Go: el puente de WhatsApp (`whatsmeow`, QR, SQLite) y un servidor MCP, con nueve subcomandos.
+**Lee todo lo que `sync` guardó y, desde la 0.4.0, envía por un solo camino:** `send_message`, texto a una persona,
+siempre con la aprobación del usuario, por una bandeja de salida y con guardas en el código (decisión de Rafa,
+7 oct 2026; diseño en `docs/09-plan-simon-envio-y-prospeccion.md` §4). No hay adjuntos, audios, grupos, «leído» ni
+«escribiendo…», y no los habrá.
 
 ```bash
 galeno-whatsapp pair             # Vincula este Mac con tu WhatsApp (muestra un QR)
-galeno-whatsapp sync             # Mantiene la conexión viva de fondo; nunca sirve MCP
-galeno-whatsapp serve            # Sirve las 9 herramientas MCP por stdio; no conecta a WhatsApp
+galeno-whatsapp sync             # Mantiene la conexión viva de fondo y saca la bandeja de salida; nunca sirve MCP
+galeno-whatsapp serve            # Sirve las 9 lecturas MCP por stdio; no conecta a WhatsApp
+galeno-whatsapp serve --with-send  # Lo mismo, más send_message (deja el mensaje en la bandeja de salida)
 galeno-whatsapp status           # Dice si hay una sesión vinculada, sin conectar a WhatsApp
 galeno-whatsapp status --json    # Lo mismo para la app: {linked, number, linked_at, version}
 galeno-whatsapp unlink           # Cierra la sesión vinculada (no borra el historial) para volver a vincular
 galeno-whatsapp install-launchd  # Instala "sync" como LaunchAgent (arranca solo tras el login)
 galeno-whatsapp chats --json     # Lista los chats guardados, para la pantalla "elige qué leer"
+galeno-whatsapp outbox --json    # Estado de la bandeja de salida: enviados hoy, topes y pausa (para la app)
 galeno-whatsapp version          # Imprime la versión del bridge (solo el número)
 ```
 
@@ -32,16 +35,17 @@ Por eso la conexión y el servicio MCP son responsabilidades separadas, igual qu
 diseño original de upstream (Python ↔ Go por HTTP, con el Go como único que conectaba):
 
 - **`sync`** es el único subcomando que llama a `client.Connect()`. Recibe mensajes y los
-  guarda en SQLite, y se queda corriendo para siempre (hasta `SIGINT`/`SIGTERM`). Pensado
-  para correr de fondo, vía `install-launchd`.
-- **`serve`** solo abre la base local y sirve las 9 herramientas MCP por stdio; nunca
+  guarda en SQLite, saca los de la bandeja de salida, y se queda corriendo para siempre (hasta
+  `SIGINT`/`SIGTERM`). Pensado para correr de fondo, vía `install-launchd`.
+- **`serve`** solo abre la base local y sirve las herramientas MCP por stdio; nunca
   conecta a WhatsApp. Lo lanza Claude Code, una vez por sesión — puede haber varias
   instancias de `serve` a la vez sin ningún riesgo, porque ninguna sostiene una conexión.
+  Por eso tampoco envía: deja el mensaje en la bandeja y lo saca `sync` (ver «Envío»).
 
-Consecuencia directa: si pides `download_media` para un archivo que `sync` todavía no
-descargó, `serve` no puede ir a buscarlo en vivo (no tiene conexión). La herramienta responde
-`{success: false, message: "..."}` pidiendo confirmar que `sync` esté corriendo, en vez de
-intentar conectarse por su cuenta.
+Consecuencia directa: si pides `download_media` para un archivo que no está en disco,
+`serve` no puede ir a buscarlo en vivo (no tiene conexión), y hoy `sync` tampoco descarga
+adjuntos. La herramienta responde `{success: false, message: "..."}` diciendo eso tal cual, en
+vez de intentar conectarse por su cuenta o de mandar a reintentar.
 
 ## El QR: en terminal y como PNG
 
@@ -74,7 +78,7 @@ genérico.
 No instales esto contra una cuenta real salvo que quieras que `sync` arranque una conexión
 de verdad al vincular: pensado para que lo dispare GalenoApp después de un `pair` exitoso.
 
-## Las 9 herramientas MCP (todas de lectura)
+## Las 9 herramientas MCP de lectura
 
 Puerto a Go del servidor Python de upstream (`whatsapp-mcp-server/`, no incluido en este
 repo), con el [SDK oficial de MCP para Go](https://github.com/modelcontextprotocol/go-sdk)
@@ -91,11 +95,96 @@ y eso es una mala experiencia. Elegir chats en el wizard le dice al agente en qu
 en su `AGENTS.md`); no le quita acceso a los demás. Si hace falta una barrera algún día, la
 opción es una lista de **exclusión** (chats privados que nunca ve), no de inclusión.
 
-**No existen** (en la 0.3.0) `send_message`, `send_file` ni `send_audio_message`; `send_file` y `send_audio_message`
-no volverán. Ocho de las nueve leen
-directo de la base local (`queries.go`); `download_media` llama a la función Go que ya
-descarga medios (`media.go`) — en upstream esto eran dos procesos que se hablaban por HTTP
-(Python ↔ Go); aquí es una sola llamada de función, en el mismo proceso.
+La décima, `send_message`, es la única que envía y tiene su propia sección abajo. **No existen** `send_file` ni
+`send_audio_message`, y no se añaden. Ocho de las nueve lecturas leen
+directo de la base local (`queries.go`); `download_media` solo mira lo que ya está en disco
+(`media.go`): el bridge todavía no descarga adjuntos.
+
+## Envío: `send_message`, la bandeja de salida y las guardas
+
+```
+Claude Code ──stdio──▶ serve --with-send: send_message ──INSERT──▶ outbox (SQLite)
+                                                                       │
+                              sync (launchd, conexión viva) ◀──────────┘ cada 2 s
+                              └─ envía ──▶ WhatsApp ──▶ UPDATE outbox (sent | failed)
+serve espera hasta 30 s el cambio de estado y se lo devuelve a Claude Code
+```
+
+**Entrada:** `recipient` (un número en formato internacional, solo dígitos, o un JID `@s.whatsapp.net`) y `message`
+(texto). **Salida:** `{status, chat_jid, sent_at, scheduled_for, outbox_id, error, reason}`.
+
+| `status` | Qué pasó |
+|---|---|
+| `sent` | Salió. Queda también en el historial (`messages`, `is_from_me = 1`), así que el agente lo ve con las lecturas de siempre. |
+| `queued` | Quedó programado para `scheduled_for` (por horario o por espaciado). `serve` no espera. |
+| `pending` | Podía salir ya, pero `sync` no lo sacó en 30 s (no está corriendo o no tiene conexión). Sale cuando vuelva. |
+| `failed` | WhatsApp no lo aceptó, o el número no tiene WhatsApp. `error` dice por qué. **No se reintenta solo.** |
+| `rejected` | Una guarda lo frenó. `reason` dice cuál. **No se escribe nada en la bandeja.** |
+
+**La herramienta solo existe si `serve` se lanza con `--with-send`.** Es a propósito: la config que Galeno generaba
+antes del envío permite el servidor entero (`mcp__whatsapp__*`), así que una carpeta de agente vieja con un bridge
+nuevo enviaría **sin preguntar**. `serve` a secas sigue ofreciendo las 9 lecturas, como la 0.3.0. El motor escribe
+`--with-send` en el `.mcp.json` en la misma generación en que escribe la regla `ask` y el hook de aprobación (PR 3
+de `docs/09`).
+
+### Las guardas viven en el código
+
+No en el prompt: ni una instrucción ni una página que el agente lea las pueden saltar. `serve` las comprueba todas
+antes de escribir en la bandeja, y `sync` vuelve a comprobar las que dependen del momento (`outbox.go`).
+
+| Guarda | Valor | Dónde |
+|---|---|---|
+| Solo una persona: `@s.whatsapp.net`. Se rechazan grupos, listas de difusión, estados y canales | fijo | `serve`, y otra vez `sync` justo antes de salir |
+| Un chat `@lid` se pasa a su número con lo que whatsmeow tiene guardado (local); si no se conoce, se rechaza | fijo | `serve` |
+| Número de 8 a 15 dígitos | fijo | `serve` |
+| Que el número tenga WhatsApp (`IsOnWhatsApp`); si no, `failed` | fijo | `sync` |
+| Tope diario total | **40** (techo **80**) | `serve`; `sync` lo vuelve a mirar |
+| Tope diario de chats nuevos (sin mensajes previos con esa persona) | **15** (techo **25**) | `serve` |
+| Horario de oficina, hora local del Mac: L–V 8:00–19:00, sáb 8:00–13:00 | fijo | `serve` programa; `sync` no saca nada fuera de horario |
+| Espaciado entre envíos: 45–120 s al azar | fijo | `serve` programa; `sync` nunca baja de 45 s |
+| El mismo texto (sin mirar mayúsculas ni espacios) a más de 3 chats en un día | fijo | `serve` |
+| Largo máximo: 1.000 caracteres | fijo | `serve` |
+| Pausa total: archivo `send-paused` | — | `serve` rechaza; `sync` no envía y cancela lo que había en cola |
+
+- **Los topes son del día en que el mensaje sale**, no del día en que se pidió: lo que se pide un viernes por la
+  noche cuenta para el sábado. Cuentan lo enviado y lo que está en cola para ese día.
+- **`send-limits.json`** (`{"daily_total": 40, "daily_new_chats": 15}`) y **`send-paused`** viven en el directorio de
+  estado. Los escribe la app; el agente no puede escribir ahí. Un valor por encima del techo se queda en el techo, y
+  un archivo ausente o ilegible vale por los topes por defecto.
+- **En pausa, lo que estaba en cola se cancela** (`rejected`): al quitar la pausa no sale de golpe lo acumulado.
+- **Si `sync` se detiene a mitad de un envío**, ese mensaje queda `failed` diciendo que no se sabe si llegó. No se
+  repite: antes de tocar la red, el mensaje queda reservado con el id con el que va a salir.
+- **Los festivos no se miran**: el horario es solo por día de la semana.
+- Sin `sync` corriendo el mensaje se queda `pending` y sale cuando `sync` vuelva, en horario y respetando el
+  espaciado y el tope del día (lo que no quepa pasa al siguiente día hábil).
+
+**Prueba manual** (no hay forma de probar el envío real sin una cuenta): enviar a un segundo número propio; comprobar
+que llega, que aparece en `list_messages`, y que con `sync` detenido queda `pending` y sale al volver.
+
+## `outbox --json`: la bandeja, para la app
+
+```bash
+./galeno-whatsapp outbox --json
+```
+
+Solo lee, y no abre ninguna conexión a WhatsApp. No incluye el texto de los mensajes.
+
+```json
+{
+  "paused": false,
+  "limits": { "daily_total": 40, "daily_new_chats": 15, "max_daily_total": 80, "max_daily_new_chats": 25 },
+  "today": { "sent": 12, "pending": 3, "new_chats": 7 },
+  "pending_total": 3,
+  "recent": [
+    { "id": 15, "chat_jid": "573001112233@s.whatsapp.net", "status": "pending", "is_new_chat": true,
+      "created_at": "2026-10-07T10:02:11-05:00", "not_before": "2026-10-07T10:03:40-05:00" }
+  ]
+}
+```
+
+`today` es lo que cuenta para los topes de hoy (`sent` + `pending` contra `daily_total`; `new_chats` contra
+`daily_new_chats`). `recent` son los últimos 50, del más nuevo al más viejo, con `sent_at` y `error` cuando los hay.
+Sin `--json` es un error de uso (código 2).
 
 ## `chats --json`: la lista para "elige qué leer"
 
@@ -136,7 +225,7 @@ stderr). No abre ninguna conexión a WhatsApp y lee todo lo que `sync` guardó:
 
 ## `version`
 
-Imprime solo el número (`0.3.0`), para que la app lo lea sin separar nada. Es independiente de la
+Imprime solo el número (`0.4.0`), para que la app lo lea sin separar nada. Es independiente de la
 versión de la app: el bridge es la capa que más se rompe por causas externas y tiene que poder
 parchearse por su cuenta (`docs/03` §4f). Vive en `version.go` como variable, así que se puede
 fijar al compilar con `-ldflags "-X main.bridgeVersion=…"`. Sube el MINOR cuando cambia lo que
@@ -151,25 +240,23 @@ por diseño) por uno que escribe a stderr, y lo mismo vale para los logs propios
 Verificado de verdad, no solo diseñado así: corriendo `status` con los dos flujos separados,
 stdout lleva exactamente la salida, stderr lleva exactamente los logs.
 
-## Garantías de solo lectura
+## Garantías del envío
 
-> **Vigentes en la 0.3.0.** En la 0.4.0 cambian así (`docs/09` §4.5): `client.SendMessage(` se permite **solo** en
-> `outbox.go`; `client.Upload(`, `/api/send`, `MarkRead`, `SendPresence` y `SendChatPresence` siguen prohibidos en todo
-> el bridge; `TestNoSendSymbolsInOurOwnCode` pasa a ser `TestOnlyAllowedSendSymbols`, con una lista blanca exacta de
-> los símbolos del envío. Las guardas del envío (solo chats individuales, topes con techo fijo, horario, espaciado,
-> texto repetido, largo máximo, pausa) viven en el código, no en el prompt.
-
-- **Ya podado del fork**: se eliminaron —no se comentaron— `sendWhatsAppMessage`, el
-  handler `/api/send` (ya no existe ningún servidor HTTP: ver arriba), y las funciones que
-  solo existían para preparar audio a enviar. Detalle en `NOTICE`.
-- **El CI verifica dos veces**, en capas distintas:
-  1. Un grep sobre el código fuente contra los identificadores reales del puente
-     (`client.SendMessage`, `client.Upload`, `/api/send`, `MarkRead`, `SendPresence`).
-  2. `TestNoSendSymbolsInOurOwnCode` compila el binario y lista sus símbolos con
-     `go tool nm`, acotado a los que empiezan con `main.` (nuestro código, no el de
-     `whatsmeow` ni del runtime de Go, que sí traen sus propias primitivas de red con
-     "send" en el nombre). Si algún día una función nuestra vuelve a tener "send" en el
-     nombre, esta prueba falla aunque el grep de texto no la vea venir.
+- **Un solo camino.** La única llamada a whatsmeow que envía está en `outbox.go` (`liveClient.SendText`), y solo
+  manda texto. Lo que se podó del fork sigue sin existir: el handler `/api/send` (no hay ningún servidor HTTP), el
+  envío de archivos y el de audios. Detalle en `NOTICE`.
+- **Se verifica en tres capas**, y las tres corren con `go test ./...`:
+  1. `TestSendCallOnlyInOutbox`: un grep sobre el código fuente. `client.SendMessage(` solo puede aparecer en
+     `outbox.go`; `client.Upload(`, `/api/send`, `MarkRead`, `SendPresence` y `SendChatPresence`, en ningún archivo.
+     El CI hace la misma comprobación (`.github/workflows/ci.yml`).
+  2. `TestOnlyAllowedSendSymbols` compila el binario y lista sus símbolos con `go tool nm`, acotado a los que
+     empiezan con `main.` (nuestro código, no el de `whatsmeow` ni del runtime de Go). La lista blanca es exacta:
+     `handleSendMessage`, `(*outboxDispatcher).sendOutboxItem` y `(*liveClient).SendText`. Cualquier otra función
+     nuestra con "send" en el nombre es un segundo camino de envío y hace fallar la prueba.
+  3. `TestSendMessageOnlyExistsWhenServeIsAskedForIt` conecta un cliente MCP de verdad y comprueba que `serve` a
+     secas ofrece exactamente las 9 lecturas, y con `--with-send`, esas más `send_message` y ninguna otra.
+- Las guardas tienen cada una su prueba en `outbox_test.go`, sin red: `sync` despacha con un cliente simulado detrás
+  de la interfaz `messageSender`.
 - Los datos de sesión (`~/Library/Application Support/Galeno/whatsapp/`) no se commitean.
 
 ## Mantenimiento: es la capa que más se rompe
@@ -182,8 +269,8 @@ con `go get go.mau.fi/whatsmeow@latest`. Si el bridge deja de conectar, empieza 
 
 Al actualizar `whatsmeow` conviene esperar cambios de firma (la última vez varias llamadas
 pasaron a pedir `context.Context`) y un requisito de Go más nuevo, y volver a correr
-`go test ./...`: `TestNoSendSymbolsInOurOwnCode` confirma que el upgrade no reintrodujo
-ninguna vía de envío.
+`go test ./...`: `TestOnlyAllowedSendSymbols` y `TestSendCallOnlyInOutbox` confirman que el
+upgrade no abrió un segundo camino de envío.
 
 **Pendiente:** el esquema de versiones y cómo se parchea el bridge sin re-releasear la app, si
 viaja empaquetado dentro de ella (`HANDOFF.md` §12). El número ya existe: ver `version`.

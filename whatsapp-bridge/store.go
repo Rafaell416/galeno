@@ -29,7 +29,10 @@ type MessageStore struct {
 // (its parent directory must already exist — the caller creates the state
 // directory once, shared with the whatsmeow device store).
 func NewMessageStore(dbPath string) (*MessageStore, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?_foreign_keys=on", dbPath))
+	// _txlock=immediate: las transacciones (solo las usa la bandeja de salida,
+	// outbox_enqueue.go) toman el candado de escritura al empezar. Así dos
+	// "serve" a la vez no pueden contar el mismo cupo del día y pasarse del tope.
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?_foreign_keys=on&_txlock=immediate", dbPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open message database: %v", err)
 	}
@@ -59,6 +62,23 @@ func NewMessageStore(dbPath string) (*MessageStore, error) {
 			PRIMARY KEY (id, chat_jid),
 			FOREIGN KEY (chat_jid) REFERENCES chats(jid)
 		);
+
+		-- La bandeja de salida (outbox.go): "serve" la escribe y "sync" la
+		-- despacha. Las horas van en UTC y sin fracción de segundo, para que
+		-- compararlas como texto dé el orden correcto.
+		CREATE TABLE IF NOT EXISTS outbox (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			chat_jid      TEXT NOT NULL,
+			body          TEXT NOT NULL,
+			created_at    TIMESTAMP NOT NULL,
+			not_before    TIMESTAMP NOT NULL,
+			status        TEXT NOT NULL DEFAULT 'pending',
+			is_new_chat   BOOLEAN NOT NULL,
+			wa_message_id TEXT,
+			sent_at       TIMESTAMP,
+			error         TEXT
+		);
+		CREATE INDEX IF NOT EXISTS outbox_status ON outbox(status, not_before);
 	`)
 	if err != nil {
 		db.Close()

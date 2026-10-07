@@ -152,8 +152,15 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   difusiones, estados ni newsletters), tope diario total (40) y de chats nuevos (15) con un techo fijo en el código
   (80 y 25) que `send-limits.json` nunca sube, horario de oficina (L–V 8–19, sáb 8–13; fuera de eso queda `queued`),
   espaciado aleatorio de 45–120 s, el mismo texto a más de 3 chats se rechaza, 1.000 caracteres como mucho, y el archivo
-  `send-paused` lo para todo. No se añade ningún otro envío: ni `send_file`, ni `send_audio_message`, ni adjuntos,
-  audios o stickers, ni detrás de un flag. `client.SendMessage(` solo en `outbox.go` (CI y `TestOnlyAllowedSendSymbols`).
+  `send-paused` lo para todo (y cancela lo que estaba en cola: al quitar la pausa no sale de golpe lo acumulado). No se
+  añade ningún otro envío: ni `send_file`, ni `send_audio_message`, ni adjuntos, audios o stickers, ni detrás de un flag.
+  `client.SendMessage(` solo en `outbox.go` (CI, `TestSendCallOnlyInOutbox` y `TestOnlyAllowedSendSymbols`). `sync` vuelve
+  a mirar las guardas que dependen del momento (horario, espaciado, tope, pausa) y **nunca reintenta solo**: un envío que
+  falla o que quedó a medias se queda `failed`.
+- **`send_message` solo existe si `serve` se lanza con `--with-send`**, y el motor lo escribe en el `.mcp.json` **en la
+  misma generación** en que escribe la regla `ask` y el hook. No quitar esa compuerta ni encenderla por defecto: la config
+  generada antes del envío permite el servidor entero (`mcp__whatsapp__*`), así que una carpeta de agente vieja con un
+  bridge nuevo enviaría sin preguntar (línea roja 1). `TestSendMessageOnlyExistsWhenServeIsAskedForIt` lo comprueba.
 - Al sincronizar con upstream, revisar que no reentren `send_file` ni `send_audio_message`, y que `send_message`
   siga pasando por la bandeja y las guardas, no por una llamada directa.
 - Una tarea programada **nunca envía por WhatsApp**: deja el mensaje propuesto (en la hoja o en `memoria/pendientes.md`)

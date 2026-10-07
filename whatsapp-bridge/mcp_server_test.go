@@ -17,13 +17,21 @@ import (
 //
 // Lo que sí es preciso: compilar el binario, listar sus símbolos, y mirar
 // solo los que empiezan con "main." — nuestro propio código, no el de
-// ninguna dependencia. Ninguno de los nombres que elegimos contiene "send";
-// el único identificador que sí la contiene como subcadena es el campo
-// Sender/sender (quién mandó un mensaje), y los campos de struct no generan
-// símbolo en absoluto — solo funciones y métodos lo hacen — así que esta
-// prueba pasa limpia por construcción, no porque se haya ajustado para que
-// pase.
-func TestNoSendSymbolsInOurOwnCode(t *testing.T) {
+// ninguna dependencia.
+//
+// Desde la 0.4.0 el bridge envía (docs/09), y por un solo camino: la
+// herramienta MCP deja el mensaje en la bandeja y "sync" lo saca. Esos tres
+// nombres son la lista blanca exacta; cualquier otra función o método nuestro
+// con "send" en el nombre es un segundo camino de envío y hace fallar la
+// prueba. (Los campos Sender/sender y los tipos no generan símbolo "main.":
+// solo las funciones y los métodos.)
+var allowedSendSymbols = []string{
+	"handleSendMessage",                  // mcp_server.go: valida y encola
+	"(*outboxDispatcher).sendOutboxItem", // outbox.go: saca un mensaje de la bandeja
+	"(*liveClient).SendText",             // outbox.go: la única llamada a whatsmeow
+}
+
+func TestOnlyAllowedSendSymbols(t *testing.T) {
 	bin := filepath.Join(t.TempDir(), "galeno-whatsapp")
 
 	build := exec.Command("go", "build", "-o", bin, ".")
@@ -47,7 +55,14 @@ func TestNoSendSymbolsInOurOwnCode(t *testing.T) {
 			continue // es de una dependencia, no nuestro
 		}
 		ownSymbols = append(ownSymbols, symbol)
-		if strings.Contains(strings.ToLower(symbol), "send") {
+		// Un cierre o una copia en línea llevan el nombre de su función
+		// dentro (main.newMCPServer.handleSendMessage.func1), así que se
+		// quitan los nombres permitidos y se mira si queda algún "send".
+		rest := symbol
+		for _, allowed := range allowedSendSymbols {
+			rest = strings.ReplaceAll(rest, allowed, "")
+		}
+		if strings.Contains(strings.ToLower(rest), "send") {
 			flagged = append(flagged, symbol)
 		}
 	}
@@ -59,6 +74,6 @@ func TestNoSendSymbolsInOurOwnCode(t *testing.T) {
 	}
 
 	if len(flagged) > 0 {
-		t.Errorf("símbolo(s) con \"send\" en nuestro propio código: %s", strings.Join(flagged, ", "))
+		t.Errorf("símbolo(s) con \"send\" fuera de la lista blanca: %s", strings.Join(flagged, ", "))
 	}
 }
