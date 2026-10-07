@@ -418,6 +418,11 @@ Al diseñar la Fase 4 se verificó contra las fuentes oficiales y varias suposic
 
 **Esto no contradice "nada sale a servidores nuestros":** las tres capas son *descargas* desde infraestructura propia hacia la máquina del usuario. Ni el appcast ni las skills remotas reciben tokens, contenido ni datos de uso.
 
+## 4g. Cómo se entrega: firma, notarización y sin licencias (6 oct 2026)
+
+- **Sin clave de licencia ni activación en la v0.0.1** (decisión de Rafa, 6 oct 2026): se vende como «paga, descarga y usa». Lo que se acepta a cambio es que quien tenga el instalador —o dé con la dirección del appcast de Sparkle, que es pública por fuerza— puede usar Galeno sin pagar; con los primeros usuarios pesa más no añadir una pantalla antes de empezar. La alternativa quedó construida y aparcada en la rama `feat/licencias` (clave firmada con Ed25519 comprobada en el Mac, prueba de 7 días), por si hace falta una prueba gratis o cobrar una versión mayor. Si llega a haber licencia, cubre **agentes ilimitados**.
+- **El DMG va firmado con Developer ID y notarizado**, incluido el bridge de Go (`scripts/build-release.sh`, `docs/RELEASE.md`): hardened runtime en la app y en el bridge, firma de dentro hacia fuera, sello de tiempo, notarización del DMG con `notarytool`, grapado y verificación con `spctl`. **Entitlements vacíos**: fuera de la tienda y sin sandbox, la red y lanzar procesos no los piden, y Galeno no necesita ninguna excepción del hardened runtime.
+
 ## 5. Lo que queda para después (y por qué)
 
 | Qué | Cuándo | Por qué no ahora |

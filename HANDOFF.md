@@ -378,9 +378,8 @@ tamaño exacto. Detalle en `docs/04` §12 («Pantallas»).
 ## 12. Puntos abiertos (no decididos en los docs)
 
 - **Variables de entorno de los tokens:** dónde se guardan los valores a los que apunta `.mcp.json`.
-- **Pagos y licenciamiento:** la spec ya da por hechos un webhook de Stripe y una clave
-  privada de licencias (§4f los menciona de pasada), pero el mecanismo de activación sigue
-  sin estar escrito en ningún documento.
+- **Pagos:** falta la compra (Stripe) y cómo se entrega el enlace de descarga. Sin licencias en v0.0.1 (decisión de
+  Rafa, 6 oct 2026; el trabajo está aparcado en la rama `feat/licencias`).
 - **Sparkle, pendiente de arrancar:** generar el par de claves EdDSA (la privada fuera del
   repo) y definir la URL del appcast y la ruta de las skills remotas, en el dominio del sitio.
 - **Skills remotas, sin diseño:** quién descarga (¿`GalenoApp` llena el directorio que ya
@@ -392,7 +391,8 @@ tamaño exacto. Detalle en `docs/04` §12 («Pantallas»).
 - **Abrir el agente en la app de Claude:** decidido que el usuario elige entre la app de
   Claude y Terminal, pero falta verificar cómo se abre una carpeta concreta en la app de
   Claude desde Galeno y que cargue toda la config generada (hooks, `.mcp.json`, skills).
-- **Licencia y número de agentes:** falta decidir si una licencia cubre agentes ilimitados.
+- **Licencia y número de agentes: decidido.** No hay licencia en v0.0.1; si llega a haberla, cubre agentes ilimitados
+  (se paga por la app, no por agente).
 - **Carpetas visibles:** `~/Galeno/<agente>/` está a la vista y el motor ya asigna la ruta
   (sin choques, con `Aurora 2` si hace falta). Falta decidir qué hace el home si el usuario
   la borra, la mueve o la renombra, y cómo se renombra o elimina un agente desde Galeno. Una
@@ -796,8 +796,25 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
 - La aprobación al enviar un correo o crear un evento en la app de escritorio, en una sesión real
   (los hooks solo están probados con patrones).
 
-**Para el release, no antes (decisión de Rafa):** el certificado «Developer ID Application» y la
-notarización. Hasta entonces los demos van con el DMG sin notarizar y su `LÉEME.md`.
+**Firma y notarización (Fase 8, 6 oct 2026; rama `chore/firma-y-notarizacion`).** `scripts/build-release.sh` compila
+el motor, el bridge universal y la app; firma el bridge y la app con hardened runtime (de dentro hacia fuera), crea el
+DMG con `create-dmg`, lo notariza con `notarytool`, lo grapa y lo verifica con `spctl`. Explicado en `docs/RELEASE.md`.
+Los entitlements van vacíos a propósito. **Corrido de punta a punta el 6 oct 2026**: Apple aceptó la notarización
+y Gatekeeper (`spctl`) dio por buenos el disco y la app que va dentro («Notarized Developer ID»). **Va firmado con el
+Developer ID de Aquiles Torres** (equipo `9TDS6NBM3F`), con su permiso, porque la cuenta de Rafa es gratuita: la app sale
+a nombre de Aquiles. Es un puente hasta que Rafa inscriba su propia cuenta en el Apple Developer Program; cambiar de
+certificado es barato mientras no esté Sparkle. Los datos de firma están en `scripts/release.env` (no se commitea) y la
+contraseña de app de Aquiles, en el llavero de Rafa (perfil `galeno-notary`). **Sin probar:** abrir ese DMG en otro Mac,
+descargado, que es la prueba de verdad (fila «Mac limpio» de `docs/QA.md`). Ojo: la app dice ser la versión **1.0**
+(`MARKETING_VERSION`), no la 0.0.1 de los documentos; el DMG toma ese número. `scripts/hacer-dmg-demo.sh` sigue para
+demos sin firma.
+
+**Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
+pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está
+guardado en la rama `feat/licencias`, sin mergear, por si hace falta una prueba gratis o cobrar una versión mayor. Lo
+que se acepta a cambio: quien tenga el instalador, o dé con la dirección del appcast de Sparkle, puede usar Galeno sin
+pagar. **Una licencia, si llega a haberla, cubre agentes ilimitados.** La clave privada que se generó sigue en
+`~/.galeno-signing/` del Mac de Rafa, fuera del repo.
 
 ---
 

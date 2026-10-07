@@ -44,7 +44,8 @@ echo "  arquitecturas del bridge: $(lipo -archs "$APP/Contents/Resources/galeno-
 codesign --verify --deep --strict "$APP" && echo "  firma ad hoc: íntegra"
 [ -f "$APP/Contents/Resources/skills/catalog.json" ] || { echo "Faltan las skills dentro de la app"; exit 1; }
 echo "  skills dentro de la app: $(find "$APP/Contents/Resources/skills" -name SKILL.md | wc -l | tr -d ' ')"
-if strings -a "$BIN" | grep -q "galeno-fake-connect"; then
+# `grep -c` y no `grep -q`: con `pipefail`, uno que encuentra pronto corta a `strings` y la comprobación no saltaba nunca.
+if [ "$(strings -a "$BIN" | grep -c "galeno-fake-connect" || true)" != "0" ]; then
   echo "  ¡La app lleva las opciones de prueba de Debug (-galeno-fake-connect)! No es una compilación Release."
   exit 1
 fi
