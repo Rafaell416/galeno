@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - El contrato con el bridge
 
@@ -96,6 +97,26 @@ nonisolated struct WhatsAppOutbox: Equatable, Sendable {
 
     /// Lo que cuenta contra el tope total de hoy.
     var usedToday: Int { sentToday + pendingToday }
+}
+
+/// Lo que pasó al poner al día el bridge instalado cuando la app arranca (`WhatsAppBridge.refreshAfterAppUpdate`).
+nonisolated enum BridgeRefresh: Equatable, Sendable {
+    /// No hay copia instalada: WhatsApp nunca se usó en este Mac. No se toca nada.
+    case notInstalled
+    /// La copia ya es la que trae la app.
+    case upToDate
+    /// La copia se reemplazó por la de la app.
+    case updated(sync: SyncRestart)
+    /// No se pudo: la app no trae un bridge que conteste, o la copia no se dejó reemplazar. Queda lo que había.
+    case failed
+
+    enum SyncRestart: Equatable, Sendable {
+        /// El LaunchAgent no estaba cargado: no hay servicio que reiniciar.
+        case notLoaded
+        case restarted
+        /// `install-launchd` no lo consiguió. La vista de salud lo enseña como lo encuentre.
+        case failed
+    }
 }
 
 nonisolated enum WhatsAppBridgeError: Error, Equatable, Sendable {
@@ -227,6 +248,18 @@ nonisolated struct BridgeInstaller: Sendable {
         }
     }
 
+    /// ¿Hay algo en la ruta estable? Sin copia, WhatsApp nunca se instaló en este Mac.
+    var hasInstalledCopy: Bool { FileManager.default.fileExists(atPath: destination.path) }
+
+    /// La versión de la copia instalada. `nil` si no hay o no contesta.
+    func installedVersion() async -> String? { await version(of: destination.path) }
+
+    /// La versión del bridge que trae la app. `nil` si no trae o no contesta.
+    func packagedVersion() async -> String? {
+        guard let source else { return nil }
+        return await version(of: source.path)
+    }
+
     /// `galeno-whatsapp version` imprime solo la versión ("0.2.0").
     private func version(of path: String) async -> String? {
         guard FileManager.default.isExecutableFile(atPath: path),
@@ -247,6 +280,8 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
     var pollInterval: Duration = .milliseconds(700)
     /// El bridge corta `pair` a los 3 minutos; esto es el tope propio de la app.
     var pairTimeout: TimeInterval = 200
+    /// Cuánto se espera antes de volver a intentar `install-launchd` al reiniciar `sync`.
+    var syncRestartRetryDelay: Duration = .seconds(2)
 
     var binaryPath: String { installer.destination.path }
 
@@ -256,6 +291,51 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
 
     func prepare() async throws {
         try await installer.ensureInstalled()
+    }
+
+    /// Al arrancar la app: si la copia instalada no es de la versión que trae la app, se reemplaza y, si `sync`
+    /// estaba cargado en launchd, se reinicia para que corra el binario nuevo. Es como le llega un parche del
+    /// bridge a quien ya tiene WhatsApp vinculado, sin esperar a que abra Salud (`docs/03` §4f, capa 2).
+    ///
+    /// Sin copia instalada no hace nada: no instala ni vincula. Nunca toca la sesión ni `messages.db`: solo
+    /// corre `version` e `install-launchd`. No lanza errores; lo que quede mal lo sigue diagnosticando Salud.
+    func refreshAfterAppUpdate() async -> BridgeRefresh {
+        guard installer.hasInstalledCopy else { return .notInstalled }
+        // Sin un bridge empaquetado que conteste no hay con qué comparar: se deja la copia que había.
+        guard let packaged = await installer.packagedVersion() else { return .failed }
+        if await installer.installedVersion() == packaged { return .upToDate }
+
+        // Se mira antes de tocar nada: solo se reinicia un servicio que ya estaba cargado.
+        let wasLoaded = await syncState() != .notInstalled
+        do { try await installer.ensureInstalled() } catch { return .failed }
+        guard wasLoaded else { return .updated(sync: .notLoaded) }
+        return .updated(sync: await restartSync() ? .restarted : .failed)
+    }
+
+    /// `install-launchd` desactiva el servicio y lo vuelve a activar, ya con la copia nueva. Activarlo justo después
+    /// de desactivarlo puede fallar si el proceso viejo aún no terminó, y un fallo dejaría `sync` sin cargar: se reintenta.
+    private func restartSync() async -> Bool {
+        for attempt in 0..<3 {
+            if attempt > 0 { try? await Task.sleep(for: syncRestartRetryDelay) }
+            if (try? await installLaunchd()) != nil { return true }
+        }
+        return false
+    }
+
+    /// Falso cuando la app es la anfitriona de las pruebas: tocaría la copia y el servicio reales.
+    static func refreshesAtLaunch(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+        environment["XCTestConfigurationFilePath"] == nil
+    }
+
+    private static let refreshLog = Logger(subsystem: "com.galeno.Galeno", category: "bridge")
+
+    /// Lanza `refreshAfterAppUpdate` en segundo plano, sin esperar ni avisar.
+    static func refreshAtLaunch() {
+        guard refreshesAtLaunch() else { return }
+        Task.detached(priority: .utility) {
+            let outcome = await WhatsAppBridge.live().refreshAfterAppUpdate()
+            refreshLog.info("bridge al arrancar: \(String(describing: outcome), privacy: .public)")
+        }
     }
 
     func linkState() async throws -> WhatsAppLinkState {
