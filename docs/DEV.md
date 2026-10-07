@@ -21,7 +21,7 @@ swift run --package-path GalenoCore galeno-gen <config.json> <carpeta-destino> [
 | `-h`, `--help` | Muestra el uso | — |
 
 El default de `--skills-dir` apunta a los *fixtures* de prueba; sirve para probar el generador
-de punta a punta. Para generar con las skills reales (las 17 de `skills/galeno/`), pasa
+de punta a punta. Para generar con las skills reales (las 22 de `skills/galeno/`), pasa
 `--skills-dir skills`.
 
 ## Ejemplo

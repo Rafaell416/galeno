@@ -382,8 +382,8 @@ tamaño exacto. Detalle en `docs/04` §12 («Pantallas»).
 ## 12. Puntos abiertos (no decididos en los docs)
 
 - **Del plan de Simon (`docs/09` §11).** Respondidas por Rafa el 7 oct 2026: (1) los topes por defecto se quedan en
-  **40 al día** (15 chats nuevos); (3) **`WebFetch` va para los tres roles**, no solo comercial (cambia el PR 3 y la regla
-  de `AGENTS.md`, que hoy todavía dice «solo comercial»); (4) **las skills de Simon son suyas**: él las entrega y se
+  **40 al día** (15 chats nuevos); (3) **`WebFetch` va para los tres roles**, no solo comercial (ya está así en el motor
+  y en `AGENTS.md`); (4) **las skills de Simon son suyas**: él las entrega y se
   prueban añadiéndolas como skills propias (`skills-propias/`), no entran al catálogo. Sigue abierta: (2) el texto nuevo
   de la advertencia de WhatsApp, que se propone en el PR 4 y lo aprueba Rafa. Nuevas, del PR 2: ¿la pausa debe cancelar
   lo que estaba en cola (así quedó, como dice el plan) o solo retenerlo?; ¿un mensaje que lleva días `pending` porque el
@@ -566,7 +566,7 @@ Claude Design («Galeno B1 Activación») y la base de skills por rol que consig
 manda en estructura y textos pero no en estilo (pedido de Rafa: que siga viéndose como Galeno). Hecho: las tres pantallas
 previas (una vez, se saltan), el paso del rol, el nombre solo, la grilla de herramientas en el orden del rol con las tres primeras
 marcadas, la cabecera «Paso N de 6» y las skills por rol. **Decisiones tomadas al construir, por confirmar con Rafa:** «Reportes» y
-«Reuniones» son comunes a los tres roles (producto 17 skills, marketing 18, comercial 24); se ofrecen todas las herramientas de
+«Reuniones» son comunes a los tres roles (producto 17 skills, marketing 18, comercial 29); se ofrecen todas las herramientas de
 hoy, no solo las seis del boceto; la pantalla del rol no dice «se cambia después» porque «Gestionar» no cambia el rol; el idioma
 se cambia con un enlace al pie de las pantallas previas. **Prueba de arranque limpio de Rafa (5 oct 2026, tarde):** el paso 2 se
 quedaba «buscando» para siempre en un Mac sin instalación (venía del PR #32: nadie lanzaba la búsqueda la primera vez; corregido,
@@ -732,7 +732,7 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
 - **Enviar por WhatsApp. Decidido (Rafa, 7 oct 2026; `docs/09-plan-simon-envio-y-prospeccion.md`):** sí, con
   aprobación por mensaje y guardas en el bridge (topes, espaciado, pausa; ese mismo día Rafa añadió los grupos del
   usuario y quitó la guarda de horario, ver «PR 2» abajo). Reabre la línea roja 1
-  a propósito; `WebFetch` pasa a `allow` solo para el rol comercial. Cinco PRs en orden: docs (este), bridge 0.4.0,
+  a propósito; `WebFetch` pasa a `allow` (el plan decía solo comercial; Rafa lo extendió a los tres roles). Cinco PRs en orden: docs (este), bridge 0.4.0,
   motor, app, skills; después, la instalación de Simon.
 
 - **Tareas repetitivas** («todos los días a las 8 am, haz tal cosa»). **Decidido y construido (Rafa,
@@ -751,7 +751,8 @@ Primera prueba con alguien de fuera, instalando desde un DMG sin notarizar. Lo q
   WhatsApp con el mensaje escrito; **Simon pulsa enviar**. Rafa decidió que eso no es enviar (línea
   roja 1 intacta: el puente no cambia). Prospectos de sus propios chats y, si pide un segmento, de la
   web, con el número solo si lo publica la propia empresa. Detalle en `docs/03` §6.3. **Sin probar
-  con trabajo real.**
+  con trabajo real.** *Desde el 7 oct 2026 ofrece además enviar con aprobación (`send_message`); el
+  `wa.me` queda como respaldo, y la línea roja 1 se reescribió (ver «El resto del plan», abajo).*
 - **La mesa del home y los personajes (6 oct 2026; rama `feat/home-mesa`).** Cada rol tiene su personaje (Galeno,
   Wedgwood y Marco Polo, que en la app es «Marco»): su retrato sale en el selector de rol, en el ex libris, en las
   tarjetas y en la cabecera del detalle. El home gana la vista «Mesa» (de fábrica) con un interruptor a «Tarjetas»: una
@@ -881,6 +882,23 @@ día: queda `failed`. (3) **Quien ya tiene Galeno** (tres personas, con agentes 
 activa solo al actualizar. La app detecta los agentes con WhatsApp creados antes del envío, enseña la advertencia
 nueva y, al aceptar, regenera esas carpetas (`memoria/` no se toca) y reinicia `sync`. Es trabajo de los PRs 3 y 4.
 
+**El resto del plan, en un solo PR (7 oct 2026; rama `feat/envio-whatsapp-completo`).** Rafa pidió no dividirlo más.
+*Motor:* WhatsApp es un envío externo (`ExternalSend.whatsappMessage`); sus 9 lecturas van a `allow` por nombre (ya no
+`mcp__whatsapp__*`) y el hook lo cubre; el envío (`--with-send`, `send_message` en `ask`, la regla nueva del `AGENTS.md`
+generado) solo entra si la conexión lleva `sendingAccepted`; los subagentes reciben las lecturas y nunca el envío;
+`WebFetch` en `allow` para los tres roles con la regla de contención; tercer snapshot `sales-es-whatsapp-sheets`.
+*App:* la advertencia nueva (**texto propuesto, pendiente de que Rafa lo apruebe**); en Salud, «Activar envíos…»,
+«Enviados hoy», «Pausar envíos» y «Límites»; aviso en el home para quien ya tenía WhatsApp; las reglas dicen «nunca
+envía por WhatsApp» solo en el agente que lo tiene de solo lectura. *Skills:* `prospectar-lista`, `seguimientos-hoy`,
+`revisar-conversaciones` y `crear-skill` (nuestras, grupo comercial, las cuatro marcadas para ese rol), `prospeccion`
+ajustada, y las curadas de comercial y de web al día (WhatsApp solo con aprobación; abrir una página ya no pregunta).
+`radiografia` y `criterio` son de Simon y entran como skills propias. *Bridge:* los grupos y la guarda de horario, que
+quedaron fuera del PR 55 porque se mergeó antes. **Sin probar:** ningún mensaje ha salido a WhatsApp de verdad, ninguna
+skill nueva se ha corrido con un agente ni con una hoja reales, y `docs/QA.md` §6.7b está sin correr. **Pendiente de
+Rafa:** aprobar el texto de la advertencia; si la pausa debe retener en vez de cancelar la cola; si un mensaje
+pendiente debe caducar; el tope de grupos (10, techo 20). **Ojo:** otra sesión tiene sin commitear un trabajo que
+refresca el bridge al abrir la app (toca `WhatsAppBridge.swift` y `GalenoApp.swift`): chocará con este PR al mezclarse.
+
 **Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
 pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está
 guardado en la rama `feat/licencias`, sin mergear, por si hace falta una prueba gratis o cobrar una versión mayor. Lo
@@ -900,5 +918,5 @@ pagar. **Una licencia, si llega a haberla, cubre agentes ilimitados.** La clave 
 | `docs/04-design-system.md` | Sistema de diseño | Vigente para app y sitio |
 | `docs/QA.md` | Matriz de pruebas de la v0.0.1: cada paso del asistente (caso feliz y errores), «Mac limpio», después del asistente (§3b), resistencia, seguridad y el registro de corridas | Escrita el 5 oct 2026 (Fase 6, paso 1). **Sin recorrer todavía en un usuario limpio** (paso 2) y con la actualización de la app bloqueada hasta Sparkle (Fase 8) |
 | `docs/DEV.md` | Cómo usar `galeno-gen`, la herramienta de desarrollo del motor | Vigente |
-| `docs/09-plan-simon-envio-y-prospeccion.md` | El plan del 7 oct 2026: envío por WhatsApp con aprobación, `WebFetch` para comercial, skills de Simon y tareas programadas; cinco PRs en orden | **Vigente y autorizado por Rafa**; lo que dice ya está en `docs/03` y `AGENTS.md` |
+| `docs/09-plan-simon-envio-y-prospeccion.md` | El plan del 7 oct 2026: envío por WhatsApp con aprobación, `WebFetch` sin preguntar, skills de Simon y tareas programadas, con las enmiendas de Rafa arriba; cinco PRs en orden | **Vigente y autorizado por Rafa**; lo que dice ya está en `docs/03` y `AGENTS.md` |
 | `AGENTS.md` | Guía operativa para el agente en este repo | Vigente |
