@@ -129,6 +129,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - Las skills remotas siguen siendo solo nuestras y curadas, revisadas antes de publicarse.
   Que sean remotas no abre la puerta a contenido de terceros sin revisar.
 - Cambiar una skill no exige build nuevo de la app; cambiar el bridge sí sube su versión.
+- **Sparkle** (`UpdatesModel`, `docs/RELEASE.md`): va fijado a una versión exacta y se sube a propósito, mirando qué
+  cambia. `SUEnableSystemProfiling` se queda en falso y la dirección del appcast no lleva parámetros: una prueba lo
+  comprueba. La app no arranca Sparkle bajo las pruebas ni con la dirección de relleno (`.invalid`). Las claves de
+  Sparkle van en `GalenoApp/Galeno-Info.plist`, que se fusiona con el Info.plist generado. La clave privada EdDSA vive en
+  el llavero de quien publica (cuenta `galeno`); **perderla deja a las apps instaladas sin actualizaciones**, y ningún
+  script la exporta ni la imprime. Cada versión sube `CURRENT_PROJECT_VERSION`.
 
 ### WhatsApp
 
@@ -374,7 +380,9 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   `--deep`. El script no lleva ni pide contraseñas: usa el certificado del llavero y el perfil de `notarytool`; los datos
   de quien firma van en `scripts/release.env`, que no se commitea. **Los entitlements van vacíos a propósito**
   (`GalenoApp/Galeno.entitlements`): sin sandbox, la red y lanzar procesos no los piden; añadir uno exige escribir el
-  motivo en `docs/RELEASE.md`. Si entra un framework (Sparkle), el script se detiene hasta que se le enseñe a firmarlo.
+  motivo en `docs/RELEASE.md`. Sparkle es el único framework que el script sabe firmar (sus cuatro ayudantes, en su
+  orden); con cualquier otro se detiene hasta que se le enseñe. El último paso firma el disco con la clave de Sparkle y
+  actualiza `site/appcast.xml`; se niega a entregar una app con el appcast de relleno salvo con `--sin-actualizaciones`.
 
 ### Skills y licencias
 

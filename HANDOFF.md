@@ -17,7 +17,8 @@ OAuth y el usuario solo inicia sesión** (ventana de Galeno que captura el token
 Gmail y Google siguen en "conectar
 después" y su automatización de navegador está diseñada, no construida (`docs/03` §4e,
 "Diseño de la conexión con app propia"). Las 17 skills nuestras ya están escritas completas
-(Fase 5, 5 oct 2026); las curadas con su licencia siguen pendientes. Faltan Sparkle, la fuente remota
+(Fase 5, 5 oct 2026); las curadas con su licencia siguen pendientes. Sparkle está integrado (falta la dirección del
+appcast). Faltan la fuente remota
 de skills y la distribución.
 Repo privado: `github.com/Rafaell416/galeno`, rama por defecto `main`.
 
@@ -380,8 +381,8 @@ tamaño exacto. Detalle en `docs/04` §12 («Pantallas»).
 - **Variables de entorno de los tokens:** dónde se guardan los valores a los que apunta `.mcp.json`.
 - **Pagos:** falta la compra (Stripe) y cómo se entrega el enlace de descarga. Sin licencias en v0.0.1 (decisión de
   Rafa, 6 oct 2026; el trabajo está aparcado en la rama `feat/licencias`).
-- **Sparkle, pendiente de arrancar:** generar el par de claves EdDSA (la privada fuera del
-  repo) y definir la URL del appcast y la ruta de las skills remotas, en el dominio del sitio.
+- **Sparkle: integrado, falta la dirección del appcast.** La clave está generada y el script publica el appcast, pero
+  la URL es de relleno hasta que exista el sitio (Fase 9). Falta también la ruta de las skills remotas.
 - **Skills remotas, sin diseño:** quién descarga (¿`GalenoApp` llena el directorio que ya
   recibe el motor, o el motor aprende a hablar con la red?), cómo se versionan, dónde vive
   el fallback local y **cómo se verifica su integridad**. La spec exige firma EdDSA para
@@ -808,6 +809,20 @@ contraseña de app de Aquiles, en el llavero de Rafa (perfil `galeno-notary`). *
 descargado, que es la prueba de verdad (fila «Mac limpio» de `docs/QA.md`). Ojo: la app dice ser la versión **1.0**
 (`MARKETING_VERSION`), no la 0.0.1 de los documentos; el DMG toma ese número. `scripts/hacer-dmg-demo.sh` sigue para
 demos sin firma.
+
+**Sparkle (Fase 8, 6 oct 2026; rama `feat/sparkle`).** La app lleva Sparkle 2.10.0: mira el appcast al abrir y desde
+«Buscar actualizaciones…» (menú y Ajustes), sin perfil del sistema ni datos del usuario. La clave EdDSA se generó una
+vez: **la privada está en el llavero de inicio de sesión de Rafa, cuenta `galeno`** (elemento «Private key for signing
+Sparkle updates»); **falta que Rafa guarde una copia**, porque sin ella las apps instaladas se quedan sin
+actualizaciones. No se subió como secreto de GitHub: hoy el release corre en su Mac y no hay flujo que la use; el
+comando está en `docs/RELEASE.md`. `scripts/build-release.sh` firma las piezas de Sparkle, firma el disco y actualiza
+`site/appcast.xml` con las notas, que dicen si el bridge cambió. **Comprobado:** Apple notarizó la app con Sparkle
+dentro; el paso del appcast se probó contra un disco real con una dirección de prueba (entrada firmada, firma
+verificada, historial conservado, cambio de versión del bridge detectado). **Sin probar:** una actualización de verdad
+de punta a punta —una app instalada que vea una versión nueva, la descargue y se reemplace—, porque no hay sitio donde
+publicar el appcast. **La dirección del appcast es de relleno** hasta la Fase 9: con ella la app no busca
+actualizaciones y el script se niega a entregar salvo con `--sin-actualizaciones`. El bridge ya tenía su subcomando
+`version` (va por la 0.3.0) y Salud ya lo mostraba.
 
 **Licencias: aparcadas (decisión de Rafa, 6 oct 2026).** La v0.0.1 se vende como «paga, descarga y usa», sin clave ni
 pantalla de activación. El trabajo (verificación Ed25519, herramienta de firma, pantalla con prueba de 7 días) está

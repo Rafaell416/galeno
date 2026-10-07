@@ -100,6 +100,15 @@ se puede usar, pero no impedir que otro la copie.
 La silueta del agente sin carpeta es un dibujo propio hecho en código (`MesaDrawing`), igual que la mesa y las
 figuras de línea que salen si falta una lámina.
 
+## Sparkle (las actualizaciones)
+
+[Sparkle](https://github.com/sparkle-project/Sparkle) 2.10.0, el framework estándar de actualizaciones para apps de Mac
+fuera de la tienda. Entra como paquete de Swift, fijado a esa versión exacta (`Package.resolved`), y va dentro de la
+app en `Contents/Frameworks/Sparkle.framework`. **Licencia MIT** (verificada en el `LICENSE` del paquete: Andy
+Matuschak, Elgato, Kornel Lesiński, Mayur Pawashe y otros); el mismo archivo recoge las de las piezas que Sparkle trae
+dentro (bspatch, ed25519, SUSignatureVerifier). El aviso de licencia tiene que acompañar a la app: va en «Acerca de»
+cuando exista esa ventana.
+
 ## Icono de la app
 
 `Galeno/Assets.xcassets/AppIcon.appiconset` usa el mismo retrato de Vigneron (dominio público), en su círculo
