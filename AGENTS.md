@@ -91,6 +91,9 @@ make -C whatsapp-bridge universal   # build universal arm64+amd64 (requiere macO
 # esta es la versión de texto para revisar el código fuente a mano.
 grep -rnE 'client\.SendMessage\(|client\.Upload\(|/api/send|MarkRead|SendPresence|SendChatPresence' whatsapp-bridge --include="*.go"
 
+# Entregar: compila, firma, DMG, notariza y verifica (docs/RELEASE.md). --ensayo no necesita certificado.
+scripts/build-release.sh --ensayo
+
 # Búsqueda de secretos antes de commitear
 git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PRIVATE KEY"
 ```
@@ -366,7 +369,12 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   `\.accessibilityReduceMotion`. Cada ventana lleva `.motionPreference()` en su raíz.
 - Una cita de Galeno solo entra a la interfaz si está verificada en su fuente; las apócrifas circulan mucho.
 - El motor se prueba con respuestas del wizard como entrada y la config esperada como salida.
-- Lo que se distribuye va firmado y notarizado, incluido el binario Go.
+- Lo que se distribuye va firmado y notarizado, incluido el binario Go: lo hace `scripts/build-release.sh`
+  (`docs/RELEASE.md`). **Se firma de dentro hacia fuera** (el bridge, después la app, después el DMG) y nunca con
+  `--deep`. El script no lleva ni pide contraseñas: usa el certificado del llavero y el perfil de `notarytool`; los datos
+  de quien firma van en `scripts/release.env`, que no se commitea. **Los entitlements van vacíos a propósito**
+  (`GalenoApp/Galeno.entitlements`): sin sandbox, la red y lanzar procesos no los piden; añadir uno exige escribir el
+  motivo en `docs/RELEASE.md`. Si entra un framework (Sparkle), el script se detiene hasta que se le enseñe a firmarlo.
 
 ### Skills y licencias
 

@@ -27,6 +27,9 @@ go.work.sum
 # ignorar la carpeta entera).
 /whatsapp-bridge/whatsapp-bridge
 
+# Los datos de firma de quien compila (certificado, Team ID, perfil de notarización). No son secretos, pero son suyos.
+/scripts/release.env
+
 # Secretos y tokens: nunca al repo
 .env
 .env.*
