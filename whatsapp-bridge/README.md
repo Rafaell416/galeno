@@ -1,7 +1,9 @@
 # whatsapp-bridge
 
-Un único binario Go: el puente de WhatsApp (`whatsmeow`, QR, SQLite) y un servidor MCP de
-**solo lectura**, con siete subcomandos.
+Un único binario Go: el puente de WhatsApp (`whatsmeow`, QR, SQLite) y un servidor MCP con siete subcomandos.
+**Hasta la 0.3.0 (la actual) es de solo lectura.** Desde la 0.4.0 tendrá **un** envío, `send_message`, por una
+bandeja de salida y con guardas en el código (decisión de Rafa, 7 oct 2026; el diseño está en
+`docs/09-plan-simon-envio-y-prospeccion.md` §4). Lo que sigue describe la 0.3.0; se actualiza con ese cambio.
 
 ```bash
 galeno-whatsapp pair             # Vincula este Mac con tu WhatsApp (muestra un QR)
@@ -89,7 +91,8 @@ y eso es una mala experiencia. Elegir chats en el wizard le dice al agente en qu
 en su `AGENTS.md`); no le quita acceso a los demás. Si hace falta una barrera algún día, la
 opción es una lista de **exclusión** (chats privados que nunca ve), no de inclusión.
 
-**No existen** `send_message`, `send_file` ni `send_audio_message`. Ocho de las nueve leen
+**No existen** (en la 0.3.0) `send_message`, `send_file` ni `send_audio_message`; `send_file` y `send_audio_message`
+no volverán. Ocho de las nueve leen
 directo de la base local (`queries.go`); `download_media` llama a la función Go que ya
 descarga medios (`media.go`) — en upstream esto eran dos procesos que se hablaban por HTTP
 (Python ↔ Go); aquí es una sola llamada de función, en el mismo proceso.
@@ -149,6 +152,12 @@ Verificado de verdad, no solo diseñado así: corriendo `status` con los dos flu
 stdout lleva exactamente la salida, stderr lleva exactamente los logs.
 
 ## Garantías de solo lectura
+
+> **Vigentes en la 0.3.0.** En la 0.4.0 cambian así (`docs/09` §4.5): `client.SendMessage(` se permite **solo** en
+> `outbox.go`; `client.Upload(`, `/api/send`, `MarkRead`, `SendPresence` y `SendChatPresence` siguen prohibidos en todo
+> el bridge; `TestNoSendSymbolsInOurOwnCode` pasa a ser `TestOnlyAllowedSendSymbols`, con una lista blanca exacta de
+> los símbolos del envío. Las guardas del envío (solo chats individuales, topes con techo fijo, horario, espaciado,
+> texto repetido, largo máximo, pausa) viven en el código, no en el prompt.
 
 - **Ya podado del fork**: se eliminaron —no se comentaron— `sendWhatsAppMessage`, el
   handler `/api/send` (ya no existe ningún servidor HTTP: ver arriba), y las funciones que
