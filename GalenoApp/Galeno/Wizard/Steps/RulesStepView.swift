@@ -11,7 +11,7 @@ struct RulesStepView: View {
     @Environment(\.locale) private var locale
 
     private var agentName: String { wizard.agentName.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var hasNever: Bool { wizard.connectedTools.contains(.whatsapp) }
+    private var hasNever: Bool { wizard.whatsAppIsReadOnly }
 
     var body: some View {
         StepScaffold(step: .rules, summarySize: 15, titleGap: 6, contentGap: 14) {
@@ -37,7 +37,7 @@ struct RulesStepView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Lo que nunca pasa: WhatsApp no tiene código de envío.
+    /// Lo que nunca pasa en un agente que tiene WhatsApp solo para leer (el envío sin aceptar).
     private var neverContent: some View {
         lead("rules.never.title", Text("rules.never.body \(agentName)"))
     }

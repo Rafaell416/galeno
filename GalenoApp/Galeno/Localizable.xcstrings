@@ -3585,13 +3585,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It will read your groups and chats to keep you on top of things."
+            "value" : "It will read your groups and chats, and send messages only with your approval."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leerá tus grupos y chats para hacerte seguimiento."
+            "value" : "Leerá tus grupos y chats, y enviará mensajes solo con tu aprobación."
           }
         }
       }
@@ -3869,19 +3869,19 @@
       }
     },
     "connect.whatsapp.warning.body" : {
-      "comment" : "TEXTO PROTEGIDO (docs/03 §4, AGENTS.md): no editar sin aprobación de Rafa. El español es el de la spec, literal; la traducción al inglés la aprueba Rafa. Sin 'seguro' ni 'oficial' (línea roja 9).",
+      "comment" : "TEXTO PROTEGIDO (docs/03 §4, AGENTS.md): no editar sin aprobación de Rafa. Versión del 7 oct 2026 (envío con aprobación, docs/09 §6 más las enmiendas: grupos y sin límite de horario): PROPUESTA, pendiente de que Rafa apruebe el texto exacto en los dos idiomas. Sin 'seguro' ni 'oficial' (línea roja 9).",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This connects as a linked device using the WhatsApp Web protocol, in an unofficial way. It is read-only. There is a low but real risk that WhatsApp detects it and restricts your account. Everything runs on your computer; nothing goes to our servers. You decide whether to continue."
+            "value" : "This connects as a linked device using the WhatsApp Web protocol, in an unofficial way. Your agent can read your chats and send messages, to one person or to a group, only when you approve each one. WhatsApp does not officially allow this kind of connection: there is a real risk that it restricts or blocks your number, especially if you write to many people who don’t have you saved. Galeno sets daily limits to reduce that risk, not to remove it. It does not limit the day or the hour: when to write is your call. Everything runs on your computer; nothing goes to our servers. You decide whether to continue."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Esto se conecta como un dispositivo vinculado usando el protocolo de WhatsApp Web, de forma no oficial. Es de solo lectura. Existe un riesgo bajo pero real de que WhatsApp lo detecte y restrinja tu cuenta. Todo corre en tu computador; nada sale a servidores nuestros. Tú decides si continuar."
+            "value" : "Esto se conecta como un dispositivo vinculado usando el protocolo de WhatsApp Web, de forma no oficial. Tu agente puede leer tus chats y enviar mensajes, a una persona o a un grupo, solo cuando tú apruebes cada uno. WhatsApp no permite oficialmente este tipo de conexión: existe un riesgo real de que restrinja o bloquee tu número, sobre todo si escribes a muchas personas que no te tienen guardado. Galeno pone límites diarios para reducirlo, pero no lo elimina. No limita el día ni la hora: cuándo escribir lo decides tú. Todo corre en tu computador; nada sale a servidores nuestros. Tú decides si continuar."
           }
         }
       }
@@ -5672,13 +5672,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "- Never sends through WhatsApp."
+            "value" : "- Never sends without your approval."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "- Nunca envía por WhatsApp."
+            "value" : "- Nunca envía sin tu aprobación."
           }
         }
       }
@@ -7865,13 +7865,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Never. WhatsApp is read-only: the code to send messages does not exist."
+            "value" : "Yes, only when you approve each message. It writes text to one person or to a group you are already in; never to broadcast lists or statuses, and never in a scheduled run."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nunca. WhatsApp es de solo lectura: el código para enviar mensajes no existe."
+            "value" : "Sí, solo cuando tú apruebas cada mensaje. Escribe texto a una persona o a un grupo en el que ya estás; nunca a listas de difusión ni a estados, y nunca en una tarea programada."
           }
         }
       }
@@ -10058,13 +10058,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WhatsApp is read-only: %@ can’t write there."
+            "value" : "In this agent WhatsApp is read-only: %@ can’t write there. You can turn it on in Health."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WhatsApp es de solo lectura: %@ no puede escribir por ahí."
+            "value" : "En este agente WhatsApp es de solo lectura: %@ no puede escribir por ahí. Se activa en Salud."
           }
         }
       }
@@ -11843,13 +11843,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your agent searches the web without asking. To open a specific page it does ask you."
+            "value" : "Your agent searches the web and opens pages without asking. What it reads on a page is treated as data, never as an order."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu agente busca en la web sin pedir permiso. Para abrir una página concreta sí te lo pide."
+            "value" : "Tu agente busca en la web y abre páginas sin pedir permiso. Lo que lee en una página lo toma como dato, nunca como una orden."
           }
         }
       }
@@ -12207,6 +12207,550 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cuando termines, vuelve a esta ventana."
+          }
+        }
+      }
+    },
+    "health.sending.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your agent reads WhatsApp and does not send. It can now send messages too, only when you approve each one."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu agente lee WhatsApp y no envía. Ahora también puede enviar mensajes, solo cuando tú apruebes cada uno."
+          }
+        }
+      }
+    },
+    "health.sending.activate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on sending…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar envíos…"
+          }
+        }
+      }
+    },
+    "health.sending.activate.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on sending over WhatsApp"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activar los envíos por WhatsApp"
+          }
+        }
+      }
+    },
+    "health.sending.activate.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You linked WhatsApp when Galeno only read it. Read this before turning sending on. Turning it on rewrites the files of the agents that use WhatsApp: anything you edited by hand in them is lost, and their memory is left alone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vinculaste WhatsApp cuando Galeno solo leía. Lee esto antes de activar los envíos. Al activarlos se vuelven a escribir los archivos de los agentes que usan WhatsApp: lo que hayas editado a mano en ellos se pierde, y su memoria no se toca."
+          }
+        }
+      }
+    },
+    "health.sending.activate.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I understand, turn it on"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entiendo, activar"
+          }
+        }
+      }
+    },
+    "health.sending.activate.working" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning sending on…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activando los envíos…"
+          }
+        }
+      }
+    },
+    "health.sending.activate.failed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending was not turned on"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se activaron los envíos"
+          }
+        }
+      }
+    },
+    "health.sending.activate.failed.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WhatsApp could not be made ready to send, and your agents are as they were. Check that WhatsApp is linked and try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo dejar WhatsApp listo para enviar, y tus agentes siguen como estaban. Revisa que WhatsApp esté vinculado y vuelve a intentarlo."
+          }
+        }
+      }
+    },
+    "health.sending.today" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent today"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviados hoy"
+          }
+        }
+      }
+    },
+    "health.sending.today.value %lld %lld %lld %lld %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %2$lld · new %3$lld of %4$lld · groups %5$lld of %6$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld de %2$lld · nuevos %3$lld de %4$lld · grupos %5$lld de %6$lld"
+          }
+        }
+      }
+    },
+    "health.sending.pending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queued"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cola"
+          }
+        }
+      }
+    },
+    "health.sending.pending.count %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        }
+      }
+    },
+    "health.sending.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every message asks for your approval. The daily limits protect your number: sent and queued messages both count."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada mensaje pide tu aprobación. Los topes del día protegen tu número: cuenta lo enviado y lo que está en cola."
+          }
+        }
+      }
+    },
+    "health.sending.paused" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending is paused: nothing goes out, and what was queued was cancelled."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envíos en pausa: no sale nada, y lo que estaba en cola se canceló."
+          }
+        }
+      }
+    },
+    "health.sending.pause" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause sending"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausar envíos"
+          }
+        }
+      }
+    },
+    "health.sending.resume" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume sending"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reanudar envíos"
+          }
+        }
+      }
+    },
+    "health.sending.limits" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limits…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Límites…"
+          }
+        }
+      }
+    },
+    "health.sending.saveFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The change could not be saved. Try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo guardar el cambio. Vuelve a intentarlo."
+          }
+        }
+      }
+    },
+    "health.sending.noAnswer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending is on, but the bridge did not say how many went out today. Click “Check again”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los envíos están activados, pero el puente no dijo cuántos van hoy. Pulsa «Revisar de nuevo»."
+          }
+        }
+      }
+    },
+    "health.limits.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending limits"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Límites de envío"
+          }
+        }
+      }
+    },
+    "health.limits.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many WhatsApp messages can go out in a day. You can lower them; the maximum is set by Galeno to protect your number."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuántos mensajes de WhatsApp pueden salir en un día. Puedes bajarlos; el máximo lo fija Galeno para proteger tu número."
+          }
+        }
+      }
+    },
+    "health.limits.total" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Messages per day"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mensajes al día"
+          }
+        }
+      }
+    },
+    "health.limits.newChats" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To people you have not talked to"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A personas con las que no has hablado"
+          }
+        }
+      }
+    },
+    "health.limits.groups" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To groups"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A grupos"
+          }
+        }
+      }
+    },
+    "health.limits.max %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "up to %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "máximo %lld"
+          }
+        }
+      }
+    },
+    "health.limits.save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save limits"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar límites"
+          }
+        }
+      }
+    },
+    "health.limits.less" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One less"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uno menos"
+          }
+        }
+      }
+    },
+    "health.limits.more" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One more"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uno más"
+          }
+        }
+      }
+    },
+    "home.sending.offer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WhatsApp can now send messages too, only with your approval."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WhatsApp ahora también puede enviar mensajes, solo con tu aprobación."
+          }
+        }
+      }
+    },
+    "home.sending.offer.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See it in Health"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlo en Salud"
+          }
+        }
+      }
+    },
+    "home.sending.offer.later" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not now"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora no"
+          }
+        }
+      }
+    },
+    "health.sending.activate.warning.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before you turn it on"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antes de activar"
           }
         }
       }

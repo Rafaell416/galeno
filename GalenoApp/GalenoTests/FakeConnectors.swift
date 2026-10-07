@@ -295,6 +295,55 @@ final class FakeWhatsApp: WhatsAppLinking, @unchecked Sendable {
             return value
         }
     }
+
+    // La bandeja de salida. `nil` es un bridge que no contesta (o anterior a la 0.4.0).
+    private var outboxValue: WhatsAppOutbox?
+    private var sendingError: WhatsAppBridgeError?
+    var reportedOutbox: WhatsAppOutbox? {
+        get { lock.withLock { outboxValue } }
+        set { lock.withLock { outboxValue = newValue } }
+    }
+    var failSendingChanges: WhatsAppBridgeError? {
+        get { lock.withLock { sendingError } }
+        set { lock.withLock { sendingError = newValue } }
+    }
+
+    /// Una bandeja con los topes de fábrica y nada enviado.
+    static let emptyOutbox = WhatsAppOutbox(
+        isPaused: false,
+        limits: WhatsAppOutbox.Limits(
+            dailyTotal: 40, dailyNewChats: 15, dailyGroups: 10, maxDailyTotal: 80, maxDailyNewChats: 25,
+            maxDailyGroups: 20),
+        sentToday: 0, pendingToday: 0, newChatsToday: 0, groupsToday: 0, pendingTotal: 0)
+
+    func outbox() async -> WhatsAppOutbox? {
+        lock.withLock {
+            recorded.append("outbox")
+            return outboxValue
+        }
+    }
+
+    func setSendingPaused(_ paused: Bool) async throws {
+        let error: WhatsAppBridgeError? = lock.withLock {
+            recorded.append("pause:\(paused)")
+            return sendingError
+        }
+        if let error { throw error }
+        lock.withLock { outboxValue?.isPaused = paused }
+    }
+
+    func setSendLimits(dailyTotal: Int, dailyNewChats: Int, dailyGroups: Int) async throws {
+        let error: WhatsAppBridgeError? = lock.withLock {
+            recorded.append("limits:\(dailyTotal),\(dailyNewChats),\(dailyGroups)")
+            return sendingError
+        }
+        if let error { throw error }
+        lock.withLock {
+            outboxValue?.limits.dailyTotal = dailyTotal
+            outboxValue?.limits.dailyNewChats = dailyNewChats
+            outboxValue?.limits.dailyGroups = dailyGroups
+        }
+    }
 }
 
 /// `SlackAppSetting` con guion. Guarda **solo en la prueba** copias de los valores que vio, para

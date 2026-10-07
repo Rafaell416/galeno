@@ -13,6 +13,77 @@ final class WhatsAppBridgeTests: XCTestCase {
             try WhatsAppBridge.parseLinkState("Sin vincular. Corre: galeno-whatsapp pair\n"), .notLinked)
     }
 
+    // MARK: - La bandeja de salida
+
+    /// La forma exacta de `galeno-whatsapp outbox --json` (bridge 0.4.0).
+    func testParsesTheOutbox() throws {
+        let json = """
+            {
+              "paused": true,
+              "limits": {
+                "daily_total": 30, "daily_new_chats": 15, "daily_groups": 4,
+                "max_daily_total": 80, "max_daily_new_chats": 25, "max_daily_groups": 20
+              },
+              "today": { "sent": 12, "pending": 3, "new_chats": 7, "groups": 2 },
+              "pending_total": 5,
+              "recent": [
+                { "id": 15, "chat_jid": "573001112233@s.whatsapp.net", "status": "pending", "is_new_chat": true,
+                  "created_at": "2026-10-07T10:02:11-05:00", "not_before": "2026-10-07T10:03:40-05:00" }
+              ]
+            }
+            """
+
+        let outbox = try XCTUnwrap(WhatsAppBridge.parseOutbox(jsonOutput: json))
+
+        XCTAssertTrue(outbox.isPaused)
+        XCTAssertEqual(
+            outbox.limits,
+            WhatsAppOutbox.Limits(
+                dailyTotal: 30, dailyNewChats: 15, dailyGroups: 4, maxDailyTotal: 80, maxDailyNewChats: 25,
+                maxDailyGroups: 20))
+        XCTAssertEqual(outbox.sentToday, 12)
+        XCTAssertEqual(outbox.pendingToday, 3)
+        XCTAssertEqual(outbox.usedToday, 15)
+        XCTAssertEqual(outbox.newChatsToday, 7)
+        XCTAssertEqual(outbox.groupsToday, 2)
+        XCTAssertEqual(outbox.pendingTotal, 5)
+    }
+
+    /// Un bridge anterior a la 0.4.0 no conoce `outbox`, y otro programa no es el bridge: no se inventa nada.
+    func testAnOutboxThatIsNotTheExpectedShapeIsNotGuessed() {
+        XCTAssertNil(WhatsAppBridge.parseOutbox(jsonOutput: ""))
+        XCTAssertNil(WhatsAppBridge.parseOutbox(jsonOutput: "Subcomando desconocido: outbox"))
+        XCTAssertNil(WhatsAppBridge.parseOutbox(jsonOutput: #"{"paused":false}"#))
+    }
+
+    private func bridge(stateDirectory: URL) -> WhatsAppBridge {
+        WhatsAppBridge(
+            installer: BridgeInstaller(source: nil, destination: URL(fileURLWithPath: "/bridge/galeno-whatsapp")),
+            runner: FakeRunner([:]), stateDirectory: stateDirectory)
+    }
+
+    /// La pausa y los límites son dos archivos en el directorio de estado del bridge, con los nombres que él mira.
+    func testPauseAndLimitsAreTheFilesTheBridgeLooksAt() async throws {
+        let state = FileManager.default.temporaryDirectory
+            .appendingPathComponent("galeno-bridge-state-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: state) }
+        let bridge = bridge(stateDirectory: state)
+        let pause = state.appendingPathComponent("send-paused")
+        let limits = state.appendingPathComponent("send-limits.json")
+
+        try await bridge.setSendingPaused(true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: pause.path))
+        try await bridge.setSendingPaused(true)  // dos veces no falla
+        try await bridge.setSendingPaused(false)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: pause.path))
+        try await bridge.setSendingPaused(false)  // quitar una pausa que no hay tampoco
+
+        try await bridge.setSendLimits(dailyTotal: 10, dailyNewChats: 3, dailyGroups: 0)
+        let written = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(contentsOf: limits)) as? [String: Int])
+        XCTAssertEqual(written, ["daily_total": 10, "daily_new_chats": 3, "daily_groups": 0])
+    }
+
     func testParsesStatusEvenWithLogNoiseAround() throws {
         let noisy = "2026/10/03 INFO abriendo bases\nVinculado como 573001234567.\notro log\n"
 

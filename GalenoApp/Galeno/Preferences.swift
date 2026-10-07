@@ -15,6 +15,8 @@ enum Prefs {
     /// Cuándo cambió «Gestionar» las herramientas de cada agente (id → segundos Unix). Una conversación que la
     /// app de Claude tenga abierta desde antes no las ve: al abrir ese agente, Claude se reinicia.
     static let toolsChangedAt = "GalenoAgentToolsChangedAt"
+    /// El usuario cerró el aviso del home que ofrece activar los envíos por WhatsApp.
+    static let sendingOfferDismissed = "GalenoSendingOfferDismissed"
     /// Cómo se ve el home: la mesa con los personajes o las tarjetas (`HomeLayout`).
     static let homeLayout = "GalenoHomeLayout"
 }

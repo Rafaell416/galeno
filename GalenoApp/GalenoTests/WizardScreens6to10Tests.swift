@@ -187,7 +187,8 @@ final class WizardScreens6to10Tests: XCTestCase {
 
     func testExternalSendingToolsAreListedAndCannotBeConfigured() {
         let state = makeState(tools: [.slack, .gmail, .whatsapp, .notion])
-        XCTAssertEqual(state.externalSendTools, [.slack, .gmail])
+        // WhatsApp entra: en el asistente solo queda conectado tras aceptar la advertencia que dice que envía.
+        XCTAssertEqual(state.externalSendTools, [.slack, .gmail, .whatsapp])
         // El tipo no tiene forma de expresar «enviar sin preguntar».
         for send in ExternalSend.allCases { XCTAssertEqual(state.sendingRules.policy(for: send), .ask) }
     }

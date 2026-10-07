@@ -426,8 +426,14 @@ struct RulesSection: View {
     @Environment(\.locale) private var locale
 
     private var tools: [Tool] { model.config?.connectedTools ?? [] }
-    private var externalTools: [Tool] { tools.filter { $0.externalSend != nil } }
+    private var externalTools: [Tool] {
+        (model.config?.connectedConnections ?? []).filter(\.sendsToOthers).map(\.tool)
+    }
     private var readsFreely: [Tool] { model.config?.toolsReadingWithoutAsking ?? [] }
+    /// WhatsApp conectado sin el envío aceptado: ese agente solo lo lee.
+    private var whatsAppIsReadOnly: Bool {
+        (model.config?.connectedConnections ?? []).contains { $0.tool == .whatsapp && !$0.sendsToOthers }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -437,7 +443,7 @@ struct RulesSection: View {
                     detail: externalTools.isEmpty ? nil : Localized.string(
                         "rules.external.tools %@", externalTools.map { $0.displayName(in: model.language) }.joined(separator: ", "),
                         locale: locale))
-                if tools.contains(.whatsapp) {
+                if whatsAppIsReadOnly {
                     fixedRow(
                         title: "rules.never.title", body: Text("rules.never.body \(model.name)"), detail: nil)
                 }

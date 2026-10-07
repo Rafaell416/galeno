@@ -175,8 +175,8 @@ private struct ToolCard: View {
 }
 
 /// Lo que el agente trae sin conectar nada: hoy, la búsqueda web. Tiene la forma de una tarjeta marcada, pero no
-/// es un botón: no hay nada que elegir ni que autorizar. El agente busca sin pedir permiso; abrir una página
-/// concreta sí lo pide (`SettingsRenderer.allowedWebTools`).
+/// es un botón: no hay nada que elegir ni que autorizar. El agente busca y abre páginas sin pedir permiso
+/// (`SettingsRenderer.allowedWebTools`).
 private struct IncludedToolCard: View {
     @Environment(\.locale) private var locale
 

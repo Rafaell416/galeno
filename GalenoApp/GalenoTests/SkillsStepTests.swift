@@ -81,7 +81,7 @@ final class SkillsStepTests: XCTestCase {
     func testEveryBundledSkillHasItsDrawingAndItsPreview() throws {
         let directory = try XCTUnwrap(SkillsLocation.bundled(), "las skills van dentro de la app")
         let catalog = try SkillCatalog.load(from: directory)
-        XCTAssertEqual(catalog.galeno.count, 18)
+        XCTAssertEqual(catalog.galeno.count, 22, "17 de producto y 5 de comercial")
         // Todas las que tienen tarjeta, también las de terceros: ninguna sale con el símbolo genérico.
         for skill in catalog.cards {
             XCTAssertTrue(SkillIcon.hasDrawing(skill.id), "\(skill.id) no tiene dibujo")
@@ -104,9 +104,9 @@ final class SkillsStepTests: XCTestCase {
         let cards = catalog.skills(in: marketing)
 
         XCTAssertEqual(cards.count, 10)
-        XCTAssertEqual(catalog.cards.count, 44, "18 nuestras, 10 de marketing y 16 de comercial")
+        XCTAssertEqual(catalog.cards.count, 48, "22 nuestras, 10 de marketing y 16 de comercial")
         let sales = try XCTUnwrap(catalog.groups.first { $0.id == "sales" })
-        XCTAssertEqual(catalog.skills(in: sales).count, 17, "16 de Anthropic y /prospeccion, nuestra")
+        XCTAssertEqual(catalog.skills(in: sales).count, 21, "16 de Anthropic y 5 nuestras: /prospeccion y las de docs/09 §7")
         XCTAssertEqual(catalog.missingFiles(in: directory), [], "cada una con su SKILL.md dentro de la app")
         for card in cards {
             XCTAssertEqual(card.source, .curated)
