@@ -99,6 +99,7 @@ grep -rnE 'client\.Upload\(|/api/send|MarkRead|SendPresence|SendChatPresence' wh
 
 # Entregar: compila, firma, DMG, notariza y verifica (docs/RELEASE.md). --ensayo no necesita certificado.
 scripts/build-release.sh --ensayo
+# A quien ya tenía Galeno se le manda además scripts/instalar-desde-cero.sh (docs/RELEASE.md, «Entregar a mano»).
 
 # Búsqueda de secretos antes de commitear
 git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PRIVATE KEY"
@@ -386,7 +387,8 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   mismo agente** y la Revisión avisa antes de guardar que lo editado a mano se pierde y que `memoria/` no se toca. No pasar contexto
   traído (`importedContext`) al guardar, y no habilitarlo si la carpeta no existe.
 - La vista de salud (`HealthModel`, `docs/03` §3b) **diagnostica y solo actúa si el usuario lo pide**: «Reconectar» una herramienta y
-  «Re-vincular» WhatsApp. El estado de un **conector de la cuenta de Claude** nunca sale de `claude mcp list` (lo da por conectado sin
+  «Re-vincular» WhatsApp y, si `sync` no corre, «Reiniciar servicio» (vuelve a cargar el servicio con el bridge al día;
+  nunca toca la sesión ni `messages.db`). El estado de un **conector de la cuenta de Claude** nunca sale de `claude mcp list` (lo da por conectado sin
   estarlo): sale del arranque de una sesión (`ClaudeSessionProbe`). Si no se pudo averiguar, se dice «Sin saber», jamás «Conectada».
   Reconectar no pisa un servidor ajeno con el mismo nombre ni registra a ciegas una herramienta con app OAuth propia (Slack: se rehace
   desde «Gestionar»). Re-vincular WhatsApp enseña antes la advertencia de siempre (el mismo texto) y, para cerrar la sesión, detiene `sync`

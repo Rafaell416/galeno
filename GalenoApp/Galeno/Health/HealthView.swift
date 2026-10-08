@@ -152,6 +152,18 @@ struct HealthView: View {
                 Text("health.whatsapp.syncHint").font(Typo.text(13)).foregroundStyle(Color.ink500)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if model.canRestartSync {
+                if model.syncRestartFailed {
+                    Text("health.whatsapp.syncRestartFailed").font(Typo.text(13)).foregroundStyle(Color.ochre700)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack {
+                    Button("health.whatsapp.syncRestart") { model.restartSync() }
+                        .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 16, isLoading: model.isRestartingSync))
+                        .disabled(model.isRestartingSync || model.relink != .idle || model.activation != .idle)
+                    Spacer(minLength: 0)
+                }
+            }
             HStack {
                 Button(LocalizedStringKey(health.isLinked ? "health.whatsapp.relink" : "health.whatsapp.link")) { model.askRelink() }
                     .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 16))

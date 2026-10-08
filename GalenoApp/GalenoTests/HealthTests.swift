@@ -462,6 +462,68 @@ final class HealthTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(model.whatsapp).isLinked)
     }
 
+    // MARK: - WhatsApp: reiniciar el servicio de fondo
+
+    /// El reinicio al abrir la app puede fallar y dejar `sync` sin cargar. Salud lo ofrece arreglar sin re-vincular: no
+    /// cierra la sesión ni vincula, solo vuelve a cargar el servicio con el bridge al día.
+    func testASyncThatIsNotRunningCanBeRestartedWithoutRelinking() async throws {
+        _ = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        bridge.reportedSync = .stopped
+        let model = makeModel(whatsapp: bridge)
+        await model.check()
+        XCTAssertTrue(model.canRestartSync)
+
+        let done = await model.restartSyncNow()
+
+        XCTAssertTrue(done)
+        XCTAssertEqual(model.whatsapp?.sync, .running)
+        XCTAssertFalse(model.canRestartSync, "ya corre: el botón se va")
+        // Primero el bridge al día y después el servicio; luego Salud vuelve a mirar (y eso llama a `prepare` otra vez).
+        let calls = bridge.calls.filter { ["prepare", "installLaunchd", "unlink", "pair"].contains($0) }
+        let load = try XCTUnwrap(calls.firstIndex(of: "installLaunchd"))
+        XCTAssertGreaterThan(load, 0)
+        XCTAssertEqual(calls[load - 1], "prepare")
+        XCTAssertEqual(calls.filter { $0 == "installLaunchd" }.count, 1)
+        XCTAssertFalse(calls.contains("unlink") || calls.contains("pair"), "la sesión no se toca")
+    }
+
+    func testRestartingIsOnlyOfferedWithASessionAndASyncThatIsNotRunning() async throws {
+        _ = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
+        let bridge = FakeWhatsApp()
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        bridge.reportedSync = .running
+        let running = makeModel(whatsapp: bridge)
+        await running.check()
+        XCTAssertFalse(running.canRestartSync)
+
+        bridge.reportedSync = .notInstalled
+        await running.check()
+        XCTAssertTrue(running.canRestartSync, "sin cargar también se puede arrancar")
+
+        bridge.reportedStatus = WhatsAppStatus(isLinked: false, number: nil, linkedAt: nil, bridgeVersion: "0.4.2")
+        await running.check()
+        XCTAssertFalse(running.canRestartSync, "sin sesión no hay nada que arrancar: se vincula")
+    }
+
+    func testAFailedRestartIsSaidAndLeavesTheSessionAlone() async throws {
+        _ = try install([ToolConnection(tool: .whatsapp, status: .connected, sources: .everything)])
+        let bridge = FakeWhatsApp(installError: .launchdFailed("no pudo"))
+        bridge.reportedStatus = linkedStatus(daysAgo: 3)
+        bridge.reportedSync = .stopped
+        let model = makeModel(whatsapp: bridge)
+        await model.check()
+
+        model.restartSync()
+        let said = await waitUntil { model.syncRestartFailed && !model.isRestartingSync }
+
+        XCTAssertTrue(said)
+        XCTAssertEqual(model.whatsapp?.sync, .stopped)
+        XCTAssertTrue(model.whatsapp?.isLinked == true, "la sesión sigue vinculada")
+        XCTAssertTrue(model.canRestartSync, "se puede volver a intentar")
+    }
+
     // MARK: - WhatsApp: activar los envíos
 
     private final class Changed { var agents: [UUID] = [] }

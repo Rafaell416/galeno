@@ -152,6 +152,11 @@ final class HealthModel: ObservableObject {
     }
 
     @Published private(set) var activation: SendingActivation = .idle
+
+    /// «Reiniciar servicio»: volver a arrancar `sync` cuando no está corriendo, sin re-vincular. Lo necesita quien
+    /// recibe un bridge nuevo y el reinicio al abrir la app no lo consiguió.
+    @Published private(set) var isRestartingSync = false
+    @Published private(set) var syncRestartFailed = false
     /// Guardando la pausa o los límites.
     @Published private(set) var isSavingSending = false
     @Published private(set) var sendingSaveFailed = false
@@ -332,6 +337,42 @@ final class HealthModel: ObservableObject {
         let outbox = whatsappSendingAccepted && found?.isLinked == true ? await whatsappBridge.outbox() : nil
         whatsapp = WhatsAppHealth(
             status: found, sync: state, sendingAccepted: whatsappSendingAccepted, outbox: outbox)
+    }
+
+    // MARK: - WhatsApp: servicio de fondo
+
+    /// ¿Se puede ofrecer «Reiniciar servicio»? Hay sesión vinculada y `sync` no está corriendo.
+    var canRestartSync: Bool {
+        guard let health = whatsapp else { return false }
+        return health.isLinked && health.sync != .running
+    }
+
+    /// «Reiniciar servicio»: deja el bridge al día y vuelve a cargar `sync` (`install-launchd`, que es idempotente).
+    /// **No toca la sesión ni `messages.db`**: no cierra ni vincula nada.
+    func restartSync() {
+        guard canRestartSync, !isRestartingSync else { return }
+        isRestartingSync = true
+        syncRestartFailed = false
+        Task { [weak self] in
+            guard let self else { return }
+            let done = await self.restartSyncNow()
+            self.syncRestartFailed = !done
+            self.isRestartingSync = false
+        }
+    }
+
+    /// Lo mismo, esperable (las pruebas). Se vuelve a mirar el estado, porque `install-launchd` puede salir bien y el
+    /// servicio no quedar corriendo.
+    func restartSyncNow() async -> Bool {
+        do {
+            try await whatsappBridge.prepare()
+            try await whatsappBridge.installLaunchd()
+        } catch {
+            await checkWhatsApp()
+            return false
+        }
+        await checkWhatsApp()
+        return whatsapp?.sync == .running
     }
 
     // MARK: - WhatsApp: envíos

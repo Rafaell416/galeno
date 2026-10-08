@@ -65,7 +65,7 @@ final class UpdatesModel: ObservableObject {
         controller?.checkForUpdates(nil)
     }
 
-    /// «1.0 (1)»: la versión y el número de compilación de esta app.
+    /// «0.0.1 (2)»: la versión y el número de compilación de esta app.
     static var version: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "—"

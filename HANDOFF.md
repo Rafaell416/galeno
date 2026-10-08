@@ -827,8 +827,7 @@ Developer ID de Aquiles Torres** (equipo `9TDS6NBM3F`), con su permiso, porque l
 a nombre de Aquiles. Es un puente hasta que Rafa inscriba su propia cuenta en el Apple Developer Program; cambiar de
 certificado es barato mientras no esté Sparkle. Los datos de firma están en `scripts/release.env` (no se commitea) y la
 contraseña de app de Aquiles, en el llavero de Rafa (perfil `galeno-notary`). **Sin probar:** abrir ese DMG en otro Mac,
-descargado, que es la prueba de verdad (fila «Mac limpio» de `docs/QA.md`). Ojo: la app dice ser la versión **1.0**
-(`MARKETING_VERSION`), no la 0.0.1 de los documentos; el DMG toma ese número. `scripts/hacer-dmg-demo.sh` sigue para
+descargado, que es la prueba de verdad (fila «Mac limpio» de `docs/QA.md`). *(Actualizado el 8 oct 2026: la app ya dice ser la **0.0.1**, compilación 2; ver abajo.)* `scripts/hacer-dmg-demo.sh` sigue para
 demos sin firma.
 
 **Sparkle (Fase 8, 6 oct 2026; rama `feat/sparkle`).** La app lleva Sparkle 2.10.0: mira el appcast al abrir y desde
@@ -907,6 +906,29 @@ refresco del bridge al abrir la app ya está en `main` (PR 57). **El texto de la
 dijo «no pongamos texto de advertencia todavía». **Pendiente:** Rafa va a pasar las skills de Simon para decidir cuáles
 de las nuestras de comercial vienen marcadas y si le sirven un par más. Rafa no tiene un segundo número: el envío se
 prueba escribiéndose a sí mismo y a un grupo suyo.
+
+**Primera prueba real del envío y lo que salió (8 oct 2026).** Rafa probó el envío a un grupo y **funcionó**. Salieron
+tres cosas: (1) **tres confirmaciones** por un mensaje: la pregunta del agente en el chat, el permiso de una primera
+llamada sin `group_name` (que el bridge rechaza) y el de la segunda; ahora el `AGENTS.md` generado le dice que el permiso
+de pantalla **es** la aprobación (no pregunta antes en el chat), que pasa `group_name` en la misma llamada y que no
+menciona el horario cuando es normal; la descripción de `send_message` lo dice igual (bridge **0.4.2**). (2) «Abrir» en
+la app de Claude enseñó una **conversación vieja ya borrada** unos segundos: no es una sesión que Galeno elija (solo
+había una sesión de agentes en el disco, la actual); es la app de Claude restaurando su última vista mientras Galeno espera
+a que termine de cargar (mínimo 20 s, medido el 6 oct). No se acortó la espera; el aviso de la pantalla «Listo» ahora lo
+dice. Si molesta, la salida es lanzar la app sin traerla al frente durante la espera, pero eso **hay que medirlo** (la
+CPU en segundo plano puede engañar a la espera). (3) Ninguna tarea programada ni skill de Simon se había corrido aún.
+
+**Decisiones de Rafa y trabajo de ese día.** **La versión de la app es 0.0.1** (`MARKETING_VERSION`; `CURRENT_PROJECT_VERSION`
+sube a 2 para que Sparkle lo vea más nuevo). **Salud ofrece «Reiniciar servicio»** cuando hay sesión y `sync` no corre
+(`HealthModel.restartSync`: bridge al día + `install-launchd`, sin tocar la sesión). **`scripts/instalar-desde-cero.sh`**
+para las tres personas que ya tienen Galeno: verifica el DMG antes de tocar nada, guarda la memoria de cada agente, manda
+todo a la Papelera, no toca los servidores MCP, instala y abre (`docs/RELEASE.md`, «Entregar a mano»; casos I-1 a I-6 de
+`docs/QA.md`). **Lanzar a mano, sin sitio todavía** (guía en `docs/RELEASE.md`). **Pausado:** la entrega automática en
+GitHub (respaldada fuera del repo en `~/Documents/workplace/galeno-respaldos/release-workflow-2026-10-08/`; falta arreglar el
+cobro de Actions y crear los seis secretos). **Eliminada:** la rama `feat/licencias` (último commit
+`81c483a7f4d4be5f80550a9e46864b4eed74405e`, por si algún día se quiere recuperar con `git branch <nombre> 81c483a`; en
+GitHub puede tardar en limpiarse). **Limpieza:** 59 ramas locales ya mergeadas y los dos worktrees. Quedan 58 ramas en GitHub
+(una sin mergear: `feat/feedback-prueba-simon`). **Para probar como Simon:** `docs/prueba-como-simon.md` y su hoja de prueba.
 
 **Las skills de Simon, leídas (7 oct 2026).** Rafa pasó tres: `radiografia-express-aloha`, `radiografia-red-aloha` y
 `primer-contacto-aloha`. Cada una es un `.md` suelto con sus anexos dentro, y «Añadir skill…» las acepta tal cual. Dos

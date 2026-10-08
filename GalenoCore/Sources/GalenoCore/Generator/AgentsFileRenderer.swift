@@ -28,11 +28,17 @@ enum AgentsFileRenderer {
     /// tiempo intentando lo que va a ser rechazado, y lo único que es solo instrucción: avisar del día y la hora
     /// (Galeno no los limita; decisión de Rafa, 7 oct 2026).
     private static let whatsAppRuleSpanish = """
-        1. **WhatsApp: lees libremente y envías solo con aprobación.** Cada mensaje lo aprueba el usuario: \
-        antes de pedirla, muestra a quién va y qué dice. Escribes a una persona, o a un grupo en el que el \
-        usuario ya está (pasando el nombre exacto del grupo, que es lo que él lee al aprobar); nunca a listas \
-        de difusión, estados ni canales, y solo texto. Galeno no limita el día ni la hora: si vas a proponer \
-        un mensaje de noche, en domingo o en festivo, dilo antes y deja que el usuario decida. Si la \
+        1. **WhatsApp: lees libremente y envías solo con aprobación.** Cada mensaje lo aprueba el usuario, y \
+        esa aprobación es el permiso que le sale en pantalla al llamar a `send_message`: ahí ve a quién va y \
+        qué dice. **No le preguntes antes en el chat si lo envías** (sería pedirle lo mismo dos veces): di en \
+        una línea a quién se lo mandas y qué dice, y llama a la herramienta en ese mismo turno. Solo pregunta \
+        antes si algo no está claro (dos contactos con el mismo nombre, un mensaje a medias). Escribes a una \
+        persona, o a un grupo en el que el usuario ya está: para un grupo, **pasa siempre `group_name` con \
+        el nombre exacto, en la misma llamada que el identificador** (sin él se rechaza, y el usuario tendría \
+        que aprobar dos veces). Es lo que el usuario lee al aprobar. Nunca a listas de difusión, estados ni \
+        canales, y solo texto. Galeno no limita el día ni la hora: solo si vas a proponer un mensaje de \
+        noche, en domingo o en festivo, dilo antes y deja que el usuario decida; en horario normal, no lo \
+        menciones. Si la \
         herramienta responde que se llegó al tope del día, que los envíos están en pausa o que no pudo \
         enviar, díselo al usuario y para: no busques otro camino (ni otro canal, ni reescribir o partir el \
         mensaje). Si responde que quedó en cola o pendiente, no lo envíes otra vez.
@@ -46,12 +52,18 @@ enum AgentsFileRenderer {
         """
 
     private static let whatsAppRuleEnglish = """
-        1. **WhatsApp: you read freely and send only with approval.** The user approves every message: \
-        before you ask, show who it goes to and what it says. You write to one person, or to a group the \
-        user is already in (passing the exact name of the group, which is what they read when approving); \
-        never to broadcast lists, statuses or channels, and text only. Galeno does not restrict the day or \
-        the hour: if you are about to propose a message late at night, on a Sunday or on a holiday, say so \
-        first and let the user decide. If the tool answers that the daily limit was reached, that sending \
+        1. **WhatsApp: you read freely and send only with approval.** The user approves every message, and \
+        that approval is the permission prompt they get on screen when you call `send_message`: there they \
+        see who it goes to and what it says. **Do not ask them in the chat first whether to send it** (that \
+        would ask for the same thing twice): say in one line who you are sending it to and what it says, and \
+        call the tool in that same turn. Only ask first if something is unclear (two contacts with the same \
+        name, a half-written message). You write to one person, or to a group the user is already in: for a \
+        group, **always pass `group_name` with the exact name, in the same call as the identifier** (without \
+        it the call is rejected and the user would have to approve twice). It is what they read when \
+        approving. Never to broadcast lists, statuses or channels, and text only. Galeno does not restrict \
+        the day or the hour: only if you are about to propose a message late at night, on a Sunday or on a \
+        holiday, say so first and let the user decide; in normal hours, do not mention it. If the tool \
+        answers that the daily limit was reached, that sending \
         is paused or that it could not send, tell the user and stop: don't look for another way (no other \
         channel, no rewording or splitting the message). If it answers that the message is queued or \
         pending, don't send it again.
