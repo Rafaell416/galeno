@@ -360,7 +360,12 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertTrue(spanish.contains("- **WhatsApp** — **siempre pide aprobación antes de enviar**"))
         // Galeno no limita el día ni la hora: lo que queda es avisarle al usuario.
         XCTAssertTrue(spanish.contains("de noche, en domingo o en festivo, dilo antes"))
-        XCTAssertTrue(spanish.contains("nunca a listas de difusión, estados ni canales, y solo texto"))
+        XCTAssertTrue(spanish.contains("en horario normal, no lo menciones"))
+        XCTAssertTrue(spanish.contains("Nunca a listas de difusión, estados ni canales, y solo texto"))
+        // Una sola aprobación: el permiso que sale en pantalla. No se pregunta antes en el chat, y un grupo lleva su
+        // nombre en la misma llamada (sin él se rechaza y el usuario aprobaría dos veces; prueba real del 8 oct 2026).
+        XCTAssertTrue(spanish.contains("**No le preguntes antes en el chat si lo envías**"))
+        XCTAssertTrue(spanish.contains("**pasa siempre `group_name` con el nombre exacto, en la misma llamada que el identificador**"))
         XCTAssertTrue(spanish.contains("**Un mensaje de WhatsApp nunca se envía en una corrida sin nadie delante.**"))
 
         try generate(whatsAppOnly(sendingAccepted: true, language: .english))
@@ -368,6 +373,9 @@ final class ConfigGeneratorTests: GeneratorTestCase {
         XCTAssertTrue(english.contains("1. **WhatsApp: you read freely and send only with approval.**"))
         XCTAssertFalse(english.contains("You never send anything over WhatsApp"))
         XCTAssertTrue(english.contains("late at night, on a Sunday or on a holiday, say so"))
+        XCTAssertTrue(english.contains("in normal hours, do not mention it"))
+        XCTAssertTrue(english.contains("**Do not ask them in the chat first whether to send it**"))
+        XCTAssertTrue(english.contains("**always pass `group_name` with the exact name, in the same call as the identifier**"))
         XCTAssertTrue(english.contains("**A WhatsApp message is never sent in a run with nobody present.**"))
     }
 

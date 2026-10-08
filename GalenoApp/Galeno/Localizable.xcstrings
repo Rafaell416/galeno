@@ -5286,13 +5286,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opening %@ in the Claude app. If it has to restart, it takes a few seconds to load."
+            "value" : "Opening %@ in the Claude app. If it has to restart, it takes a few seconds to load, and meanwhile it may show your last conversation: that is normal, your agent appears as soon as it finishes."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abriendo a %@ en la app de Claude. Si hay que reiniciarla, tarda unos segundos en cargar."
+            "value" : "Abriendo a %@ en la app de Claude. Si hay que reiniciarla, tarda unos segundos en cargar, y mientras tanto puede enseñarte tu última conversación: es normal, tu agente aparece en cuanto termina."
           }
         }
       }

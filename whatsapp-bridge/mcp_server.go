@@ -38,8 +38,10 @@ func newMCPServer(store *MessageStore, outbox *outboxEnv) *mcp.Server {
 			Description: "Send ONE WhatsApp text message to ONE person, or to ONE group the user is already in. " +
 				"The user approves every message before it goes out. " +
 				"Text only: no files, images, audio or stickers, and never to broadcast lists, statuses or channels. " +
-				"For a group, pass its JID (from list_chats) in recipient AND its exact name in group_name: " +
-				"the user reads that name when approving, and Galeno rejects the message if it is not the name of that group. " +
+				"For a group, pass its JID (from list_chats) in recipient AND its exact name in group_name, in the SAME call: " +
+				"group_name is required for a group, the user reads that name when approving, and without it " +
+				"(or with a name that is not that group's) the call is rejected and the user would have to approve a second one. " +
+				"The approval prompt is the user's confirmation: do not ask in the chat whether to send it as well. " +
 				"Galeno does not restrict the day or the hour. Before proposing a message late at night, on a Sunday or on a holiday, " +
 				"tell the user it is outside usual business hours and let them decide. " +
 				"Daily limits and a pause between messages are enforced by Galeno to protect the user's number: " +
@@ -364,7 +366,7 @@ func handleDownloadMedia(store *MessageStore) func(context.Context, *mcp.CallToo
 
 type SendMessageInput struct {
 	Recipient string `json:"recipient" jsonschema:"a person: phone number in international format, digits only, no + (for example 573001112233), or a JID ending in @s.whatsapp.net. A group: its JID ending in @g.us, from list_chats"`
-	GroupName string `json:"group_name,omitempty" jsonschema:"only when recipient is a group: the exact name of that group, as list_chats shows it. Leave empty for a person"`
+	GroupName string `json:"group_name,omitempty" jsonschema:"REQUIRED when recipient is a group (ends in @g.us): the exact name of that group, as list_chats shows it, in the same call. Leave empty for a person"`
 	Message   string `json:"message" jsonschema:"the text to send, up to 1000 characters"`
 }
 
