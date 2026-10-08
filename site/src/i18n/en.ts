@@ -47,11 +47,11 @@ export const en: typeof es = {
         kicker: 'Tools',
         title: 'Connect your tools, once.',
         body: [
-          'Notion, Jira, Slack, Gmail, Google Drive and Calendar, and your meeting recordings in Fathom, Fireflies or Granola. You sign in to each one as usual and Galeno leaves your agent ready to use them.',
+          'Notion, Jira, Slack, Gmail, Google Drive and Calendar, and your meeting recordings in Fathom. You sign in to each one as usual and Galeno leaves your agent ready to use them.',
           'What it reads, it reads without asking. What it sends to other people, it always asks you first.',
         ],
-        shot: 'Screenshot of the “Your tools” step in the setup assistant',
-        shotAlt: 'The Galeno setup step where you choose the tools your agent will read',
+        shot: 'Screenshot of the “Pick your tools” step in the setup assistant',
+        shotAlt: 'The “Pick your tools” step of the Galeno setup, with Jira, Notion, Slack, Google Drive, Gmail and WhatsApp checked',
       },
       whatsapp: {
         kicker: 'WhatsApp',
@@ -63,8 +63,8 @@ export const en: typeof es = {
         warningTitle: 'Before you link.',
         warning:
           'WhatsApp does not offer this connection officially. There is a risk that Meta restricts your number. Galeno limits sending (by default, up to 40 a day) and never writes to broadcast lists or channels, but the risk does not go away.',
-        shot: 'Screenshot of your agent reading a WhatsApp group',
-        shotAlt: 'A conversation with the Galeno agent summarising a WhatsApp group',
+        shot: 'Screenshot of the screen for linking WhatsApp',
+        shotAlt: 'The Galeno setup screen for connecting WhatsApp: it will read your groups and chats, and send messages only with your approval',
       },
       docs: {
         kicker: 'Documents and tickets',
@@ -73,8 +73,8 @@ export const en: typeof es = {
           'Ask for a PRD, the user stories or the tickets for an epic and it writes them reading what you already have in Notion, Jira and your meetings. It comes with skills ready for each role, and you can create or add your own.',
           'You decide whether your agent can write in each tool or only read.',
         ],
-        shot: 'Screenshot of a PRD or tickets written by the agent',
-        shotAlt: 'A PRD written by the Galeno agent from the project notes',
+        shot: 'Screenshot of the skills step with PRD, stories and tickets',
+        shotAlt: 'The “Skills” step of the Galeno setup, with PRD, user stories, roadmap, epics and tickets',
       },
       reports: {
         kicker: 'Reports',
@@ -83,8 +83,8 @@ export const en: typeof es = {
           'Your agent gathers what changed this week in your tickets, meetings and chats, writes the report and shows it to you exactly as it will go out. You read it and, if you say yes, it posts it in the channel. It appears under your name.',
           'Scheduled tasks leave the report prepared: they never post for you.',
         ],
-        shot: 'Screenshot of a report ready to approve',
-        shotAlt: 'A weekly report prepared by the Galeno agent, waiting for your approval',
+        shot: 'Screenshot of the tracking and reports skills',
+        shotAlt: 'The “Skills” step of the Galeno setup, with the tracking and reports skills, including the Slack report',
       },
     },
     about: {

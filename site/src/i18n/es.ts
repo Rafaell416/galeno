@@ -46,11 +46,11 @@ export const es = {
         kicker: 'Herramientas',
         title: 'Conecta tus herramientas, una sola vez.',
         body: [
-          'Notion, Jira, Slack, Gmail, Google Drive y Calendar, y tus grabaciones de reuniones en Fathom, Fireflies o Granola. Inicias sesión en cada una como siempre y Galeno deja a tu agente listo para usarlas.',
+          'Notion, Jira, Slack, Gmail, Google Drive y Calendar, y tus grabaciones de reuniones en Fathom. Inicias sesión en cada una como siempre y Galeno deja a tu agente listo para usarlas.',
           'Lo que lee, lo lee sin pedirte permiso. Lo que envía a otras personas, siempre te lo pregunta antes.',
         ],
-        shot: 'Captura del paso «Tus herramientas» del asistente',
-        shotAlt: 'El paso del asistente de Galeno donde eliges las herramientas que tu agente va a leer',
+        shot: 'Captura del paso «Elige tus herramientas» del asistente',
+        shotAlt: 'El paso «Elige tus herramientas» del asistente de Galeno, con Jira, Notion, Slack, Google Drive, Gmail y WhatsApp marcadas',
       },
       whatsapp: {
         kicker: 'WhatsApp',
@@ -62,8 +62,8 @@ export const es = {
         warningTitle: 'Antes de vincular.',
         warning:
           'WhatsApp no ofrece esta conexión de forma oficial. Existe el riesgo de que Meta restrinja tu número. Galeno limita los envíos (por defecto, hasta 40 al día) y nunca escribe a listas de difusión ni a canales, pero el riesgo no desaparece.',
-        shot: 'Captura de tu agente leyendo un grupo de WhatsApp',
-        shotAlt: 'Una conversación con el agente de Galeno que resume un grupo de WhatsApp',
+        shot: 'Captura de la pantalla para vincular WhatsApp',
+        shotAlt: 'La pantalla del asistente de Galeno para conectar WhatsApp: leerá tus grupos y chats, y enviará mensajes solo con tu aprobación',
       },
       docs: {
         kicker: 'Documentos y tickets',
@@ -72,8 +72,8 @@ export const es = {
           'Pídele un PRD, las historias de usuario o los tickets de una épica y los escribe leyendo lo que ya tienes en Notion, Jira y tus reuniones. Trae skills listas para cada rol y puedes crear o añadir las tuyas.',
           'Tú decides si tu agente puede escribir en cada herramienta o solo leer.',
         ],
-        shot: 'Captura de un PRD o de tickets generados por el agente',
-        shotAlt: 'Un PRD escrito por el agente de Galeno a partir de las notas del proyecto',
+        shot: 'Captura del paso de skills con PRD, historias y tickets',
+        shotAlt: 'El paso «Skills» del asistente de Galeno, con PRD, historias de usuario, roadmap, épicas y tickets',
       },
       reports: {
         kicker: 'Informes',
@@ -82,8 +82,8 @@ export const es = {
           'Tu agente junta lo que cambió esta semana en tus tickets, reuniones y chats, redacta el informe y te lo enseña tal como va a salir. Lo lees y, si dices que sí, lo publica en el canal. Aparece con tu nombre.',
           'Las tareas programadas dejan el informe preparado: nunca publican por ti.',
         ],
-        shot: 'Captura de un informe listo para aprobar',
-        shotAlt: 'Un informe semanal preparado por el agente de Galeno, a la espera de tu aprobación',
+        shot: 'Captura de las skills de seguimiento y reportes',
+        shotAlt: 'El paso «Skills» del asistente de Galeno, con las skills de seguimiento y reportes, entre ellas el informe a Slack',
       },
     },
     about: {

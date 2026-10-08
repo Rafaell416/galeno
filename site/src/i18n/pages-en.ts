@@ -50,7 +50,7 @@ export const docsEn: LongPage = {
       id: 'tools',
       h: 'Connect your tools',
       blocks: [
-        { p: 'Notion, Jira, Fathom, Fireflies and Granola are authorised in your default browser. Slack connects in a window of Galeno’s own, where you sign in. Gmail, Google Drive, Docs, Sheets and Calendar connect from your Claude account (on claude.ai), and Galeno guides you.' },
+        { p: 'Notion, Jira and Fathom are authorized in your default browser. Slack connects in a window of Galeno’s own, where you sign in. Gmail, Google Drive, Docs, Sheets and Calendar connect from your Claude account (on claude.ai), and Galeno guides you.' },
         { p: 'What your agent reads, it reads without asking. What it sends to other people (Slack, Gmail, WhatsApp), it always asks you first. An email draft does not count as sending: it stays in your mailbox.' },
       ],
     },
