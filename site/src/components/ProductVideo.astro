@@ -8,7 +8,7 @@ const tr = t(lang).home.video;
   <span class="kicker">{tr.kicker}</span>
   <h2 id="video-t">{tr.title}</h2>
   {site.videoUrl ? (
-    <video class="shot" controls preload="none" playsinline>
+    <video class="shot" controls preload="none" playsinline poster="/poster.jpg" aria-label={tr.title}>
       <source src={site.videoUrl} type="video/mp4" />
       {tr.noVideo}
     </video>
@@ -20,5 +20,5 @@ const tr = t(lang).home.video;
 <style>
   .video { text-align: center; }
   h2 { margin-bottom: var(--space-6); }
-  video { aspect-ratio: 16 / 9; }
+  video { aspect-ratio: 1200 / 910; background: var(--panel); }
 </style>

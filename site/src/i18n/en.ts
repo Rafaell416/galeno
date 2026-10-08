@@ -36,7 +36,7 @@ export const en: typeof es = {
     },
     video: {
       kicker: 'On video',
-      title: 'From the first click to your first question.',
+      title: 'How your tools get connected.',
       pendingLabel: 'Video pending',
       pending: 'The product video goes here.',
       noVideo: 'Your browser cannot play this video.',

@@ -35,7 +35,7 @@ export const es = {
     },
     video: {
       kicker: 'En video',
-      title: 'Del primer clic a tu primera pregunta.',
+      title: 'Así se conectan tus herramientas.',
       pendingLabel: 'Video pendiente',
       pending: 'Aquí va el video del producto.',
       noVideo: 'Tu navegador no puede reproducir este video.',
