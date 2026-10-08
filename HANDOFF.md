@@ -985,8 +985,21 @@ Decisiones de copy: el titular del hero va en EB Garamond (una frase en Cinzel s
 el usuario aprueba el envío (una tarea programada nunca publica sola); «cómo activar» pasó a «Primeros pasos» (la v0.0.1 no
 tiene licencia); WhatsApp se presenta como conexión **no oficial** con riesgo de restricción; los testimonios no se publican
 hasta que haya reales (`src/content/testimonials.json`, `verified: true`); fuentes autoalojadas en vez de Google Fonts.
-**Antes de abrir ventas:** capturas reales, video, foto y texto del About, `PUBLIC_CHECKOUT_URL` (Fase 10), revisión legal
-de `/privacy` y `/terms` (hay un marcador de ley aplicable) y `npm run check:launch` en verde. Cómo correrlo: README §10.2b.
+**Oferta y copy (8 oct 2026, petición de Rafa: «oferta irresistible», estilo Hormozi).** La home sigue ahora problema → solución →
+cómo funciona → oferta → para quién es y para quién no → principios → preguntas, con un titular centrado en el dolor
+(«Deja de perder clientes y tareas entre los mensajes de WhatsApp») y un esquema de WhatsApp (`FlowIllustration`: HTML y CSS,
+rotulado «ejemplo ilustrativo»). **Reglas que se mantuvieron:** nada de escasez ni prueba social inventadas, ningún «valor» de
+fantasía (la cuenta de horas es un ejemplo condicional: «si una hora tuya vale USD 25…»), y todo lo que dice el sitio sale de lo
+que la app hace. **El sitio no lleva el nombre de Rafa:** se quitó el About en primera persona (ahora «Cómo está hecho», tres
+principios), la voz es plural («escríbenos») y el correo no se muestra como texto (solo como enlace `mailto`; para ocultarlo del
+todo hay que crear un alias en el dominio y cambiar `email` en `site/src/site.ts`). **Testimonios:** Rafa pidió inventar tres con
+los nombres de Simon, Aquiles y Laura; **no se hizo** (atribuir citas inventadas a personas reales es publicidad engañosa). La
+sección sigue oculta hasta que haya testimonios reales aprobados por quien los dio (`verified: true`). **Garantía:** el copy ya
+tiene el hueco (`guaranteeDays` en `site/src/site.ts`, hoy 0 = no se muestra); falta que Rafa decida los días y que su abogado
+la revise, porque `/terms` todavía no habla de reembolsos.
+**Antes de abrir ventas:** capturas reales de la app trabajando (las de ahora son del asistente), `PUBLIC_CHECKOUT_URL` (Fase 10),
+revisión legal de `/privacy` y `/terms` (hay un marcador de ley aplicable), decidir la garantía y `npm run check:launch` en verde.
+Cómo correrlo: README §10.2b.
 
 ## 13. Documentos
 

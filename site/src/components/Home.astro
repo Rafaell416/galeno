@@ -4,9 +4,13 @@ import Hero from './Hero.astro';
 import ProductVideo from './ProductVideo.astro';
 import Feature from './Feature.astro';
 import Separator from './Separator.astro';
-import About from './About.astro';
+import Problem from './Problem.astro';
+import Solution from './Solution.astro';
+import Steps from './Steps.astro';
+import Fit from './Fit.astro';
+import Principles from './Principles.astro';
 import Testimonials from './Testimonials.astro';
-import Price from './Price.astro';
+import Offer from './Offer.astro';
 import Faq from './Faq.astro';
 import { t, type Lang } from '../i18n/utils';
 import { site } from '../site';
@@ -34,6 +38,12 @@ const jsonLd = {
 <Base title={tr.home.metaTitle} lang={lang} route="/" bareTitle jsonLd={jsonLd}>
   <Hero lang={lang} />
   <Separator />
+  <Problem lang={lang} />
+  <Separator />
+  <Solution lang={lang} />
+  <Separator />
+  <Steps lang={lang} />
+  <Separator />
   <ProductVideo lang={lang} />
   <Separator />
   <div id="como-funciona" class="wrap">
@@ -59,10 +69,12 @@ const jsonLd = {
     })}
   </div>
   <Separator />
-  <About lang={lang} />
+  <Offer lang={lang} />
+  <Separator />
+  <Fit lang={lang} />
   <Testimonials lang={lang} />
   <Separator />
-  <Price lang={lang} />
+  <Principles lang={lang} />
   <Separator />
   <Faq lang={lang} />
 </Base>

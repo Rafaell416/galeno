@@ -6,6 +6,8 @@ export const site = {
   email: 'rvillarreal416@gmail.com',
   url: 'https://getgaleno.com',
   price: 'USD 200',
+  // Días de garantía de devolución. 0 = no se muestra ninguna garantía (no está decidida: la fija Rafa y la revisa su abogado).
+  guaranteeDays: 0,
   // Se conecta en la Fase 10 (Stripe). Mientras tanto, el botón lleva a la sección de precio.
   checkoutUrl: import.meta.env.PUBLIC_CHECKOUT_URL || '#precio',
   // Video de ~20 s en el almacenamiento público (Supabase). Vacío = se muestra el hueco.

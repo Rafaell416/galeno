@@ -1,0 +1,46 @@
+---
+import { t, type Lang } from '../i18n/utils';
+import { site } from '../site';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.offer;
+---
+<section id="precio" class="wrap narrow" aria-labelledby="precio-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="precio-t">{tr.title}</h2>
+  <p class="muted intro">{tr.intro}</p>
+  <ul class="stack">
+    {tr.items.map((i) => (
+      <li><strong>{i.title}</strong> <span class="muted">{i.text}</span></li>
+    ))}
+  </ul>
+
+  <div class="note cost">
+    <p><strong>{tr.costTitle}</strong> {tr.cost}</p>
+  </div>
+
+  <div class="panel buy">
+    <p class="amount">{site.price}</p>
+    <p><a class="btn btn--primary" href={site.checkoutUrl}>{tr.buy}</a></p>
+    <p class="small muted">{tr.fine}</p>
+    {site.guaranteeDays > 0 && <p class="guarantee"><strong>{tr.guarantee.replace('{days}', String(site.guaranteeDays))}</strong></p>}
+  </div>
+
+  <h3>{tr.requirementsTitle}</h3>
+  <ul class="req">{tr.requirements.map((r) => <li>{r}</li>)}</ul>
+</section>
+
+<style>
+  h2 { margin-bottom: var(--space-3); }
+  .intro { margin-bottom: var(--space-6); }
+  .stack { list-style: none; padding: 0; border-top: 1px solid var(--border); }
+  .stack li { padding: var(--space-4) 0; border-bottom: 1px solid var(--border); }
+  .stack strong { display: block; font-size: 1.125rem; }
+  .cost { margin-top: var(--space-8); }
+  .cost p { margin: 0; }
+  .buy { margin-top: var(--space-8); text-align: center; display: grid; gap: var(--space-4); justify-items: center; }
+  .buy p { margin: 0; }
+  .amount { font-size: clamp(2.75rem, 2.2rem + 2.5vw, 3.75rem); font-weight: 600; line-height: 1; }
+  .guarantee { color: var(--text); }
+  h3 { margin-top: var(--space-8); margin-bottom: var(--space-3); }
+  .req { padding-left: 1.2em; color: var(--text-2); }
+</style>

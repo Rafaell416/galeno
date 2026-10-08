@@ -1,11 +1,13 @@
 ---
 import type { Block } from '../i18n/pages-types';
+import { site } from '../site';
 // Pinta bloques de texto. El texto se escapa primero y solo después se activa el marcado en línea,
 // así que ningún texto de i18n puede meter HTML.
 const { blocks } = Astro.props as { blocks: Block[] };
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const inline = (s: string) =>
   esc(s)
+    .replaceAll('mailto:{email}', `mailto:${site.email}`)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:|\/)[^)\s]+)\)/g, '<a href="$2">$1</a>');

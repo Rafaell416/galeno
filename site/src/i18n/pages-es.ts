@@ -27,7 +27,7 @@ export const docsEs: LongPage = {
           'Ábrelo y arrastra **Galeno** a la carpeta **Aplicaciones**.',
           'Abre Galeno desde Aplicaciones. Como lo descargaste de internet, macOS puede preguntarte una vez si quieres abrirlo.',
         ] },
-        { p: 'La app va firmada con un certificado de desarrollador de Apple y revisada por Apple (notarizada). Si macOS te dice que no puede comprobar que no contiene software malicioso, no sigas: escríbeme.' },
+        { p: 'La app va firmada con un certificado de desarrollador de Apple y revisada por Apple (notarizada). Si macOS te dice que no puede comprobar que no contiene software malicioso, no sigas: escríbenos.' },
       ],
     },
     {
@@ -88,7 +88,7 @@ export const docsEs: LongPage = {
           '**«Abrir» enseña unos segundos una conversación vieja:** es normal. La app de Claude restaura su última vista mientras carga.',
           '**«Abrir» te pide cerrar la app de Claude:** ciérrala con Cmd+Q y vuelve a pulsar «Abrir».',
         ] },
-        { p: 'Si sigue sin funcionar, escríbeme a [rvillarreal416@gmail.com](mailto:rvillarreal416@gmail.com) con qué estabas haciendo y, si puedes, una captura de pantalla.' },
+        { p: 'Si sigue sin funcionar, [escríbenos](mailto:{email}) contando qué estabas haciendo y, si puedes, una captura de pantalla.' },
       ],
     },
     {
@@ -118,7 +118,7 @@ export const privacyEs: LongPage = {
     {
       id: 'quien',
       h: 'Quién es responsable',
-      blocks: [{ p: 'Galeno LLC, que vende y publica Galeno. Contacto para cualquier asunto de privacidad: [rvillarreal416@gmail.com](mailto:rvillarreal416@gmail.com).' }],
+      blocks: [{ p: 'Galeno LLC, que vende y publica Galeno. Para cualquier asunto de privacidad, [escríbenos](mailto:{email}).' }],
     },
     {
       id: 'sitio',
@@ -126,7 +126,7 @@ export const privacyEs: LongPage = {
       blocks: [
         { p: 'El sitio no usa cookies, no tiene analítica y no carga scripts, fuentes ni imágenes de terceros. Las tipografías se sirven desde el propio sitio.' },
         { p: 'Como cualquier servidor web, el que aloja el sitio (Vercel) y el que aloja las descargas (Supabase) registran en sus bitácoras técnicas la dirección IP y los datos de la petición. Los usan para operar y proteger el servicio, no para identificarte.' },
-        { p: 'Si me escribes, uso tu correo y tu mensaje solo para responderte.' },
+        { p: 'Si nos escribes, usamos tu correo y tu mensaje solo para responderte.' },
       ],
     },
     {
@@ -158,7 +158,7 @@ export const privacyEs: LongPage = {
       id: 'derechos',
       h: 'Tus derechos',
       blocks: [
-        { p: 'Puedes pedirme que te diga qué datos personales tengo de ti (hoy, el correo y el registro de tu compra), que los corrija o que los elimine. Escríbeme al correo de arriba.' },
+        { p: 'Puedes pedirnos que te digamos qué datos personales tenemos de ti (hoy, el correo y el registro de tu compra), que los corrijamos o que los eliminemos. [Escríbenos](mailto:{email}).' },
       ],
     },
     {
@@ -229,7 +229,7 @@ export const termsEs: LongPage = {
     {
       id: 'contacto',
       h: 'Contacto',
-      blocks: [{ p: 'Galeno LLC · [rvillarreal416@gmail.com](mailto:rvillarreal416@gmail.com).' }],
+      blocks: [{ p: 'Galeno LLC · [escríbenos](mailto:{email}).' }],
     },
   ],
 };

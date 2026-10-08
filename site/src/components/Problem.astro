@@ -1,0 +1,18 @@
+---
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.problem;
+---
+<section id="problema" class="wrap narrow" aria-labelledby="problema-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="problema-t">{tr.title}</h2>
+  <ul>{tr.items.map((i) => <li>{i}</li>)}</ul>
+  <p class="closing">{tr.closing}</p>
+</section>
+
+<style>
+  h2 { margin-bottom: var(--space-6); }
+  ul { list-style: none; padding: 0; display: grid; gap: var(--space-4); }
+  li { border-left: 1px solid var(--frame); padding-left: var(--space-6); font-size: 1.1875rem; line-height: 1.5; }
+  .closing { margin-top: var(--space-8); font-size: 1.1875rem; font-style: italic; color: var(--text-2); max-width: 60ch; }
+</style>

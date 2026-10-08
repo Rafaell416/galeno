@@ -27,7 +27,7 @@ export const docsEn: LongPage = {
           'Open it and drag **Galeno** to the **Applications** folder.',
           'Open Galeno from Applications. Because you downloaded it from the internet, macOS may ask once whether you want to open it.',
         ] },
-        { p: 'The app is signed with an Apple developer certificate and reviewed by Apple (notarized). If macOS says it cannot verify that the app is free of malware, do not continue: write to me.' },
+        { p: 'The app is signed with an Apple developer certificate and reviewed by Apple (notarized). If macOS says it cannot verify that the app is free of malware, do not continue: write to us.' },
       ],
     },
     {
@@ -88,7 +88,7 @@ export const docsEn: LongPage = {
           '**“Open” shows an old conversation for a few seconds:** that is normal. The Claude app restores its last view while it loads.',
           '**“Open” asks you to close the Claude app:** close it with Cmd+Q and press “Open” again.',
         ] },
-        { p: 'If it still does not work, write to me at [rvillarreal416@gmail.com](mailto:rvillarreal416@gmail.com) with what you were doing and, if you can, a screenshot.' },
+        { p: 'If it still does not work, [write to us](mailto:{email}) with what you were doing and, if you can, a screenshot.' },
       ],
     },
     {
@@ -118,7 +118,7 @@ export const privacyEn: LongPage = {
     {
       id: 'who',
       h: 'Who is responsible',
-      blocks: [{ p: 'Galeno LLC, which sells and publishes Galeno. Contact for any privacy matter: [rvillarreal416@gmail.com](mailto:rvillarreal416@gmail.com).' }],
+      blocks: [{ p: 'Galeno LLC, which sells and publishes Galeno. For any privacy matter, [write to us](mailto:{email}).' }],
     },
     {
       id: 'site',
@@ -126,7 +126,7 @@ export const privacyEn: LongPage = {
       blocks: [
         { p: 'The site uses no cookies, has no analytics and loads no third-party scripts, fonts or images. Typefaces are served from the site itself.' },
         { p: 'Like any web server, the one hosting the site (Vercel) and the one hosting the downloads (Supabase) record the IP address and request details in their technical logs. They use them to run and protect the service, not to identify you.' },
-        { p: 'If you write to me, I use your email and your message only to reply.' },
+        { p: 'If you write to us, we use your email and your message only to reply.' },
       ],
     },
     {
@@ -158,7 +158,7 @@ export const privacyEn: LongPage = {
       id: 'rights',
       h: 'Your rights',
       blocks: [
-        { p: 'You can ask me what personal data I hold about you (today, your email and your purchase record), to correct it or to delete it. Write to me at the address above.' },
+        { p: 'You can ask us what personal data we hold about you (today, your email and your purchase record), to correct it or to delete it. [Write to us](mailto:{email}).' },
       ],
     },
     {
@@ -229,7 +229,7 @@ export const termsEn: LongPage = {
     {
       id: 'contact',
       h: 'Contact',
-      blocks: [{ p: 'Galeno LLC · [rvillarreal416@gmail.com](mailto:rvillarreal416@gmail.com).' }],
+      blocks: [{ p: 'Galeno LLC · [write to us](mailto:{email}).' }],
     },
   ],
 };
