@@ -816,6 +816,15 @@ npm run check && npm run build                  # antes de abrir el PR
 npm run check:launch                            # lista de «listo para vender»; falla si falta algo
 ```
 
+**Capturas y video** (8 oct 2026): son de la app real, en Debug con `-galeno-fake-connect` (conexiones simuladas, nada toca tus
+cuentas), en tema claro y con los sonidos apagados (Ajustes). La ventana se captura con
+`screencapture -o -x -l <id de ventana>` (1600×1304 px) y se guardan como `site/src/assets/shots/<nombre>-es.png` y `-en.png`
+(`herramientas`, `whatsapp`, `documentos`, `informes`). El video se graba con `screencapture -v -V <segundos> -l <id>`
+y se recorta y comprime con `swift site/scripts/encode-video.swift <entrada> <salida> <x> <y> <ancho> <alto> <ancho final> <bits/s>`
+(se quita la barra de título, que sale con el indicador de grabación). El mp4 no va a git: se sube al bucket `media` de
+Supabase y su dirección es `PUBLIC_VIDEO_URL`; en local, `site/.env` lo apunta a `site/public/media/` (ignorado). Al terminar:
+borrar `~/Library/Application Support/Galeno/` si la prueba creó el borrador (`draft.json`) y las preferencias (`defaults delete com.galeno.Galeno`).
+
 Variables de entorno públicas (en Vercel): `PUBLIC_SITE_LIVE=1` (quita el `noindex`), `PUBLIC_CHECKOUT_URL` (el enlace de
 compra), `PUBLIC_VIDEO_URL` (el video, en Supabase). Hasta que `PUBLIC_SITE_LIVE` valga 1 ninguna página se indexa.
 
