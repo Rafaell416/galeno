@@ -1,0 +1,29 @@
+---
+// Preguntas y respuestas con <details>: se abren sin JavaScript.
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.faq;
+---
+<section id="faq" class="wrap narrow" aria-labelledby="faq-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="faq-t">{tr.title}</h2>
+  <div class="items">
+    {tr.items.map((item) => (
+      <details>
+        <summary>{item.q}</summary>
+        <p class="muted">{item.a}</p>
+      </details>
+    ))}
+  </div>
+</section>
+
+<style>
+  h2 { margin-bottom: var(--space-6); }
+  .items { border-top: 1px solid var(--border); }
+  details { border-bottom: 1px solid var(--border); padding-block: var(--space-4); }
+  summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: var(--space-4); }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; font-family: var(--font-text); color: var(--text-3); font-weight: 400; }
+  details[open] summary::after { content: '–'; }
+  details p { margin-top: var(--space-3); max-width: 62ch; }
+</style>

@@ -1,0 +1,24 @@
+---
+import { t, type Lang } from '../i18n/utils';
+import { site } from '../site';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.video;
+---
+<section id="video" class="wrap narrow video" aria-labelledby="video-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="video-t">{tr.title}</h2>
+  {site.videoUrl ? (
+    <video class="shot" controls preload="none" playsinline>
+      <source src={site.videoUrl} type="video/mp4" />
+      {tr.noVideo}
+    </video>
+  ) : (
+    <div class="shot-placeholder" data-placeholder="video"><p><span class="kicker">{tr.pendingLabel}</span>{tr.pending}</p></div>
+  )}
+</section>
+
+<style>
+  .video { text-align: center; }
+  h2 { margin-bottom: var(--space-6); }
+  video { aspect-ratio: 16 / 9; }
+</style>

@@ -1,0 +1,27 @@
+---
+import { t, type Lang } from '../i18n/utils';
+import { site } from '../site';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.price;
+---
+<section id="precio" class="wrap narrow" aria-labelledby="precio-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="precio-t">{tr.title}</h2>
+  <div class="panel">
+    <p class="amount"><span class="n">{tr.amount}</span> <span class="muted small">{tr.per}</span></p>
+    <ul>{tr.points.map((p) => <li>{p}</li>)}</ul>
+    <p><a class="btn btn--primary" href={site.checkoutUrl}>{tr.buy}</a></p>
+  </div>
+  <h3>{tr.requirementsTitle}</h3>
+  <ul class="req">{tr.requirements.map((r) => <li>{r}</li>)}</ul>
+</section>
+
+<style>
+  h2 { margin-bottom: var(--space-6); }
+  .amount { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-4); }
+  .n { font-size: clamp(2.5rem, 2rem + 2vw, 3.25rem); font-weight: 600; line-height: 1; }
+  .panel ul { padding-left: 1.2em; margin-bottom: var(--space-6); }
+  .panel li + li { margin-top: var(--space-2); }
+  h3 { margin-top: var(--space-8); margin-bottom: var(--space-3); }
+  .req { padding-left: 1.2em; color: var(--text-2); }
+</style>

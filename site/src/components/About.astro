@@ -1,0 +1,22 @@
+---
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.about;
+---
+<section id="about" class="wrap narrow" aria-labelledby="about-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="about-t">{tr.title}</h2>
+  <div class="row">
+    <div class="photo shot-placeholder" data-placeholder="about-photo" role="img" aria-label={tr.photoAlt}></div>
+    <div class="measure">
+      <p class="muted" data-placeholder="about-text">{tr.pending}</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  h2 { margin-bottom: var(--space-6); }
+  .row { display: grid; gap: var(--space-6); align-items: start; }
+  .photo { aspect-ratio: 1; width: 160px; padding: 0; }
+  @media (min-width: 720px) { .row { grid-template-columns: 160px 1fr; gap: var(--space-8); } }
+</style>

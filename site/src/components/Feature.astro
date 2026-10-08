@@ -1,0 +1,36 @@
+---
+import Shot from './Shot.astro';
+import type { Lang } from '../i18n/utils';
+
+interface Props {
+  id: string;
+  lang: Lang;
+  kicker: string;
+  title: string;
+  body: string[];
+  shot: { name: string; alt: string; description: string };
+  note?: { title: string; text: string };
+  reverse?: boolean;
+}
+const { id, lang, kicker, title, body, shot, note, reverse = false } = Astro.props;
+---
+<section class:list={['feature', { reverse }]} id={id} aria-labelledby={`${id}-t`}>
+  <div class="text">
+    <span class="kicker">{kicker}</span>
+    <h2 id={`${id}-t`}>{title}</h2>
+    {body.map((p) => <p>{p}</p>)}
+    {note && <div class="note"><p class="small"><strong>{note.title}</strong> {note.text}</p></div>}
+  </div>
+  <div class="pic"><Shot name={shot.name} lang={lang} alt={shot.alt} description={shot.description} /></div>
+</section>
+
+<style>
+  .feature { display: grid; gap: var(--space-8); align-items: center; }
+  .text h2 { margin-bottom: var(--space-4); }
+  .note { margin-top: var(--space-6); }
+  .note p { margin: 0; }
+  @media (min-width: 860px) {
+    .feature { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: var(--space-16); }
+    .feature.reverse .text { order: 2; }
+  }
+</style>

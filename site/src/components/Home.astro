@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import Hero from './Hero.astro';
+import ProductVideo from './ProductVideo.astro';
+import Feature from './Feature.astro';
+import Separator from './Separator.astro';
+import About from './About.astro';
+import Testimonials from './Testimonials.astro';
+import Price from './Price.astro';
+import Faq from './Faq.astro';
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang);
+const f = tr.home.features;
+const features = [
+  { id: 'herramientas', key: 'tools', shot: 'herramientas' },
+  { id: 'whatsapp', key: 'whatsapp', shot: 'whatsapp' },
+  { id: 'documentos', key: 'docs', shot: 'documentos' },
+  { id: 'informes', key: 'reports', shot: 'informes' },
+] as const;
+---
+<Base title={tr.home.metaTitle} lang={lang} route="/" bareTitle>
+  <Hero lang={lang} />
+  <Separator />
+  <ProductVideo lang={lang} />
+  <Separator />
+  <div id="como-funciona" class="wrap">
+    {features.map((x, i) => {
+      const c = f[x.key];
+      return (
+        <>
+          <div class="block">
+            <Feature
+              id={x.id}
+              lang={lang}
+              kicker={c.kicker}
+              title={c.title}
+              body={c.body}
+              note={'warning' in c ? { title: c.warningTitle, text: c.warning } : undefined}
+              shot={{ name: x.shot, alt: c.shotAlt, description: c.shot }}
+              reverse={i % 2 === 1}
+            />
+          </div>
+          {i < features.length - 1 && <div class="gap" />}
+        </>
+      );
+    })}
+  </div>
+  <Separator />
+  <About lang={lang} />
+  <Testimonials lang={lang} />
+  <Separator />
+  <Price lang={lang} />
+  <Separator />
+  <Faq lang={lang} />
+</Base>
+
+<style>
+  .gap { height: var(--space-24); }
+  @media (max-width: 859px) { .gap { height: var(--space-16); } }
+</style>
