@@ -58,6 +58,77 @@ Para entender la firma sin esperar a Apple, por partes:
 | `scripts/build-release.sh --solo-appcast` | Solo el último paso, sobre el disco ya notarizado de la corrida anterior: para reintentarlo, o tras escribir las notas, sin volver a compilar. |
 | `scripts/build-release.sh --sin-actualizaciones` | Deja entregar una app que **no sabe actualizarse sola** (el appcast sigue en la dirección de relleno). Solo para pruebas. |
 
+## Entregar a mano (hoy, sin sitio)
+
+Mientras el appcast no tenga una dirección pública (ver «Actualizaciones» más abajo), las apps instaladas **no se
+actualizan solas**: cada versión se entrega a mano. Es lo que se hace hoy, y funciona.
+
+1. **En `main`, con todo mergeado y el árbol limpio** (`git status` sin cambios: el script se niega si no).
+2. **Sube la versión si toca**: `CURRENT_PROJECT_VERSION` en el proyecto de Xcode (siempre, cada entrega) y
+   `MARKETING_VERSION` (la visible: hoy **0.0.1**). Si cambió el bridge de WhatsApp, `whatsapp-bridge/version.go`.
+3. **Compila, firma y notariza**:
+
+   ```bash
+   scripts/build-release.sh --sin-actualizaciones
+   ```
+
+   Tarda unos minutos (casi todo es esperar a Apple). Deja `build/release/Galeno-<versión>.dmg`. Hace falta el
+   certificado y el perfil de `notarytool` de «Lo que tienes que tener».
+4. **Pruébalo como lo vería un cliente**: pásalo por AirDrop a otro Mac (eso lo marca como descargado) y ábrelo. Si no
+   tienes otro Mac, al menos: `spctl --assess --type open --context context:primary-signature -v build/release/Galeno-<versión>.dmg`
+   debe decir `accepted` y `source=Notarized Developer ID`.
+5. **Entrégalo**: AirDrop, o un enlace de tu nube. Quien instala por **primera vez** abre el disco y arrastra Galeno a
+   Aplicaciones.
+6. **Quien ya tenía Galeno** corre además `scripts/instalar-desde-cero.sh` (ver más abajo): deja el Mac como nuevo y
+   guarda aparte la memoria de sus agentes.
+7. **Anota** en `HANDOFF.md` qué versión y qué bridge se entregó y a quién.
+
+### Instalar desde cero a quien ya tenía Galeno
+
+`scripts/instalar-desde-cero.sh` es para las personas que tienen una versión anterior. **Se le manda junto con el disco**
+y se corre una vez, en Terminal:
+
+```bash
+bash ~/Downloads/instalar-desde-cero.sh
+```
+
+(Con `bash` por delante no hace falta darle permisos ni saltarse ningún aviso de macOS. Busca el `Galeno-….dmg` más nuevo
+en Descargas; si está en otro sitio: `bash instalar-desde-cero.sh /ruta/Galeno-0.0.1.dmg`. Con `--dry` solo enseña lo
+que haría.)
+
+- **Antes de tocar nada** abre el disco y comprueba que Galeno está firmado y notarizado. Si no, se detiene.
+- Enseña lo que va a quitar y pide escribir «si».
+- **Guarda una copia de la memoria de cada agente** en `Documentos/Galeno-respaldo-<fecha>/`.
+- **Todo va a la Papelera, nada se borra** (la app vieja, los agentes, sus conversaciones en la app de Claude, el estado de
+  Galeno con la sesión de WhatsApp y su historial local). No vacía la Papelera.
+- **No toca los servidores MCP de Claude Code** (Notion, Slack…): pueden ser de otros proyectos de esa persona.
+- Instala la versión nueva en Aplicaciones y la abre. Al final recuerda lo que solo se puede hacer a mano: cerrar la
+  sesión vieja en el teléfono (WhatsApp → Dispositivos vinculados) y reiniciar la app de Claude.
+- Solo toca carpetas de `~/Galeno` que tengan `AGENTS.md` (las que generó Galeno): una carpeta suya que no lo sea se queda.
+
+**Probarlo sin riesgo**: el script tiene ganchos para correr en un Mac de mentira (`GALENO_PRUEBA=1`,
+`GALENO_APLICACIONES`, `GALENO_PAPELERA`, y `HOME` apuntando a una carpeta temporal). Así se probó el 8 oct 2026. Lo que
+ese modo no ejercita es el movimiento a la Papelera con Finder, que es el mismo de `scripts/reset-pruebas.sh`.
+
+## Cuando quieras que se actualicen solas
+
+La app se actualiza sola cuando puede leer el **appcast**: un archivo de texto (XML) **publicado en internet** que dice
+«la última versión es la X, se descarga de aquí, y esta es su firma». La app lo mira al abrir. Para eso hacen falta tres
+cosas, y hoy falta la primera:
+
+1. **Una dirección pública con `https`** donde viva ese archivo, y otra para los discos (`.dmg`). Tienen que poder abrirse
+   sin iniciar sesión: **un repositorio privado de GitHub no sirve**. Opciones: el sitio de venta de Galeno (carpeta `site/`,
+   Fase 9) con `/appcast.xml` y `/descargas/`; un repositorio público aparte con GitHub Pages; o un almacenamiento público
+   (Cloudflare R2, S3). Da igual cuál: es solo «un sitio donde dejar dos tipos de archivo».
+2. **Esa dirección escrita en la app** (`SUFeedURL` en `GalenoApp/Galeno-Info.plist`) **y en `scripts/release.env`**
+   (`GALENO_DOWNLOAD_URL_PREFIX`).
+3. **La clave de Sparkle** (la tienes, ver «Actualizaciones»).
+
+Hasta que exista, la dirección es de relleno y `build-release.sh` exige `--sin-actualizaciones`. **Ojo:** quien instale una
+versión con la dirección de relleno **no se actualiza solo** hasta que le pases a mano una versión que ya traiga la
+dirección real; desde esa en adelante sí. Por eso conviene tener la dirección antes de entregar a más gente de la que
+puedas alcanzar uno por uno.
+
 ## Qué hace, paso a paso
 
 1. **Compila el motor** (`GalenoCore`).

@@ -6913,13 +6913,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Without the background service no new messages arrive. Link again to leave it running."
+            "value" : "Without the background service no new messages arrive and nothing you approve goes out. Restart it from here; if that is not enough, link again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sin el servicio de fondo no llegan mensajes nuevos. Vuelve a vincular para dejarlo corriendo."
+            "value" : "Sin el servicio de fondo no llegan mensajes nuevos ni sale lo que apruebes. Reinícialo desde aquí; si no basta, vuelve a vincular."
           }
         }
       }
@@ -12751,6 +12751,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Antes de activar"
+          }
+        }
+      }
+    },
+    "health.whatsapp.syncRestart" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restart service"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reiniciar servicio"
+          }
+        }
+      }
+    },
+    "health.whatsapp.syncRestartFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The service could not be left running. Your WhatsApp session is as it was; try again or link again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo dejar el servicio corriendo. Tu sesión de WhatsApp sigue como estaba; prueba otra vez o vuelve a vincular."
           }
         }
       }
