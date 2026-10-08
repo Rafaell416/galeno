@@ -1,0 +1,71 @@
+---
+import '@fontsource/cinzel/latin-500.css';
+import '@fontsource/cinzel/latin-700.css';
+import '@fontsource/eb-garamond/latin-400.css';
+import '@fontsource/eb-garamond/latin-400-italic.css';
+import '@fontsource/eb-garamond/latin-600.css';
+import '@fontsource/jetbrains-mono/latin-400.css';
+import '../styles/tokens.css';
+import '../styles/base.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { t, path, languages, type Lang } from '../i18n/utils';
+import { site } from '../site';
+
+interface Props {
+  title: string;
+  description?: string;
+  lang: Lang;
+  /** La ruta sin idioma (`/`, `/docs`): sirve para el selector, el canonical y los hreflang. */
+  route: string;
+  noindex?: boolean;
+  /** La página del titular completo (la home) no añade «· Galeno» al título. */
+  bareTitle?: boolean;
+}
+const { title, description, lang, route, noindex = false, bareTitle = false } = Astro.props;
+const tr = t(lang);
+const fullTitle = bareTitle ? title : `${title} · ${site.name}`;
+const desc = description ?? tr.meta.description;
+const canonical = new URL(path(lang, route), site.url).href;
+const ogImage = new URL('/og.png', site.url).href;
+// Hasta que PUBLIC_SITE_LIVE valga 1, nada se indexa: el sitio puede estar en su dominio sin salir en Google a medias.
+const hideFromSearch = noindex || !site.live;
+---
+<!doctype html>
+<html lang={tr.htmlLang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={desc} />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F3EEE2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    {hideFromSearch && <meta name="robots" content="noindex, nofollow" />}
+    <link rel="canonical" href={canonical} />
+    {languages.map((l) => <link rel="alternate" hreflang={l} href={new URL(path(l, route), site.url).href} />)}
+    <link rel="alternate" hreflang="x-default" href={new URL(path('es', route), site.url).href} />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={desc} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={lang === 'es' ? 'es_CO' : 'en_US'} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={desc} />
+    <meta name="twitter:image" content={ogImage} />
+    <slot name="head" />
+  </head>
+  <body>
+    <a class="skip" href="#contenido">{tr.skip}</a>
+    <Header lang={lang} route={route} />
+    <main id="contenido"><slot /></main>
+    <Footer lang={lang} />
+  </body>
+</html>

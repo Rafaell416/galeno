@@ -1,0 +1,82 @@
+/* Tokens de docs/04-design-system.md §10 y modo oscuro «libro de noche» de §2. */
+:root {
+  /* Pergamino */
+  --parchment-50: #F3EEE2;
+  --parchment-100: #EEE7D8;
+  --parchment-200: #E7E0D1;
+  --parchment-300: #D8D1C1;
+  --parchment-400: #D0CBBC;
+  --vellum-100: #E2C9B7;
+  /* Tinta */
+  --ink-900: #2E2D2A;
+  --ink-700: #63655E;
+  --ink-500: #8C877C;
+  --ink-300: #B5B0A5;
+  --binding-900: #314041;
+  /* Acento (uno solo) */
+  --seal-700: #8B3A3A;
+  --seal-100: #F0E3E0;
+  /* Estados */
+  --moss-700: #4F6F5B;
+  --moss-100: #E6EEE8;
+  --ochre-700: #9A7B2F;
+
+  /* Familias */
+  --font-display: "Cinzel", Trajan, Georgia, serif;
+  --font-text: "EB Garamond", Georgia, serif;
+  --font-mono: "JetBrains Mono", Menlo, monospace;
+
+  /* Espacio y forma */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px;
+  --space-8: 32px; --space-12: 48px; --space-16: 64px; --space-24: 96px;
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
+
+  /* Semánticos (lo que usan los componentes; así el modo oscuro cambia en un solo sitio) */
+  --bg: var(--parchment-50);
+  --panel: var(--parchment-100);
+  --alt: var(--parchment-200);
+  --border: var(--parchment-300);
+  --border-strong: var(--ink-900);
+  --frame: var(--ink-300);
+  --text: var(--ink-900);
+  --text-2: var(--ink-700);
+  --text-3: var(--ink-500);
+  --accent: var(--seal-700);
+  --note-bg: var(--seal-100);
+  --code-bg: var(--parchment-300);
+  --code-border: var(--parchment-400);
+  --btn-bg: var(--ink-900);
+  --btn-fg: var(--parchment-50);
+  --btn-bg-hover: var(--binding-900);
+  --ring-inner: var(--ink-900);
+  --ring-outer: var(--ink-500);
+  --ok: var(--moss-700);
+  --ok-bg: var(--moss-100);
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413;
+    --panel: #1D1D1B;
+    --alt: #1D1D1B;
+    --border: #302F2C;
+    --border-strong: var(--parchment-100);
+    --frame: #4A4843;
+    --text: var(--parchment-100);
+    --text-2: var(--ink-300);
+    --text-3: var(--ink-500);
+    --accent: #B85C5C;
+    --note-bg: #2A1D1C;
+    --code-bg: #1D1D1B;
+    --code-border: #302F2C;
+    --btn-bg: var(--parchment-100);
+    --btn-fg: #141413;
+    --btn-bg-hover: var(--parchment-300);
+    --ring-inner: var(--parchment-300);
+    --ring-outer: var(--ink-500);
+    --ok: #7FA38C;
+    --ok-bg: #1C2620;
+  }
+}

@@ -1,0 +1,18 @@
+---
+import { t, path, type Lang } from '../i18n/utils';
+const { lang, route } = Astro.props as { lang: Lang; route: string };
+const tr = t(lang).langSwitch;
+---
+<nav class="lang" aria-label={tr.label}>
+  <a href={path('es', route)} lang="es" hreflang="es" aria-current={lang === 'es' ? 'true' : undefined} title={tr.esName}>{tr.es}</a>
+  <span aria-hidden="true">·</span>
+  <a href={path('en', route)} lang="en" hreflang="en" aria-current={lang === 'en' ? 'true' : undefined} title={tr.enName}>{tr.en}</a>
+</nav>
+
+<style>
+  .lang { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; color: var(--text-3); }
+  .lang span { font-family: var(--font-text); font-size: 14px; line-height: 1; align-self: center; }
+  .lang a { color: var(--text-2); text-decoration: none; padding: 6px 2px; }
+  .lang a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+  .lang a[aria-current='true'] { color: var(--accent); }
+</style>

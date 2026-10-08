@@ -69,3 +69,9 @@ node_modules/
 
 # Editores
 .vscode/
+
+# Sitio (Astro / Vercel)
+site/node_modules/
+site/dist/
+site/.astro/
+.vercel/

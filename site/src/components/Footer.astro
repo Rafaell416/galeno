@@ -1,0 +1,31 @@
+---
+import Wordmark from './Wordmark.astro';
+import { t, path, type Lang } from '../i18n/utils';
+import { site } from '../site';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).footer;
+const year = new Date().getFullYear();
+---
+<footer class="foot">
+  <div class="wrap">
+    <div class="row">
+      <Wordmark size="sm" />
+      <nav class="links" aria-label={tr.label}>
+        <a href={path(lang, '/privacy')}>{tr.privacy}</a>
+        <a href={path(lang, '/terms')}>{tr.terms}</a>
+        <a href={path(lang, '/docs')}>{tr.docs}</a>
+        <a href={`mailto:${site.email}`}>{tr.contact}</a>
+      </nav>
+    </div>
+    <p class="small muted">{tr.disclaimer}</p>
+    <p class="small muted">© {year} {site.company}. {tr.credit}</p>
+  </div>
+</footer>
+
+<style>
+  .foot { border-top: 1px solid var(--border); padding-block: var(--space-12); margin-top: var(--space-16); }
+  .row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-4) var(--space-8); margin-bottom: var(--space-6); }
+  .links { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); }
+  .links a { font-size: 15px; }
+  .foot p { max-width: 70ch; }
+</style>
