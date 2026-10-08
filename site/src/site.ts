@@ -12,6 +12,8 @@ export const site = {
   videoUrl: import.meta.env.PUBLIC_VIDEO_URL || '',
   // Hasta que sea '1', todas las páginas llevan noindex.
   live: import.meta.env.PUBLIC_SITE_LIVE === '1',
+  // Privacidad y términos son borradores técnicos: se pone en true cuando un abogado los revisó.
+  legalReviewed: false,
   // Las direcciones de lo que el sitio sirve además de las páginas. Ver HANDOFF.md.
   appcastPath: '/appcast.xml',
   skillsIndexPath: '/skills/v1/index.json',

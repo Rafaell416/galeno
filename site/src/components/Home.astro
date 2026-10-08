@@ -9,6 +9,7 @@ import Testimonials from './Testimonials.astro';
 import Price from './Price.astro';
 import Faq from './Faq.astro';
 import { t, type Lang } from '../i18n/utils';
+import { site } from '../site';
 const { lang } = Astro.props as { lang: Lang };
 const tr = t(lang);
 const f = tr.home.features;
@@ -18,8 +19,19 @@ const features = [
   { id: 'documentos', key: 'docs', shot: 'documentos' },
   { id: 'informes', key: 'reports', shot: 'informes' },
 ] as const;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Galeno',
+  description: tr.meta.description,
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'macOS 14 or later',
+  inLanguage: lang,
+  offers: { '@type': 'Offer', price: '200', priceCurrency: 'USD' },
+  publisher: { '@type': 'Organization', name: site.company, url: site.url },
+};
 ---
-<Base title={tr.home.metaTitle} lang={lang} route="/" bareTitle>
+<Base title={tr.home.metaTitle} lang={lang} route="/" bareTitle jsonLd={jsonLd}>
   <Hero lang={lang} />
   <Separator />
   <ProductVideo lang={lang} />
