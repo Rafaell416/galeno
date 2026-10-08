@@ -836,7 +836,7 @@ vez: **la privada está en el llavero de inicio de sesión de Rafa, cuenta `gale
 Sparkle updates»); **falta que Rafa guarde una copia**, porque sin ella las apps instaladas se quedan sin
 actualizaciones. No se subió como secreto de GitHub: hoy el release corre en su Mac y no hay flujo que la use; el
 comando está en `docs/RELEASE.md`. `scripts/build-release.sh` firma las piezas de Sparkle, firma el disco y actualiza
-`site/appcast.xml` con las notas, que dicen si el bridge cambió. **Comprobado:** Apple notarizó la app con Sparkle
+`site/public/appcast.xml` con las notas, que dicen si el bridge cambió. **Comprobado:** Apple notarizó la app con Sparkle
 dentro; el paso del appcast se probó contra un disco real con una dirección de prueba (entrada firmada, firma
 verificada, historial conservado, cambio de versión del bridge detectado). **Sin probar:** una actualización de verdad
 de punta a punta —una app instalada que vea una versión nueva, la descargue y se reemplace—, porque no hay sitio donde
@@ -970,6 +970,23 @@ alguien abre Salud en el instante en que la app arranca, Salud puede reemplazar 
 reinicia `sync` (ve la misma versión); se corrige solo en el siguiente inicio de sesión del Mac.
 
 ---
+
+**El sitio (8 oct 2026; rama `feat/sitio`, Fase 9).** `site/`: Astro 7 estático, sin JavaScript en el navegador, sin
+cookies ni analítica, en español (sin prefijo) y en inglés (`/en`). Desplegado en **Vercel Pro** (decisión de Rafa: Hobby no
+permite uso comercial), dominio `getgaleno.com` en Namecheap; el DMG y el video, en **Supabase** (proyecto aparte del de
+MediClub, buckets públicos `releases` y `media`). Datos del negocio: **Galeno LLC**, contacto `rvillarreal416@gmail.com`.
+**Las dos direcciones que sirve además de las páginas** (solo descargas, no reciben datos del usuario):
+**appcast** `https://getgaleno.com/appcast.xml` y **skills remotas** `https://getgaleno.com/skills/v1/index.json`
+(reservada, hoy lista vacía; el formato y la firma son de la Fase 5; un formato nuevo sería `/v2/`). Los discos se bajan por
+`https://getgaleno.com/download/<disco>.dmg`, que **redirige** a Supabase: el appcast lleva esa dirección, no la de
+Supabase. `scripts/build-release.sh` escribe ahora `site/public/appcast.xml`. **`SUFeedURL` no cambia hasta que el appcast
+responda en producción**; después, se entrega una versión con la dirección real y se prueba una actualización A→B.
+Decisiones de copy: el titular del hero va en EB Garamond (una frase en Cinzel sería ilegible); «informes a Slack» dice que
+el usuario aprueba el envío (una tarea programada nunca publica sola); «cómo activar» pasó a «Primeros pasos» (la v0.0.1 no
+tiene licencia); WhatsApp se presenta como conexión **no oficial** con riesgo de restricción; los testimonios no se publican
+hasta que haya reales (`src/content/testimonials.json`, `verified: true`); fuentes autoalojadas en vez de Google Fonts.
+**Antes de abrir ventas:** capturas reales, video, foto y texto del About, `PUBLIC_CHECKOUT_URL` (Fase 10), revisión legal
+de `/privacy` y `/terms` (hay un marcador de ley aplicable) y `npm run check:launch` en verde. Cómo correrlo: README §10.2b.
 
 ## 13. Documentos
 

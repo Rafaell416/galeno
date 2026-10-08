@@ -1,0 +1,9 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Galeno</title>
+        <link>https://getgaleno.com/appcast.xml</link>
+        <description>Actualizaciones de Galeno</description>
+        <language>es</language>
+    </channel>
+</rss>
