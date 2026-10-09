@@ -1,0 +1,42 @@
+---
+// Solo se pintan testimonios reales (`verified: true`). Sin ninguno, la sección no existe en producción;
+// en desarrollo y en la vista previa se ve un hueco rotulado para no olvidarla.
+import { t, type Lang } from '../i18n/utils';
+import { site } from '../site';
+import Separator from './Separator.astro';
+import all from '../content/testimonials.json';
+
+interface Testimonial { quote: { es: string; en: string }; name: string; role: string; verified: boolean }
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.testimonials;
+const items = (all as Testimonial[]).filter((x) => x.verified);
+const showPlaceholder = items.length === 0 && !site.live;
+---
+{(items.length > 0 || showPlaceholder) && (
+  <>
+  <Separator />
+  <section id="testimonios" class="wrap narrow" aria-labelledby="testimonios-t">
+    <span class="kicker">{tr.kicker}</span>
+    <h2 id="testimonios-t">{tr.title}</h2>
+    {items.length > 0 ? (
+      <div class="list">
+        {items.map((x) => (
+          <figure>
+            <blockquote><p>{x.quote[lang]}</p></blockquote>
+            <figcaption class="small muted">{x.name} · {x.role}</figcaption>
+          </figure>
+        ))}
+      </div>
+    ) : (
+      <div class="shot-placeholder" data-placeholder="testimonials"><p>{tr.pending}</p></div>
+    )}
+  </section>
+  </>
+)}
+
+<style>
+  h2 { margin-bottom: var(--space-6); }
+  .list { display: grid; gap: var(--space-8); }
+  blockquote { font-size: 1.25rem; line-height: 1.5; font-style: italic; border-left: 1px solid var(--frame); padding-left: var(--space-6); }
+  figcaption { margin-top: var(--space-3); padding-left: var(--space-6); }
+</style>

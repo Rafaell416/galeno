@@ -1,0 +1,27 @@
+---
+// El busto de la litografía, recortado en círculo con doble anillo fino (docs/04 §4).
+// Nunca coloreado, rotado ni con sombra. Sobre fondo oscuro lleva su círculo de pergamino: la propia imagen.
+import { Image } from 'astro:assets';
+import retrato from '../assets/retrato.jpg';
+const { size = 160, alt = '', eager = false } = Astro.props as { size?: number; alt?: string; eager?: boolean };
+---
+<span class="portrait" style={`--size:${size}px`}>
+  <span class="inner">
+    <Image
+      src={retrato}
+      alt={alt}
+      width={size}
+      height={size}
+      densities={[1, 2]}
+      format="webp"
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+    />
+  </span>
+</span>
+
+<style>
+  .portrait { display: inline-block; flex: none; width: var(--size); height: var(--size); border: 1px solid var(--ring-outer); border-radius: 50%; padding: 3px; }
+  .inner { display: block; width: 100%; height: 100%; border: 1.5px solid var(--ring-inner); border-radius: 50%; overflow: hidden; }
+  .inner :global(img) { width: 100%; height: 100%; object-fit: cover; object-position: 52% 42%; }
+</style>

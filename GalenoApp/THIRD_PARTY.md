@@ -56,6 +56,13 @@ venden por separado). Los textos completos van junto a las fuentes: `OFL-EBGaram
 de peso y las características `kern liga smcp c2sc onum lnum pnum tnum case ccmp locl calt mark mkmk
 frac`. Receta y medidas en `docs/05b-spike-fuentes.md`.
 
+## Fuentes del sitio (`site/`, 8 oct 2026)
+
+El sitio sirve sus tipografías desde su propio dominio (paquetes de npm `@fontsource/*` 5.3.0, que empaquetan los archivos
+de Google Fonts), todas bajo la **SIL Open Font License 1.1**: Cinzel (The Cinzel Project Authors), EB Garamond (The EB
+Garamond Project Authors) y JetBrains Mono (The JetBrains Mono Project Authors). Solo los subconjuntos latinos que usa el
+sitio. El retrato del sitio es el mismo de abajo (litografía de Vigneron, dominio público) y el pie del sitio da el crédito.
+
 ## Retrato
 
 `Galeno/Assets.xcassets/retrato-galeno.imageset/retrato-galeno.jpg` es un recorte cuadrado (600 px) de

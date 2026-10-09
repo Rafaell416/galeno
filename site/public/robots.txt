@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /download/
+Disallow: /appcast.xml
+Disallow: /skills/
+
+Sitemap: https://getgaleno.com/sitemap-index.xml

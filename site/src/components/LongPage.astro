@@ -1,0 +1,37 @@
+---
+import Base from '../layouts/Base.astro';
+import Prose from './Prose.astro';
+import type { LongPage } from '../i18n/pages-types';
+import type { Lang } from '../i18n/utils';
+const { page, lang, route } = Astro.props as { page: LongPage; lang: Lang; route: string };
+---
+<Base title={page.title} description={page.metaDescription} lang={lang} route={route}>
+  <article class="wrap narrow section">
+    <span class="kicker">{page.kicker}</span>
+    <h1>{page.title}</h1>
+    {page.updated && <p class="small muted">{page.updated}</p>}
+    {page.intro && <p class="intro muted">{page.intro}</p>}
+    {page.sections.length > 3 && (
+      <nav class="toc" aria-label={page.title}>
+        <ol>{page.sections.map((s) => <li><a href={`#${s.id}`}>{s.h}</a></li>)}</ol>
+      </nav>
+    )}
+    {page.sections.map((s) => (
+      <section id={s.id} aria-labelledby={`${s.id}-t`}>
+        <h2 id={`${s.id}-t`}>{s.h}</h2>
+        <Prose blocks={s.blocks} />
+      </section>
+    ))}
+  </article>
+</Base>
+
+<style>
+  h1 { font-size: clamp(1.75rem, 1.3rem + 1.8vw, 2.5rem); line-height: 1.15; margin-bottom: var(--space-3); }
+  .intro { margin-top: var(--space-4); }
+  .toc { margin-block: var(--space-8); padding: var(--space-4) var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .toc ol { margin: 0; padding-left: 1.3em; columns: 1; }
+  .toc li + li { margin-top: var(--space-1); }
+  @media (min-width: 720px) { .toc ol { columns: 2; column-gap: var(--space-8); } }
+  section { margin-top: var(--space-12); scroll-margin-top: var(--space-6); }
+  h2 { margin-bottom: var(--space-3); }
+</style>

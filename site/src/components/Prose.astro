@@ -1,0 +1,29 @@
+---
+import type { Block } from '../i18n/pages-types';
+import { site } from '../site';
+// Pinta bloques de texto. El texto se escapa primero y solo después se activa el marcado en línea,
+// así que ningún texto de i18n puede meter HTML.
+const { blocks } = Astro.props as { blocks: Block[] };
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const inline = (s: string) =>
+  esc(s)
+    .replaceAll('mailto:{email}', `mailto:${site.email}`)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:|\/)[^)\s]+)\)/g, '<a href="$2">$1</a>');
+---
+{blocks.map((b) => {
+  if ('p' in b) return <p set:html={inline(b.p)} />;
+  if ('ul' in b) return <ul>{b.ul.map((i) => <li set:html={inline(i)} />)}</ul>;
+  if ('ol' in b) return <ol>{b.ol.map((i) => <li set:html={inline(i)} />)}</ol>;
+  if ('code' in b) return <pre><code>{b.code}</code></pre>;
+  return <div class="note"><p set:html={inline(b.note)} /></div>;
+})}
+
+<style>
+  ul, ol { padding-left: 1.3em; margin-top: var(--space-3); }
+  li + li { margin-top: var(--space-2); }
+  pre, .note { margin-top: var(--space-4); }
+  .note p { margin: 0; }
+  :global(p + p), :global(p + ul), :global(p + ol), :global(ul + p), :global(ol + p) { margin-top: var(--space-4); }
+</style>

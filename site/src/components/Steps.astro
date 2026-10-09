@@ -1,0 +1,28 @@
+---
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.steps;
+const numerals = ['I', 'II', 'III'];
+---
+<section id="pasos" class="wrap" aria-labelledby="pasos-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="pasos-t">{tr.title}</h2>
+  <ol>
+    {tr.items.map((s, i) => (
+      <li>
+        <span class="n" aria-hidden="true">{numerals[i]}</span>
+        <h3>{s.title}</h3>
+        <p class="muted">{s.text}</p>
+      </li>
+    ))}
+  </ol>
+</section>
+
+<style>
+  h2 { margin-bottom: var(--space-8); }
+  ol { list-style: none; padding: 0; display: grid; gap: var(--space-8); }
+  li { border-top: 1.5px solid var(--border-strong); padding-top: var(--space-4); }
+  .n { font-family: var(--font-display); font-weight: 500; font-size: 13px; letter-spacing: 0.12em; color: var(--accent); }
+  h3 { margin: var(--space-2) 0; font-size: 1.25rem; }
+  @media (min-width: 860px) { ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); } }
+</style>

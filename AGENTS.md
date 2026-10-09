@@ -434,7 +434,7 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (`GalenoApp/Galeno.entitlements`): sin sandbox, la red y lanzar procesos no los piden; añadir uno exige escribir el
   motivo en `docs/RELEASE.md`. Sparkle es el único framework que el script sabe firmar (sus cuatro ayudantes, en su
   orden); con cualquier otro se detiene hasta que se le enseñe. El último paso firma el disco con la clave de Sparkle y
-  actualiza `site/appcast.xml`; se niega a entregar una app con el appcast de relleno salvo con `--sin-actualizaciones`.
+  actualiza `site/public/appcast.xml`; se niega a entregar una app con el appcast de relleno salvo con `--sin-actualizaciones`.
 
 ### Skills y licencias
 

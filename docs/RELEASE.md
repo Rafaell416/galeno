@@ -117,9 +117,10 @@ La app se actualiza sola cuando puede leer el **appcast**: un archivo de texto (
 cosas, y hoy falta la primera:
 
 1. **Una dirección pública con `https`** donde viva ese archivo, y otra para los discos (`.dmg`). Tienen que poder abrirse
-   sin iniciar sesión: **un repositorio privado de GitHub no sirve**. Opciones: el sitio de venta de Galeno (carpeta `site/`,
-   Fase 9) con `/appcast.xml` y `/descargas/`; un repositorio público aparte con GitHub Pages; o un almacenamiento público
-   (Cloudflare R2, S3). Da igual cuál: es solo «un sitio donde dejar dos tipos de archivo».
+   sin iniciar sesión: **un repositorio privado de GitHub no sirve**. Decidido (8 oct 2026): el sitio de Galeno (`site/`,
+   en Vercel) sirve `https://getgaleno.com/appcast.xml`, y `https://getgaleno.com/download/<disco>.dmg` **redirige** al
+   disco, que vive en un bucket público de Supabase (`releases`). La dirección del disco que queda escrita en el appcast
+   es la de `getgaleno.com`, no la de Supabase: así se puede cambiar de almacenamiento sin tocar ninguna app instalada.
 2. **Esa dirección escrita en la app** (`SUFeedURL` en `GalenoApp/Galeno-Info.plist`) **y en `scripts/release.env`**
    (`GALENO_DOWNLOAD_URL_PREFIX`).
 3. **La clave de Sparkle** (la tienes, ver «Actualizaciones»).
@@ -149,7 +150,7 @@ puedas alcanzar uno por uno.
    de Apple con el motivo de cada archivo.
 9. **Grapa y verifica.** Grapar pega al DMG el comprobante de Apple, para que abra sin internet. Después le pregunta a
    Gatekeeper (`spctl`) qué haría con el disco y con la app tal como va dentro, que es lo que vería un cliente.
-10. **Actualiza el appcast** (`site/appcast.xml`): firma el disco con la clave de Sparkle y añade su entrada, con las
+10. **Actualiza el appcast** (`site/public/appcast.xml`): firma el disco con la clave de Sparkle y añade su entrada, con las
     notas de la versión. Es lo que miran las apps ya instaladas para saber que hay una versión nueva.
 
 ## Actualizaciones (Sparkle)
@@ -190,8 +191,10 @@ obliga después a avisar a cada cliente a mano.
 
 **Cuando el sitio exista** (Fase 9):
 
-1. Pon la dirección de verdad en `GalenoApp/Galeno-Info.plist` (`SUFeedURL`, por `https`).
-2. Pon en `scripts/release.env` de dónde se descargarán los discos: `GALENO_DOWNLOAD_URL_PREFIX="https://…/descargas/"`.
+1. Comprueba que `https://getgaleno.com/appcast.xml` responde (`curl -I`) y que `/download/<disco>.dmg` redirige y baja
+   el disco completo. **Esa dirección queda grabada en cada app instalada para siempre**: no se cambia después.
+2. Pon la dirección de verdad en `GalenoApp/Galeno-Info.plist` (`SUFeedURL`, por `https`).
+3. Pon en `scripts/release.env` de dónde se descargarán los discos: `GALENO_DOWNLOAD_URL_PREFIX="https://getgaleno.com/download/"`.
 
 **Cada versión nueva:**
 
@@ -200,7 +203,11 @@ obliga después a avisar a cada cliente a mano.
 2. Si cambió el bridge de WhatsApp, sube su versión en `whatsapp-bridge/version.go`.
 3. Escribe las novedades en `docs/releases/<versión>.md`, una por renglón. Es opcional.
 4. Corre `scripts/build-release.sh`.
-5. Sube el disco a la dirección que el script enseña al final, y commitea y publica `site/appcast.xml`.
+5. Sube el disco al bucket `releases` de Supabase (panel de Supabase → Storage → `releases` → Upload), **con el nombre
+   exacto** que el script enseña al final (`Galeno-<versión>.dmg`).
+6. Commitea `site/public/appcast.xml` en una rama, abre el PR y mergéalo: Vercel publica el appcast nuevo en un minuto.
+   **Sube el disco antes de mergear**: si el appcast llega primero, las apps ven una versión nueva que todavía no se puede
+   bajar.
 
 Las notas de cada versión dicen siempre qué versión del bridge lleva y **si cambió** respecto a la anterior
 («sin cambios», o «de la 0.3.0 a la 0.4.0»): el script lo saca comparando con lo que dice el propio appcast.

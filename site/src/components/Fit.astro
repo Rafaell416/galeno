@@ -1,0 +1,30 @@
+---
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.fit;
+---
+<section id="para-quien" class="wrap" aria-labelledby="para-quien-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="para-quien-t">{tr.title}</h2>
+  <div class="cols">
+    <div class="yes">
+      <h3>{tr.yesTitle}</h3>
+      <ul>{tr.yes.map((i) => <li>{i}</li>)}</ul>
+    </div>
+    <div class="no">
+      <h3>{tr.noTitle}</h3>
+      <ul>{tr.no.map((i) => <li>{i}</li>)}</ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  h2 { margin-bottom: var(--space-8); }
+  .cols { display: grid; gap: var(--space-8); }
+  .yes { border-top: 1.5px solid var(--border-strong); padding-top: var(--space-4); }
+  .no { border-top: 1px solid var(--frame); padding-top: var(--space-4); }
+  h3 { margin-bottom: var(--space-3); }
+  ul { padding-left: 1.2em; display: grid; gap: var(--space-3); }
+  .no { color: var(--text-2); }
+  @media (min-width: 860px) { .cols { grid-template-columns: 1fr 1fr; gap: var(--space-16); } }
+</style>

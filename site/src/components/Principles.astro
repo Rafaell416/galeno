@@ -1,0 +1,28 @@
+---
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.principles;
+import { site } from '../site';
+const free = t(lang).home.free;
+const items = site.salesOpen ? tr.items : tr.items.map((i, n) => (n === 2 ? free.principle : i));
+---
+<section id="principios" class="wrap" aria-labelledby="principios-t">
+  <span class="kicker">{tr.kicker}</span>
+  <h2 id="principios-t">{tr.title}</h2>
+  <ul>
+    {items.map((i) => (
+      <li>
+        <h3>{i.title}</h3>
+        <p class="muted">{i.text}</p>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  h2 { margin-bottom: var(--space-8); }
+  ul { list-style: none; padding: 0; display: grid; gap: var(--space-8); }
+  li { border-top: 1px solid var(--frame); padding-top: var(--space-4); }
+  h3 { margin-bottom: var(--space-2); font-size: 1.25rem; }
+  @media (min-width: 860px) { ul { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+</style>

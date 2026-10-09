@@ -1,0 +1,13 @@
+---
+// GALENO. en Cinzel 700, con el punto final en lacre: el único color del logo (docs/04 §4).
+const { size = 'md' } = Astro.props as { size?: 'sm' | 'md' | 'lg' };
+---
+<span class={`wordmark wordmark--${size}`}>GALENO<span class="dot">.</span></span>
+
+<style>
+  .wordmark { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.08em; line-height: 1; color: var(--text); white-space: nowrap; }
+  .dot { color: var(--accent); }
+  .wordmark--sm { font-size: 15px; }
+  .wordmark--md { font-size: 22px; }
+  .wordmark--lg { font-size: clamp(30px, 6vw, 44px); }
+</style>

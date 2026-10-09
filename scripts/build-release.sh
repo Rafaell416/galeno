@@ -23,7 +23,7 @@
 # `--deep`, deja una firma que Apple rechaza al notarizar.
 #
 # Al final firma el disco con la clave EdDSA de Sparkle (la del llavero, cuenta «galeno») y actualiza el appcast
-# (site/appcast.xml), con las notas de la versión y si el bridge de WhatsApp cambió.
+# (site/public/appcast.xml), con las notas de la versión y si el bridge de WhatsApp cambió.
 
 set -euo pipefail
 
@@ -60,7 +60,7 @@ BRIDGE_ID="com.galeno.whatsapp-bridge"
 SPARKLE_ACCOUNT="${GALENO_SPARKLE_ACCOUNT:-galeno}"
 DOWNLOAD_PREFIX="${GALENO_DOWNLOAD_URL_PREFIX:-}"
 INFO_PLIST="$ROOT/GalenoApp/Galeno-Info.plist"
-APPCAST="$ROOT/site/appcast.xml"
+APPCAST="$ROOT/site/public/appcast.xml"
 
 # Todo lo que este script crea o borra vive aquí dentro. Rutas fijas a partir de la raíz del repo: nunca una variable
 # que, vacía, apunte a otra parte.
@@ -367,8 +367,9 @@ else
   mkdir -p "$(dirname "$APPCAST")"
   cp "$UPDATES/appcast.xml" "$APPCAST"
   echo "  $BRIDGE_NOTE"
-  echo "  appcast actualizado: site/appcast.xml (commitéalo y publícalo con el sitio)"
-  echo "  sube el disco a: $DOWNLOAD_PREFIX$(basename "$DMG")"
+  echo "  appcast actualizado: site/public/appcast.xml (commitéalo: al llegar a main, Vercel lo publica con el sitio)"
+  echo "  sube el disco a Supabase (bucket «releases») con este nombre: $(basename "$DMG")"
+  echo "  los clientes lo bajarán de: $DOWNLOAD_PREFIX$(basename "$DMG")"
 fi
 
 echo

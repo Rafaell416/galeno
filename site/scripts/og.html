@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Plantilla de la imagen Open Graph (1200×630). La renderiza `node scripts/make-og.mjs`; no es una página del sitio.
+     Parámetro ?lang=es|en. Tokens de docs/04 §10, en claro. -->
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Cinzel; font-weight: 700; src: url(../node_modules/@fontsource/cinzel/files/cinzel-latin-700-normal.woff2); }
+  @font-face { font-family: Cinzel; font-weight: 500; src: url(../node_modules/@fontsource/cinzel/files/cinzel-latin-500-normal.woff2); }
+  @font-face { font-family: "EB Garamond"; font-weight: 600; src: url(../node_modules/@fontsource/eb-garamond/files/eb-garamond-latin-600-normal.woff2); }
+  @font-face { font-family: "EB Garamond"; font-weight: 400; src: url(../node_modules/@fontsource/eb-garamond/files/eb-garamond-latin-400-normal.woff2); }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; background: #F3EEE2; color: #2E2D2A; overflow: hidden; }
+  body { display: flex; align-items: center; gap: 72px; padding: 0 88px; font-family: "EB Garamond", Georgia, serif; font-variant-numeric: oldstyle-nums; }
+  .portrait { flex: none; width: 380px; height: 380px; border: 2px solid #8C877C; border-radius: 50%; padding: 7px; }
+  .portrait div { width: 100%; height: 100%; border: 3px solid #2E2D2A; border-radius: 50%; overflow: hidden; }
+  .portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 52% 42%; }
+  .wordmark { font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 64px; letter-spacing: 0.08em; line-height: 1; }
+  .wordmark span { color: #8B3A3A; }
+  h1 { font-weight: 600; font-size: 52px; line-height: 1.12; margin-top: 36px; text-wrap: balance; }
+  .fine { font-family: Cinzel, Georgia, serif; font-weight: 500; font-size: 17px; letter-spacing: 0.14em; text-transform: uppercase; color: #63655E; margin-top: 40px; }
+</style>
+<div class="portrait"><div><img src="../src/assets/retrato.jpg" alt=""></div></div>
+<div>
+  <div class="wordmark">GALENO<span>.</span></div>
+  <h1 id="h"></h1>
+  <p class="fine" id="f"></p>
+</div>
+<script>
+  const es = new URLSearchParams(location.search).get('lang') !== 'en';
+  document.getElementById('h').textContent = es
+    ? 'Un asistente que lee tus chats, tickets y documentos, y te deja el trabajo listo.'
+    : 'An assistant that reads your chats, tickets and documents, and leaves the work ready.';
+  document.getElementById('f').textContent = es ? 'App para Mac' : 'A Mac app';
+</script>

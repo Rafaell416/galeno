@@ -1,0 +1,19 @@
+---
+import FlowIllustration from './FlowIllustration.astro';
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const tr = t(lang).home.solution;
+---
+<section id="solucion" class="wrap" aria-labelledby="solucion-t">
+  <div class="head">
+    <span class="kicker">{tr.kicker}</span>
+    <h2 id="solucion-t">{tr.title}</h2>
+    <p class="muted">{tr.body}</p>
+  </div>
+  <FlowIllustration lang={lang} />
+</section>
+
+<style>
+  .head { max-width: 62ch; margin: 0 auto var(--space-12); text-align: center; }
+  h2 { margin-bottom: var(--space-4); }
+</style>

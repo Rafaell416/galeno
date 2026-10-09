@@ -1,0 +1,71 @@
+---
+// Esquema de lo que hace Galeno con WhatsApp: tus chats entran, Galeno lee, y te devuelve lo que quedó sin respuesta,
+// lo que prometiste y un mensaje propuesto que tú apruebas. Es HTML y CSS (sin imágenes ni JavaScript): el texto sale de
+// i18n y se adapta al ancho. Es ilustrativo y lo dice: no es una captura.
+import Portrait from './Portrait.astro';
+import { t, type Lang } from '../i18n/utils';
+const { lang } = Astro.props as { lang: Lang };
+const f = t(lang).home.flow;
+---
+<figure class="flow">
+  <div class="grid" role="img" aria-label={f.alt}>
+    <div class="col" aria-hidden="true">
+      <span class="kicker">{f.chatsTitle}</span>
+      {f.chats.map((c) => (
+        <div class="card chat">
+          <span class="who">{c.who}</span>
+          <p class="bubble">{c.msg}</p>
+        </div>
+      ))}
+    </div>
+
+    <svg class="arrow" aria-hidden="true" viewBox="0 0 48 24" width="48" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 12H44M36 4l8 8-8 8" /></svg>
+    <div class="mid" aria-hidden="true">
+      <Portrait size=112 />
+      <span class="reads">{f.readsLabel}</span>
+    </div>
+    <svg class="arrow" aria-hidden="true" viewBox="0 0 48 24" width="48" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 12H44M36 4l8 8-8 8" /></svg>
+
+    <div class="col" aria-hidden="true">
+      <span class="kicker">{f.outTitle}</span>
+      <div class="card out">
+        <span class="label alert">{f.waiting.label}</span>
+        <p>{f.waiting.text}</p>
+      </div>
+      <div class="card out">
+        <span class="label">{f.promised.label}</span>
+        <p>{f.promised.text}</p>
+      </div>
+      <div class="card out proposal">
+        <span class="label">{f.proposal.label}</span>
+        <p class="bubble">{f.proposal.text}</p>
+        <div class="actions"><span class="pbtn pbtn--primary">{f.approve}</span><span class="pbtn">{f.edit}</span></div>
+      </div>
+    </div>
+  </div>
+  <figcaption class="small muted">{f.note}</figcaption>
+</figure>
+
+<style>
+  .flow { margin: 0; }
+  .grid { display: grid; gap: var(--space-6); align-items: center; }
+  .col { display: grid; gap: var(--space-3); }
+  .col .kicker { margin-bottom: 0; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
+  .who, .label { display: block; font-family: var(--font-display); font-weight: 500; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); margin-bottom: var(--space-1); }
+  .label.alert { color: var(--accent); }
+  .bubble { font-style: italic; font-size: 1rem; line-height: 1.4; }
+  .out p { font-size: 1rem; line-height: 1.4; margin: 0; }
+  .proposal { border-color: var(--border-strong); }
+  .actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+  .pbtn { font-family: var(--font-display); font-weight: 500; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); padding: 8px 12px; color: var(--text); }
+  .pbtn--primary { background: var(--btn-bg); color: var(--btn-fg); }
+  .mid { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+  .reads { font-family: var(--font-display); font-weight: 500; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); }
+  .arrow { color: var(--text-3); justify-self: center; transform: rotate(90deg); }
+  figcaption { margin-top: var(--space-4); text-align: center; }
+  @media (min-width: 860px) {
+    .grid { grid-template-columns: minmax(0, 1fr) 48px auto 48px minmax(0, 1fr); gap: var(--space-4); }
+    .arrow { transform: none; }
+  }
+</style>

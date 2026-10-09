@@ -69,3 +69,12 @@ node_modules/
 
 # Editores
 .vscode/
+
+# Sitio (Astro / Vercel)
+site/node_modules/
+site/dist/
+site/.astro/
+.vercel/
+
+# Videos del sitio: pesan, viven en Supabase (bucket media), no en git
+site/public/media/

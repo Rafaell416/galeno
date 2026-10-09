@@ -735,7 +735,7 @@ perfil (copia de `release.env.example`; **sin contraseñas**, no se commitea). D
    → compila el motor → compila el bridge universal → compila la app en Release → **firma de dentro hacia fuera** (el
    bridge y las piezas de Sparkle, después la app; **nunca `--deep`**, que Apple rechaza) con hardened runtime y los
    *entitlements* vacíos → verifica la firma → crea el DMG (`create-dmg`) → lo notariza con `notarytool submit --wait` → lo
-   graba (`stapler`) → `spctl --assess` → firma el disco con la clave de Sparkle y actualiza `site/appcast.xml`.
+   graba (`stapler`) → `spctl --assess` → firma el disco con la clave de Sparkle y actualiza `site/public/appcast.xml`.
    Deja `build/release/Galeno-<versión>.dmg`.
    Variantes: `--ensayo` (sin certificado, firma *ad hoc*; **lo que sale no se entrega**), `--sin-notarizar`,
    `--solo-appcast`, `--con-cambios`.
@@ -768,29 +768,70 @@ parámetros: una prueba lo comprueba).
 
 > **Aún no disponible.** Hoy `SUFeedURL` es una dirección de relleno (`https://galeno.invalid/appcast.xml`). Con ella la
 > app **no arranca Sparkle**, «Buscar actualizaciones…» sale apagado y `build-release.sh` se niega a entregar salvo con
-> `--sin-actualizaciones`. Lo que falta es **dónde publicar**, no código.
+> `--sin-actualizaciones`. El sitio que lo sirve ya está construido (`site/`, ver 10.2b); falta publicarlo en
+> `getgaleno.com` y cambiar `SUFeedURL`.
 
-**Para activarlo (cuando exista el sitio):**
+**Las direcciones** (decididas el 8 oct 2026):
 
-1. **Decide la dirección del appcast en tu dominio**: `https://getgaleno.com/appcast.xml`. **Esa dirección queda grabada
-   en cada app instalada para siempre**; si algún día cambias de sitio, las apps ya instaladas siguen preguntando ahí.
-   Por eso va en **un dominio tuyo** (que puedes apuntar adonde quieras; Sparkle sigue las redirecciones) y no en la de un
-   proveedor (`…supabase.co`, `…github.io`).
-2. Escribe esa dirección en `GalenoApp/Galeno-Info.plist` (`SUFeedURL`, por `https`) y, en `scripts/release.env`, de dónde
-   se descargarán los discos: `GALENO_DOWNLOAD_URL_PREFIX="https://…/"` (acabada en `/`). **Los discos pueden estar en otro
-   sitio** que el appcast, porque el appcast lleva la dirección completa de cada uno (Supabase Storage con un bucket
-   público, Cloudflare R2, o un repositorio público de GitHub con Releases).
+| Qué | Dirección | Dónde vive |
+|---|---|---|
+| Appcast | `https://getgaleno.com/appcast.xml` | `site/public/appcast.xml`, servido por Vercel |
+| Discos | `https://getgaleno.com/download/Galeno-<versión>.dmg` | Redirección (`vercel.json`) a un bucket público `releases` de Supabase |
+| Skills remotas (Fase 5) | `https://getgaleno.com/skills/v1/index.json` | `site/public/skills/v1/`, reservado: hoy lista vacía |
+
+El appcast lleva la dirección de `getgaleno.com/download/…`, **no** la de Supabase: así se puede cambiar de almacenamiento
+(o cerrar la descarga detrás de un enlace firmado cuando exista el pago) tocando `vercel.json`, sin tocar ninguna app.
+
+**Para activarlo:**
+
+1. **La dirección del appcast queda grabada en cada app instalada para siempre**; si algún día cambias de sitio, las apps
+   ya instaladas siguen preguntando ahí. Por eso va en **un dominio tuyo** (Sparkle sigue las redirecciones) y no en el de
+   un proveedor (`…supabase.co`, `…vercel.app`).
+2. Escribe `https://getgaleno.com/appcast.xml` en `GalenoApp/Galeno-Info.plist` (`SUFeedURL`) y, en
+   `scripts/release.env`, `GALENO_DOWNLOAD_URL_PREFIX="https://getgaleno.com/download/"`. Antes, comprueba con `curl -I`
+   que el appcast responde y que el disco se baja completo.
 3. **Antes de entregar a más gente de la que puedas alcanzar uno por uno**, entrega una versión que ya traiga la dirección
    real: quien instale una con la de relleno **no se actualiza solo** hasta que le pases a mano una versión con la
    dirección real.
-4. El flujo de cada versión pasa a ser: lo de 10.1 **sin** `--sin-actualizaciones` → sube el `.dmg` → sube el
-   `appcast.xml` (con una caché corta, ~60 s, si el proveedor cachea) → comprueba en una app instalada que **ofrece la
-   actualización, se actualiza y reinicia**.
+4. El flujo de cada versión pasa a ser: lo de 10.1 **sin** `--sin-actualizaciones` → sube el `.dmg` al bucket `releases`
+   de Supabase (con el nombre exacto que enseña el script) → commitea `site/public/appcast.xml` y mergea el PR (Vercel lo
+   publica; caché de 60 s) → comprueba en una app instalada que **ofrece la actualización, se actualiza y reinicia**.
+   **El disco se sube antes de mergear** el appcast.
 5. **Prueba que rechaza un disco alterado**: cambia un byte del `.dmg` publicado; Sparkle debe negarse a instalarlo.
 
 Notas que Sparkle publica: el script escribe, por versión, qué versión del bridge lleva y **si cambió** («sin cambios», o
 «de la 0.3.0 a la 0.4.0»), comparando con el propio appcast. Las notas de cada versión se escriben en
 `docs/releases/<versión>.md` (una por renglón; es opcional).
+
+### 10.2b El sitio (`site/`)
+
+Astro estático en Vercel, sin JavaScript en el navegador ni cuentas ni analítica. Páginas: `/`, `/docs`, `/privacy`,
+`/terms`, y las mismas en `/en/…`. Además sirve el appcast, el índice de skills y `/download/`. Texto: `site/src/i18n/`;
+datos del negocio y de despliegue: `site/src/site.ts`; capturas: `site/src/assets/shots/`.
+
+```bash
+cd site && source ~/.nvm/nvm.sh && nvm use 22   # Astro 7 pide Node 22 o más
+npm install && npm run dev                      # http://localhost:4321
+npm run check && npm run build                  # antes de abrir el PR
+npm run check:launch                            # lista de «listo para vender»; falla si falta algo
+```
+
+**Capturas y video** (8 oct 2026): son de la app real, en Debug con `-galeno-fake-connect` (conexiones simuladas, nada toca tus
+cuentas), en tema claro y con los sonidos apagados (Ajustes). La ventana se captura con
+`screencapture -o -x -l <id de ventana>` (1600×1304 px) y se guardan como `site/src/assets/shots/<nombre>-es.png` y `-en.png`
+(`herramientas`, `whatsapp`, `documentos`, `informes`). El video se graba con `screencapture -v -V <segundos> -l <id>`
+y se recorta y comprime con `swift site/scripts/encode-video.swift <entrada> <salida> <x> <y> <ancho> <alto> <ancho final> <bits/s>`
+(se quita la barra de título, que sale con el indicador de grabación). El mp4 no va a git: se sube al bucket `media` de
+Supabase y su dirección es `PUBLIC_VIDEO_URL`; en local, `site/.env` lo apunta a `site/public/media/` (ignorado). Al terminar:
+borrar `~/Library/Application Support/Galeno/` si la prueba creó el borrador (`draft.json`) y las preferencias (`defaults delete com.galeno.Galeno`).
+
+Variables de entorno públicas (en Vercel): `PUBLIC_SITE_LIVE=1` (quita el `noindex`), `PUBLIC_SALES_OPEN=1` (**abre las ventas**:
+sin ella el sitio dice «Descargar» y no muestra precio, oferta de pago, garantía ni cuenta de horas), `PUBLIC_CHECKOUT_URL` (el
+enlace de compra), `PUBLIC_DOWNLOAD_URL` (el disco; por defecto `/download/Galeno-0.0.1.dmg`, súbele la versión en cada entrega) y
+`PUBLIC_VIDEO_URL` (el video, en Supabase). Hasta que `PUBLIC_SITE_LIVE` valga 1 ninguna página se indexa.
+
+**Pasar de «gratis a amigos» a vender:** `PUBLIC_SALES_OPEN=1` y `PUBLIC_CHECKOUT_URL` en Vercel (producción), revisar `/terms` con un
+abogado (hoy no habla de reembolsos y la oferta promete 30 días), poner `legalReviewed: true` y correr `npm run check:launch`.
 
 **Consideración:** si el disco de actualización es público, cualquiera con el enlace puede descargar la app. Eso conecta
 con cómo se entrega a quien paga (pago único); no es un problema técnico de Sparkle.
