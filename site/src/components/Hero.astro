@@ -5,6 +5,10 @@ import { t, type Lang } from '../i18n/utils';
 import { site } from '../site';
 const { lang } = Astro.props as { lang: Lang };
 const tr = t(lang).home.hero;
+const free = t(lang).home.free;
+const label = site.salesOpen ? tr.buy : free.download;
+const href = site.salesOpen ? site.checkoutUrl : site.downloadUrl;
+const fine = site.salesOpen ? tr.fine : free.heroFine;
 ---
 <section class="hero wrap" aria-labelledby="hero-t">
   <Portrait size={200} alt={tr.portraitAlt} eager />
@@ -12,10 +16,10 @@ const tr = t(lang).home.hero;
   <h1 id="hero-t">{tr.title}</h1>
   <p class="lead muted">{tr.lead}</p>
   <p class="buttons">
-    <a class="btn btn--primary" href={site.checkoutUrl}>{tr.buy}</a>
+    <a class="btn btn--primary" href={href}>{label}</a>
     <a class="btn btn--secondary" href="#video">{tr.how}</a>
   </p>
-  <p class="small muted">{tr.fine}</p>
+  <p class="small muted">{fine}</p>
 </section>
 
 <style>

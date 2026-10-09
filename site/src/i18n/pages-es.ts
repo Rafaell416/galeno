@@ -23,7 +23,7 @@ export const docsEs: LongPage = {
       h: 'Instalar',
       blocks: [
         { ol: [
-          'Descarga el disco de Galeno (`Galeno-<versión>.dmg`) desde el enlace de tu compra.',
+          'Descarga el disco de Galeno (`Galeno-<versión>.dmg`) desde el enlace que recibiste.',
           'Ábrelo y arrastra **Galeno** a la carpeta **Aplicaciones**.',
           'Abre Galeno desde Aplicaciones. Como lo descargaste de internet, macOS puede preguntarte una vez si quieres abrirlo.',
         ] },
@@ -34,7 +34,7 @@ export const docsEs: LongPage = {
       id: 'primeros-pasos',
       h: 'Primeros pasos',
       blocks: [
-        { p: 'La primera vez, Galeno te guía por un asistente. No hay licencia ni código que activar: pagas, descargas y usas.' },
+        { p: 'La primera vez, Galeno te guía por un asistente. No hay licencia ni código que activar: descargas y usas.' },
         { ol: [
           '**Tu rol.** Producto, marketing o comercial. Decide qué skills vienen marcadas y en qué orden se te ofrecen las herramientas.',
           '**Tu cuenta de Claude.** Galeno comprueba si Claude Code está instalado y al día. Si no, lo instala o lo actualiza cuando tú lo pides y abre el inicio de sesión en tu navegador.',
@@ -72,7 +72,7 @@ export const docsEs: LongPage = {
       id: 'actualizaciones',
       h: 'Actualizaciones',
       blocks: [
-        { p: 'Las actualizaciones son gratis para quien compró. Galeno las busca al abrirse y desde el menú Galeno → «Buscar actualizaciones…». Cada actualización va firmada: la app rechaza un disco que no lo esté.' },
+        { p: 'Las actualizaciones son gratuitas. Galeno las busca al abrirse y desde el menú Galeno → «Buscar actualizaciones…». Cada actualización va firmada: la app rechaza un disco que no lo esté.' },
         { p: 'La conexión con WhatsApp puede romperse cuando Meta cambia algo. Los parches llegan con las actualizaciones, y al abrir la app nueva se ponen al día solos.' },
       ],
     },

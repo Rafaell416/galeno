@@ -9,7 +9,7 @@ import Solution from './Solution.astro';
 import Steps from './Steps.astro';
 import Fit from './Fit.astro';
 import Principles from './Principles.astro';
-import Testimonials from './Testimonials.astro';
+// import Testimonials from './Testimonials.astro';
 import Offer from './Offer.astro';
 import Faq from './Faq.astro';
 import { t, type Lang } from '../i18n/utils';
@@ -31,7 +31,7 @@ const jsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'macOS 14 or later',
   inLanguage: lang,
-  offers: { '@type': 'Offer', price: '200', priceCurrency: 'USD' },
+  ...(site.salesOpen ? { offers: { '@type': 'Offer', price: '200', priceCurrency: 'USD' } } : {}),
   publisher: { '@type': 'Organization', name: site.company, url: site.url },
 };
 ---
@@ -72,7 +72,9 @@ const jsonLd = {
   <Offer lang={lang} />
   <Separator />
   <Fit lang={lang} />
-  <Testimonials lang={lang} />
+  {/* Testimonios: apagados hasta que haya reales, aprobados por quien los dio.
+      Para encenderlos: descomentar el import de arriba y esta línea, y poner `verified: true` en src/content/testimonials.json.
+      <Testimonials lang={lang} /> */}
   <Separator />
   <Principles lang={lang} />
   <Separator />

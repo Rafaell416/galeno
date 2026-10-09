@@ -825,8 +825,13 @@ y se recorta y comprime con `swift site/scripts/encode-video.swift <entrada> <sa
 Supabase y su dirección es `PUBLIC_VIDEO_URL`; en local, `site/.env` lo apunta a `site/public/media/` (ignorado). Al terminar:
 borrar `~/Library/Application Support/Galeno/` si la prueba creó el borrador (`draft.json`) y las preferencias (`defaults delete com.galeno.Galeno`).
 
-Variables de entorno públicas (en Vercel): `PUBLIC_SITE_LIVE=1` (quita el `noindex`), `PUBLIC_CHECKOUT_URL` (el enlace de
-compra), `PUBLIC_VIDEO_URL` (el video, en Supabase). Hasta que `PUBLIC_SITE_LIVE` valga 1 ninguna página se indexa.
+Variables de entorno públicas (en Vercel): `PUBLIC_SITE_LIVE=1` (quita el `noindex`), `PUBLIC_SALES_OPEN=1` (**abre las ventas**:
+sin ella el sitio dice «Descargar» y no muestra precio, oferta de pago, garantía ni cuenta de horas), `PUBLIC_CHECKOUT_URL` (el
+enlace de compra), `PUBLIC_DOWNLOAD_URL` (el disco; por defecto `/download/Galeno-0.0.1.dmg`, súbele la versión en cada entrega) y
+`PUBLIC_VIDEO_URL` (el video, en Supabase). Hasta que `PUBLIC_SITE_LIVE` valga 1 ninguna página se indexa.
+
+**Pasar de «gratis a amigos» a vender:** `PUBLIC_SALES_OPEN=1` y `PUBLIC_CHECKOUT_URL` en Vercel (producción), revisar `/terms` con un
+abogado (hoy no habla de reembolsos y la oferta promete 30 días), poner `legalReviewed: true` y correr `npm run check:launch`.
 
 **Consideración:** si el disco de actualización es público, cualquiera con el enlace puede descargar la app. Eso conecta
 con cómo se entrega a quien paga (pago único); no es un problema técnico de Sparkle.

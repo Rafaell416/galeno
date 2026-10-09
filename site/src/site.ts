@@ -6,9 +6,14 @@ export const site = {
   email: 'rvillarreal416@gmail.com',
   url: 'https://getgaleno.com',
   price: 'USD 200',
-  // Días de garantía de devolución. 0 = no se muestra ninguna garantía (no está decidida: la fija Rafa y la revisa su abogado).
-  guaranteeDays: 0,
+  // Días de garantía de devolución (decidido: 30; la revisa un abogado antes de vender). Solo se muestra con las ventas abiertas.
+  guaranteeDays: 30,
   // Se conecta en la Fase 10 (Stripe). Mientras tanto, el botón lleva a la sección de precio.
+  // Ventas cerradas (por ahora): el sitio dice «Descargar», sin precio, y el disco se da gratis a un grupo cercano.
+  // PUBLIC_SALES_OPEN=1 enciende todo lo de precio: botón de compra, oferta, cuenta de horas y garantía.
+  salesOpen: import.meta.env.PUBLIC_SALES_OPEN === '1',
+  // El disco, por la ruta propia del sitio (redirige al bucket de Supabase; ver vercel.json).
+  downloadUrl: import.meta.env.PUBLIC_DOWNLOAD_URL || '/download/Galeno-0.0.1.dmg',
   checkoutUrl: import.meta.env.PUBLIC_CHECKOUT_URL || '#precio',
   // Video de ~20 s en el almacenamiento público (Supabase). Vacío = se muestra el hueco.
   videoUrl: import.meta.env.PUBLIC_VIDEO_URL || '',

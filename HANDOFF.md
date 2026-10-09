@@ -994,9 +994,13 @@ que la app hace. **El sitio no lleva el nombre de Rafa:** se quitó el About en 
 principios), la voz es plural («escríbenos») y el correo no se muestra como texto (solo como enlace `mailto`; para ocultarlo del
 todo hay que crear un alias en el dominio y cambiar `email` en `site/src/site.ts`). **Testimonios:** Rafa pidió inventar tres con
 los nombres de Simon, Aquiles y Laura; **no se hizo** (atribuir citas inventadas a personas reales es publicidad engañosa). La
-sección sigue oculta hasta que haya testimonios reales aprobados por quien los dio (`verified: true`). **Garantía:** el copy ya
-tiene el hueco (`guaranteeDays` en `site/src/site.ts`, hoy 0 = no se muestra); falta que Rafa decida los días y que su abogado
-la revise, porque `/terms` todavía no habla de reembolsos.
+sección sigue oculta hasta que haya testimonios reales aprobados por quien los dio (`verified: true`). **Garantía:** Rafa decidió **30 días**
+(`guaranteeDays` en `site/src/site.ts`); su abogado la tiene que revisar antes de vender, porque `/terms` todavía no habla de
+reembolsos. **Ventas cerradas por ahora (Rafa, 8 oct 2026):** Galeno se da gratis a un grupo de amigos cercanos, así que el sitio
+dice **«Descargar»** (hero, oferta y menú), no muestra precio, cuenta de horas, garantía ni «gratis de por vida», y los datos
+estructurados no llevan oferta. **Todo lo de precio se enciende con `PUBLIC_SALES_OPEN=1`** (más `PUBLIC_CHECKOUT_URL`); el
+botón de descarga va a `/download/Galeno-0.0.1.dmg` (`PUBLIC_DOWNLOAD_URL` lo cambia). La sección de testimonios está comentada en
+`Home.astro` (se reactiva descomentando dos líneas, con testimonios reales aprobados). La imagen Open Graph ya no dice «pago único».
 **Antes de abrir ventas:** capturas reales de la app trabajando (las de ahora son del asistente), `PUBLIC_CHECKOUT_URL` (Fase 10),
 revisión legal de `/privacy` y `/terms` (hay un marcador de ley aplicable), decidir la garantía y `npm run check:launch` en verde.
 Cómo correrlo: README §10.2b.

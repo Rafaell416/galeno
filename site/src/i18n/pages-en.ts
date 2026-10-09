@@ -23,7 +23,7 @@ export const docsEn: LongPage = {
       h: 'Install',
       blocks: [
         { ol: [
-          'Download the Galeno disk (`Galeno-<version>.dmg`) from your purchase link.',
+          'Download the Galeno disk (`Galeno-<version>.dmg`) from the link you received.',
           'Open it and drag **Galeno** to the **Applications** folder.',
           'Open Galeno from Applications. Because you downloaded it from the internet, macOS may ask once whether you want to open it.',
         ] },
@@ -34,7 +34,7 @@ export const docsEn: LongPage = {
       id: 'first-steps',
       h: 'First steps',
       blocks: [
-        { p: 'The first time, Galeno walks you through a setup assistant. There is no license or code to activate: you pay, download and use it.' },
+        { p: 'The first time, Galeno walks you through a setup assistant. There is no license or code to activate: you download and use it.' },
         { ol: [
           '**Your role.** Product, marketing or sales. It decides which skills come checked and the order in which tools are offered.',
           '**Your Claude account.** Galeno checks that Claude Code is installed and up to date. If not, it installs or updates it when you ask and opens the sign-in in your browser.',
@@ -72,7 +72,7 @@ export const docsEn: LongPage = {
       id: 'updates',
       h: 'Updates',
       blocks: [
-        { p: 'Updates are free for whoever bought Galeno. It looks for them when it opens and from the Galeno menu → “Check for Updates…”. Every update is signed: the app rejects a disk that is not.' },
+        { p: 'Updates are free. It looks for them when it opens and from the Galeno menu → “Check for Updates…”. Every update is signed: the app rejects a disk that is not.' },
         { p: 'The WhatsApp connection can break when Meta changes something. Patches arrive with updates, and when you open the new app they apply themselves.' },
       ],
     },

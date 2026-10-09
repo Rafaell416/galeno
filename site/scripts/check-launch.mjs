@@ -37,6 +37,7 @@ check(!existsSync(path.join(dist, 'estilo.html')), 'La página de muestra /estil
 // 2. Configuración de producción
 const home = read(path.join(dist, 'index.html'));
 check(!/<meta name="robots"/.test(home), 'PUBLIC_SITE_LIVE=1: la home se puede indexar');
+check(/<body[^>]*data-mode="paid"/.test(home), 'PUBLIC_SALES_OPEN=1: el sitio vende (si no, dice «Descargar» y no muestra precio)');
 check(!/class="btn btn--primary" href="#precio"/.test(home), 'PUBLIC_CHECKOUT_URL apunta a la compra de verdad (no al ancla de relleno)');
 check(/<video[^>]+>/.test(home), 'PUBLIC_VIDEO_URL: el video está puesto');
 check(existsSync(path.join(dist, 'og.png')) && existsSync(path.join(dist, 'og-en.png')), 'Las imágenes Open Graph existen (og.png y og-en.png)');

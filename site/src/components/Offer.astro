@@ -3,26 +3,32 @@ import { t, type Lang } from '../i18n/utils';
 import { site } from '../site';
 const { lang } = Astro.props as { lang: Lang };
 const tr = t(lang).home.offer;
+const free = t(lang).home.free;
+const open = site.salesOpen;
+// Con las ventas cerradas la oferta no dice precio: lo mismo que se recibe, sin cuenta de horas ni garantía.
+const items = open ? tr.items : tr.items.map((i, n) => (n === tr.items.length - 1 ? free.updatesItem : i));
 ---
 <section id="precio" class="wrap narrow" aria-labelledby="precio-t">
   <span class="kicker">{tr.kicker}</span>
-  <h2 id="precio-t">{tr.title}</h2>
-  <p class="muted intro">{tr.intro}</p>
+  <h2 id="precio-t">{open ? tr.title : free.offerTitle}</h2>
+  <p class="muted intro">{open ? tr.intro : free.offerIntro}</p>
   <ul class="stack">
-    {tr.items.map((i) => (
+    {items.map((i) => (
       <li><strong>{i.title}</strong> <span class="muted">{i.text}</span></li>
     ))}
   </ul>
 
-  <div class="note cost">
-    <p><strong>{tr.costTitle}</strong> {tr.cost}</p>
-  </div>
+  {open && (
+    <div class="note cost">
+      <p><strong>{tr.costTitle}</strong> {tr.cost}</p>
+    </div>
+  )}
 
   <div class="panel buy">
-    <p class="amount">{site.price}</p>
-    <p><a class="btn btn--primary" href={site.checkoutUrl}>{tr.buy}</a></p>
-    <p class="small muted">{tr.fine}</p>
-    {site.guaranteeDays > 0 && <p class="guarantee"><strong>{tr.guarantee.replace('{days}', String(site.guaranteeDays))}</strong></p>}
+    {open && <p class="amount">{site.price}</p>}
+    <p><a class="btn btn--primary" href={open ? site.checkoutUrl : site.downloadUrl}>{open ? tr.buy : free.download}</a></p>
+    <p class="small muted">{open ? tr.fine : free.offerFine}</p>
+    {open && site.guaranteeDays > 0 && <p class="guarantee"><strong>{tr.guarantee.replace('{days}', String(site.guaranteeDays))}</strong></p>}
   </div>
 
   <h3>{tr.requirementsTitle}</h3>

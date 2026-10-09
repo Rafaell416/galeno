@@ -5,6 +5,7 @@ import LangSwitch from './LangSwitch.astro';
 import { t, path, type Lang } from '../i18n/utils';
 const { lang, route = '/' } = Astro.props as { lang: Lang; route?: string };
 const tr = t(lang);
+import { site } from '../site';
 ---
 <header class="top">
   <div class="wrap bar">
@@ -14,7 +15,7 @@ const tr = t(lang);
     </a>
     <nav class="links" aria-label={tr.nav.label}>
       <a href={path(lang, '/#como-funciona')}>{tr.nav.how}</a>
-      <a href={path(lang, '/#precio')}>{tr.nav.price}</a>
+      <a href={path(lang, '/#precio')}>{site.salesOpen ? tr.nav.price : tr.nav.download}</a>
       <a href={path(lang, '/docs')}>{tr.nav.docs}</a>
     </nav>
     <LangSwitch lang={lang} route={route} />

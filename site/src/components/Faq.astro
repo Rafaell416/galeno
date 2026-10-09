@@ -3,6 +3,10 @@
 import { t, type Lang } from '../i18n/utils';
 const { lang } = Astro.props as { lang: Lang };
 const tr = t(lang).home.faq;
+import { site } from '../site';
+const free = t(lang).home.free;
+// Con las ventas cerradas no se promete «gratis de por vida».
+const answer = (q: string, a: string) => (!site.salesOpen && /Meta/.test(q) ? free.faqMeta : a);
 ---
 <section id="faq" class="wrap narrow" aria-labelledby="faq-t">
   <span class="kicker">{tr.kicker}</span>
@@ -11,7 +15,7 @@ const tr = t(lang).home.faq;
     {tr.items.map((item) => (
       <details>
         <summary>{item.q}</summary>
-        <p class="muted">{item.a}</p>
+        <p class="muted">{answer(item.q, item.a)}</p>
       </details>
     ))}
   </div>

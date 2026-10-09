@@ -4,12 +4,13 @@ export const es = {
   skip: 'Saltar al contenido',
   meta: {
     siteName: 'Galeno',
-    description: 'Galeno crea un agente que lee tus chats, tickets y documentos, y te deja el trabajo listo. App para Mac. Pago único.',
+    description: 'Galeno crea un agente que lee tus chats, tickets y documentos, y te deja el trabajo listo. App para Mac.',
   },
   nav: {
     label: 'Principal',
     how: 'Cómo funciona',
     price: 'Precio',
+    download: 'Descargar',
     docs: 'Documentación',
   },
   langSwitch: { label: 'Idioma', es: 'ES', en: 'EN', esName: 'Español', enName: 'English' },
@@ -24,6 +25,16 @@ export const es = {
       'Galeno es un producto independiente de Galeno LLC. No está afiliado ni respaldado por Anthropic, Meta, Slack, Notion, Atlassian ni Google: sus nombres se usan solo para decir con qué funciona.',
   },
   home: {
+    free: {
+      heroFine: 'Listo en unos diez minutos · Para Mac',
+      download: 'Descargar',
+      offerTitle: 'Todo esto, incluido.',
+      offerIntro: 'Esto es lo que recibes:',
+      offerFine: 'Para Mac con macOS 14 o superior.',
+      updatesItem: { title: 'Actualizaciones incluidas.', text: 'Incluidos los parches de WhatsApp cuando Meta cambie algo.' },
+      principle: { title: 'Sin cuentas ni suscripciones.', text: 'Galeno no te pide crear una cuenta ni pagar cada mes.' },
+      faqMeta: 'La conexión con WhatsApp puede dejar de funcionar hasta que sale un parche. Los parches llegan con las actualizaciones.',
+    },
     metaTitle: 'Galeno · Que ningún mensaje de WhatsApp se enfríe',
     hero: {
       title: 'Deja de perder clientes y tareas entre los mensajes de WhatsApp.',

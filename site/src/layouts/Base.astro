@@ -65,7 +65,7 @@ const hideFromSearch = noindex || !site.live;
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
     <slot name="head" />
   </head>
-  <body>
+  <body data-mode={site.salesOpen ? 'paid' : 'free'}>
     <a class="skip" href="#contenido">{tr.skip}</a>
     <Header lang={lang} route={route} />
     <main id="contenido"><slot /></main>
