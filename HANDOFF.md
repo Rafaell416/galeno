@@ -1005,6 +1005,18 @@ botón de descarga va a `/download/Galeno-0.0.1.dmg` (`PUBLIC_DOWNLOAD_URL` lo c
 revisión legal de `/privacy` y `/terms` (hay un marcador de ley aplicable), decidir la garantía y `npm run check:launch` en verde.
 Cómo correrlo: README §10.2b.
 
+**Videos del sitio con Remotion (10 oct 2026; rama `feat/videos-remotion`).** Rafa pidió dejar de grabar la pantalla (poca
+calidad, se veía lento). Ahora `site/video/` (Remotion 4.0.534, Node 22, usa el Chrome instalado) renderiza **cuatro videos de
+1920×1080**: `Hero-es/en` (~23 s, hechos con capturas **reales** a 2x de la app —Debug, conexiones simuladas, tema claro— más
+cursor, resaltados y cortes) y `WhatsApp-es/en` (15 s, animación **ilustrativa** rotulada). El sitio los usa por idioma
+(`PUBLIC_VIDEO_URL[_EN]`, `PUBLIC_FLOW_VIDEO_URL[_EN]`); sin dirección, la sección de solución muestra el esquema en HTML.
+**Licencia:** Remotion es gratis para organizaciones de hasta 3 empleados (verificado en su `LICENSE.md`); anotado en
+`THIRD_PARTY.md`. **Supabase (10 oct 2026):** proyecto `tugdxwzfczwwnrcjvwsj`, buckets públicos `releases` (`Galeno-0.0.1.dmg`, el mismo disco
+notarizado de `build/release/`: SHA-256 `134fba2b…`, `spctl` «Notarized Developer ID», grapado) y `media` (los cuatro MP4).
+`site/vercel.json` ya redirige `/download/*` a ese bucket. **Pendiente:** el proyecto de Vercel (con las cuatro direcciones
+`https://tugdxwzfczwwnrcjvwsj.supabase.co/storage/v1/object/public/media/<video>.mp4` en `PUBLIC_VIDEO_URL[_EN]` y
+`PUBLIC_FLOW_VIDEO_URL[_EN]`) y el DNS de `getgaleno.com`.
+
 ## 13. Documentos
 
 | Archivo | Qué es | Vigencia |

@@ -1,8 +1,10 @@
 ---
 import FlowIllustration from './FlowIllustration.astro';
 import { t, type Lang } from '../i18n/utils';
+import { site } from '../site';
 const { lang } = Astro.props as { lang: Lang };
 const tr = t(lang).home.solution;
+const flowUrl = lang === 'es' ? site.flowVideoUrl : site.flowVideoUrlEn;
 ---
 <section id="solucion" class="wrap" aria-labelledby="solucion-t">
   <div class="head">
@@ -10,10 +12,22 @@ const tr = t(lang).home.solution;
     <h2 id="solucion-t">{tr.title}</h2>
     <p class="muted">{tr.body}</p>
   </div>
-  <FlowIllustration lang={lang} />
+  {flowUrl ? (
+    <figure class="flowvideo">
+      <video class="shot" controls preload="none" playsinline poster={`/poster-flow-${lang}.jpg`} aria-label={tr.title}>
+        <source src={flowUrl} type="video/mp4" />
+      </video>
+      <figcaption class="small muted">{t(lang).home.flow.note}</figcaption>
+    </figure>
+  ) : (
+    <FlowIllustration lang={lang} />
+  )}
 </section>
 
 <style>
   .head { max-width: 62ch; margin: 0 auto var(--space-12); text-align: center; }
   h2 { margin-bottom: var(--space-4); }
+  .flowvideo { margin: 0; text-align: center; }
+  .flowvideo video { aspect-ratio: 16 / 9; background: var(--panel); }
+  .flowvideo figcaption { margin-top: var(--space-4); }
 </style>

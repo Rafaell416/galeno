@@ -78,3 +78,8 @@ site/.astro/
 
 # Videos del sitio: pesan, viven en Supabase (bucket media), no en git
 site/public/media/
+
+# Videos del sitio (Remotion): dependencias y salidas; las capturas de entrada sí van en git
+site/video/node_modules/
+site/video/out/
+site/video/.remotion/

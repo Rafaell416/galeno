@@ -11,7 +11,7 @@
     },
     {
       "source": "/download/:file",
-      "destination": "https://PROJECT_REF.supabase.co/storage/v1/object/public/releases/:file",
+      "destination": "https://tugdxwzfczwwnrcjvwsj.supabase.co/storage/v1/object/public/releases/:file",
       "permanent": false
     }
   ],
