@@ -7,7 +7,7 @@
 	<key>SUEnableSystemProfiling</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>https://galeno.invalid/appcast.xml</string>
+	<string>https://getgaleno.com/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>hDANqgQ0cUtNo/Yrlrai1OIdAZpgqekceSD9mNmz9gM=</string>
 	<key>SUScheduledCheckInterval</key>

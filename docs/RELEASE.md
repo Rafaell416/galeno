@@ -184,12 +184,12 @@ elemento «Private key for signing Sparkle updates», cuenta `galeno`. No está 
 (`SUEnableSystemProfiling` en falso, y otra vez en `UpdatesModel`). Va lo que cualquier petición web, y el nombre y la
 versión de la app en la cabecera. La dirección del appcast no lleva parámetros.
 
-**Mientras el sitio no exista**, `SUFeedURL` es una dirección de relleno (`https://galeno.invalid/appcast.xml`; `.invalid`
-es un dominio reservado que nunca existe). Con ella la app no arranca Sparkle, «Buscar actualizaciones…» sale apagado, y
-`build-release.sh` **se niega a entregar** salvo con `--sin-actualizaciones`: una app que sale sin saber actualizarse
-obliga después a avisar a cada cliente a mano.
+**Estado (10 oct 2026).** `SUFeedURL` ya es `https://getgaleno.com/appcast.xml` y el sitio responde. Una app compilada con una
+dirección de relleno (`galeno.invalid`) no arranca Sparkle y `build-release.sh` **se niega a entregar** salvo con
+`--sin-actualizaciones`; el `Galeno-0.0.1.dmg` publicado es de esa clase, así que la primera versión con la dirección real
+hay que instalarla a mano.
 
-**Cuando el sitio exista** (Fase 9):
+**Lo que quedó puesto al activar el sitio:**
 
 1. Comprueba que `https://getgaleno.com/appcast.xml` responde (`curl -I`) y que `/download/<disco>.dmg` redirige y baja
    el disco completo. **Esa dirección queda grabada en cada app instalada para siempre**: no se cambia después.

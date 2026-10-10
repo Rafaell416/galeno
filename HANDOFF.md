@@ -1017,6 +1017,16 @@ notarizado de `build/release/`: SHA-256 `134fba2b…`, `spctl` «Notarized Devel
 `https://tugdxwzfczwwnrcjvwsj.supabase.co/storage/v1/object/public/media/<video>.mp4` en `PUBLIC_VIDEO_URL[_EN]` y
 `PUBLIC_FLOW_VIDEO_URL[_EN]`) y el DNS de `getgaleno.com`.
 
+**Sitio en producción, indexado y con la dirección real del appcast (10 oct 2026; rama `feat/indexar-y-appcast`).** Proyecto
+`galeno-site` en Vercel (equipo personal, **Hobby**: Rafa no pasa a Pro todavía, así que no se vende desde ahí), dominio
+`getgaleno.com` con `www` redirigido, HTTPS de Let's Encrypt. **Sin despliegue automático** (decisión de Rafa): `cd site &&
+vercel deploy --prod`. `PUBLIC_SITE_LIVE=1`: se indexa (home, `/en`, `/docs`); `/privacy` y `/terms` quedan con `noindex` y fuera
+del sitemap mientras `legalReviewed` sea false. Se borró la página de muestra `/estilo`. **`SUFeedURL` = `https://getgaleno.com/appcast.xml`**
+(`GalenoApp/Galeno-Info.plist`); `GALENO_DOWNLOAD_URL_PREFIX` en el `scripts/release.env` de Rafa. **El `Galeno-0.0.1.dmg`
+publicado lleva la dirección de relleno**: la siguiente entrega, sin `--sin-actualizaciones`, será la primera que busca
+actualizaciones y hay que instalarla a mano. **Falta la prueba A→B** (y el rechazo de un disco alterado) y dar de alta el
+dominio en Google Search Console.
+
 ## 13. Documentos
 
 | Archivo | Qué es | Vigencia |

@@ -3,9 +3,13 @@ import Base from '../layouts/Base.astro';
 import Prose from './Prose.astro';
 import type { LongPage } from '../i18n/pages-types';
 import type { Lang } from '../i18n/utils';
+import { site } from '../site';
 const { page, lang, route } = Astro.props as { page: LongPage; lang: Lang; route: string };
+// Privacidad y términos son borradores hasta que un abogado los revise: no se indexan (`legalReviewed` en src/site.ts).
+const isLegal = route === '/privacy' || route === '/terms';
+const noindex = isLegal && !site.legalReviewed;
 ---
-<Base title={page.title} description={page.metaDescription} lang={lang} route={route}>
+<Base title={page.title} description={page.metaDescription} lang={lang} route={route} noindex={noindex}>
   <article class="wrap narrow section">
     <span class="kicker">{page.kicker}</span>
     <h1>{page.title}</h1>

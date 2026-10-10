@@ -1,0 +1,8 @@
+# Lo que no sube `vercel deploy` desde site/: secretos locales, binarios pesados y salidas de compilación.
+.env
+.env.*
+node_modules
+dist
+.astro
+public/media
+video
