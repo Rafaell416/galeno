@@ -63,6 +63,13 @@ de Google Fonts), todas bajo la **SIL Open Font License 1.1**: Cinzel (The Cinze
 Garamond Project Authors) y JetBrains Mono (The JetBrains Mono Project Authors). Solo los subconjuntos latinos que usa el
 sitio. El retrato del sitio es el mismo de abajo (litografía de Vigneron, dominio público) y el pie del sitio da el crédito.
 
+## Herramienta de video (`site/video/`, 10 oct 2026)
+
+Remotion (`remotion` y `@remotion/cli` 4.0.534), solo para generar los MP4 del sitio: no se distribuye en la app ni en el
+sitio. Licencia de Remotion (`LICENSE.md` del paquete): gratis, incluso comercial, para individuos y organizaciones con
+fines de lucro de hasta 3 empleados; con más hace falta su licencia de empresa. Galeno LLC cumple la condición hoy.
+Las capturas que anima son de la propia app, y el retrato es el de abajo.
+
 ## Retrato
 
 `Galeno/Assets.xcassets/retrato-galeno.imageset/retrato-galeno.jpg` es un recorte cuadrado (600 px) de

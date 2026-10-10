@@ -3,13 +3,14 @@ import { t, type Lang } from '../i18n/utils';
 import { site } from '../site';
 const { lang } = Astro.props as { lang: Lang };
 const tr = t(lang).home.video;
+const url = lang === 'es' ? site.videoUrl : site.videoUrlEn;
 ---
 <section id="video" class="wrap narrow video" aria-labelledby="video-t">
   <span class="kicker">{tr.kicker}</span>
   <h2 id="video-t">{tr.title}</h2>
-  {site.videoUrl ? (
-    <video class="shot" controls preload="none" playsinline poster="/poster.jpg" aria-label={tr.title}>
-      <source src={site.videoUrl} type="video/mp4" />
+  {url ? (
+    <video class="shot" controls preload="none" playsinline poster={`/poster-${lang}.jpg`} aria-label={tr.title}>
+      <source src={url} type="video/mp4" />
       {tr.noVideo}
     </video>
   ) : (
@@ -20,5 +21,5 @@ const tr = t(lang).home.video;
 <style>
   .video { text-align: center; }
   h2 { margin-bottom: var(--space-6); }
-  video { aspect-ratio: 1200 / 910; background: var(--panel); }
+  video { aspect-ratio: 16 / 9; background: var(--panel); }
 </style>

@@ -17,6 +17,10 @@ export const site = {
   checkoutUrl: import.meta.env.PUBLIC_CHECKOUT_URL || '#precio',
   // Video de ~20 s en el almacenamiento público (Supabase). Vacío = se muestra el hueco.
   videoUrl: import.meta.env.PUBLIC_VIDEO_URL || '',
+  videoUrlEn: import.meta.env.PUBLIC_VIDEO_URL_EN || import.meta.env.PUBLIC_VIDEO_URL || '',
+  // Animación de WhatsApp (Remotion). Sin dirección, se ve el esquema en HTML.
+  flowVideoUrl: import.meta.env.PUBLIC_FLOW_VIDEO_URL || '',
+  flowVideoUrlEn: import.meta.env.PUBLIC_FLOW_VIDEO_URL_EN || import.meta.env.PUBLIC_FLOW_VIDEO_URL || '',
   // Hasta que sea '1', todas las páginas llevan noindex.
   live: import.meta.env.PUBLIC_SITE_LIVE === '1',
   // Privacidad y términos son borradores técnicos: se pone en true cuando un abogado los revisó.
