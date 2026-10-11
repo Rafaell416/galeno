@@ -182,7 +182,9 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   usuario acaba de leer la advertencia nueva: al vincular en el asistente (`WizardState.setConnectionStatus`), al
   re-vincular, y en «Activar envíos» de Salud (`HealthModel.activateSending`), que deja el bridge al día, reinicia
   `sync` (el viejo no saca la bandeja) y vuelve a escribir cada agente que usa WhatsApp. El home lo ofrece una vez
-  (`HomeModel.sendingOffer`). No añadir otro camino que lo ponga en `true`, ni tratar `nil` como aceptado.
+  (`HomeModel.sendingOffer`). No añadir otro camino que lo ponga en `true`, ni tratar `nil` como aceptado. **El asistente de «Nuevo agente» no da por
+  conectado un WhatsApp vinculado sin el envío aceptado** (10 oct 2026, hallazgo con Simon): lo vuelve a poner en
+  «Conectar», con su advertencia y sin otro QR si la sesión sigue vinculada, y lo acepta por el camino de siempre.
 - Salud enseña «Enviados hoy: N de 40 · nuevos · grupos» (`outbox --json`), «Pausar envíos» (`send-paused`) y «Límites»
   (`send-limits.json`): la app deja bajar un tope y nunca subirlo por encima del techo del bridge.
 - Al sincronizar con upstream, revisar que no reentren `send_file` ni `send_audio_message`, y que `send_message`

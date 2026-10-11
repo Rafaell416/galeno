@@ -197,8 +197,17 @@ final class WizardState: ObservableObject {
             // la Fase 3b), y se empieza en el nombre. No hay borrador: es corto y se hace de una vez.
             mode = .short
             language = installation.language
-            connections = installation.startingPoint(agentName: "").connections
             knownConnections = Dictionary(uniqueKeysWithValues: installation.connections.map { ($0.tool, $0) })
+            // WhatsApp vinculado pero sin el envío aceptado (una instalación de antes del envío, o una vinculación que
+            // no pasó por la advertencia nueva) no cuenta como conectado: el agente nuevo saldría sin poder enviar y el
+            // usuario tendría que encontrar «Activar envíos» en Salud. Vuelve a salir en «Conectar»: la advertencia
+            // y, si la sesión sigue vinculada, sin otro QR.
+            connections = installation.startingPoint(agentName: "").connections.map { connection in
+                guard let known = knownConnections[connection.tool], needsSendingConfirmation(known) else { return connection }
+                var connection = connection
+                connection.status = .selected
+                return connection
+            }
             step = .role
             furthestStep = .role
             // Conectar una herramienta nueva necesita saber dónde está `claude`; el paso 2 no existe aquí.
@@ -589,6 +598,12 @@ final class WizardState: ObservableObject {
         rolePreselection = connections.map(\.tool)
     }
 
+    /// WhatsApp solo se da por conectado de una vez si el usuario ya aceptó el envío (`sendingAccepted`). Aceptarlo
+    /// sigue pasando solo por `setConnectionStatus`, al terminar la advertencia en «Conectar».
+    private func needsSendingConfirmation(_ shared: SharedConnection) -> Bool {
+        shared.tool == .whatsapp && shared.status == .connected && shared.sendingAccepted != true
+    }
+
     /// Las herramientas que se ofrecen, en el orden del rol: es también el orden en que se conectan.
     var toolsInRoleOrder: [Tool] { role.ordered(Tool.allCases) }
 
@@ -600,7 +615,7 @@ final class WizardState: ObservableObject {
             connections.removeAll { $0.tool == tool }
         } else {
             for needed in tool.requires + [tool] where !isSelected(needed) {
-                if let known = knownConnections[needed], known.status == .connected {
+                if let known = knownConnections[needed], known.status == .connected, !needsSendingConfirmation(known) {
                     connections.append(
                         ToolConnection(
                             tool: needed, status: .connected,

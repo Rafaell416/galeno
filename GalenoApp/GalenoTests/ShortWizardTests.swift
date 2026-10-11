@@ -9,7 +9,13 @@ import XCTest
 final class ShortWizardTests: XCTestCase {
     private func installation(connected: [Tool], language: Language = .spanish) -> GalenoInstallation {
         var installation = GalenoInstallation(language: language)
-        for tool in connected { installation.setConnection(SharedConnection(tool: tool, status: .connected, oauthClientID: tool == .slack ? "123.456" : nil)) }
+        for tool in connected {
+            installation.setConnection(
+                SharedConnection(
+                    tool: tool, status: .connected, oauthClientID: tool == .slack ? "123.456" : nil,
+                    // Una conexión de WhatsApp que ya pasó por la advertencia del envío.
+                    sendingAccepted: tool == .whatsapp ? true : nil))
+        }
         return installation
     }
 
@@ -29,6 +35,34 @@ final class ShortWizardTests: XCTestCase {
         XCTAssertTrue(state.connections.allSatisfy { $0.status == .connected })
         XCTAssertEqual(state.connection(for: .slack)?.oauthClientID, "123.456", "el client_id compartido viaja")
         XCTAssertFalse(state.hasToConnect)
+    }
+
+    /// Una instalación de antes del envío, o una vinculación que no pasó por la advertencia nueva, trae WhatsApp
+    /// sin aceptar: el agente nuevo no puede salir en solo lectura sin que nadie lo diga.
+    func testWhatsAppLinkedWithoutAcceptingSendingComesBackToBeConnectedWithItsWarning() {
+        var old = GalenoInstallation(language: .spanish)
+        old.setConnection(SharedConnection(tool: .whatsapp, status: .connected))  // sendingAccepted == nil
+        old.setConnection(SharedConnection(tool: .notion, status: .connected))
+        let state = WizardState(
+            preferredLanguages: ["en"],
+            claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
+            startingFrom: old)
+        XCTAssertEqual(state.connection(for: .whatsapp)?.status, .selected)
+        XCTAssertEqual(state.connection(for: .notion)?.status, .connected, "lo demás sigue conectado")
+        XCTAssertEqual(state.toConnect, [.whatsapp])
+        XCTAssertTrue(state.stepOrder.contains(.connect), "trae el paso Conectar, con la advertencia")
+
+        // Y aceptarlo sigue siendo por el camino de siempre: terminar la conexión en el asistente.
+        state.setConnectionStatus(.whatsapp, .connected)
+        XCTAssertEqual(state.connection(for: .whatsapp)?.sendingAccepted, true)
+        XCTAssertFalse(state.hasToConnect)
+    }
+
+    func testWhatsAppThatAlreadyAcceptedSendingStaysConnected() {
+        let state = makeShort(connected: [.whatsapp])
+        XCTAssertEqual(state.connection(for: .whatsapp)?.status, .connected)
+        XCTAssertEqual(state.connection(for: .whatsapp)?.sendingAccepted, true)
+        XCTAssertTrue(state.toConnect.isEmpty)
     }
 
     func testThereIsNoWelcomeNorDetectionAndNothingToConnectSkipsThatStep() {

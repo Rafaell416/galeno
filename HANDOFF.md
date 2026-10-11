@@ -1027,6 +1027,17 @@ publicado lleva la dirección de relleno**: la siguiente entrega, sin `--sin-act
 actualizaciones y hay que instalarla a mano. **Falta la prueba A→B** (y el rechazo de un disco alterado) y dar de alta el
 dominio en Google Search Console.
 
+**Hallazgos del demo con Simon (10–11 oct 2026; rama `fix/whatsapp-aceptar-envio-en-el-asistente`).**
+(1) **«Nuevo agente» daba WhatsApp por conectado sin mostrar la advertencia** si la conexión era de antes del envío o no la
+había aceptado: el agente salía en solo lectura (`serve` sin `--with-send`) y había que ir a Salud → «Activar envíos».
+**Corregido:** el asistente corto vuelve a poner en «Conectar» un WhatsApp vinculado sin `sendingAccepted` (advertencia, sin
+otro QR) y lo acepta por `setConnectionStatus`; dos pruebas nuevas, 672 pruebas de la app en verde. **Sale en el próximo
+disco**; el publicado (`Galeno-0.0.1.dmg`) no lo trae. (2) **Cambiar de número deja el historial del anterior:** `unlink` y
+desinstalar la app no tocan `messages.db`, así que tras vincular otro número el agente **lista** los chats del viejo y
+**envía** por el nuevo. Hoy se resuelve con `scripts/instalar-desde-cero.sh` (manda la carpeta de estado a la Papelera).
+**Pendiente de producto:** que re-vincular a otro número avise y empiece el historial de cero. (3) El demo de Simon se hizo
+en su Mac, guiado por videollamada: instalar desde cero, crear su agente, sus 3 skills propias y `criterio`.
+
 ## 13. Documentos
 
 | Archivo | Qué es | Vigencia |
