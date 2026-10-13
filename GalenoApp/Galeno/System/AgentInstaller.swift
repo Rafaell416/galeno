@@ -44,15 +44,17 @@ nonisolated struct AgentInstaller: Sendable {
         for connection in config.connections {
             // Que el usuario aceptó el envío por WhatsApp es de la conexión, no de un agente: guardar un agente
             // cuya config no lo trae no lo borra.
+            // Cada cuenta se guarda como la suya (`ConnectionID`): una cuenta extra nunca pisa la de siempre.
             let shared = SharedConnection(
                 tool: connection.tool, status: connection.status,
                 oauthClientID: connection.oauthClientID, serverNamePrefix: connection.serverNamePrefix,
                 sendingAccepted: connection.sendingAccepted
-                    ?? installation.connection(for: connection.tool)?.sendingAccepted)
+                    ?? installation.connection(for: connection.id)?.sendingAccepted,
+                accountID: connection.accountID, accountName: connection.accountName)
             switch connection.status {
             case .connected:
                 installation.setConnection(shared)
-            case .skipped where installation.connection(for: connection.tool) == nil:
+            case .skipped where installation.connection(for: connection.id) == nil:
                 installation.setConnection(shared)
             case .skipped, .selected:
                 break

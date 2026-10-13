@@ -206,11 +206,13 @@ final class AgentDetailModel: ObservableObject {
         }
         sharedWith = shared
         ownedPrefixes = Dictionary(
-            uniqueKeysWithValues: installation.connections.compactMap { connection -> (Tool, String)? in
-                guard connection.status == .connected, connection.galenoOwnsServers, let prefix = connection.serverNamePrefix
+            installation.connections.compactMap { connection -> (Tool, String)? in
+                guard connection.status == .connected, connection.accountID == nil, connection.galenoOwnsServers,
+                    let prefix = connection.serverNamePrefix
                 else { return nil }
                 return (connection.tool, prefix)
-            })
+            },
+            uniquingKeysWith: { first, _ in first })
         contextEntries = ContextFolder.list(in: found.folder)
         if draftWasClean { projectDraft = resolved.projectDescription }
     }
@@ -232,7 +234,8 @@ final class AgentDetailModel: ObservableObject {
 
     var toolRows: [ToolRow] {
         guard let config else { return [] }
-        return config.connections.filter { $0.status == .connected }.map { connection in
+        // Las cuentas extra no tienen fila todavía: una fila por herramienta, la cuenta de siempre.
+        return config.connections.filter { $0.status == .connected && $0.accountID == nil }.map { connection in
             ToolRow(
                 tool: connection.tool, status: status(of: connection.tool),
                 sharedWith: sharedWith[connection.tool] ?? [],
