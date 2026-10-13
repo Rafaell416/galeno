@@ -33,12 +33,14 @@ nonisolated struct AccountConnector: Sendable {
     static let maxNameLength = 40
 
     /// ¿Se puede añadir otra cuenta de esta herramienta desde la app? Solo las que Galeno registra con su propio
-    /// prefijo y se autorizan con el OAuth del propio servidor.
+    /// prefijo (un servidor hospedado suyo, `galeno-…`).
     static func canAdd(_ tool: Tool) -> Bool {
-        guard tool.supportsMultipleAccounts, !tool.requiresUserProvidedOAuthClient else { return false }
-        // Galeno registra un servidor hospedado para ella (con su prefijo `galeno-`).
-        return MCPServerCatalog.defaultNamePrefix(for: tool) != nil
+        tool.supportsMultipleAccounts && MCPServerCatalog.defaultNamePrefix(for: tool) != nil
     }
+
+    /// Cada cuenta necesita **su propia app OAuth** (Slack): no se conecta aquí sino con el flujo completo, que crea la
+    /// app, la registra con su `client_id` y autoriza en su ventana.
+    static func needsOwnApp(_ tool: Tool) -> Bool { tool.requiresUserProvidedOAuthClient }
 
     /// El nombre que escribió el usuario convertido en la conexión por conectar. `existing`: las cuentas que ya hay
     /// de esa herramienta (en el agente o en la instalación).

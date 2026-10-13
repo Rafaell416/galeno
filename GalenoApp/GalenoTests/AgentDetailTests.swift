@@ -80,7 +80,8 @@ final class AgentDetailTests: XCTestCase {
 
     private func makeDetail(
         _ record: AgentRecord? = nil, section: AgentDetailModel.Section = .general, mcp: FakeMCP = FakeMCP(),
-        home: HomeModel? = nil, imported: [String: ContextFile] = [:]
+        home: HomeModel? = nil, imported: [String: ContextFile] = [:], pickerMCP: FakeMCP = FakeMCP(),
+        slack: FakeSlackSetup = FakeSlackSetup()
     ) -> AgentDetailModel {
         let record = record ?? hera!
         return AgentDetailModel(
@@ -91,7 +92,7 @@ final class AgentDetailTests: XCTestCase {
                     preferredLanguages: ["es-CO"],
                     claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
                     connectServices: ConnectServices(
-                        makeMCP: { _ in FakeMCP() }, whatsapp: FakeWhatsApp(),
+                        makeMCP: { _ in pickerMCP }, whatsapp: FakeWhatsApp(), slack: slack,
                         installer: .sandboxed(skills: SkillsLocation.bundled()), fetchRealData: false,
                         sleep: SleepLog().sleeper),
                     startingFrom: installation, editing: id)
@@ -589,7 +590,7 @@ final class AgentDetailTests: XCTestCase {
     func testOnlyToolsGalenoRegistersOfferAnotherAccount() {
         XCTAssertTrue(AccountConnector.canAdd(.notion))
         XCTAssertTrue(AccountConnector.canAdd(.jira))
-        XCTAssertFalse(AccountConnector.canAdd(.slack), "Slack necesita su propia app por cuenta")
+        XCTAssertTrue(AccountConnector.canAdd(.slack), "Slack también, con su propia app por cuenta")
         XCTAssertFalse(AccountConnector.canAdd(.whatsapp))
         XCTAssertFalse(AccountConnector.canAdd(.googleWorkspace))
         XCTAssertFalse(AccountConnector.canAdd(.gmail))
@@ -713,5 +714,85 @@ final class AgentDetailTests: XCTestCase {
         let extra = detail.toolRows.first { $0.accountID == "trabajo" }
         // Tras autorizar, el guion de la prueba la deja conectada: lo que importa es que su estado es el suyo.
         XCTAssertEqual(extra?.status, .hosted(.connected))
+    }
+
+    // MARK: Otra cuenta de Slack (una app de Slack por cuenta)
+
+    func testSlackIsOfferedButItNeedsItsOwnApp() {
+        XCTAssertTrue(AccountConnector.canAdd(.slack))
+        XCTAssertTrue(AccountConnector.needsOwnApp(.slack))
+        XCTAssertFalse(AccountConnector.needsOwnApp(.notion))
+    }
+
+    func testAddingASlackAccountRunsTheWholeFlowAndAddsItToTheAgent() async throws {
+        let eco = try installer.install(
+            AgentConfig(
+                agentName: "Eco", language: .spanish,
+                connections: [
+                    ToolConnection(
+                        tool: .slack, status: .connected, sources: .everything, oauthClientID: "1111.2222",
+                        serverNamePrefix: "galeno-")
+                ])
+        ).record
+        let mcp = FakeMCP(statuses: ["galeno-slack": .connected])
+        let slack = FakeSlackSetup(clientID: "3333.4444", secretValue: "SECRETO-DE-PRUEBA")
+        let detail = makeDetail(eco, pickerMCP: mcp, slack: slack)
+
+        detail.askAddAccount(.slack)
+        detail.accountDraft = "Cliente A"
+        detail.addAccount()
+        // Pasa por la conexión de siempre: primero pide el token de configuración.
+        for _ in 0..<400 where detail.connecting?.connectFlow?.phase != .slackToken {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        let flow = try XCTUnwrap(detail.connecting?.connectFlow, "se abrió la conexión de Slack")
+        XCTAssertEqual(flow.phase, .slackToken)
+        XCTAssertEqual(detail.connectingAccount, ConnectionID(tool: .slack, account: "cliente-a"))
+
+        flow.submitSlackToken("xoxe.xoxp-token-de-prueba")
+        for _ in 0..<600 where detail.connecting != nil { try? await Task.sleep(for: .milliseconds(5)) }
+
+        XCTAssertNil(detail.connecting, "al quedar conectada se cierra sola")
+        XCTAssertEqual(slack.calls, ["validate", "createApp"])
+        XCTAssertTrue(mcp.calls.contains("register galeno-slack-cliente-a con app propia"))
+        XCTAssertTrue(mcp.calls.contains("login galeno-slack-cliente-a"))
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("register galeno-slack ") || $0 == "register galeno-slack" },
+            "el servidor de siempre no se vuelve a registrar")
+
+        let stored = try storedConfig(eco)
+        XCTAssertEqual(stored.connections(for: .slack).count, 2)
+        let extra = try XCTUnwrap(stored.connection(for: ConnectionID(tool: .slack, account: "cliente-a")))
+        XCTAssertEqual(extra.oauthClientID, "3333.4444", "su propia app, no la de la cuenta de siempre")
+        XCTAssertEqual(stored.connection(for: ConnectionID(tool: .slack))?.oauthClientID, "1111.2222")
+
+        let mcpJSON = try file(".mcp.json", in: eco)
+        XCTAssertTrue(mcpJSON.contains("\"galeno-slack-cliente-a\""))
+        XCTAssertTrue(mcpJSON.contains("3333.4444"))
+        let settings = try file(".claude/settings.json", in: eco)
+        XCTAssertTrue(settings.contains("mcp__galeno-slack-cliente-a__slack_send_message"), "pregunta antes de enviar")
+        // El secreto nunca llega a un archivo.
+        XCTAssertFalse(mcpJSON.contains("SECRETO-DE-PRUEBA"))
+        XCTAssertFalse(settings.contains("SECRETO-DE-PRUEBA"))
+    }
+
+    func testCancellingASlackAccountSavesNothing() async throws {
+        let eco = try installer.install(
+            AgentConfig(
+                agentName: "Eco", language: .spanish,
+                connections: [
+                    ToolConnection(
+                        tool: .slack, status: .connected, sources: .everything, oauthClientID: "1111.2222",
+                        serverNamePrefix: "galeno-")
+                ])
+        ).record
+        let detail = makeDetail(eco, pickerMCP: FakeMCP(statuses: ["galeno-slack": .connected]))
+        detail.askAddAccount(.slack)
+        detail.accountDraft = "Cliente A"
+        detail.addAccount()
+        for _ in 0..<400 where detail.connecting == nil { try? await Task.sleep(for: .milliseconds(5)) }
+        detail.cancelConnecting()
+        XCTAssertNil(detail.connecting)
+        XCTAssertNil(detail.connectingAccount)
+        XCTAssertEqual(try storedConfig(eco).connections(for: .slack).count, 1)
     }
 }
