@@ -19,25 +19,33 @@ public struct SharedConnection: Codable, Hashable, Sendable, Identifiable {
     /// Ver `ToolConnection.sendingAccepted`. WhatsApp es un solo dispositivo vinculado para todos los agentes,
     /// así que la advertencia se acepta una vez y vale para todos.
     public var sendingAccepted: Bool?
+    /// Ver `ToolConnection.accountID`. `nil` es la cuenta de siempre de la herramienta.
+    public var accountID: String?
+    /// Ver `ToolConnection.accountName`.
+    public var accountName: String?
 
     /// Ver `ToolConnection.galenoOwnsServers`.
     public var galenoOwnsServers: Bool {
         serverNamePrefix?.hasPrefix(MCPServerCatalog.ownedNamePrefix) == true
     }
 
-    public var id: Tool { tool }
+    public var id: ConnectionID { ConnectionID(tool: tool, account: accountID) }
 
     public init(
         tool: Tool,
         status: ConnectionStatus,
         oauthClientID: String? = nil,
         serverNamePrefix: String? = nil,
-        sendingAccepted: Bool? = nil
+        sendingAccepted: Bool? = nil,
+        accountID: String? = nil,
+        accountName: String? = nil
     ) {
         self.tool = tool
         self.status = status
         self.oauthClientID = oauthClientID
         self.serverNamePrefix = serverNamePrefix
         self.sendingAccepted = sendingAccepted
+        self.accountID = accountID
+        self.accountName = accountName
     }
 }

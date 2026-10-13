@@ -189,7 +189,7 @@ enum AgentsFileRenderer {
                 } else {
                     note = " · **solo lectura, nunca envías**; lees el texto de los chats, pero todavía no puedes abrir sus archivos adjuntos"
                 }
-                lines.append("- **\(connection.tool.displayName(in: .spanish))** — \(summary)\(note)")
+                lines.append("- **\(connection.displayName(in: .spanish))** — \(summary)\(note)")
             }
             if connections.contains(where: { $0.tool == .claudeDesign }) {
                 lines.append("")
@@ -275,7 +275,7 @@ enum AgentsFileRenderer {
                 } else {
                     extra = "; compartir un archivo o mandarlo a la papelera siempre pide aprobación"
                 }
-                lines.append("- **\(tool.displayName(in: .spanish))** — \(detail)\(extra)")
+                lines.append("- **\(connection.displayName(in: .spanish))** — \(detail)\(extra)")
             }
         }
         lines.append("")
@@ -520,7 +520,7 @@ enum AgentsFileRenderer {
                 } else {
                     note = " · **read-only, you never send**; you read the text of the chats, but you cannot open their attachments yet"
                 }
-                lines.append("- **\(connection.tool.displayName(in: .english))** — \(summary)\(note)")
+                lines.append("- **\(connection.displayName(in: .english))** — \(summary)\(note)")
             }
             if connections.contains(where: { $0.tool == .claudeDesign }) {
                 lines.append("")
@@ -600,7 +600,7 @@ enum AgentsFileRenderer {
                 } else {
                     extra = "; sharing a file or moving it to the trash always needs approval"
                 }
-                lines.append("- **\(tool.displayName(in: .english))** — \(detail)\(extra)")
+                lines.append("- **\(connection.displayName(in: .english))** — \(detail)\(extra)")
             }
         }
         lines.append("")

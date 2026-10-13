@@ -6,6 +6,15 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
     /// Qué lee el agente de esta herramienta.
     public var sources: SourceSelection
 
+    /// Cuál de las cuentas de la herramienta es (`AccountID.slug(from:)`). `nil` es la cuenta de siempre: la que
+    /// se conectó antes de que existieran las cuentas, o la única. Solo las herramientas que Galeno registra por
+    /// su cuenta (`Tool.supportsMultipleAccounts`) pueden tener más de una.
+    public var accountID: String?
+
+    /// El nombre que el usuario le dio a esta cuenta («Trabajo»). Es lo que se muestra; `accountID` es lo que se
+    /// escribe en el nombre del servidor.
+    public var accountName: String?
+
     /// El `client_id` de la app OAuth que el propio cliente trajo, para las
     /// herramientas que lo exigen (`tool.requiresUserProvidedOAuthClient`).
     /// `nil` para las demás, y para esta mientras el usuario aún no la trae.
@@ -46,7 +55,15 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
         serverNamePrefix?.hasPrefix(MCPServerCatalog.ownedNamePrefix) == true
     }
 
-    public var id: Tool { tool }
+    public var id: ConnectionID { ConnectionID(tool: tool, account: accountID) }
+
+    /// El nombre que ve el usuario: el de la herramienta y, si es una cuenta aparte, el de la cuenta
+    /// («Notion (Trabajo)»).
+    public func displayName(in language: Language) -> String {
+        let base = tool.displayName(in: language)
+        guard let accountName, !accountName.isEmpty else { return base }
+        return "\(base) (\(accountName))"
+    }
 
     public init(
         tool: Tool,
@@ -54,7 +71,9 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
         sources: SourceSelection = .nothing,
         oauthClientID: String? = nil,
         serverNamePrefix: String? = nil,
-        sendingAccepted: Bool? = nil
+        sendingAccepted: Bool? = nil,
+        accountID: String? = nil,
+        accountName: String? = nil
     ) {
         self.tool = tool
         self.status = status
@@ -62,6 +81,8 @@ public struct ToolConnection: Codable, Hashable, Sendable, Identifiable {
         self.oauthClientID = oauthClientID
         self.serverNamePrefix = serverNamePrefix
         self.sendingAccepted = sendingAccepted
+        self.accountID = accountID
+        self.accountName = accountName
     }
 }
 
