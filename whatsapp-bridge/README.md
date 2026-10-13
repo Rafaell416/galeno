@@ -56,6 +56,18 @@ se escanea; cada rotación reescribe el mismo archivo. Al terminar `pair` (éxit
 timeout) el PNG se borra — un QR viejo en disco no sirve para nada y podría confundir a quien
 lo esté mostrando.
 
+## Cambiar de número: el historial no se mezcla
+
+`messages.db` anota de qué número es su historial (tabla `meta`, `account.go`). Al vincular, `pair` y `sync` lo
+comparan con el número de la sesión:
+
+- **Mismo número** (la sesión caduca a los ~20 días y se vuelve a vincular): no pasa nada, el historial sigue.
+- **Sin número anotado** (instalaciones de antes de la 0.4.3): se anota el actual y no se toca nada; no se puede saber
+  de quién era ese historial.
+- **Otro número**: se guarda una copia completa junto a la base (`historial-<número anterior>-<fecha>.db`, nunca se borra),
+  se vacían chats y mensajes, y lo que esperaba en la bandeja de salida se marca como fallido. **Lo ya enviado se
+  conserva**, así que los topes del día no se reinician por cambiar de número.
+
 ## `install-launchd`: mantener `sync` corriendo tras el login
 
 ```bash
@@ -234,7 +246,7 @@ stderr). No abre ninguna conexión a WhatsApp y lee todo lo que `sync` guardó:
 
 ## `version`
 
-Imprime solo el número (`0.4.2`), para que la app lo lea sin separar nada. Es independiente de la
+Imprime solo el número (`0.4.3`), para que la app lo lea sin separar nada. Es independiente de la
 versión de la app: el bridge es la capa que más se rompe por causas externas y tiene que poder
 parchearse por su cuenta (`docs/03` §4f). Vive en `version.go` como variable, así que se puede
 fijar al compilar con `-ldflags "-X main.bridgeVersion=…"`. Sube el MINOR cuando cambia lo que
