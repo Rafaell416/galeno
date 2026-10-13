@@ -49,8 +49,10 @@ struct ConnectTarget: Equatable {
     ///
     /// `namePrefix`: el nombre alternativo (`galeno-`) cuando el normal ya lo ocupa otro servidor
     /// del usuario. Es el mismo que usa el motor para `.mcp.json` y los permisos.
-    init?(tool: Tool, namePrefix: String? = nil) {
-        let connection = ToolConnection(tool: tool, serverNamePrefix: namePrefix)
+    /// `accountID`: una cuenta extra de la herramienta (`ToolConnection.accountID`): su servidor lleva su nombre
+    /// (`galeno-slack-trabajo`).
+    init?(tool: Tool, namePrefix: String? = nil, accountID: String? = nil) {
+        let connection = ToolConnection(tool: tool, serverNamePrefix: namePrefix, accountID: accountID)
         let definitions = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
         let servers = definitions.compactMap { definition -> Server? in
             guard case .http(let url) = definition.transport else { return nil }
@@ -283,6 +285,8 @@ final class ConnectFlow: ObservableObject {
     private var seenDopamine: Set<Dopamine> = []
     /// Las herramientas que se registran con el nombre alternativo (`galeno-slack`).
     private var namePrefixes: [Tool: String]
+    /// De qué cuenta extra es la conexión de cada herramienta (solo el flujo de «Añadir otra cuenta» lo usa).
+    private let accountIDs: [Tool: String]
 
     /// Slack rechazó el último token: la próxima vez hay que generar uno nuevo, no reusar el que
     /// siga a la vista en la página.
@@ -310,6 +314,7 @@ final class ConnectFlow: ObservableObject {
         onStatus: @escaping @MainActor (Tool, ConnectionStatus) -> Void = { _, _ in },
         onClientID: @escaping @MainActor (Tool, String) -> Void = { _, _ in },
         namePrefixes: [Tool: String] = [:],
+        accountIDs: [Tool: String] = [:],
         onNamePrefix: @escaping @MainActor (Tool, String?) -> Void = { _, _ in },
         authorizer: (any SlackAuthorizationPresenting)? = nil,
         systemAuthorizer: (any SystemAuthorizationPresenting)? = nil,
@@ -335,6 +340,7 @@ final class ConnectFlow: ObservableObject {
         self.onStatus = onStatus
         self.onClientID = onClientID
         self.namePrefixes = namePrefixes
+        self.accountIDs = accountIDs
         self.onNamePrefix = onNamePrefix
         self.screens = Self.makeSequence(connectionTools)
 
@@ -850,7 +856,7 @@ final class ConnectFlow: ObservableObject {
 
     /// El destino de una herramienta, con el nombre alternativo si ya se eligió.
     private func target(for tool: Tool) -> ConnectTarget? {
-        ConnectTarget(tool: tool, namePrefix: namePrefixes[tool])
+        ConnectTarget(tool: tool, namePrefix: namePrefixes[tool], accountID: accountIDs[tool])
     }
 
     /// Hay otro servidor con ese nombre: se le pregunta al usuario. Si ya se estaba usando el nombre

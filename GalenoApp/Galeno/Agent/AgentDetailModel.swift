@@ -132,6 +132,8 @@ final class AgentDetailModel: ObservableObject {
     /// conexión) y cuál. Mientras no es `nil`, el detalle muestra la conexión encima.
     @Published private(set) var connecting: WizardState?
     @Published private(set) var connectingTool: Tool?
+    /// Si lo que se conecta es una cuenta extra de esa herramienta (Slack): su identidad. `nil` = una herramienta nueva.
+    @Published private(set) var connectingAccount: ConnectionID?
     /// Mientras se busca `claude` antes de abrir la conexión.
     @Published private(set) var isPreparingConnection = false
     /// La última herramienta que quedó conectada: su fila entra a la lista con un destello.
@@ -362,7 +364,33 @@ final class AgentDetailModel: ObservableObject {
         connecting?.stopWorking()
         connecting = nil
         connectingTool = nil
+        connectingAccount = nil
         isFinishingConnection = false
+    }
+
+    /// Una cuenta extra de una herramienta que necesita su propia app (Slack): el flujo de conexión de siempre, con el
+    /// servidor de **esa** cuenta (`galeno-slack-trabajo`), encima del detalle. Al quedar conectada se suma a este agente.
+    private func startConnectingAccount(_ account: ToolConnection) async {
+        guard connecting == nil, !isPreparingConnection, !isWorking,
+            let installation = (try? installer.store.load()) ?? nil, installation.agent(id: agentID) != nil
+        else { return }
+        isPreparingConnection = true
+        error = nil
+        defer { isPreparingConnection = false }
+        let wizard = makePicker(installation, agentID)
+        // El asistente que hospeda el flujo solo conoce esta cuenta, pendiente: ninguna otra conexión entra.
+        var pending = account
+        pending.status = .selected
+        wizard.connections = [pending]
+        await wizard.detectClaudeCodeIfNeeded()
+        if wizard.claudeStatus.isReady { wizard.beginConnecting() }
+        isFinishingConnection = false
+        connectingTool = account.tool
+        connectingAccount = account.id
+        connecting = wizard
+        connectionObserver = wizard.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor in self?.connectionChanged() }
+        }
     }
 
     private func connectionChanged() {
@@ -390,6 +418,10 @@ final class AgentDetailModel: ObservableObject {
     private func finishConnecting() async {
         guard let wizard = connecting, let tool = connectingTool, wizard.connectedTools.contains(tool) else {
             isFinishingConnection = false
+            return
+        }
+        if let account = connectingAccount {
+            await finishConnectingAccount(account, wizard: wizard)
             return
         }
         var config = wizard.makeConfig()
@@ -420,6 +452,35 @@ final class AgentDetailModel: ObservableObject {
         Task {
             try? await Task.sleep(for: .seconds(2.4))
             if justAdded == tool { justAdded = nil }
+        }
+    }
+
+    /// La cuenta extra quedó conectada en el flujo: se suma a este agente con lo que el flujo dejó (su `client_id`).
+    private func finishConnectingAccount(_ id: ConnectionID, wizard: WizardState) async {
+        guard let connected = wizard.connections.first(where: { $0.id == id && $0.status == .connected }) else {
+            isFinishingConnection = false
+            return
+        }
+        connectionObserver = nil
+        wizard.stopWorking()
+        connecting = nil
+        connectingTool = nil
+        connectingAccount = nil
+        isFinishingConnection = false
+        var account = connected
+        if !account.sources.readsEverything, account.sources.selected.isEmpty { account.sources = .everything }
+        let saved = apply { config in
+            config.connections.removeAll { $0.id == id }
+            config.connections.append(account)
+        }
+        guard saved else { return }
+        home.noteToolsChanged(agentID)
+        section = .tools
+        justAddedAccount = id
+        health.refresh()
+        Task {
+            try? await Task.sleep(for: .seconds(2.4))
+            if justAddedAccount == id { justAddedAccount = nil }
         }
     }
 
@@ -510,6 +571,13 @@ final class AgentDetailModel: ObservableObject {
             return
         case .success(let prepared):
             connection = prepared
+        }
+        // Slack: cada cuenta lleva su propia app de Slack. Se hace con el flujo completo (token, app, autorización).
+        if AccountConnector.needsOwnApp(tool) {
+            sheet = nil
+            accountPhase = .idle
+            Task { await startConnectingAccount(connection) }
+            return
         }
         accountPhase = .working
         let connector = AccountConnector(mcp: makeMCP(claudePath))

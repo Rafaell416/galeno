@@ -701,6 +701,9 @@ final class WizardState: ObservableObject {
                 uniqueKeysWithValues: connections.compactMap { connection in
                     connection.serverNamePrefix.map { (connection.tool, $0) }
                 }),
+            accountIDs: Dictionary(
+                connections.compactMap { connection in connection.accountID.map { (connection.tool, $0) } },
+                uniquingKeysWith: { first, _ in first }),
             onNamePrefix: { [weak self] tool, prefix in self?.setServerNamePrefix(tool, prefix) },
             authorizer: connectServices.authorizer,
             systemAuthorizer: connectServices.systemAuthorizer,
@@ -718,7 +721,9 @@ final class WizardState: ObservableObject {
 
     /// ¿Se ofrece «Añadir otra cuenta» para esta herramienta? Solo si ya está conectada y es de las que Galeno registra.
     func canAddAccount(to tool: Tool) -> Bool {
-        AccountConnector.canAdd(tool) && connection(for: tool)?.status == .connected && claudeStatus.isReady
+        // Slack necesita crear su propia app: eso se hace desde el detalle del agente, con su ventana.
+        AccountConnector.canAdd(tool) && !AccountConnector.needsOwnApp(tool)
+            && connection(for: tool)?.status == .connected && claudeStatus.isReady
     }
 
     func askAddAccount(_ tool: Tool) {
