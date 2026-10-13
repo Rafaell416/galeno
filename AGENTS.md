@@ -240,7 +240,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   reuniones; `AccountConnector.canAdd`): registra `galeno-<herramienta>-<cuenta>`, la autoriza en el navegador del
   usuario y la suma **a ese agente**, con sus propias reglas y hook. Nunca pisa un servidor con ese nombre
   (`.nameInUse`), «Quitar de este agente» deja la cuenta conectada, y «Desconectar la cuenta» quita **solo** ese
-  servidor. Pendiente: el asistente de «Nuevo agente» (fase 2) y Slack (fase 3, una app de Slack por cuenta).
+  servidor. **Asistente (fase 2):** la «Revisión» ofrece «Añadir otra cuenta» por cada herramienta conectada de esas, y
+  lista las extra con «Quitar»; el asistente sigue por herramienta (`WizardState.connections` es una por herramienta) y
+  las extra viven aparte (`extraAccounts`, también en el borrador), que `makeConfig` suma. Pendiente: Slack (fase 3,
+  una app de Slack por cuenta).
 - Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
   Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
   completos. Lo único que el motor nunca toca al regenerar es `memoria/`; la excepción es el material que el usuario trae al crear el agente (paso 3, «Traer contexto»), que el motor deja en `memoria/contexto/` solo si ese archivo no existe, y el que añade después desde la sección «Contexto» del detalle (`ContextFolder`: cada uno toma el siguiente número libre y nunca pisa a otro; quitar uno lo manda a la **Papelera**, nunca lo borra). Ese material es dato de terceros: no va en `AgentConfig` ni en el borrador, y nunca se escribe en `AGENTS.md`.

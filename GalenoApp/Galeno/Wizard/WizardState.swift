@@ -33,8 +33,18 @@ final class WizardState: ObservableObject {
     /// Las conexiones que la instalación ya conoce (`.short` y `.edit`): una herramienta que se vuelve a marcar y ya
     /// estaba conectada entra conectada, con su `client_id`, en vez de pasar otra vez por «Conectar».
     private var knownConnections: [Tool: SharedConnection] = [:]
-    /// Las cuentas extra del agente que se está editando (`ToolConnection.accountID`): el asistente no las toca.
-    private var preservedAccounts: [ToolConnection] = []
+    /// Las cuentas extra de una herramienta que tiene este agente (`ToolConnection.accountID`). Aparte de `connections`,
+    /// que es una por herramienta (la conexión del asistente va por herramienta). Entran con «Añadir otra cuenta» en la
+    /// revisión, o con las que el agente ya tenía en «Gestionar», y `makeConfig` las suma.
+    @Published private(set) var extraAccounts: [ToolConnection] = []
+    /// Las cuentas (`ConnectionID`) que la instalación ya conoce, para no repetir un nombre.
+    private var knownAccountIDs: [ConnectionID] = []
+
+    // «Añadir otra cuenta»
+    @Published var accountDraft = ""
+    @Published private(set) var accountPhase: AddAccountPhase = .idle
+    @Published private(set) var addingAccountTool: Tool?
+    private var accountTask: Task<Void, Never>?
 
     /// La cuenta de siempre de cada herramienta de la instalación. Una herramienta con más de una cuenta no puede
     /// romper un diccionario por herramienta: las extra se ignoran aquí.
@@ -178,6 +188,7 @@ final class WizardState: ObservableObject {
             editingAgent = record
             generatedAgent = record
             knownConnections = Self.defaultAccounts(of: installation)
+            knownAccountIDs = installation.connections.map(\.id)
             language = installation.language
             agentName = config.agentName
             projectDescription = config.projectDescription
@@ -185,7 +196,7 @@ final class WizardState: ObservableObject {
             // quitar de la lista ni conectar, y contaría como pendiente para siempre.
             // Las cuentas extra de una herramienta (`accountID`) no las maneja el asistente: va por herramienta. Se
             // apartan tal cual y `makeConfig` las devuelve, para que guardar aquí no las pierda ni las pise.
-            preservedAccounts = config.connections.filter { $0.accountID != nil }
+            extraAccounts = config.connections.filter { $0.accountID != nil }
             connections = config.connections
                 .filter { $0.accountID == nil }
                 .filter { !$0.tool.isComingSoon || $0.status == .connected }
@@ -212,6 +223,7 @@ final class WizardState: ObservableObject {
             mode = .short
             language = installation.language
             knownConnections = Self.defaultAccounts(of: installation)
+            knownAccountIDs = installation.connections.map(\.id)
             // WhatsApp vinculado pero sin el envío aceptado (una instalación de antes del envío, o una vinculación que
             // no pasó por la advertencia nueva) no cuenta como conectado: el agente nuevo saldría sin poder enviar y el
             // usuario tendría que encontrar «Activar envíos» en Salud. Vuelve a salir en «Conectar»: la advertencia
@@ -248,8 +260,8 @@ final class WizardState: ObservableObject {
         return WizardDraft(
             step: resumeStep.rawValue, furthestStep: min(furthestStep.rawValue, WizardStep.review.rawValue),
             language: language, role: role, agentName: agentName, projectDescription: projectDescription,
-            connections: connections, skills: skills, skillsInitialized: skillsInitialized,
-            sendingRules: sendingRules)
+            connections: connections, extraAccounts: extraAccounts.isEmpty ? nil : extraAccounts, skills: skills,
+            skillsInitialized: skillsInitialized, sendingRules: sendingRules)
     }
 
     func saveDraft() {
@@ -266,6 +278,7 @@ final class WizardState: ObservableObject {
         agentName = draft.agentName
         projectDescription = draft.projectDescription
         connections = draft.connections
+        extraAccounts = draft.extraAccounts ?? []
         // Una propia vive solo en memoria hasta que se crea el agente: un borrador no sabe de dónde copiarla.
         skills = draft.skills.filter { $0.source != .own }
         skillsInitialized = draft.skillsInitialized
@@ -701,6 +714,62 @@ final class WizardState: ObservableObject {
         }
     }
 
+    // MARK: - Otra cuenta de una herramienta
+
+    /// ¿Se ofrece «Añadir otra cuenta» para esta herramienta? Solo si ya está conectada y es de las que Galeno registra.
+    func canAddAccount(to tool: Tool) -> Bool {
+        AccountConnector.canAdd(tool) && connection(for: tool)?.status == .connected && claudeStatus.isReady
+    }
+
+    func askAddAccount(_ tool: Tool) {
+        guard canAddAccount(to: tool), addingAccountTool == nil else { return }
+        accountDraft = ""
+        accountPhase = .idle
+        addingAccountTool = tool
+    }
+
+    /// «Conectar»: registra la cuenta, espera a que el usuario autorice en su navegador y la suma al agente. Si algo
+    /// falla no se guarda nada.
+    func addAccount() {
+        guard let tool = addingAccountTool, accountPhase != .working, let claudePath = claudeStatus.path else { return }
+        let existing = knownAccountIDs + extraAccounts.map(\.id) + connections.map(\.id)
+        let connection: ToolConnection
+        switch AccountConnector.prepare(tool: tool, name: accountDraft, existing: existing) {
+        case .failure(let issue):
+            accountPhase = .failed(issue)
+            return
+        case .success(let prepared):
+            connection = prepared
+        }
+        accountPhase = .working
+        let connector = AccountConnector(mcp: connectServices.makeMCP(claudePath))
+        accountTask = Task { [weak self] in
+            let issue = await connector.connect(connection, openAuthorization: nil)
+            guard let self, !Task.isCancelled else { return }
+            if let issue {
+                self.accountPhase = .failed(issue)
+                return
+            }
+            self.connectServices.returnToApp()
+            self.extraAccounts.append(connection)
+            self.accountTask = nil
+            self.accountPhase = .idle
+            self.addingAccountTool = nil
+        }
+    }
+
+    func cancelAddingAccount() {
+        accountTask?.cancel()
+        accountTask = nil
+        accountPhase = .idle
+        addingAccountTool = nil
+    }
+
+    /// «Quitar» una cuenta extra de este agente: no se guarda con él. La cuenta, si ya estaba registrada, sigue conectada.
+    func removeExtraAccount(_ id: ConnectionID) {
+        extraAccounts.removeAll { $0.id == id }
+    }
+
     /// Marca el estado de una conexión. Google Meet no tiene servidor: queda como
     /// Google Workspace, que es con lo que se lee.
     func setConnectionStatus(_ tool: Tool, _ status: ConnectionStatus) {
@@ -1017,7 +1086,7 @@ final class WizardState: ObservableObject {
                     connection.sources = .everything
                 }
                 return connection
-            } + preservedAccounts,
+            } + extraAccounts,
             skills: skills,
             sendingRules: sendingRules
         )

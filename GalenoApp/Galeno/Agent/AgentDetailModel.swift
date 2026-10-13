@@ -47,13 +47,7 @@ final class AgentDetailModel: ObservableObject {
         case removeAccount(ConnectionID)
     }
 
-    /// En qué va «Añadir otra cuenta».
-    enum AccountPhase: Equatable {
-        case idle
-        /// Registrando y esperando a que el usuario autorice en su navegador.
-        case working
-        case failed(AccountConnector.Issue)
-    }
+    typealias AccountPhase = AddAccountPhase
 
     /// Una herramienta del agente tal como se enseña en su lista.
     struct ToolRow: Identifiable, Equatable {

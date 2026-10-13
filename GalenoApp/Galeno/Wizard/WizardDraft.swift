@@ -17,6 +17,8 @@ struct WizardDraft: Codable, Equatable {
     var agentName: String
     var projectDescription: String
     var connections: [ToolConnection]
+    /// Las cuentas extra de una herramienta (`ToolConnection.accountID`). Opcional: un borrador de antes no las trae.
+    var extraAccounts: [ToolConnection]?
     var skills: [SelectedSkill]
     var skillsInitialized: Bool
     var sendingRules: SendingRules

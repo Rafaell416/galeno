@@ -118,4 +118,107 @@ final class ExtraAccountsTests: XCTestCase {
         await health.check()
         XCTAssertEqual(health.connections.filter { $0.tool == .notion }.count, 1)
     }
+
+    // MARK: - «Añadir otra cuenta» en el asistente
+
+    private func shortWizard(mcp: FakeMCP = FakeMCP()) throws -> WizardState {
+        var installation = try installation()
+        // Un agente nuevo parte de lo que la instalación tiene conectado; aquí, solo la cuenta de siempre de Notion.
+        installation.connections.removeAll { $0.accountID != nil }
+        let services = ConnectServices(
+            makeMCP: { _ in mcp }, whatsapp: FakeWhatsApp(), slack: FakeSlackSetup(), installer: installer,
+            fetchRealData: false, sleep: SleepLog().sleeper)
+        return WizardState(
+            preferredLanguages: ["es"],
+            claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
+            connectServices: services, startingFrom: installation)
+    }
+
+    private func waitForAccount(_ state: WizardState) async {
+        for _ in 0..<400 where state.accountPhase == .working { try? await Task.sleep(for: .milliseconds(5)) }
+    }
+
+    func testTheWizardOffersAnotherAccountOnlyForConnectedToolsGalenoRegisters() throws {
+        let state = try shortWizard()
+        XCTAssertTrue(state.canAddAccount(to: .notion))
+        XCTAssertFalse(state.canAddAccount(to: .slack), "Slack todavía no")
+        XCTAssertFalse(state.canAddAccount(to: .whatsapp))
+        XCTAssertFalse(state.canAddAccount(to: .jira), "no está conectada en este agente")
+    }
+
+    func testAddingAnAccountInTheWizardKeepsItWithTheAgentConfig() async throws {
+        let mcp = FakeMCP()
+        let state = try shortWizard(mcp: mcp)
+        state.askAddAccount(.notion)
+        state.accountDraft = "Personal"
+        state.addAccount()
+        await waitForAccount(state)
+
+        XCTAssertNil(state.addingAccountTool)
+        XCTAssertEqual(state.accountPhase, .idle)
+        XCTAssertEqual(state.extraAccounts.map(\.accountID), ["personal"])
+        XCTAssertEqual(mcp.calls.filter { $0.hasPrefix("register") }, ["register galeno-notion-personal"])
+        XCTAssertEqual(state.connections.filter { $0.tool == .notion }.count, 1, "el asistente sigue por herramienta")
+
+        state.agentName = "Nueva"
+        let config = state.makeConfig()
+        XCTAssertEqual(config.connections(for: .notion).count, 2)
+        // Al crear el agente, la cuenta se guarda aparte y el motor la escribe con su servidor.
+        let outcome = try installer.install(config)
+        XCTAssertTrue(try String(contentsOf: outcome.record.folder.appending(path: ".mcp.json"), encoding: .utf8)
+            .contains("galeno-notion-personal"))
+        let saved = try installation()
+        XCTAssertNotNil(saved.connection(for: ConnectionID(tool: .notion, account: "personal")))
+    }
+
+    func testAnExtraAccountThatFailsToAuthorizeIsNotKept() async throws {
+        let mcp = FakeMCP(loginFailures: ["galeno-notion-personal": [.loginTimedOut]])
+        let state = try shortWizard(mcp: mcp)
+        state.askAddAccount(.notion)
+        state.accountDraft = "Personal"
+        state.addAccount()
+        await waitForAccount(state)
+        XCTAssertEqual(state.accountPhase, .failed(.notAuthorizedInTime))
+        XCTAssertTrue(state.extraAccounts.isEmpty)
+        XCTAssertEqual(state.makeConfig().connections(for: .notion).count, 1)
+    }
+
+    func testTheWizardRefusesAnAccountNameTheInstallationAlreadyHas() async throws {
+        // La instalación del test ya tiene «trabajo» (setUp): un agente nuevo no puede repetir ese nombre.
+        let full = WizardState(
+            preferredLanguages: ["es"],
+            claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
+            connectServices: services(), startingFrom: try installation())
+        full.askAddAccount(.notion)
+        full.accountDraft = "Trabajo"
+        full.addAccount()
+        XCTAssertEqual(full.accountPhase, .failed(.alreadyExists))
+    }
+
+    func testRemovingAnExtraAccountInTheWizardLeavesItOutOfTheConfig() async throws {
+        let state = try shortWizard()
+        state.askAddAccount(.notion)
+        state.accountDraft = "Personal"
+        state.addAccount()
+        await waitForAccount(state)
+        state.removeExtraAccount(ConnectionID(tool: .notion, account: "personal"))
+        XCTAssertTrue(state.extraAccounts.isEmpty)
+        XCTAssertEqual(state.makeConfig().connections(for: .notion).count, 1)
+    }
+
+    func testTheDraftKeepsTheExtraAccounts() async throws {
+        let state = try shortWizard()
+        state.askAddAccount(.notion)
+        state.accountDraft = "Personal"
+        state.addAccount()
+        await waitForAccount(state)
+        state.agentName = "Hera"
+        let draft = try XCTUnwrap(state.makeDraft())
+        XCTAssertEqual(draft.extraAccounts?.map(\.accountID), ["personal"])
+        // Un borrador de antes no las trae y se lee igual.
+        var legacy = draft
+        legacy.extraAccounts = nil
+        let decoded = try JSONDecoder().decode(WizardDraft.self, from: JSONEncoder().encode(legacy))
+        XCTAssertNil(decoded.extraAccounts)
+    }
 }
