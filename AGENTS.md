@@ -185,6 +185,11 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (`HomeModel.sendingOffer`). No añadir otro camino que lo ponga en `true`, ni tratar `nil` como aceptado. **El asistente de «Nuevo agente» no da por
   conectado un WhatsApp vinculado sin el envío aceptado** (10 oct 2026, hallazgo con Simon): lo vuelve a poner en
   «Conectar», con su advertencia y sin otro QR si la sesión sigue vinculada, y lo acepta por el camino de siempre.
+- **Cambiar de número no mezcla historiales** (bridge 0.4.3, 12 oct 2026, hallazgo con Simon): `messages.db` anota de qué
+  número es (`meta`, `account.go`). Si al vincular el número es otro, el historial anterior se guarda **entero** en una
+  copia junto a la base (`historial-<número>-<fecha>.db`, nunca se borra), chats y mensajes empiezan de cero y lo que
+  esperaba en la bandeja de salida queda `failed`; lo ya enviado se conserva, así que los topes no se reinician. El mismo
+  número (la sesión caduca a los ~20 días) no toca nada, y sin número anotado solo se anota. No quitar la copia previa.
 - Salud enseña «Enviados hoy: N de 40 · nuevos · grupos» (`outbox --json`), «Pausar envíos» (`send-paused`) y «Límites»
   (`send-limits.json`): la app deja bajar un tope y nunca subirlo por encima del techo del bridge.
 - Al sincronizar con upstream, revisar que no reentren `send_file` ni `send_audio_message`, y que `send_message`

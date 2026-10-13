@@ -79,6 +79,12 @@ func NewMessageStore(dbPath string) (*MessageStore, error) {
 			error         TEXT
 		);
 		CREATE INDEX IF NOT EXISTS outbox_status ON outbox(status, not_before);
+
+		-- De qué número es este historial (account.go).
+		CREATE TABLE IF NOT EXISTS meta (
+			key   TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		);
 	`)
 	if err != nil {
 		db.Close()

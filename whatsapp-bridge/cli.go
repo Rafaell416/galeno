@@ -209,8 +209,26 @@ func setupEventHandlers(client *whatsmeow.Client, messageStore *MessageStore, lo
 			logger.Infof("Conectado a WhatsApp")
 		case *events.LoggedOut:
 			logger.Warnf("La sesión se cerró del lado de WhatsApp; hace falta volver a vincular (pair)")
+		case *events.PairSuccess:
+			// Antes de que llegue la sincronización del historial: si el número es otro, el historial del
+			// anterior se aparta aquí y lo que llegue ya es del nuevo.
+			adoptAccount(messageStore, v.ID.User, logger)
 		}
 	})
+}
+
+// adoptAccount anota de qué número es el historial y avisa si lo tuvo que apartar porque el número cambió.
+// Un fallo aquí no detiene la vinculación ni la sincronización: se registra y el historial queda como estaba.
+func adoptAccount(messageStore *MessageStore, user string, logger waLog.Logger) {
+	switched, err := messageStore.AdoptAccount(user, time.Now())
+	if err != nil {
+		logger.Warnf("No se pudo comprobar de qué número es el historial: %v", err)
+		return
+	}
+	if switched != nil {
+		logger.Warnf("El número vinculado cambió (%s → %s): el historial anterior se guardó en %s y empieza uno nuevo",
+			switched.Previous, user, switched.Backup)
+	}
 }
 
 // runPair — subcomando "pair".
@@ -234,6 +252,10 @@ func runPair() {
 	if err := connectAndPair(client, stateDir, logger); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+
+	if client.Store.ID != nil {
+		adoptAccount(messageStore, client.Store.ID.User, logger)
 	}
 
 	time.Sleep(2 * time.Second)
@@ -263,6 +285,8 @@ func runSync() {
 		fmt.Fprintln(os.Stderr, "No hay ninguna sesión vinculada. Corre primero: galeno-whatsapp pair")
 		os.Exit(1)
 	}
+
+	adoptAccount(messageStore, client.Store.ID.User, logger)
 
 	setupEventHandlers(client, messageStore, logger)
 
