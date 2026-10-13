@@ -159,9 +159,18 @@ public enum MCPServerCatalog {
             }
             // Un conector de claude.ai no se registra: su nombre lo pone Claude y no admite prefijo.
             if case .claudeConnector = definition.transport { return definition }
-            guard let prefix = connection.serverNamePrefix, !prefix.isEmpty else { return definition }
             var renamed = definition
-            renamed.serverName = prefix + definition.serverName
+            if let prefix = connection.serverNamePrefix, !prefix.isEmpty {
+                renamed.serverName = prefix + definition.serverName
+            }
+            // Una cuenta aparte es otro servidor, con su propio nombre (`galeno-notion-trabajo`): así cada una
+            // lleva sus reglas de permiso y su hook, y `galenoOwnsServers` sigue valiendo (el prefijo es el mismo).
+            // La cuenta de siempre (`accountID == nil`) conserva exactamente el nombre de antes.
+            if connection.tool.supportsMultipleAccounts, let account = connection.accountID,
+                AccountID.isValid(account)
+            {
+                renamed.serverName += "-" + account
+            }
             return renamed
         }
     }

@@ -73,13 +73,24 @@ public struct GalenoInstallation: Codable, Hashable, Sendable {
 // MARK: - Conexiones
 
 extension GalenoInstallation {
+    /// La conexión de siempre de una herramienta (`accountID == nil`) y, si no la hay, la primera.
     public func connection(for tool: Tool) -> SharedConnection? {
-        connections.first { $0.tool == tool }
+        connections.first { $0.tool == tool && $0.accountID == nil } ?? connections.first { $0.tool == tool }
     }
 
-    /// Añade la conexión, o reemplaza la que ya había de esa herramienta.
+    /// Una cuenta concreta de una herramienta.
+    public func connection(for id: ConnectionID) -> SharedConnection? {
+        connections.first { $0.id == id }
+    }
+
+    /// Todas las cuentas de una herramienta.
+    public func connections(for tool: Tool) -> [SharedConnection] {
+        connections.filter { $0.tool == tool }
+    }
+
+    /// Añade la conexión, o reemplaza la que ya había de esa cuenta de esa herramienta.
     public mutating func setConnection(_ connection: SharedConnection) {
-        if let index = connections.firstIndex(where: { $0.tool == connection.tool }) {
+        if let index = connections.firstIndex(where: { $0.id == connection.id }) {
             connections[index] = connection
         } else {
             connections.append(connection)
@@ -104,8 +115,10 @@ extension GalenoInstallation {
     /// entran: son las que el wizard corto vuelve a ofrecer. Sin skills: el
     /// catálogo vive fuera del motor.
     public func startingPoint(agentName: String, projectDescription: String = "") -> AgentConfig {
+        // Solo la cuenta de siempre de cada herramienta: una cuenta extra la elige el usuario para este agente
+        // (heredarla o no es decisión suya), y un agente nuevo no debe llevarse todas.
         let connected = connections
-            .filter { $0.status == .connected }
+            .filter { $0.status == .connected && $0.accountID == nil }
             .map { shared in
                 ToolConnection(
                     tool: shared.tool,
@@ -176,7 +189,7 @@ extension GalenoInstallation {
         guard var config = agent(id: agentID)?.config else { return nil }
 
         config.connections = config.connections.map { connection in
-            guard let shared = self.connection(for: connection.tool) else { return connection }
+            guard let shared = self.connection(for: connection.id) else { return connection }
             var resolved = connection
             resolved.status = shared.status
             resolved.oauthClientID = shared.oauthClientID

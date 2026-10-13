@@ -222,6 +222,15 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   avisa de que afecta a todos. **Galeno nunca borra ni pisa un servidor MCP del usuario sin preguntar** (`docs/03` §3, pantalla 5).
   Las conexiones guardadas antes de este cambio (sin prefijo) siguen con su nombre. Lo que Galeno no registra en Claude Code
   (WhatsApp, los conectores de la cuenta de Claude) no lleva prefijo.
+- **Cuentas por agente (modelo, GAL-13; 13 oct 2026):** una conexión se identifica por `(herramienta, cuenta)`
+  (`ConnectionID`). `accountID == nil` es **la cuenta de siempre**: lo guardado antes se lee igual y su servidor
+  conserva su nombre (`galeno-notion`), sin migración. Una cuenta extra (`accountID`, de `AccountID.slug(from:)`: solo
+  minúsculas, dígitos y guiones, porque acaba en el patrón del hook) es **otro servidor** con su nombre
+  (`galeno-notion-trabajo`) y lleva sus propias reglas `ask`/`allow` y su propio hook: no hay forma de que una cuenta
+  extra herede la cobertura de otra. Solo las herramientas que Galeno registra con su prefijo
+  (`Tool.supportsMultipleAccounts`: Slack, Notion, Jira, Fireflies, Granola, Fathom); WhatsApp (un dispositivo) y los
+  conectores de la cuenta de Claude, no. Un agente nuevo (`startingPoint`) trae solo la cuenta de siempre de cada
+  herramienta; sumar otra es decisión del usuario para ese agente. Falta la interfaz (GAL-5, GAL-10).
 - Un agente es una carpeta (`~/Galeno/<agente>/`); varios proyectos son varios agentes.
   Galeno es el dueño de la config: guarda las respuestas del wizard y regenera los archivos
   completos. Lo único que el motor nunca toca al regenerar es `memoria/`; la excepción es el material que el usuario trae al crear el agente (paso 3, «Traer contexto»), que el motor deja en `memoria/contexto/` solo si ese archivo no existe, y el que añade después desde la sección «Contexto» del detalle (`ContextFolder`: cada uno toma el siguiente número libre y nunca pisa a otro; quitar uno lo manda a la **Papelera**, nunca lo borra). Ese material es dato de terceros: no va en `AgentConfig` ni en el borrador, y nunca se escribe en `AGENTS.md`.

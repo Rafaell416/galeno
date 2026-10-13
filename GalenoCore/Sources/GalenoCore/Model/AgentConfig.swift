@@ -30,7 +30,8 @@ public struct AgentConfig: Codable, Hashable, Sendable {
     public var projectDescription: String
 
     /// Las herramientas que el usuario marcó, en el orden del sub-wizard
-    /// (pasos 4, 5 y 6). Se espera una entrada por herramienta, sin repetir.
+    /// (pasos 4, 5 y 6). Una entrada por cuenta: sin repetir `(herramienta, cuenta)`. Casi siempre es una por
+    /// herramienta; Notion, Jira y Slack pueden llevar más de una cuenta (`ToolConnection.accountID`).
     public var connections: [ToolConnection]
 
     /// Las skills que quedaron marcadas (paso 7).
@@ -87,7 +88,8 @@ extension AgentConfig {
     /// no llegó a conectar, y las que saltó con "Conectar después", no cuentan:
     /// el motor no las configura.
     public var connectedTools: [Tool] {
-        connections.filter { $0.status == .connected }.map(\.tool)
+        var seen = Set<Tool>()
+        return connections.filter { $0.status == .connected }.map(\.tool).filter { seen.insert($0).inserted }
     }
 
     /// Las conexiones efectivamente conectadas, con todo lo que las describe.
@@ -95,9 +97,20 @@ extension AgentConfig {
         connections.filter { $0.status == .connected }
     }
 
-    /// La conexión de una herramienta, si el usuario la marcó.
+    /// La conexión de una herramienta, si el usuario la marcó. Con varias cuentas, la de siempre
+    /// (`accountID == nil`) y, si no la hay, la primera.
     public func connection(for tool: Tool) -> ToolConnection? {
-        connections.first { $0.tool == tool }
+        connections.first { $0.tool == tool && $0.accountID == nil } ?? connections.first { $0.tool == tool }
+    }
+
+    /// La conexión de una cuenta concreta de una herramienta.
+    public func connection(for id: ConnectionID) -> ToolConnection? {
+        connections.first { $0.id == id }
+    }
+
+    /// Todas las cuentas de una herramienta, en el orden en que se marcaron.
+    public func connections(for tool: Tool) -> [ToolConnection] {
+        connections.filter { $0.tool == tool }
     }
 }
 

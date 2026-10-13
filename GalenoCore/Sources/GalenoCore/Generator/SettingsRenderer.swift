@@ -234,7 +234,9 @@ enum SettingsRenderer {
     /// a `allow`; una sin lista cuya escritura pregunta (Notion con «Preguntarme») pregunta también
     /// al leer, porque la regla cubre el servidor entero.
     static func toolsReadingWithoutAsking(in config: AgentConfig) -> [Tool] {
-        config.connectedConnections.compactMap { connection -> Tool? in
+        // Con más de una cuenta de la misma herramienta, cada cuenta aporta la suya: la herramienta cuenta si
+        // **todas** sus cuentas leen sin preguntar (la más restrictiva manda), y sale una sola vez.
+        let perConnection = config.connectedConnections.compactMap { connection -> (Tool, Bool)? in
             let tool = connection.tool
             let servers = MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "")
             guard !servers.isEmpty else { return nil }
@@ -243,8 +245,13 @@ enum SettingsRenderer {
                 if !server.readOnlyTools.isEmpty { return true }
                 return !connection.sendsToOthers && (tool.internalWrites.isEmpty || !writesAsk)
             }
-            return free ? tool : nil
+            return (tool, free)
         }
+        var result: [Tool] = []
+        for tool in perConnection.map(\.0) where !result.contains(tool) {
+            if perConnection.filter({ $0.0 == tool }).allSatisfy(\.1) { result.append(tool) }
+        }
+        return result
     }
 
     static func render(_ config: AgentConfig) throws -> String {
