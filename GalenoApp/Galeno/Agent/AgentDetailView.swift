@@ -58,7 +58,13 @@ struct AgentDetailView: View {
                     .id(dialog.agent.id)
                     .transition(.opacity)
             } else if case .removeTool(let tool)? = model.sheet {
-                RemoveToolSheet(model: model, tool: tool)
+                RemoveToolSheet(model: model, id: ConnectionID(tool: tool))
+                    .transition(.opacity)
+            } else if case .removeAccount(let id)? = model.sheet {
+                RemoveToolSheet(model: model, id: id)
+                    .transition(.opacity)
+            } else if case .addAccount(let tool)? = model.sheet {
+                AddAccountSheet(model: model, tool: tool)
                     .transition(.opacity)
             } else if model.health.relink != .idle {
                 RelinkPanelView(model: model.health)
@@ -96,6 +102,7 @@ struct AgentDetailView: View {
         if let picker = model.picker, picker.previewedSkill != nil { picker.previewedSkill = nil; return }
         if model.health.relink != .idle { model.health.cancelRelink(); return }
         if model.home.dialog != nil { model.home.cancelDialog(); return }
+        if case .addAccount? = model.sheet { model.cancelAddingAccount(); return }
         if model.sheet != nil { model.closeSheet(); return }
         if model.home.menuOpen != nil { model.home.closeMenu(); return }
         back()
@@ -309,13 +316,21 @@ private struct NavItem: View {
 /// de este agente: Galeno no cierra sesiones ajenas.
 private struct RemoveToolSheet: View {
     @ObservedObject var model: AgentDetailModel
-    let tool: Tool
+    /// La herramienta, y su cuenta si es una cuenta extra.
+    let id: ConnectionID
     @Environment(\.locale) private var locale
 
-    private var toolName: String { tool.displayName(in: model.language) }
-    private var others: [String] { model.sharedWith[tool] ?? [] }
+    private var tool: Tool { id.tool }
+    private var isExtra: Bool { id.account != nil }
+    private var toolName: String {
+        guard isExtra, let name = model.config?.connection(for: id)?.accountName, !name.isEmpty else {
+            return tool.displayName(in: model.language)
+        }
+        return "\(tool.displayName(in: model.language)) (\(name))"
+    }
+    private var others: [String] { (isExtra ? model.sharedAccounts[id] : model.sharedWith[tool]) ?? [] }
     private var othersText: String { others.joined(separator: ", ") }
-    private var canDisconnect: Bool { model.canDisconnectAccount(tool) }
+    private var canDisconnect: Bool { isExtra ? true : model.canDisconnectAccount(tool) }
 
     var body: some View {
         ZStack {
@@ -335,7 +350,9 @@ private struct RemoveToolSheet: View {
                         ? Localized.string("agent.remove.fromAgent.alone", locale: locale)
                         : Localized.string("agent.remove.fromAgent.shared %@", othersText, locale: locale),
                     filled: true
-                ) { model.removeFromAgent(tool) }
+                ) {
+                    if isExtra { model.removeAccountFromAgent(id) } else { model.removeFromAgent(tool) }
+                }
 
                 if canDisconnect {
                     choice(
@@ -344,7 +361,11 @@ private struct RemoveToolSheet: View {
                             ? Localized.string("agent.remove.account.alone %@", model.name, locale: locale)
                             : Localized.string("agent.remove.account.shared %@ %@", model.name, othersText, locale: locale),
                         filled: false
-                    ) { Task { await model.disconnectAccount(tool) } }
+                    ) {
+                        Task {
+                            if isExtra { await model.disconnectExtraAccount(id) } else { await model.disconnectAccount(tool) }
+                        }
+                    }
                 } else if tool != .whatsapp {
                     Text("agent.remove.notOurs")
                         .font(Typo.text(13.5)).foregroundStyle(Color.ink500)
@@ -434,5 +455,102 @@ private struct ConnectOverlay: View {
         .background(Color.parchment50)
         .overlay { GrainOverlay() }
         .onExitCommand { if !isSyncing { model.cancelConnecting() } }
+    }
+}
+
+// MARK: - Hoja: añadir otra cuenta de una herramienta
+
+/// «Añadir otra cuenta»: el nombre con el que el usuario la reconoce («Trabajo»), y la conexión. Se abre el navegador para
+/// autorizar; ahí elige la cuenta o el espacio de trabajo que quiere añadir (si ya tenía una sesión abierta, es la que verá
+/// primero). La cuenta entra a este agente con sus propias reglas de permiso: cada una lleva las suyas.
+private struct AddAccountSheet: View {
+    @ObservedObject var model: AgentDetailModel
+    let tool: Tool
+    @Environment(\.locale) private var locale
+
+    private var toolName: String { tool.displayName(in: model.language) }
+    private var isWorking: Bool { model.accountPhase == .working }
+    private var issue: AccountConnector.Issue? {
+        if case .failed(let issue) = model.accountPhase { return issue }
+        return nil
+    }
+    private var canConnect: Bool {
+        !model.accountDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isWorking
+    }
+
+    var body: some View {
+        ZStack {
+            Color.ink900.opacity(0.30)
+                .contentShape(Rectangle())
+                .onTapGesture { if !isWorking { model.cancelAddingAccount() } }
+            VStack(alignment: .leading, spacing: 12) {
+                Text(verbatim: Localized.string("agent.account.add.title %@", toolName, locale: locale))
+                    .font(Typo.display(26)).foregroundStyle(Color.ink900)
+                Text("agent.account.add.sub")
+                    .font(Typo.text(14.5)).foregroundStyle(Color.ink700)
+                    .fixedSize(horizontal: false, vertical: true)
+                RuleTextField(
+                    "agent.account.add.field", text: $model.accountDraft, prompt: "agent.account.add.placeholder",
+                    font: Typo.display(24), autofocus: true, isError: issue.map(isNameIssue) ?? false
+                )
+                .onChange(of: model.accountDraft) { _, value in
+                    if value.count > AccountConnector.maxNameLength {
+                        model.accountDraft = String(value.prefix(AccountConnector.maxNameLength))
+                    }
+                }
+                .onSubmit { if canConnect { model.addAccount() } }
+                .disabled(isWorking)
+
+                Text(verbatim: isWorking ? Localized.string("agent.account.add.working", locale: locale)
+                    : Localized.string("agent.account.add.browser", locale: locale))
+                    .font(Typo.text(13.5)).foregroundStyle(Color.ink500)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let issue {
+                    Text(verbatim: Localized.string(Self.key(for: issue), locale: locale))
+                        .font(Typo.text(13.5)).foregroundStyle(Color.seal700)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let error = model.error {
+                    Text(verbatim: error).font(Typo.text(13.5)).foregroundStyle(Color.seal700)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack {
+                    Button("wizard.cancel") { model.cancelAddingAccount() }
+                        .buttonStyle(InkLinkStyle(size: 15))
+                    Spacer(minLength: 0)
+                    Button("agent.account.add.connect") { model.addAccount() }
+                        .buttonStyle(InkButtonStyle(.primary, padding: 22, isLoading: isWorking))
+                        .disabled(!canConnect)
+                }
+                .padding(.top, 4)
+            }
+            .padding(24)
+            .frame(width: 520, alignment: .leading)
+            .background(Color.parchment50)
+            .overlay(RoundedRectangle(cornerRadius: Radius.b1).strokeBorder(Color.ink900, lineWidth: 1.5))
+        }
+        .onExitCommand { model.cancelAddingAccount() }
+    }
+
+    private func isNameIssue(_ issue: AccountConnector.Issue) -> Bool {
+        switch issue {
+        case .invalidName, .alreadyExists, .nameInUse: true
+        default: false
+        }
+    }
+
+    /// Un error dice su causa real, en tres partes y sin exclamaciones.
+    private static func key(for issue: AccountConnector.Issue) -> String {
+        switch issue {
+        case .invalidName: "agent.account.issue.invalidName"
+        case .alreadyExists: "agent.account.issue.alreadyExists"
+        case .unsupported: "agent.account.issue.unsupported"
+        case .nameInUse: "agent.account.issue.nameInUse"
+        case .couldNotRegister: "agent.account.issue.couldNotRegister"
+        case .notAuthorizedInTime: "agent.account.issue.notAuthorizedInTime"
+        case .loginFailed: "agent.account.issue.loginFailed"
+        case .stillNotConnected: "agent.account.issue.stillNotConnected"
+        case .claudeOutdated: "agent.account.issue.claudeOutdated"
+        }
     }
 }

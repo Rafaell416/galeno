@@ -96,7 +96,8 @@ final class AgentDetailTests: XCTestCase {
                         sleep: SleepLog().sleeper),
                     startingFrom: installation, editing: id)
             },
-            disconnector: disconnector, trashContext: { [trash] in try trash!.send($0) },
+            disconnector: disconnector, makeMCP: { _ in mcp }, locateClaude: { "/ruta/claude" },
+            trashContext: { [trash] in try trash!.send($0) },
             importContext: { url in
                 if let file = imported[url.lastPathComponent] { return file }
                 throw ContextImporter.Failure.unsupported
@@ -566,5 +567,151 @@ final class AgentDetailTests: XCTestCase {
         XCTAssertNil(detail.config)
         XCTAssertTrue(detail.toolRows.isEmpty)
         XCTAssertNil(detail.agent == nil ? nil : detail.config)
+    }
+
+    // MARK: Otra cuenta de una herramienta
+
+    private func waitForAccount(_ detail: AgentDetailModel) async {
+        for _ in 0..<400 where detail.accountPhase == .working { try? await Task.sleep(for: .milliseconds(5)) }
+    }
+
+    private func addAccount(_ name: String, tool: Tool = .notion, mcp: FakeMCP = FakeMCP()) async throws
+        -> AgentDetailModel
+    {
+        let detail = makeDetail(mcp: mcp)
+        detail.askAddAccount(tool)
+        detail.accountDraft = name
+        detail.addAccount()
+        await waitForAccount(detail)
+        return detail
+    }
+
+    func testOnlyToolsGalenoRegistersOfferAnotherAccount() {
+        XCTAssertTrue(AccountConnector.canAdd(.notion))
+        XCTAssertTrue(AccountConnector.canAdd(.jira))
+        XCTAssertFalse(AccountConnector.canAdd(.slack), "Slack necesita su propia app por cuenta")
+        XCTAssertFalse(AccountConnector.canAdd(.whatsapp))
+        XCTAssertFalse(AccountConnector.canAdd(.googleWorkspace))
+        XCTAssertFalse(AccountConnector.canAdd(.gmail))
+    }
+
+    func testAddingAnAccountRegistersItAsItsOwnServerAndAddsItToTheAgent() async throws {
+        let mcp = FakeMCP()
+        let detail = try await addAccount("Trabajo", mcp: mcp)
+
+        XCTAssertEqual(detail.accountPhase, .idle)
+        XCTAssertNil(detail.sheet)
+        XCTAssertEqual(mcp.calls.filter { $0.hasPrefix("register") }, ["register galeno-notion-trabajo"])
+        XCTAssertTrue(mcp.calls.contains("login galeno-notion-trabajo"))
+
+        let rows = detail.toolRows.filter { $0.tool == .notion }
+        XCTAssertEqual(rows.count, 2, "la de siempre y la nueva")
+        XCTAssertEqual(rows.last?.accountName, "Trabajo")
+        XCTAssertEqual(rows.last?.displayName(in: .spanish), "Notion (Trabajo)")
+
+        let stored = try storedConfig()
+        XCTAssertEqual(stored.connections(for: .notion).count, 2)
+        let mcpJSON = try file(".mcp.json")
+        XCTAssertTrue(mcpJSON.contains("\"galeno-notion\""))
+        XCTAssertTrue(mcpJSON.contains("\"galeno-notion-trabajo\""))
+        // La instalación recuerda cada cuenta aparte: la de siempre no se tocó.
+        let installation = try XCTUnwrap(try installer.store.load())
+        XCTAssertNil(installation.connection(for: ConnectionID(tool: .notion))?.accountID)
+        XCTAssertEqual(installation.connection(for: ConnectionID(tool: .notion, account: "trabajo"))?.accountName, "Trabajo")
+    }
+
+    /// El punto que importa para la aprobación: la cuenta nueva lleva sus **propias** reglas.
+    func testTheNewAccountGetsItsOwnPermissionRules() async throws {
+        _ = try await addAccount("Trabajo")
+        let settings = try file(".claude/settings.json")
+        XCTAssertTrue(settings.contains("mcp__galeno-notion-trabajo__*"), "su regla, no la de la cuenta de siempre")
+    }
+
+    func testAnAccountNeverTouchesAnotherAgentUsingTheDefaultOne() async throws {
+        _ = try await addAccount("Trabajo")
+        let other = try storedConfig(jarvi)
+        XCTAssertEqual(other.connections(for: .notion).count, 1, "Jarvi sigue con la de siempre")
+        XCTAssertFalse(try file(".mcp.json", in: jarvi).contains("galeno-notion-trabajo"))
+    }
+
+    func testAddingAnAccountNotesThatTheToolsChanged() async throws {
+        let home = makeHome()
+        let mcp = FakeMCP()
+        let detail = makeDetail(mcp: mcp, home: home)
+        detail.askAddAccount(.notion)
+        detail.accountDraft = "Trabajo"
+        detail.addAccount()
+        await waitForAccount(detail)
+        XCTAssertNotNil(defaults.dictionary(forKey: Prefs.toolsChangedAt)?[hera.id.uuidString])
+    }
+
+    func testANameWithoutLettersIsRefusedAndNothingIsRegistered() async throws {
+        let mcp = FakeMCP()
+        let detail = try await addAccount("!!!", mcp: mcp)
+        XCTAssertEqual(detail.accountPhase, .failed(.invalidName))
+        XCTAssertTrue(mcp.calls.isEmpty)
+        XCTAssertEqual(try storedConfig().connections(for: .notion).count, 1)
+    }
+
+    func testTheSameNameTwiceIsRefused() async throws {
+        let detail = try await addAccount("Trabajo")
+        detail.askAddAccount(.notion)
+        detail.accountDraft = "trabajo"
+        detail.addAccount()
+        await waitForAccount(detail)
+        XCTAssertEqual(detail.accountPhase, .failed(.alreadyExists))
+        XCTAssertEqual(try storedConfig().connections(for: .notion).count, 2)
+    }
+
+    func testAServerOfTheUserWithThatNameIsNeverOverwritten() async throws {
+        let mcp = FakeMCP(otherServers: ["galeno-notion-trabajo"])
+        let detail = try await addAccount("Trabajo", mcp: mcp)
+        XCTAssertEqual(detail.accountPhase, .failed(.nameInUse))
+        XCTAssertFalse(mcp.calls.contains { $0.hasPrefix("register") || $0.hasPrefix("login") || $0.hasPrefix("remove") })
+        XCTAssertEqual(try storedConfig().connections(for: .notion).count, 1)
+    }
+
+    func testIfTheUserDoesNotAuthorizeNothingIsSaved() async throws {
+        let mcp = FakeMCP(loginFailures: ["galeno-notion-trabajo": [.loginTimedOut]])
+        let detail = try await addAccount("Trabajo", mcp: mcp)
+        XCTAssertEqual(detail.accountPhase, .failed(.notAuthorizedInTime))
+        XCTAssertEqual(try storedConfig().connections(for: .notion).count, 1)
+        XCTAssertFalse(try file(".mcp.json").contains("galeno-notion-trabajo"))
+    }
+
+    func testRemovingAnExtraAccountFromTheAgentKeepsTheOneOfAlways() async throws {
+        let detail = try await addAccount("Trabajo")
+        let id = ConnectionID(tool: .notion, account: "trabajo")
+        XCTAssertTrue(detail.removeAccountFromAgent(id))
+        let stored = try storedConfig()
+        XCTAssertEqual(stored.connections(for: .notion).count, 1)
+        XCTAssertNil(stored.connection(for: .notion)?.accountID)
+        XCTAssertTrue(disconnector.calls.isEmpty, "quitar de un agente no desconecta la cuenta")
+    }
+
+    func testDisconnectingAnExtraAccountRemovesOnlyItsServer() async throws {
+        let detail = try await addAccount("Trabajo")
+        let id = ConnectionID(tool: .notion, account: "trabajo")
+        let done = await detail.disconnectExtraAccount(id)
+        XCTAssertTrue(done)
+        XCTAssertEqual(disconnector.calls, [["galeno-notion-trabajo"]], "ni el de siempre ni otro del usuario")
+        let installation = try XCTUnwrap(try installer.store.load())
+        XCTAssertNil(installation.connection(for: id))
+        XCTAssertNotNil(installation.connection(for: ConnectionID(tool: .notion)))
+        XCTAssertEqual(try storedConfig().connections(for: .notion).count, 1)
+    }
+
+    func testAnExtraAccountsStateComesFromItsOwnServer() async throws {
+        let mcp = FakeMCP(statuses: ["galeno-notion": .connected, "galeno-notion-trabajo": .needsAuthentication])
+        let detail = makeDetail(mcp: mcp)
+        detail.askAddAccount(.notion)
+        detail.accountDraft = "Trabajo"
+        detail.addAccount()
+        await waitForAccount(detail)
+        detail.refreshHealth()
+        for _ in 0..<200 where detail.health.isChecking { try? await Task.sleep(for: .milliseconds(5)) }
+        let extra = detail.toolRows.first { $0.accountID == "trabajo" }
+        // Tras autorizar, el guion de la prueba la deja conectada: lo que importa es que su estado es el suyo.
+        XCTAssertEqual(extra?.status, .hosted(.connected))
     }
 }

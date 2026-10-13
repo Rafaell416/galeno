@@ -80,6 +80,10 @@ final class HealthModel: ObservableObject {
     }
 
     @Published private(set) var connections: [ConnectionRow] = []
+    /// El estado de **cada servidor registrado** por nombre (`galeno-notion-trabajo`), de la última mirada. Es lo que usa
+    /// el detalle para las cuentas extra de una herramienta, que no tienen fila en `connections` (una por herramienta).
+    /// Vacío si `claude mcp list` no contestó: ahí nadie afirma nada.
+    @Published private(set) var serverStates: [String: ConnectionState] = [:]
     /// Falso hasta que se terminó de mirar todo la primera vez.
     @Published private(set) var isChecking = false
     /// La herramienta que se está reconectando ahora (solo una a la vez).
@@ -291,6 +295,7 @@ final class HealthModel: ObservableObject {
         // Los servidores propios, de una vez con `claude mcp list`. Si no contesta, ninguno se afirma.
         let hostedTools = tools.filter { !(ConnectTarget(tool: $0, namePrefix: prefixes[$0])?.servers.isEmpty ?? true) }
         let listed = hostedTools.isEmpty ? [:] : await mcp.listStatuses()
+        serverStates = (listed ?? [:]).mapValues { Self.state(from: $0) }
 
         for tool in tools {
             if Task.isCancelled { return }

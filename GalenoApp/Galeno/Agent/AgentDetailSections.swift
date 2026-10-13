@@ -160,7 +160,7 @@ struct ToolsSection: View {
                             .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.45), value: model.toolRows.map(\.tool))
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.45), value: model.toolRows.map(\.id))
             }
             if !model.addableTools.isEmpty { addArea.padding(.top, 14) }
         }
@@ -244,7 +244,9 @@ private struct ToolRowView: View {
     let row: AgentDetailModel.ToolRow
     @Environment(\.locale) private var locale
 
-    private var isReconnecting: Bool { model.health.reconnecting == row.tool }
+    private var isReconnecting: Bool {
+        row.isExtraAccount ? model.reconnectingAccount == row.id : model.health.reconnecting == row.tool
+    }
     private var health: HealthModel { model.health }
 
     var body: some View {
@@ -253,18 +255,24 @@ private struct ToolRowView: View {
                 ToolIcon(tool: row.tool, size: 24, color: .ink700).frame(width: 28)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(verbatim: row.tool.displayName(in: model.language))
+                    Text(verbatim: row.displayName(in: model.language))
                         .font(Typo.text(17, .medium)).foregroundStyle(Color.ink900)
                     Text(verbatim: stateText).font(Typo.text(14)).foregroundStyle(stateColor)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 if isChecking { InkSpinner(size: 14) }
-                LeadLink("agent.tools.remove") { model.askRemove(row.tool) }
-                    .disabled(model.isWorking || isReconnecting)
+                if !row.isExtraAccount, AccountConnector.canAdd(row.tool) {
+                    LeadLink("agent.tools.addAccount") { model.askAddAccount(row.tool) }
+                        .disabled(model.isWorking || isReconnecting)
+                }
+                LeadLink("agent.tools.remove") {
+                    if row.isExtraAccount { model.askRemoveAccount(row.id) } else { model.askRemove(row.tool) }
+                }
+                .disabled(model.isWorking || isReconnecting)
                 action
             }
-            if let issue = health.reconnectIssues[row.tool] {
+            if !row.isExtraAccount, let issue = health.reconnectIssues[row.tool] {
                 Text(verbatim: Localized.string(issue.messageKey, locale: locale))
                     .font(Typo.text(13)).foregroundStyle(Color.ink700)
                     .fixedSize(horizontal: false, vertical: true)
@@ -273,8 +281,12 @@ private struct ToolRowView: View {
         }
         .padding(.vertical, 12)
         // El destello de la herramienta que se acaba de conectar.
-        .background(model.justAdded == row.tool ? Color.moss100 : Color.clear)
+        .background(
+            (model.justAdded == row.tool && !row.isExtraAccount) || model.justAddedAccount == row.id
+                ? Color.moss100 : Color.clear
+        )
         .animation(.easeOut(duration: 0.8), value: model.justAdded)
+        .animation(.easeOut(duration: 0.8), value: model.justAddedAccount)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.parchment300).frame(height: 1) }
         .accessibilityElement(children: .contain)
     }
@@ -291,9 +303,11 @@ private struct ToolRowView: View {
     private var action: some View {
         switch row.status {
         case .hosted(let state) where state.canReconnect && row.canReconnect:
-            Button("health.reconnect") { model.reconnect(row.tool) }
-                .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 14, isLoading: isReconnecting))
-                .disabled(health.reconnecting != nil || model.isWorking)
+            Button("health.reconnect") {
+                if row.isExtraAccount { model.reconnectAccount(row.id) } else { model.reconnect(row.tool) }
+            }
+            .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 14, isLoading: isReconnecting))
+            .disabled(health.reconnecting != nil || model.reconnectingAccount != nil || model.isWorking)
         case .whatsappNotLinked:
             Button("health.whatsapp.link") { model.relinkWhatsApp() }
                 .buttonStyle(.inkInline)
