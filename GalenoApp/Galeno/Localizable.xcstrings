@@ -652,6 +652,295 @@
         }
       }
     },
+    "agent.tools.addAccount" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add another account"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir otra cuenta"
+          }
+        }
+      }
+    },
+    "agent.account.add.title %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add another %@ account"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir otra cuenta de %@"
+          }
+        }
+      }
+    },
+    "agent.account.add.sub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Give it a name you will recognize, like “Work” or “Personal”. It is only for you and your agent."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponle un nombre con el que la reconozcas, como «Trabajo» o «Personal». Es solo para ti y para tu agente."
+          }
+        }
+      }
+    },
+    "agent.account.add.field" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account name"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre de la cuenta"
+          }
+        }
+      }
+    },
+    "agent.account.add.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Work"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trabajo"
+          }
+        }
+      }
+    },
+    "agent.account.add.browser" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your browser will open. Pick the account or workspace you want to add there: if you were already signed in, that is the one you will see first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se abrirá tu navegador. Elige ahí la cuenta o el espacio de trabajo que quieres añadir: si ya tenías una sesión abierta, es la que verás primero."
+          }
+        }
+      }
+    },
+    "agent.account.add.working" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for you to authorize in your browser. Galeno comes back on its own when you finish."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando a que autorices en tu navegador. Galeno vuelve solo cuando termines."
+          }
+        }
+      }
+    },
+    "agent.account.add.connect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar"
+          }
+        }
+      }
+    },
+    "agent.account.issue.invalidName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That name has no letters or numbers. Write one the account can be told apart by."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ese nombre no tiene letras ni números. Escribe uno con el que puedas distinguir la cuenta."
+          }
+        }
+      }
+    },
+    "agent.account.issue.alreadyExists" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You already have an account with that name. Pick a different one."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya tienes una cuenta con ese nombre. Elige otro."
+          }
+        }
+      }
+    },
+    "agent.account.issue.unsupported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This tool cannot have more than one account from here yet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta herramienta todavía no admite más de una cuenta desde aquí."
+          }
+        }
+      }
+    },
+    "agent.account.issue.nameInUse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code already has a server with that name that Galeno did not create, and Galeno does not touch it. Pick a different name."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code ya tiene un servidor con ese nombre que Galeno no creó, y Galeno no lo toca. Elige otro nombre."
+          }
+        }
+      }
+    },
+    "agent.account.issue.couldNotRegister" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code did not accept the account. Try again; if it keeps failing, check that Claude Code is up to date."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Code no aceptó la cuenta. Inténtalo de nuevo; si sigue fallando, revisa que Claude Code esté al día."
+          }
+        }
+      }
+    },
+    "agent.account.issue.notAuthorizedInTime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account was not authorized in time. Try again and finish in your browser."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cuenta no se autorizó a tiempo. Inténtalo de nuevo y termina en tu navegador."
+          }
+        }
+      }
+    },
+    "agent.account.issue.loginFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account could not be authorized. Try again in a moment."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo autorizar la cuenta. Inténtalo de nuevo en un momento."
+          }
+        }
+      }
+    },
+    "agent.account.issue.stillNotConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You authorized it, but the account does not answer yet. Try again in a moment."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autorizaste, pero la cuenta todavía no responde. Inténtalo de nuevo en un momento."
+          }
+        }
+      }
+    },
+    "agent.account.issue.claudeOutdated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Claude Code on this Mac is older than the version Galeno needs to authorize. Update it from “Before connecting”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El Claude Code de este Mac es anterior a la versión que Galeno necesita para autorizar. Actualízalo desde «Antes de conectar»."
+          }
+        }
+      }
+    },
     "agent.tools.add" : {
       "extractionState" : "manual",
       "localizations" : {

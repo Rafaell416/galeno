@@ -41,6 +41,18 @@ final class AgentDetailModel: ObservableObject {
     enum Sheet: Equatable {
         /// «Quitar»: qué se quiere hacer con esa herramienta (quitarla de este agente, o desconectar la cuenta).
         case removeTool(Tool)
+        /// «Añadir otra cuenta» de una herramienta: el nombre de la cuenta y la conexión.
+        case addAccount(Tool)
+        /// «Quitar» una cuenta extra de una herramienta (la cuenta de siempre va por `removeTool`).
+        case removeAccount(ConnectionID)
+    }
+
+    /// En qué va «Añadir otra cuenta».
+    enum AccountPhase: Equatable {
+        case idle
+        /// Registrando y esperando a que el usuario autorice en su navegador.
+        case working
+        case failed(AccountConnector.Issue)
     }
 
     /// Una herramienta del agente tal como se enseña en su lista.
@@ -57,6 +69,9 @@ final class AgentDetailModel: ObservableObject {
         }
 
         var tool: Tool
+        /// `nil` es la cuenta de siempre de la herramienta; una cuenta extra lleva su identificador y su nombre.
+        var accountID: String?
+        var accountName: String?
         var status: Status
         /// Los otros agentes de Galeno que también la leen.
         var sharedWith: [String]
@@ -65,7 +80,15 @@ final class AgentDetailModel: ObservableObject {
         /// ¿Tiene algo que reconectar? Google Meet, por ejemplo, se lee por Drive y no tiene conexión propia.
         var canReconnect: Bool
 
-        var id: Tool { tool }
+        var id: ConnectionID { ConnectionID(tool: tool, account: accountID) }
+        var isExtraAccount: Bool { accountID != nil }
+
+        /// «Notion» o, en una cuenta extra, «Notion (Trabajo)».
+        func displayName(in language: Language) -> String {
+            let base = tool.displayName(in: language)
+            guard let accountName, !accountName.isEmpty else { return base }
+            return "\(base) (\(accountName))"
+        }
 
         /// ¿Pide que alguien la mire? (alimenta el «2 !» de la navegación.)
         var needsReview: Bool {
@@ -93,6 +116,8 @@ final class AgentDetailModel: ObservableObject {
     @Published private(set) var config: AgentConfig?
     @Published private(set) var record: AgentRecord?
     @Published private(set) var sharedWith: [Tool: [String]] = [:]
+    /// Los otros agentes que leen **esa cuenta extra** (`sharedWith` es por herramienta, la de siempre).
+    @Published private(set) var sharedAccounts: [ConnectionID: [String]] = [:]
     /// Las herramientas cuya cuenta es de Galeno (sus servidores se llaman `galeno-…`) y con qué prefijo.
     private var ownedPrefixes: [Tool: String] = [:]
     @Published var sheet: Sheet?
@@ -117,6 +142,15 @@ final class AgentDetailModel: ObservableObject {
     @Published private(set) var isPreparingConnection = false
     /// La última herramienta que quedó conectada: su fila entra a la lista con un destello.
     @Published private(set) var justAdded: Tool?
+    /// La última cuenta extra que quedó conectada.
+    @Published private(set) var justAddedAccount: ConnectionID?
+
+    // «Añadir otra cuenta»
+    @Published var accountDraft = ""
+    @Published private(set) var accountPhase: AccountPhase = .idle
+    /// La cuenta extra que se está reconectando ahora.
+    @Published private(set) var reconnectingAccount: ConnectionID?
+    private var accountTask: Task<Void, Never>?
     private var connectionObserver: AnyCancellable?
     private var isFinishingConnection = false
 
@@ -134,6 +168,8 @@ final class AgentDetailModel: ObservableObject {
     private let connectedHold: Duration
     private let makePicker: @MainActor (GalenoInstallation, UUID) -> WizardState
     private let disconnector: any AccountDisconnecting
+    private let makeMCP: @MainActor (String) -> any MCPConnecting
+    private let locateClaude: @MainActor () -> String?
     private let trashContext: (URL) throws -> Void
     private let importContext: (URL) throws -> ContextFile
     private let reveal: @MainActor (URL) -> Void
@@ -146,6 +182,8 @@ final class AgentDetailModel: ObservableObject {
             WizardState(preferredLanguages: [$0.language.rawValue], startingFrom: $0, editing: $1)
         },
         disconnector: (any AccountDisconnecting)? = nil,
+        makeMCP: @escaping @MainActor (String) -> any MCPConnecting = { ClaudeMCPClient(claudePath: $0) },
+        locateClaude: @escaping @MainActor () -> String? = { HealthModel.locateClaude() },
         trashContext: @escaping (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) },
         importContext: @escaping (URL) throws -> ContextFile = { try ContextImporter.load($0) },
         reveal: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
@@ -158,6 +196,8 @@ final class AgentDetailModel: ObservableObject {
         self.connectedHold = connectedHold
         self.makePicker = makePicker
         self.disconnector = disconnector ?? ClaudeAccountDisconnector(claudePath: HealthModel.locateClaude())
+        self.makeMCP = makeMCP
+        self.locateClaude = locateClaude
         self.trashContext = trashContext
         self.importContext = importContext
         self.reveal = reveal
@@ -205,6 +245,14 @@ final class AgentDetailModel: ObservableObject {
             for tool in otherConfig.connectedTools { shared[tool, default: []].append(otherConfig.agentName) }
         }
         sharedWith = shared
+        var sharedAccounts: [ConnectionID: [String]] = [:]
+        for other in installation.agents where other.id != agentID {
+            let otherConfig = installation.resolvedConfig(for: other.id) ?? other.config
+            for connection in otherConfig.connectedConnections where connection.accountID != nil {
+                sharedAccounts[connection.id, default: []].append(otherConfig.agentName)
+            }
+        }
+        self.sharedAccounts = sharedAccounts
         ownedPrefixes = Dictionary(
             installation.connections.compactMap { connection -> (Tool, String)? in
                 guard connection.status == .connected, connection.accountID == nil, connection.galenoOwnsServers,
@@ -234,13 +282,22 @@ final class AgentDetailModel: ObservableObject {
 
     var toolRows: [ToolRow] {
         guard let config else { return [] }
-        // Las cuentas extra no tienen fila todavía: una fila por herramienta, la cuenta de siempre.
-        return config.connections.filter { $0.status == .connected && $0.accountID == nil }.map { connection in
-            ToolRow(
-                tool: connection.tool, status: status(of: connection.tool),
-                sharedWith: sharedWith[connection.tool] ?? [],
-                canDisconnectAccount: canDisconnectAccount(connection.tool),
-                canReconnect: ConnectTarget(tool: connection.tool, namePrefix: connection.serverNamePrefix) != nil)
+        return config.connections.filter { $0.status == .connected }.map { connection in
+            guard connection.accountID != nil else {
+                return ToolRow(
+                    tool: connection.tool, accountID: nil, accountName: nil, status: status(of: connection.tool),
+                    sharedWith: sharedWith[connection.tool] ?? [],
+                    canDisconnectAccount: canDisconnectAccount(connection.tool),
+                    canReconnect: ConnectTarget(tool: connection.tool, namePrefix: connection.serverNamePrefix) != nil)
+            }
+            // Una cuenta extra: su estado sale del servidor con su nombre; sin lectura, no se afirma nada.
+            let server = AccountConnector.server(of: connection)?.name
+            let state: HealthModel.ConnectionState =
+                server.flatMap { health.serverStates[$0] } ?? (health.isChecking || !healthStarted ? .checking : .unknown)
+            return ToolRow(
+                tool: connection.tool, accountID: connection.accountID, accountName: connection.accountName,
+                status: .hosted(state), sharedWith: sharedAccounts[connection.id] ?? [],
+                canDisconnectAccount: connection.galenoOwnsServers, canReconnect: server != nil)
         }
     }
 
@@ -411,6 +468,155 @@ final class AgentDetailModel: ObservableObject {
                 SharedConnection(
                     tool: tool, status: .selected, oauthClientID: shared.oauthClientID,
                     serverNamePrefix: shared.serverNamePrefix))
+            try installer.store.save(installation)
+            for user in users {
+                if let resolved = installation.resolvedConfig(for: user.id) {
+                    _ = try installer.install(resolved, existingAgentID: user.id)
+                }
+                home.noteToolsChanged(user.id)
+            }
+            sheet = nil
+            home.reload()
+            reload()
+            return true
+        } catch {
+            self.error = Localized.string("agent.error.disconnect", locale: locale)
+            return false
+        }
+    }
+
+    // MARK: Otra cuenta de una herramienta
+
+    /// «Añadir otra cuenta»: abre la hoja con el nombre de la cuenta. Solo en las herramientas que Galeno registra.
+    func askAddAccount(_ tool: Tool) {
+        guard AccountConnector.canAdd(tool), !isWorking, sheet == nil else { return }
+        accountDraft = ""
+        accountPhase = .idle
+        error = nil
+        sheet = .addAccount(tool)
+    }
+
+    /// «Conectar»: registra la cuenta como otro servidor, espera a que el usuario autorice en su navegador y la suma
+    /// a este agente (el motor le escribe sus propias reglas de permiso y su hook). Si algo falla no se guarda nada.
+    func addAccount() {
+        guard case .addAccount(let tool)? = sheet, accountPhase != .working else { return }
+        guard let claudePath = locateClaude() else {
+            accountPhase = .failed(.claudeOutdated)
+            return
+        }
+        guard let installation = (try? installer.store.load()) ?? nil, installation.agent(id: agentID) != nil else {
+            error = Localized.string("agent.error.unreadable", locale: locale)
+            return
+        }
+        let existing = installation.connections(for: tool).map(\.id) + (config?.connections(for: tool).map(\.id) ?? [])
+        let connection: ToolConnection
+        switch AccountConnector.prepare(tool: tool, name: accountDraft, existing: existing) {
+        case .failure(let issue):
+            accountPhase = .failed(issue)
+            return
+        case .success(let prepared):
+            connection = prepared
+        }
+        accountPhase = .working
+        let connector = AccountConnector(mcp: makeMCP(claudePath))
+        accountTask = Task { [weak self] in
+            let issue = await connector.connect(connection, openAuthorization: nil)
+            guard let self, !Task.isCancelled else { return }
+            if let issue {
+                self.accountPhase = .failed(issue)
+                return
+            }
+            AppFocus.bringToFront()
+            self.finishAddingAccount(connection)
+        }
+    }
+
+    private func finishAddingAccount(_ connection: ToolConnection) {
+        let saved = apply { config in
+            config.connections.removeAll { $0.id == connection.id }
+            config.connections.append(connection)
+        }
+        accountTask = nil
+        guard saved else {
+            accountPhase = .failed(.stillNotConnected)
+            return
+        }
+        accountPhase = .idle
+        sheet = nil
+        home.noteToolsChanged(agentID)
+        section = .tools
+        justAddedAccount = connection.id
+        health.refresh()
+        Task {
+            try? await Task.sleep(for: .seconds(2.4))
+            if justAddedAccount == connection.id { justAddedAccount = nil }
+        }
+    }
+
+    /// Cierra la hoja de «Añadir otra cuenta» (también si estaba esperando la autorización).
+    func cancelAddingAccount() {
+        accountTask?.cancel()
+        accountTask = nil
+        accountPhase = .idle
+        if case .addAccount? = sheet { sheet = nil }
+    }
+
+    /// «Reconectar» una cuenta extra: la misma conexión de siempre (idempotente), con su servidor.
+    func reconnectAccount(_ id: ConnectionID) {
+        guard reconnectingAccount == nil, !isWorking, let claudePath = locateClaude(),
+            let connection = config?.connection(for: id), connection.accountID != nil
+        else { return }
+        reconnectingAccount = id
+        let connector = AccountConnector(mcp: makeMCP(claudePath))
+        Task { [weak self] in
+            _ = await connector.connect(connection, openAuthorization: nil)
+            guard let self else { return }
+            AppFocus.bringToFront()
+            self.reconnectingAccount = nil
+            self.health.refresh()
+        }
+    }
+
+    func askRemoveAccount(_ id: ConnectionID) { sheet = .removeAccount(id) }
+
+    /// «Quitar de este agente» una cuenta extra: deja de leerla. La cuenta sigue conectada.
+    @discardableResult
+    func removeAccountFromAgent(_ id: ConnectionID) -> Bool {
+        let done = apply { $0.connections.removeAll { $0.id == id } }
+        if done {
+            home.noteToolsChanged(agentID)
+            sheet = nil
+        }
+        return done
+    }
+
+    /// «Desconectar la cuenta» extra: quita **ese** servidor de Claude Code (nunca el de otra cuenta ni uno del
+    /// usuario) y la saca de todos los agentes que la leían.
+    @discardableResult
+    func disconnectExtraAccount(_ id: ConnectionID) async -> Bool {
+        guard id.account != nil, !isWorking else { return false }
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            guard var installation = try installer.store.load(), let shared = installation.connection(for: id),
+                shared.galenoOwnsServers,
+                let server = AccountConnector.server(
+                    of: ToolConnection(
+                        tool: id.tool, serverNamePrefix: shared.serverNamePrefix, accountID: id.account,
+                        accountName: shared.accountName))
+            else {
+                error = Localized.string("agent.error.save", locale: locale)
+                return false
+            }
+            let users = installation.agents.filter { installation.resolvedConfig(for: $0.id)?.connection(for: id) != nil }
+            try await disconnector.remove(servers: [server.name])
+            installation.connections.removeAll { $0.id == id }
+            for user in users {
+                guard var record = installation.agent(id: user.id) else { continue }
+                record.config.connections.removeAll { $0.id == id }
+                try installation.setConfig(record.config, for: user.id)
+            }
             try installer.store.save(installation)
             for user in users {
                 if let resolved = installation.resolvedConfig(for: user.id) {

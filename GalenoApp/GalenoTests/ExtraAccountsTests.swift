@@ -101,7 +101,7 @@ final class ExtraAccountsTests: XCTestCase {
 
     // MARK: - El detalle y la salud
 
-    func testTheDetailShowsOneRowPerToolAndDoesNotBreak() async throws {
+    func testTheDetailShowsOneRowPerAccountAndDoesNotBreak() async throws {
         let home = HomeModel(
             store: installer.store, defaults: UserDefaults(suiteName: "galeno-test-\(UUID().uuidString)")!,
             claudePath: "/ruta/claude", installer: installer, settle: {})
@@ -110,7 +110,10 @@ final class ExtraAccountsTests: XCTestCase {
             whatsapp: FakeWhatsApp(), authorizer: nil, systemAuthorizer: nil, language: { .spanish }, openURL: { _ in },
             returnToApp: {}, sleep: { _ in }, playSound: { _ in })
         let model = AgentDetailModel(agentID: record.id, home: home, health: health, installer: installer)
-        XCTAssertEqual(model.toolRows.filter { $0.tool == .notion }.count, 1)
+        let notion = model.toolRows.filter { $0.tool == .notion }
+        XCTAssertEqual(notion.count, 2, "una fila por cuenta")
+        XCTAssertEqual(notion.filter { $0.accountID == nil }.count, 1, "la de siempre, una sola vez")
+        XCTAssertEqual(Set(notion.map(\.id)).count, 2, "cada fila con su identidad")
         XCTAssertEqual(model.sharedWith.count, 0)
         await health.check()
         XCTAssertEqual(health.connections.filter { $0.tool == .notion }.count, 1)
