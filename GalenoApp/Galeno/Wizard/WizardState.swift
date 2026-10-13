@@ -33,6 +33,16 @@ final class WizardState: ObservableObject {
     /// Las conexiones que la instalación ya conoce (`.short` y `.edit`): una herramienta que se vuelve a marcar y ya
     /// estaba conectada entra conectada, con su `client_id`, en vez de pasar otra vez por «Conectar».
     private var knownConnections: [Tool: SharedConnection] = [:]
+    /// Las cuentas extra del agente que se está editando (`ToolConnection.accountID`): el asistente no las toca.
+    private var preservedAccounts: [ToolConnection] = []
+
+    /// La cuenta de siempre de cada herramienta de la instalación. Una herramienta con más de una cuenta no puede
+    /// romper un diccionario por herramienta: las extra se ignoran aquí.
+    private static func defaultAccounts(of installation: GalenoInstallation) -> [Tool: SharedConnection] {
+        Dictionary(
+            installation.connections.filter { $0.accountID == nil }.map { ($0.tool, $0) },
+            uniquingKeysWith: { first, _ in first })
+    }
 
     // MARK: Lo que captura el wizard
 
@@ -167,13 +177,17 @@ final class WizardState: ObservableObject {
             mode = .edit
             editingAgent = record
             generatedAgent = record
-            knownConnections = Dictionary(uniqueKeysWithValues: installation.connections.map { ($0.tool, $0) })
+            knownConnections = Self.defaultAccounts(of: installation)
             language = installation.language
             agentName = config.agentName
             projectDescription = config.projectDescription
             // Lo que no se puede conectar hoy («Próximamente») y no estaba conectado no entra: no se podría ni
             // quitar de la lista ni conectar, y contaría como pendiente para siempre.
+            // Las cuentas extra de una herramienta (`accountID`) no las maneja el asistente: va por herramienta. Se
+            // apartan tal cual y `makeConfig` las devuelve, para que guardar aquí no las pierda ni las pise.
+            preservedAccounts = config.connections.filter { $0.accountID != nil }
             connections = config.connections
+                .filter { $0.accountID == nil }
                 .filter { !$0.tool.isComingSoon || $0.status == .connected }
                 .map { connection in
                     var connection = connection
@@ -197,7 +211,7 @@ final class WizardState: ObservableObject {
             // la Fase 3b), y se empieza en el nombre. No hay borrador: es corto y se hace de una vez.
             mode = .short
             language = installation.language
-            knownConnections = Dictionary(uniqueKeysWithValues: installation.connections.map { ($0.tool, $0) })
+            knownConnections = Self.defaultAccounts(of: installation)
             // WhatsApp vinculado pero sin el envío aceptado (una instalación de antes del envío, o una vinculación que
             // no pasó por la advertencia nueva) no cuenta como conectado: el agente nuevo saldría sin poder enviar y el
             // usuario tendría que encontrar «Activar envíos» en Salud. Vuelve a salir en «Conectar»: la advertencia
@@ -1003,7 +1017,7 @@ final class WizardState: ObservableObject {
                     connection.sources = .everything
                 }
                 return connection
-            },
+            } + preservedAccounts,
             skills: skills,
             sendingRules: sendingRules
         )

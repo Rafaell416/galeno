@@ -262,9 +262,11 @@ final class HealthModel: ObservableObject {
     /// Lo mismo, esperable (las pruebas).
     func check() async {
         let installation = (try? store.load()) ?? nil
-        let connected = (installation?.connections ?? []).filter { $0.status == .connected }
+        // La cuenta de siempre de cada herramienta: las cuentas extra todavía no tienen fila propia aquí.
+        let connected = (installation?.connections ?? []).filter { $0.status == .connected && $0.accountID == nil }
         prefixes = Dictionary(
-            uniqueKeysWithValues: connected.compactMap { shared in shared.serverNamePrefix.map { (shared.tool, $0) } })
+            connected.compactMap { shared in shared.serverNamePrefix.map { (shared.tool, $0) } },
+            uniquingKeysWith: { first, _ in first })
 
         let tools = connected.map(\.tool).filter { $0 != .whatsapp && ConnectTarget(tool: $0, namePrefix: prefixes[$0]) != nil }
         usesWhatsApp = connected.contains { $0.tool == .whatsapp }
