@@ -29,6 +29,16 @@ struct ReviewStepView: View {
             }
         }
         .onAppear { if wizard.skillCatalog == .notLoaded { wizard.loadSkillCatalog() } }
+        .overlay {
+            if let tool = wizard.addingAccountTool {
+                AddAccountPanel(
+                    toolName: tool.displayName(in: wizard.language), draft: $wizard.accountDraft,
+                    phase: wizard.accountPhase, error: nil,
+                    onConnect: { wizard.addAccount() }, onCancel: { wizard.cancelAddingAccount() }
+                )
+                .transition(.opacity)
+            }
+        }
     }
 
     // MARK: Herramientas
@@ -53,6 +63,7 @@ struct ReviewStepView: View {
             }
             .padding(.top, 8)
             .padding(.bottom, 6)
+            accountsRows
             let later = laterTools.map { $0.displayName(in: wizard.language) }.joined(separator: ", ")
             (later.isEmpty
                 ? Text("review.later \(Localized.string("review.none", locale: locale))")
@@ -60,6 +71,37 @@ struct ReviewStepView: View {
                 .font(Typo.text(13))
                 .foregroundStyle(Color.ink500)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Las cuentas extra de este agente («Notion (Trabajo)») y, por cada herramienta que admite otra, «Añadir otra cuenta».
+    @ViewBuilder
+    private var accountsRows: some View {
+        let addable = wizard.connectedTools.filter { wizard.canAddAccount(to: $0) }
+        if !wizard.extraAccounts.isEmpty || !addable.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(wizard.extraAccounts) { account in
+                    HStack(spacing: 8) {
+                        ToolIcon(tool: account.tool, size: 16, color: Color.ink700)
+                        Text(verbatim: account.displayName(in: wizard.language))
+                            .font(Typo.list).foregroundStyle(Color.ink900)
+                        Button("agent.tools.remove") { wizard.removeExtraAccount(account.id) }
+                            .buttonStyle(LinkTextStyle())
+                    }
+                }
+                ForEach(addable) { tool in
+                    Button {
+                        wizard.askAddAccount(tool)
+                    } label: {
+                        Text(verbatim: "+ ")
+                            + Text(
+                                verbatim: Localized.string(
+                                    "agent.account.add.title %@", tool.displayName(in: wizard.language), locale: locale))
+                    }
+                    .buttonStyle(LinkTextStyle())
+                }
+            }
+            .padding(.bottom, 6)
         }
     }
 
