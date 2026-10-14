@@ -122,12 +122,31 @@ struct HealthView: View {
         HealthSection("health.whatsapp", trailing: bridgeVersionText) {
             if let health = model.whatsapp {
                 whatsappLines(health)
+                extraNumbersLines
             } else {
                 HStack(spacing: 8) {
                     InkSpinner(size: 12)
                     Text("health.checking").font(Typo.text(14)).foregroundStyle(Color.ink500)
                 }
             }
+        }
+    }
+
+    /// Los otros números: su sesión y su servicio. Re-vincular y desconectar se hacen en el detalle del agente que lo lee.
+    @ViewBuilder
+    private var extraNumbersLines: some View {
+        ForEach(model.extraNumbers) { number in
+            VStack(alignment: .leading, spacing: 6) {
+                Text(verbatim: Localized.string("health.whatsapp.number %@", number.name, locale: locale))
+                    .font(Typo.text(15, .medium)).foregroundStyle(Color.ink900)
+                if number.health.status == nil {
+                    Text("health.whatsapp.noBridge").font(Typo.text(14)).foregroundStyle(Color.ink700)
+                } else {
+                    Fact("health.whatsapp.session", value: sessionText(number.health), tone: number.health.isLinked ? .good : .warn)
+                    Fact("health.whatsapp.sync", value: syncText(number.health.sync), tone: number.health.sync == .running ? .good : .warn)
+                }
+            }
+            .padding(.top, 10)
         }
     }
 

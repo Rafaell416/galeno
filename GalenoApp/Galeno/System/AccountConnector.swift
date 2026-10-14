@@ -25,6 +25,8 @@ nonisolated struct AccountConnector: Sendable {
         case stillNotConnected
         /// El `claude` de este Mac es demasiado viejo para autorizar.
         case claudeOutdated
+        /// Ya tiene todas las cuentas que admite esa herramienta (`Tool.maxAccounts`: dos números de WhatsApp).
+        case limitReached
     }
 
     var mcp: any MCPConnecting
@@ -38,6 +40,13 @@ nonisolated struct AccountConnector: Sendable {
         tool.supportsMultipleAccounts && MCPServerCatalog.defaultNamePrefix(for: tool) != nil
     }
 
+    /// ¿Admite otra cuenta desde la app? Las que Galeno registra, y WhatsApp (otro número, con su propio QR).
+    static func supportsExtra(_ tool: Tool) -> Bool { canAdd(tool) || tool == .whatsapp }
+
+    /// Se conecta con el flujo completo de la conexión (no con `connect`): Slack, que crea su app, y WhatsApp, que
+    /// vincula con un QR y su servicio de fondo.
+    static func usesFullFlow(_ tool: Tool) -> Bool { needsOwnApp(tool) || tool == .whatsapp }
+
     /// Cada cuenta necesita **su propia app OAuth** (Slack): no se conecta aquí sino con el flujo completo, que crea la
     /// app, la registra con su `client_id` y autoriza en su ventana.
     static func needsOwnApp(_ tool: Tool) -> Bool { tool.requiresUserProvidedOAuthClient }
@@ -45,7 +54,11 @@ nonisolated struct AccountConnector: Sendable {
     /// El nombre que escribió el usuario convertido en la conexión por conectar. `existing`: las cuentas que ya hay
     /// de esa herramienta (en el agente o en la instalación).
     static func prepare(tool: Tool, name: String, existing: [ConnectionID]) -> Result<ToolConnection, Issue> {
-        guard canAdd(tool) else { return .failure(.unsupported) }
+        guard supportsExtra(tool) else { return .failure(.unsupported) }
+        // Un tope por herramienta (WhatsApp: dos números). Lo que ya hay cuenta una sola vez.
+        if let limit = tool.maxAccounts, Set(existing).filter({ $0.tool == tool }).count >= limit {
+            return .failure(.limitReached)
+        }
         let shown = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxNameLength))
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard let account = AccountID.slug(from: shown) else { return .failure(.invalidName) }
@@ -53,12 +66,14 @@ nonisolated struct AccountConnector: Sendable {
         return .success(
             ToolConnection(
                 tool: tool, status: .connected, sources: .everything,
-                serverNamePrefix: MCPServerCatalog.ownedNamePrefix, accountID: account, accountName: shown))
+                // WhatsApp es el bridge propio de Galeno: su servidor no se registra en Claude Code ni lleva prefijo.
+                serverNamePrefix: tool == .whatsapp ? nil : MCPServerCatalog.ownedNamePrefix,
+                accountID: account, accountName: shown))
     }
 
     /// Registra y autoriza la cuenta. `nil` = quedó conectada (o ya lo estaba).
     func connect(_ connection: ToolConnection, openAuthorization: AuthorizationOpener? = nil) async -> Issue? {
-        guard connection.tool.supportsMultipleAccounts, !connection.tool.requiresUserProvidedOAuthClient,
+        guard connection.tool.supportsMultipleAccounts, !Self.usesFullFlow(connection.tool),
             let server = Self.server(of: connection)
         else { return .unsupported }
 

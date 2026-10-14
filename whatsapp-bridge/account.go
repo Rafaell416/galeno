@@ -84,3 +84,59 @@ func (store *MessageStore) AdoptAccount(user string, now time.Time) (*accountSwi
 	}
 	return &accountSwitch{Previous: previous, Backup: backup}, nil
 }
+
+// accountID es el número del que habla este proceso: `""` es el de siempre, y un identificador es una cuenta extra
+// (`--account <id>`). Se fija una vez, al arrancar, y no cambia.
+var accountID string
+
+// maxAccountIDLength: el identificador acaba en el nombre del servicio de fondo y en una carpeta.
+const maxAccountIDLength = 24
+
+// validAccountID: minúsculas, dígitos y guiones, sin guion al principio ni al final. Es lo mismo que acepta la app
+// (`AccountID`): nada con lo que una ruta o un nombre de servicio pudiera salirse de su carpeta.
+func validAccountID(id string) bool {
+	if id == "" || len(id) > maxAccountIDLength || id[0] == '-' || id[len(id)-1] == '-' {
+		return false
+	}
+	for _, c := range id {
+		if !(c >= 'a' && c <= 'z') && !(c >= '0' && c <= '9') && c != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+// extractAccountFlag saca `--account <id>` (o `--account=<id>`) de los argumentos y devuelve los demás. Sin la
+// bandera devuelve la cuenta vacía; con un identificador inválido, un error.
+func extractAccountFlag(args []string) (rest []string, account string, err error) {
+	rest = make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--account":
+			if i+1 >= len(args) {
+				return nil, "", fmt.Errorf("--account necesita un identificador (por ejemplo: --account trabajo)")
+			}
+			account = args[i+1]
+			i++
+		case len(arg) > len("--account=") && arg[:len("--account=")] == "--account=":
+			account = arg[len("--account="):]
+		default:
+			rest = append(rest, arg)
+		}
+	}
+	if account != "" && !validAccountID(account) {
+		return nil, "", fmt.Errorf("--account %q no es válido: solo minúsculas, números y guiones (máximo %d)", account, maxAccountIDLength)
+	}
+	return rest, account, nil
+}
+
+// stateDirectoryPath es la carpeta de estado de una cuenta bajo `home`. La de siempre no cambia de lugar; las extra
+// viven en una subcarpeta aparte, así nada de una puede tocar el estado de la otra.
+func stateDirectoryPath(home, account string) string {
+	base := filepath.Join(home, "Library", "Application Support", "Galeno", "whatsapp")
+	if account == "" {
+		return base
+	}
+	return filepath.Join(base, "cuentas", account)
+}

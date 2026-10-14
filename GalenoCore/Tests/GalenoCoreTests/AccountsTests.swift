@@ -72,14 +72,15 @@ final class AccountsTests: XCTestCase {
     }
 
     func testOnlyToolsGalenoRegistersSupportMoreAccounts() {
-        for tool in [Tool.notion, .jira, .slack] { XCTAssertTrue(tool.supportsMultipleAccounts) }
-        for tool in [Tool.whatsapp, .gmail, .googleWorkspace, .googleCalendar, .googleMeet, .claudeDesign] {
+        for tool in [Tool.notion, .jira, .slack, .whatsapp] { XCTAssertTrue(tool.supportsMultipleAccounts) }
+        for tool in [Tool.gmail, .googleWorkspace, .googleCalendar, .googleMeet, .claudeDesign] {
             XCTAssertFalse(tool.supportsMultipleAccounts)
         }
-        // Toda herramienta que admite más cuentas es una que Galeno registra con su prefijo.
-        for tool in Tool.allCases where tool.supportsMultipleAccounts {
+        // Toda herramienta que admite más cuentas es una que Galeno registra con su prefijo, o WhatsApp (su bridge).
+        for tool in Tool.allCases where tool.supportsMultipleAccounts && tool != .whatsapp {
             XCTAssertNotNil(MCPServerCatalog.defaultNamePrefix(for: tool), "\(tool) no lleva prefijo propio")
         }
+        XCTAssertNil(MCPServerCatalog.defaultNamePrefix(for: .whatsapp), "su servidor no lleva prefijo")
     }
 
     // MARK: - Servidores
@@ -283,5 +284,97 @@ final class AccountsTests: XCTestCase {
         let resolved = try XCTUnwrap(installation.resolvedConfig(for: record.id))
         XCTAssertEqual(resolved.connection(for: ConnectionID(tool: .notion))?.status, .connected)
         XCTAssertEqual(resolved.connection(for: ConnectionID(tool: .notion, account: "trabajo"))?.status, .skipped)
+    }
+}
+
+/// Un segundo número de WhatsApp (GAL-2): otro servidor que lanza el mismo bridge con `--account`.
+final class WhatsAppAccountsTests: XCTestCase {
+    private let bridge = "/bridge/galeno-whatsapp"
+
+    private func whatsApp(account: String? = nil, sending: Bool? = nil) -> ToolConnection {
+        ToolConnection(
+            tool: .whatsapp, status: .connected, sources: .everything, sendingAccepted: sending,
+            accountID: account, accountName: account.map { $0.capitalized })
+    }
+
+    func testTheNumberOfAlwaysKeepsItsServerAndItsArguments() throws {
+        let definition = try XCTUnwrap(
+            MCPServerCatalog.definitions(for: whatsApp(sending: true), whatsAppBridgePath: bridge).first)
+        XCTAssertEqual(definition.serverName, "whatsapp")
+        XCTAssertEqual(definition.transport, .stdio(command: bridge, arguments: ["serve", "--with-send"]))
+    }
+
+    func testASecondNumberIsItsOwnServerLaunchedWithItsAccount() throws {
+        let definition = try XCTUnwrap(
+            MCPServerCatalog.definitions(for: whatsApp(account: "trabajo", sending: true), whatsAppBridgePath: bridge)
+                .first)
+        XCTAssertEqual(definition.serverName, "whatsapp-trabajo")
+        XCTAssertEqual(
+            definition.transport, .stdio(command: bridge, arguments: ["serve", "--account", "trabajo", "--with-send"]))
+    }
+
+    /// Sin aceptar el envío por **ese número**, no lleva `--with-send`: cada número acepta el suyo.
+    func testASecondNumberOnlySendsOnceItsOwnSendingWasAccepted() throws {
+        let readOnly = try XCTUnwrap(
+            MCPServerCatalog.definitions(for: whatsApp(account: "trabajo"), whatsAppBridgePath: bridge).first)
+        XCTAssertEqual(readOnly.transport, .stdio(command: bridge, arguments: ["serve", "--account", "trabajo"]))
+        XCTAssertTrue(readOnly.writeTools.isEmpty)
+    }
+
+    func testAnInvalidAccountNeverReachesTheArguments() throws {
+        let definition = try XCTUnwrap(
+            MCPServerCatalog.definitions(for: whatsApp(account: "../x"), whatsAppBridgePath: bridge).first)
+        XCTAssertEqual(definition.serverName, "whatsapp")
+        XCTAssertEqual(definition.transport, .stdio(command: bridge, arguments: ["serve"]))
+    }
+
+    func testTwoNumbersCannotBePastTheCap() {
+        XCTAssertEqual(Tool.whatsapp.maxAccounts, 2)
+        XCTAssertNil(Tool.notion.maxAccounts)
+    }
+
+    /// El envío de cada número pregunta por separado: cada servidor lleva su regla y su hook.
+    func testEachNumberGetsItsOwnApprovalRulesAndHook() throws {
+        let config = AgentConfig(
+            agentName: "Hera", language: .spanish,
+            connections: [whatsApp(sending: true), whatsApp(account: "trabajo", sending: true)])
+        let settings = try SettingsRenderer.render(config)
+        XCTAssertTrue(settings.contains("mcp__whatsapp__send_message"))
+        XCTAssertTrue(settings.contains("mcp__whatsapp-trabajo__send_message"), "la regla ask del segundo número")
+        XCTAssertTrue(settings.contains("^mcp__whatsapp-trabajo__(?!"), "su hook de aprobación")
+        let mcp = try MCPRenderer.render(config, whatsAppBridgePath: bridge).json
+        XCTAssertTrue(mcp.contains("\"whatsapp\""))
+        XCTAssertTrue(mcp.contains("\"whatsapp-trabajo\""))
+        XCTAssertTrue(mcp.contains("--account"))
+    }
+}
+
+final class WhatsAppAccountsAgentsFileTests: XCTestCase {
+    private func config(_ language: Language, numbers: Int) -> AgentConfig {
+        var connections = [
+            ToolConnection(tool: .whatsapp, status: .connected, sources: .everything, sendingAccepted: true)
+        ]
+        if numbers > 1 {
+            connections.append(
+                ToolConnection(
+                    tool: .whatsapp, status: .connected, sources: .everything, sendingAccepted: true,
+                    accountID: "trabajo", accountName: "Trabajo"))
+        }
+        return AgentConfig(agentName: "Hera", language: language, connections: connections)
+    }
+
+    func testWithTwoNumbersTheAgentIsToldWhichServerIsWhich() {
+        let es = AgentsFileRenderer.render(config(.spanish, numbers: 2))
+        XCTAssertTrue(es.contains("más de un número de WhatsApp"))
+        XCTAssertTrue(es.contains("`whatsapp-trabajo`"))
+        XCTAssertTrue(es.contains("**WhatsApp (Trabajo)**"))
+        let en = AgentsFileRenderer.render(config(.english, numbers: 2))
+        XCTAssertTrue(en.contains("more than one WhatsApp number"))
+        XCTAssertTrue(en.contains("`whatsapp-trabajo`"))
+    }
+
+    func testWithOneNumberNothingChanges() {
+        XCTAssertFalse(AgentsFileRenderer.render(config(.spanish, numbers: 1)).contains("más de un número"))
+        XCTAssertFalse(AgentsFileRenderer.render(config(.english, numbers: 1)).contains("more than one WhatsApp"))
     }
 }

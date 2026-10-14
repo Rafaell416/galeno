@@ -166,6 +166,11 @@ final class AgentDetailModel: ObservableObject {
     private let disconnector: any AccountDisconnecting
     private let makeMCP: @MainActor (String) -> any MCPConnecting
     private let locateClaude: @MainActor () -> String?
+    /// Un asistente que hospeda la conexión de una cuenta extra con su propio puente de WhatsApp (`--account`). `nil`
+    /// (pruebas): se usa `makePicker`.
+    private let makeAccountPicker: (@MainActor (GalenoInstallation, UUID, String) -> WizardState)?
+    /// El bridge de un número extra, para cerrar su sesión y quitar su servicio. `nil` (pruebas sin él): no se toca.
+    private let numberBridge: (@MainActor (String) -> any WhatsAppLinking)?
     private let trashContext: (URL) throws -> Void
     private let importContext: (URL) throws -> ContextFile
     private let reveal: @MainActor (URL) -> Void
@@ -180,6 +185,8 @@ final class AgentDetailModel: ObservableObject {
         disconnector: (any AccountDisconnecting)? = nil,
         makeMCP: @escaping @MainActor (String) -> any MCPConnecting = { ClaudeMCPClient(claudePath: $0) },
         locateClaude: @escaping @MainActor () -> String? = { HealthModel.locateClaude() },
+        makeAccountPicker: (@MainActor (GalenoInstallation, UUID, String) -> WizardState)? = nil,
+        numberBridge: (@MainActor (String) -> any WhatsAppLinking)? = nil,
         trashContext: @escaping (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) },
         importContext: @escaping (URL) throws -> ContextFile = { try ContextImporter.load($0) },
         reveal: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
@@ -194,6 +201,8 @@ final class AgentDetailModel: ObservableObject {
         self.disconnector = disconnector ?? ClaudeAccountDisconnector(claudePath: HealthModel.locateClaude())
         self.makeMCP = makeMCP
         self.locateClaude = locateClaude
+        self.makeAccountPicker = makeAccountPicker
+        self.numberBridge = numberBridge
         self.trashContext = trashContext
         self.importContext = importContext
         self.reveal = reveal
@@ -286,6 +295,13 @@ final class AgentDetailModel: ObservableObject {
                     canDisconnectAccount: canDisconnectAccount(connection.tool),
                     canReconnect: ConnectTarget(tool: connection.tool, namePrefix: connection.serverNamePrefix) != nil)
             }
+            // Otro número de WhatsApp: su estado sale de **su** bridge (`--account`).
+            if connection.tool == .whatsapp {
+                return ToolRow(
+                    tool: .whatsapp, accountID: connection.accountID, accountName: connection.accountName,
+                    status: whatsAppStatus(connection.accountID.flatMap { health.whatsappAccounts[$0] }),
+                    sharedWith: sharedAccounts[connection.id] ?? [], canDisconnectAccount: true, canReconnect: false)
+            }
             // Una cuenta extra: su estado sale del servidor con su nombre; sin lectura, no se afirma nada.
             let server = AccountConnector.server(of: connection)?.name
             let state: HealthModel.ConnectionState =
@@ -297,13 +313,15 @@ final class AgentDetailModel: ObservableObject {
         }
     }
 
+    private func whatsAppStatus(_ whatsapp: HealthModel.WhatsAppHealth?) -> ToolRow.Status {
+        guard let whatsapp else { return health.isChecking ? .whatsappChecking : .whatsappNoAnswer }
+        guard whatsapp.status != nil else { return .whatsappNoAnswer }
+        guard whatsapp.isLinked else { return .whatsappNotLinked }
+        return .whatsappLinked(days: whatsapp.daysLinked(), rotate: whatsapp.shouldRelink())
+    }
+
     private func status(of tool: Tool) -> ToolRow.Status {
-        if tool == .whatsapp {
-            guard let whatsapp = health.whatsapp else { return health.isChecking ? .whatsappChecking : .whatsappNoAnswer }
-            guard whatsapp.status != nil else { return .whatsappNoAnswer }
-            guard whatsapp.isLinked else { return .whatsappNotLinked }
-            return .whatsappLinked(days: whatsapp.daysLinked(), rotate: whatsapp.shouldRelink())
-        }
+        if tool == .whatsapp { return whatsAppStatus(health.whatsapp) }
         if let row = health.connections.first(where: { $0.tool == tool }) { return .hosted(row.state) }
         // Todavía no se miró (o se está mirando): «Revisando». Mirada ya, y esa herramienta no está entre las que se
         // pueden comprobar: no se afirma nada.
@@ -377,7 +395,13 @@ final class AgentDetailModel: ObservableObject {
         isPreparingConnection = true
         error = nil
         defer { isPreparingConnection = false }
-        let wizard = makePicker(installation, agentID)
+        // Otro número de WhatsApp: el asistente lleva un puente con `--account`, para vincular **ese** número.
+        let wizard: WizardState
+        if account.tool == .whatsapp, let makeAccountPicker, let id = account.accountID {
+            wizard = makeAccountPicker(installation, agentID, id)
+        } else {
+            wizard = makePicker(installation, agentID)
+        }
         // El asistente que hospeda el flujo solo conoce esta cuenta, pendiente: ninguna otra conexión entra.
         var pending = account
         pending.status = .selected
@@ -544,7 +568,7 @@ final class AgentDetailModel: ObservableObject {
 
     /// «Añadir otra cuenta»: abre la hoja con el nombre de la cuenta. Solo en las herramientas que Galeno registra.
     func askAddAccount(_ tool: Tool) {
-        guard AccountConnector.canAdd(tool), !isWorking, sheet == nil else { return }
+        guard canAddAccount(tool), !isWorking, sheet == nil else { return }
         accountDraft = ""
         accountPhase = .idle
         error = nil
@@ -572,8 +596,8 @@ final class AgentDetailModel: ObservableObject {
         case .success(let prepared):
             connection = prepared
         }
-        // Slack: cada cuenta lleva su propia app de Slack. Se hace con el flujo completo (token, app, autorización).
-        if AccountConnector.needsOwnApp(tool) {
+        // Slack (cada cuenta, su propia app) y WhatsApp (otro número, con su QR): el flujo completo de la conexión.
+        if AccountConnector.usesFullFlow(tool) {
             sheet = nil
             accountPhase = .idle
             Task { await startConnectingAccount(connection) }
@@ -689,6 +713,86 @@ final class AgentDetailModel: ObservableObject {
             sheet = nil
             home.reload()
             reload()
+            return true
+        } catch {
+            self.error = Localized.string("agent.error.disconnect", locale: locale)
+            return false
+        }
+    }
+
+    // MARK: Otro número de WhatsApp
+
+    /// ¿Se ofrece «Añadir otra cuenta» (u «otro número») para esta herramienta en este agente?
+    func canAddAccount(_ tool: Tool) -> Bool {
+        guard AccountConnector.supportsExtra(tool), config?.connection(for: tool) != nil else { return false }
+        guard let limit = tool.maxAccounts else { return true }
+        let installed = ((try? installer.store.load()) ?? nil)?.connections(for: tool).map(\.id) ?? []
+        let mine = config?.connections(for: tool).map(\.id) ?? []
+        return Set(installed + mine).filter { $0.tool == tool }.count < limit
+    }
+
+    /// «Re-vincular» un número extra: cierra **su** sesión (y su servicio) y vuelve a vincular con la advertencia y el QR
+    /// de siempre. No toca el historial ni el otro número.
+    func relinkNumber(_ id: ConnectionID) {
+        guard id.tool == .whatsapp, let account = id.account, !isWorking, connecting == nil,
+            let numberBridge, let connection = config?.connection(for: id)
+        else { return }
+        let bridge = numberBridge(account)
+        isWorking = true
+        error = nil
+        Task { [weak self] in
+            guard let self else { return }
+            var pending = connection
+            pending.status = .selected
+            do {
+                try await bridge.prepare()
+                try? await bridge.unlink()  // si no había sesión, no importa: se vuelve a vincular igual
+            } catch {
+                self.isWorking = false
+                self.error = Localized.string("agent.error.save", locale: self.locale)
+                return
+            }
+            self.isWorking = false
+            await self.startConnectingAccount(pending)
+        }
+    }
+
+    /// «Desconectar» un número de WhatsApp extra: cierra su sesión, quita su servicio de fondo y lo saca de todos los
+    /// agentes que lo leían. **No borra su historial** (queda en `whatsapp/cuentas/<id>/`).
+    @discardableResult
+    func disconnectNumber(_ id: ConnectionID) async -> Bool {
+        guard id.tool == .whatsapp, id.account != nil, !isWorking else { return false }
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            guard var installation = try installer.store.load(), installation.connection(for: id) != nil else {
+                error = Localized.string("agent.error.save", locale: locale)
+                return false
+            }
+            let users = installation.agents.filter { installation.resolvedConfig(for: $0.id)?.connection(for: id) != nil }
+            if let numberBridge, let account = id.account {
+                let bridge = numberBridge(account)
+                try? await bridge.unlink()
+                try await bridge.uninstallService()
+            }
+            installation.connections.removeAll { $0.id == id }
+            for user in users {
+                guard var record = installation.agent(id: user.id) else { continue }
+                record.config.connections.removeAll { $0.id == id }
+                try installation.setConfig(record.config, for: user.id)
+            }
+            try installer.store.save(installation)
+            for user in users {
+                if let resolved = installation.resolvedConfig(for: user.id) {
+                    _ = try installer.install(resolved, existingAgentID: user.id)
+                }
+                home.noteToolsChanged(user.id)
+            }
+            sheet = nil
+            home.reload()
+            reload()
+            health.refresh()
             return true
         } catch {
             self.error = Localized.string("agent.error.disconnect", locale: locale)

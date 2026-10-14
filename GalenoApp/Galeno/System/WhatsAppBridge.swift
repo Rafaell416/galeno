@@ -1,4 +1,5 @@
 import Foundation
+import GalenoCore
 import OSLog
 
 // MARK: - El contrato con el bridge
@@ -146,6 +147,8 @@ nonisolated protocol WhatsAppLinking: Sendable {
     /// Cierra la sesión: detiene `sync`, le avisa a WhatsApp (`unlink`) y deja el Mac sin vincular, listo para
     /// un `pair` nuevo. **No borra** el historial ya sincronizado.
     func unlink() async throws
+    /// `uninstall-launchd`: quita el servicio de fondo de este número. **No toca** la sesión ni el historial.
+    func uninstallService() async throws
     /// El estado de la bandeja de salida. `nil` si el bridge no contestó o es anterior a la 0.4.0.
     func outbox() async -> WhatsAppOutbox?
     /// «Pausar envíos»: mientras esté en pausa no sale nada, y lo que estaba en cola se cancela.
@@ -155,6 +158,7 @@ nonisolated protocol WhatsAppLinking: Sendable {
 }
 
 extension WhatsAppLinking {
+    func uninstallService() async throws {}
     func status() async -> WhatsAppStatus? { nil }
     func syncState() async -> WhatsAppSyncState { .notInstalled }
     func unlink() async throws { throw WhatsAppBridgeError.unexpectedOutput("unlink no disponible") }
@@ -186,6 +190,13 @@ nonisolated enum BridgeLocation {
     /// El directorio de datos del bridge (`cli.go`): sesión, historial y el PNG del QR.
     static var stateDirectory: URL {
         supportDirectory.appendingPathComponent("whatsapp", isDirectory: true)
+    }
+
+    /// El de un número extra (`--account <id>`): `whatsapp/cuentas/<id>/`, aparte del de siempre (`stateDirectoryPath`).
+    static func stateDirectory(account: String?) -> URL {
+        guard let account else { return stateDirectory }
+        return stateDirectory.appendingPathComponent("cuentas", isDirectory: true)
+            .appendingPathComponent(account, isDirectory: true)
     }
 
     static let qrFilename = "pair-qr.png"
@@ -282,11 +293,27 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
     var pairTimeout: TimeInterval = 200
     /// Cuánto se espera antes de volver a intentar `install-launchd` al reiniciar `sync`.
     var syncRestartRetryDelay: Duration = .seconds(2)
+    /// De qué número habla: `nil` es el de siempre; un identificador es un número extra (`--account`, `AccountID`).
+    var account: String?
 
     var binaryPath: String { installer.destination.path }
 
-    static func live() -> WhatsAppBridge {
-        WhatsAppBridge(installer: BridgeInstaller(source: BridgeLocation.packagedBinary()))
+    static func live(account: String? = nil) -> WhatsAppBridge {
+        WhatsAppBridge(
+            installer: BridgeInstaller(source: BridgeLocation.packagedBinary()),
+            stateDirectory: BridgeLocation.stateDirectory(account: account), account: account)
+    }
+
+    /// Los argumentos de un subcomando, con la cuenta si es un número extra. El bridge la quita antes de leer los suyos.
+    private func arguments(_ base: [String]) -> [String] {
+        guard let account else { return base }
+        return base + ["--account", account]
+    }
+
+    /// El servicio de fondo de este número (`launchd.go`, `launchAgentLabelFor`).
+    var serviceLabel: String {
+        guard let account else { return Self.launchAgentLabel }
+        return Self.launchAgentLabel + "." + account
     }
 
     func prepare() async throws {
@@ -299,22 +326,34 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
     ///
     /// Sin copia instalada no hace nada: no instala ni vincula. Nunca toca la sesión ni `messages.db`: solo
     /// corre `version` e `install-launchd`. No lanza errores; lo que quede mal lo sigue diagnosticando Salud.
-    func refreshAfterAppUpdate() async -> BridgeRefresh {
+    ///
+    /// `extraAccounts`: los otros números de la instalación (`--account`). Cada uno tiene su propio servicio, y todos
+    /// los que estaban cargados se reinician con el binario nuevo (si no, quedarían corriendo el viejo).
+    func refreshAfterAppUpdate(extraAccounts: [String] = []) async -> BridgeRefresh {
         guard installer.hasInstalledCopy else { return .notInstalled }
         // Sin un bridge empaquetado que conteste no hay con qué comparar: se deja la copia que había.
         guard let packaged = await installer.packagedVersion() else { return .failed }
         if await installer.installedVersion() == packaged { return .upToDate }
 
         // Se mira antes de tocar nada: solo se reinicia un servicio que ya estaba cargado.
-        let wasLoaded = await syncState() != .notInstalled
+        let numbers: [WhatsAppBridge] = [self] + extraAccounts.map { number in
+            var other = self
+            other.account = number
+            other.stateDirectory = BridgeLocation.stateDirectory(account: number)
+            return other
+        }
+        var loaded: [WhatsAppBridge] = []
+        for number in numbers where await number.syncState() != .notInstalled { loaded.append(number) }
         do { try await installer.ensureInstalled() } catch { return .failed }
-        guard wasLoaded else { return .updated(sync: .notLoaded) }
-        return .updated(sync: await restartSync() ? .restarted : .failed)
+        guard !loaded.isEmpty else { return .updated(sync: .notLoaded) }
+        var allRestarted = true
+        for number in loaded where !(await number.restartSync()) { allRestarted = false }
+        return .updated(sync: allRestarted ? .restarted : .failed)
     }
 
     /// `install-launchd` desactiva el servicio y lo vuelve a activar, ya con la copia nueva. Activarlo justo después
     /// de desactivarlo puede fallar si el proceso viejo aún no terminó, y un fallo dejaría `sync` sin cargar: se reintenta.
-    private func restartSync() async -> Bool {
+    func restartSync() async -> Bool {
         for attempt in 0..<3 {
             if attempt > 0 { try? await Task.sleep(for: syncRestartRetryDelay) }
             if (try? await installLaunchd()) != nil { return true }
@@ -333,13 +372,16 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
     static func refreshAtLaunch() {
         guard refreshesAtLaunch() else { return }
         Task.detached(priority: .utility) {
-            let outcome = await WhatsAppBridge.live().refreshAfterAppUpdate()
+            // Los demás números de WhatsApp de la instalación (si los hay): cada uno con su servicio.
+            let installation = (try? InstallationStore().load()) ?? nil
+            let extras = (installation?.connections(for: .whatsapp) ?? []).compactMap(\.accountID)
+            let outcome = await WhatsAppBridge.live().refreshAfterAppUpdate(extraAccounts: extras)
             refreshLog.info("bridge al arrancar: \(String(describing: outcome), privacy: .public)")
         }
     }
 
     func linkState() async throws -> WhatsAppLinkState {
-        let result = await runCapturing(["status"], timeout: 15)
+        let result = await runCapturing(arguments(["status"]), timeout: 15)
         guard let result, result.status == 0 else {
             throw WhatsAppBridgeError.unexpectedOutput(result?.output ?? "")
         }
@@ -349,11 +391,12 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
     func pair() -> AsyncStream<WhatsAppPairEvent> {
         let qrURL = stateDirectory.appendingPathComponent(BridgeLocation.qrFilename)
         let binary = binaryPath
+        let pairArguments = arguments(["pair"])
         let interval = pollInterval
         let timeout = pairTimeout
 
         return AsyncStream { continuation in
-            let process = ManagedProcess(executable: binary, arguments: ["pair"])
+            let process = ManagedProcess(executable: binary, arguments: pairArguments)
             do { try process.start() } catch {
                 continuation.yield(.failed("no se pudo lanzar el bridge"))
                 continuation.finish()
@@ -385,21 +428,27 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
     }
 
     func installLaunchd() async throws {
-        guard let result = await runCapturing(["install-launchd"], timeout: 30), result.status == 0 else {
+        guard let result = await runCapturing(arguments(["install-launchd"]), timeout: 30), result.status == 0 else {
             throw WhatsAppBridgeError.launchdFailed("launchctl no pudo activarlo")
+        }
+    }
+
+    func uninstallService() async throws {
+        guard let result = await runCapturing(arguments(["uninstall-launchd"]), timeout: 30), result.status == 0 else {
+            throw WhatsAppBridgeError.launchdFailed("no se pudo quitar el servicio")
         }
     }
 
     func status() async -> WhatsAppStatus? {
         // Solo stdout: stderr lleva los logs y rompería el JSON.
-        guard let result = await runner.run(binaryPath, arguments: ["status", "--json"], timeout: 15),
+        guard let result = await runner.run(binaryPath, arguments: arguments(["status", "--json"]), timeout: 15),
             result.status == 0
         else { return nil }
         return Self.parseStatus(jsonOutput: result.output)
     }
 
     func syncState() async -> WhatsAppSyncState {
-        let target = "gui/\(getuid())/\(Self.launchAgentLabel)"
+        let target = "gui/\(getuid())/\(serviceLabel)"
         guard let result = await runner.run("/bin/launchctl", arguments: ["print", target], timeout: 10) else {
             return .notInstalled
         }
@@ -410,8 +459,8 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
         // `sync` y `unlink` usan la misma sesión: con los dos conectados WhatsApp expulsa a uno. Se detiene
         // `sync` primero (si no estaba, `bootout` falla y no importa); quien vuelva a vincular lo reinstala.
         _ = await runner.run(
-            "/bin/launchctl", arguments: ["bootout", "gui/\(getuid())/\(Self.launchAgentLabel)"], timeout: 15)
-        guard let result = await runCapturing(["unlink"], timeout: 45), result.status == 0 else {
+            "/bin/launchctl", arguments: ["bootout", "gui/\(getuid())/\(serviceLabel)"], timeout: 15)
+        guard let result = await runCapturing(arguments(["unlink"]), timeout: 45), result.status == 0 else {
             throw WhatsAppBridgeError.unexpectedOutput("no se pudo cerrar la sesión")
         }
     }
@@ -425,7 +474,7 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
 
     func outbox() async -> WhatsAppOutbox? {
         // Solo stdout: stderr lleva los logs y rompería el JSON.
-        guard let result = await runner.run(binaryPath, arguments: ["outbox", "--json"], timeout: 15),
+        guard let result = await runner.run(binaryPath, arguments: arguments(["outbox", "--json"]), timeout: 15),
             result.status == 0
         else { return nil }
         return Self.parseOutbox(jsonOutput: result.output)
@@ -463,7 +512,7 @@ nonisolated struct WhatsAppBridge: WhatsAppLinking {
 
     func chatCounts() async -> ChatCounts? {
         // Solo stdout: stderr lleva los logs y rompería el JSON.
-        guard let result = await runner.run(binaryPath, arguments: ["chats", "--json"], timeout: 30),
+        guard let result = await runner.run(binaryPath, arguments: arguments(["chats", "--json"]), timeout: 30),
             result.status == 0
         else { return nil }
         return Self.parseChatCounts(jsonOutput: result.output)

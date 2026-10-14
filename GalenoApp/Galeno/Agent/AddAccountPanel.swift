@@ -16,6 +16,8 @@ enum AddAccountPhase: Equatable {
 /// La misma hoja para el detalle del agente y para la revisión del asistente: quien la pone decide qué pasa al conectar.
 struct AddAccountPanel: View {
     let toolName: String
+    /// Otro número de WhatsApp: no hay navegador, sino la advertencia y un QR.
+    var isWhatsApp = false
     @Binding var draft: String
     let phase: AddAccountPhase
     var error: String?
@@ -38,9 +40,13 @@ struct AddAccountPanel: View {
                 .contentShape(Rectangle())
                 .onTapGesture { if !isWorking { onCancel() } }
             VStack(alignment: .leading, spacing: 12) {
-                Text(verbatim: Localized.string("agent.account.add.title %@", toolName, locale: locale))
-                    .font(Typo.display(26)).foregroundStyle(Color.ink900)
-                Text("agent.account.add.sub")
+                Text(
+                    verbatim: isWhatsApp
+                        ? Localized.string("agent.account.add.whatsapp.title", locale: locale)
+                        : Localized.string("agent.account.add.title %@", toolName, locale: locale)
+                )
+                .font(Typo.display(26)).foregroundStyle(Color.ink900)
+                Text(isWhatsApp ? "agent.account.add.whatsapp.sub" : "agent.account.add.sub")
                     .font(Typo.text(14.5)).foregroundStyle(Color.ink700)
                     .fixedSize(horizontal: false, vertical: true)
                 RuleTextField(
@@ -58,7 +64,8 @@ struct AddAccountPanel: View {
                 Text(
                     verbatim: isWorking
                         ? Localized.string("agent.account.add.working", locale: locale)
-                        : Localized.string("agent.account.add.browser", locale: locale)
+                        : Localized.string(
+                            isWhatsApp ? "agent.account.add.whatsapp.hint" : "agent.account.add.browser", locale: locale)
                 )
                 .font(Typo.text(13.5)).foregroundStyle(Color.ink500)
                 .fixedSize(horizontal: false, vertical: true)
@@ -108,6 +115,7 @@ struct AddAccountPanel: View {
         case .loginFailed: "agent.account.issue.loginFailed"
         case .stillNotConnected: "agent.account.issue.stillNotConnected"
         case .claudeOutdated: "agent.account.issue.claudeOutdated"
+        case .limitReached: "agent.account.issue.limitReached"
         }
     }
 }

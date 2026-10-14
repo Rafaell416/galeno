@@ -59,14 +59,23 @@ public enum AccountID {
 extension Tool {
     /// ¿Se puede tener más de una cuenta de esta herramienta en el mismo agente?
     ///
-    /// Solo las que **Galeno registra** en Claude Code con su propio nombre (`galeno-notion`): ahí una cuenta
-    /// extra es otro servidor con su nombre. No entra WhatsApp (un solo dispositivo vinculado), ni los
-    /// conectores de la cuenta de Claude (Gmail, Calendar, Drive, Docs y Sheets: el nombre lo pone Claude y
-    /// hoy es una sola cuenta de Google por cuenta de Claude), ni Claude Design (su endpoint no está documentado).
+    /// Las que **Galeno registra** en Claude Code con su propio nombre (`galeno-notion`): ahí una cuenta extra es
+    /// otro servidor con su nombre. Y **WhatsApp** (decisión de Rafa, 13 oct 2026, epic GAL-2): un segundo número es
+    /// otra sesión, con su propio estado, su propio servicio de fondo y su propio servidor (`whatsapp-trabajo`).
+    /// No entran los conectores de la cuenta de Claude (Gmail, Calendar, Drive, Docs y Sheets: el nombre lo pone
+    /// Claude y hoy es una sola cuenta de Google por cuenta de Claude), ni Claude Design (su endpoint no está
+    /// documentado).
     public var supportsMultipleAccounts: Bool {
         switch self {
-        case .slack, .notion, .jira, .fireflies, .granola, .fathom: true
-        case .whatsapp, .googleWorkspace, .gmail, .googleMeet, .claudeDesign, .googleCalendar: false
+        case .slack, .notion, .jira, .fireflies, .granola, .fathom, .whatsapp: true
+        case .googleWorkspace, .gmail, .googleMeet, .claudeDesign, .googleCalendar: false
         }
+    }
+
+    /// Cuántas cuentas, como máximo, de esta herramienta (la de siempre incluida). `nil` = sin tope. WhatsApp: dos
+    /// números (decisión de Rafa, 13 oct 2026): cada uno es otra conexión no oficial desde la misma Mac, y más
+    /// conexiones, más riesgo de que WhatsApp restrinja el número.
+    public var maxAccounts: Int? {
+        self == .whatsapp ? 2 : nil
     }
 }

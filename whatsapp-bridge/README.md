@@ -15,10 +15,25 @@ galeno-whatsapp status           # Dice si hay una sesión vinculada, sin conect
 galeno-whatsapp status --json    # Lo mismo para la app: {linked, number, linked_at, version}
 galeno-whatsapp unlink           # Cierra la sesión vinculada (no borra el historial) para volver a vincular
 galeno-whatsapp install-launchd  # Instala "sync" como LaunchAgent (arranca solo tras el login)
+galeno-whatsapp uninstall-launchd  # Quita el servicio de fondo de este número (no toca su sesión ni su historial)
 galeno-whatsapp chats --json     # Lista los chats guardados, para la pantalla "elige qué leer"
 galeno-whatsapp outbox --json    # Estado de la bandeja de salida: enviados hoy, topes y pausa (para la app)
 galeno-whatsapp version          # Imprime la versión del bridge (solo el número)
 ```
+
+### Un segundo número: `--account`
+
+Cualquier subcomando (salvo `version`) acepta `--account <id>` para hablar de **otro número**: sesión, historial,
+bandeja de salida, pausa y límites, y servicio de fondo son aparte. Sin él, todo es del número de siempre y nada cambia.
+
+| | Número de siempre | Con `--account trabajo` |
+|---|---|---|
+| Estado | `~/Library/Application Support/Galeno/whatsapp/` | `…/whatsapp/cuentas/trabajo/` |
+| Servicio | `com.galeno.whatsapp-bridge` | `com.galeno.whatsapp-bridge.trabajo` |
+| Servidor MCP del agente | `whatsapp` | `whatsapp-trabajo` |
+
+El identificador admite solo minúsculas, números y guiones (máximo 24); cualquier otro se rechaza. La app permite como
+máximo dos números (el de siempre y uno más).
 
 El estado (sesión y mensajes) vive en `~/Library/Application Support/Galeno/whatsapp/`, no
 en una carpeta relativa al directorio desde donde se invoque el binario.
@@ -246,7 +261,7 @@ stderr). No abre ninguna conexión a WhatsApp y lee todo lo que `sync` guardó:
 
 ## `version`
 
-Imprime solo el número (`0.4.3`), para que la app lo lea sin separar nada. Es independiente de la
+Imprime solo el número (`0.5.0`), para que la app lo lea sin separar nada. Es independiente de la
 versión de la app: el bridge es la capa que más se rompe por causas externas y tiene que poder
 parchearse por su cuenta (`docs/03` §4f). Vive en `version.go` como variable, así que se puede
 fijar al compilar con `-ldflags "-X main.bridgeVersion=…"`. Sube el MINOR cuando cambia lo que

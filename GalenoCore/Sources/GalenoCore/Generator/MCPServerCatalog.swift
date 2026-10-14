@@ -153,9 +153,22 @@ public enum MCPServerCatalog {
         whatsAppBridgePath: String
     ) -> [MCPServerDefinition] {
         definitions(for: connection.tool, whatsAppBridgePath: whatsAppBridgePath).map { definition in
-            // WhatsApp: el envío solo entra si el usuario aceptó la advertencia que lo dice.
-            if connection.tool == .whatsapp, connection.sendingAccepted == true {
-                return whatsAppWithSending(definition)
+            // WhatsApp: el envío solo entra si el usuario aceptó la advertencia que lo dice. Un segundo número es
+            // otro servidor (`whatsapp-trabajo`) que lanza el mismo binario con `--account`, para leer **su**
+            // historial y escribir en **su** bandeja.
+            if connection.tool == .whatsapp {
+                var whatsApp = definition
+                if let account = connection.accountID, AccountID.isValid(account),
+                    case let .stdio(command, arguments) = definition.transport
+                {
+                    // Detrás del subcomando (`serve`), antes de lo demás.
+                    var accountArguments = arguments
+                    accountArguments.insert(contentsOf: ["--account", account], at: min(1, accountArguments.count))
+                    whatsApp.transport = .stdio(command: command, arguments: accountArguments)
+                    whatsApp.serverName += "-" + account
+                }
+                if connection.sendingAccepted == true { whatsApp = whatsAppWithSending(whatsApp) }
+                return whatsApp
             }
             // Un conector de claude.ai no se registra: su nombre lo pone Claude y no admite prefijo.
             if case .claudeConnector = definition.transport { return definition }

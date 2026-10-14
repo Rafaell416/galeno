@@ -191,6 +191,20 @@ enum AgentsFileRenderer {
                 }
                 lines.append("- **\(connection.displayName(in: .spanish))** — \(summary)\(note)")
             }
+            let whatsApps = connections.filter { $0.tool == .whatsapp }
+            if whatsApps.count > 1 {
+                let names = whatsApps.map { connection -> String in
+                    let server =
+                        MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "").first?.serverName ?? "whatsapp"
+                    return "«\(connection.displayName(in: .spanish))» (`\(server)`)"
+                }
+                lines.append("")
+                lines.append(
+                    "Tienes **más de un número de WhatsApp**, cada uno con su propio servidor: \(names.joined(separator: ", ")). "
+                        + "Los chats, los mensajes y los envíos de uno no son los del otro: usa el servidor del número que corresponde, "
+                        + "y si no está claro cuál, pregúntale al usuario antes de leer o proponer un mensaje."
+                )
+            }
             if connections.contains(where: { $0.tool == .claudeDesign }) {
                 lines.append("")
                 lines.append(
@@ -521,6 +535,20 @@ enum AgentsFileRenderer {
                     note = " · **read-only, you never send**; you read the text of the chats, but you cannot open their attachments yet"
                 }
                 lines.append("- **\(connection.displayName(in: .english))** — \(summary)\(note)")
+            }
+            let whatsApps = connections.filter { $0.tool == .whatsapp }
+            if whatsApps.count > 1 {
+                let names = whatsApps.map { connection -> String in
+                    let server =
+                        MCPServerCatalog.definitions(for: connection, whatsAppBridgePath: "").first?.serverName ?? "whatsapp"
+                    return "“\(connection.displayName(in: .english))” (`\(server)`)"
+                }
+                lines.append("")
+                lines.append(
+                    "You have **more than one WhatsApp number**, each with its own server: \(names.joined(separator: ", ")). "
+                        + "One number's chats, messages and sends are not the other's: use the server of the right number, "
+                        + "and if it is not clear which, ask the user before reading or proposing a message."
+                )
             }
             if connections.contains(where: { $0.tool == .claudeDesign }) {
                 lines.append("")

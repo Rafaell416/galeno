@@ -185,6 +185,20 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   (`HomeModel.sendingOffer`). No añadir otro camino que lo ponga en `true`, ni tratar `nil` como aceptado. **El asistente de «Nuevo agente» no da por
   conectado un WhatsApp vinculado sin el envío aceptado** (10 oct 2026, hallazgo con Simon): lo vuelve a poner en
   «Conectar», con su advertencia y sin otro QR si la sesión sigue vinculada, y lo acepta por el camino de siempre.
+- **Dos números de WhatsApp (decisión de Rafa, 13 oct 2026, epic GAL-2; reabre la «separación de contexto entre agentes»
+  solo para WhatsApp):** como máximo **2** (`Tool.maxAccounts`), y un número es una **cuenta** (`ConnectionID`, la
+  misma de GAL-13): el de siempre (`accountID == nil`) no cambia ni se migra, y el segundo es otro servidor
+  (`whatsapp-<cuenta>`) que lanza el mismo bridge con `--account <id>`: su propia carpeta de estado
+  (`whatsapp/cuentas/<id>/`, sesión, historial, bandeja, `send-paused` y `send-limits.json`), su propio servicio de
+  fondo (`com.galeno.whatsapp-bridge.<id>`) y su propia aceptación del envío (`sendingAccepted` por número). Las guardas
+  siguen en el bridge y valen **por número**; cada servidor lleva su regla `ask` y su hook. Riesgo aceptado por Rafa:
+  más de una conexión no oficial desde la misma Mac puede hacer que WhatsApp restrinja uno de los números. El texto de
+  la advertencia sigue siendo una propuesta pendiente de aprobar, y aplica a **cada** vinculación (se reutiliza tal
+  cual, sin tocarla). **En la app:** «Añadir otro número» en el detalle del agente (advertencia, QR y servicio, por el
+  flujo de conexión embebido apuntado a `--account`); «Re-vincular» y «Desconectar» por número (desconectar cierra su
+  sesión y quita su servicio, **nunca borra su historial**); Salud lista cada número; **pausar envíos y bajar los topes
+  valen para todos los números**; al arrancar la app se reinician los servicios de **todos** los números cargados; y los
+  scripts de entrega conocen el servicio de cada uno. El asistente de «Nuevo agente» no ofrece un segundo número.
 - **Cambiar de número no mezcla historiales** (bridge 0.4.3, 12 oct 2026, hallazgo con Simon): `messages.db` anota de qué
   número es (`meta`, `account.go`). Si al vincular el número es otro, el historial anterior se guarda **entero** en una
   copia junto a la base (`historial-<número>-<fecha>.db`, nunca se borra), chats y mensajes empiezan de cero y lo que

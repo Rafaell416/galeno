@@ -27,6 +27,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	// `--account <id>` elige de qué número se habla (account.go). Se quita de los argumentos antes de que cada
+	// subcomando lea los suyos, y sin él todo va a la cuenta de siempre.
+	rest, account, err := extractAccountFlag(os.Args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	os.Args = rest
+	accountID = account
+
 	switch os.Args[1] {
 	case "pair":
 		runPair()
@@ -40,6 +50,8 @@ func main() {
 		runUnlink()
 	case "install-launchd":
 		runInstallLaunchd()
+	case "uninstall-launchd":
+		runUninstallLaunchd()
 	case "chats":
 		runChats()
 	case "outbox":
@@ -74,23 +86,31 @@ Uso:
                                    No borra los mensajes que ya se guardaron
   galeno-whatsapp install-launchd  Instala "sync" como LaunchAgent, para que arranque
                                    solo al iniciar sesión
+  galeno-whatsapp uninstall-launchd  Quita el servicio de fondo de este número (no toca su sesión
+                                   ni su historial)
   galeno-whatsapp chats --json     Lista los chats guardados (la app arma con esto la
                                    pantalla "elige qué leer"); no conecta a WhatsApp
   galeno-whatsapp outbox --json    Estado de la bandeja de salida: enviados hoy, topes y
                                    pausa (lo lee la app); no conecta a WhatsApp
   galeno-whatsapp version          Imprime la versión del bridge
 
+Con --account <id> (en cualquier subcomando salvo version) se habla de **otro número**: su
+sesión, su historial, su bandeja de salida y su servicio de fondo son aparte. Sin él, el de
+siempre.
+
 El estado (sesión y mensajes) vive en:
-  ~/Library/Application Support/Galeno/whatsapp/`)
+  ~/Library/Application Support/Galeno/whatsapp/                  (el de siempre)
+  ~/Library/Application Support/Galeno/whatsapp/cuentas/<id>/     (con --account)`)
 }
 
-// stateDirectory resuelve y crea ~/Library/Application Support/Galeno/whatsapp/.
+// stateDirectory resuelve y crea ~/Library/Application Support/Galeno/whatsapp/ o, con --account, el de esa cuenta
+// (`whatsapp/cuentas/<id>/`).
 func stateDirectory() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("no se pudo resolver el directorio del usuario: %v", err)
 	}
-	dir := filepath.Join(home, "Library", "Application Support", "Galeno", "whatsapp")
+	dir := stateDirectoryPath(home, accountID)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("no se pudo crear %s: %v", dir, err)
 	}
@@ -437,6 +457,15 @@ func runUnlink() {
 		os.Exit(1)
 	}
 	fmt.Println("Sesión local cerrada. Si tu teléfono sigue mostrando este Mac en «Dispositivos vinculados», quítalo desde ahí.")
+}
+
+// runUninstallLaunchd — subcomando "uninstall-launchd": ver launchd.go.
+func runUninstallLaunchd() {
+	if err := uninstallLaunchd(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println("Listo: el servicio de fondo de este número ya no arranca.")
 }
 
 // runInstallLaunchd — subcomando "install-launchd": ver launchd.go.
