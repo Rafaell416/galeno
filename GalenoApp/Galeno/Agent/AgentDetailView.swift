@@ -363,7 +363,13 @@ private struct RemoveToolSheet: View {
                         filled: false
                     ) {
                         Task {
-                            if isExtra { await model.disconnectExtraAccount(id) } else { await model.disconnectAccount(tool) }
+                            if isExtra && tool == .whatsapp {
+                                await model.disconnectNumber(id)
+                            } else if isExtra {
+                                await model.disconnectExtraAccount(id)
+                            } else {
+                                await model.disconnectAccount(tool)
+                            }
                         }
                     }
                 } else if tool != .whatsapp {
@@ -467,7 +473,8 @@ private struct AddAccountSheet: View {
 
     var body: some View {
         AddAccountPanel(
-            toolName: tool.displayName(in: model.language), draft: $model.accountDraft, phase: model.accountPhase,
+            toolName: tool.displayName(in: model.language), isWhatsApp: tool == .whatsapp, draft: $model.accountDraft,
+            phase: model.accountPhase,
             error: model.error, onConnect: { model.addAccount() }, onCancel: { model.cancelAddingAccount() })
     }
 }

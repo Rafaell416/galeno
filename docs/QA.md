@@ -538,3 +538,21 @@ Las filas U-3 a U-6 necesitan un appcast publicado de verdad: no se pueden corre
 | U-6 | Cambiar un byte del disco ya publicado y volver a buscar desde la N. | Sparkle se niega a instalarlo: la firma no corresponde. | — |
 | U-7 | Tras actualizar con WhatsApp vinculado, abrir Salud. | La versión del bridge es la de la app nueva, y WhatsApp sigue vinculado. | ES |
 
+### 6.16 Cuentas por agente y un segundo número de WhatsApp (13 oct 2026, `docs/03` §3, epics GAL-2 y GAL-3)
+
+Necesita dos espacios de trabajo de Notion (o dos de Slack) y, para WhatsApp, un segundo teléfono con su número. Nada de esto se ha visto con cuentas reales.
+
+| # | Qué hacer | Qué debe pasar | Idioma |
+|---|---|---|---|
+| N-1 ★ | Detalle de un agente con Notion → «Añadir otra cuenta» → nombre «Trabajo» → Conectar; en el navegador elegir **otro** espacio de trabajo. | Al volver, aparece «Notion (Trabajo)» con estado «Conectada». En `~/Galeno/<agente>/.mcp.json` están `galeno-notion` y `galeno-notion-trabajo`. | ES |
+| N-2 ★ | En una conversación con ese agente, pedirle a cada cuenta algo que solo exista en su espacio. | Cada cuenta ve **solo lo suyo**. Reconectar una no cierra la otra. | ES |
+| N-3 | «Quitar» la cuenta extra y mirar otro agente que use Notion. | Sale del agente; la cuenta de siempre y el otro agente siguen igual. «Desconectar la cuenta» quita solo ese servidor (`claude mcp list`). | ES |
+| N-4 | Slack → «Añadir otra cuenta» → token de otro espacio de trabajo. | Pide su propio token, crea **otra app de Slack** y autoriza; el servidor es `galeno-slack-<cuenta>` y sus envíos piden aprobación. | ES |
+| N-5 ★ | WhatsApp → «Añadir otro número» → nombre → advertencia → QR escaneado con otro teléfono. | Aparece «WhatsApp (Trabajo)». `launchctl print gui/$(id -u)/com.galeno.whatsapp-bridge.trabajo` existe; `~/Library/Application Support/Galeno/whatsapp/cuentas/trabajo/` tiene su propio `messages.db`; el número de siempre no cambió. | ES |
+| N-6 ★ | Con dos números: pedirle al agente chats de uno y del otro. | Cada servidor (`whatsapp`, `whatsapp-trabajo`) lista **solo** los chats de su número; el `AGENTS.md` generado dice cuál es cuál. | ES |
+| N-7 | Con dos números: pedir un envío por cada uno. | Cada uno pide aprobación por separado; los topes del día cuentan por número (`outbox --json --account trabajo`). | ES |
+| N-8 | Con dos números: «Pausar envíos» en Salud. | La pausa vale para ambos (no sale nada por ninguno). | ES |
+| N-9 | Intentar un tercer número. | No se ofrece; el máximo son dos. | ES |
+| N-10 | Salud con dos números. | Cada uno con su sesión y su servicio; «Re-vincular» y «Desconectar» de cada número están en el detalle del agente. «Desconectar» no borra su historial (queda en `whatsapp/cuentas/<id>/`). | ES |
+| N-11 | Actualizar la app con los dos servicios cargados y solo abrirla. | Los dos `sync` reinician con el bridge nuevo (`launchctl print` de cada label). | ES |
+| N-12 | `scripts/instalar-desde-cero.sh --dry` con dos números. | Lista el servicio de cada número y los manda a la Papelera sin borrar nada. | — |

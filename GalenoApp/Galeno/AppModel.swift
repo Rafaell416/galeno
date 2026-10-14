@@ -38,7 +38,7 @@ final class AppModel: ObservableObject {
         },
         makeHealth: @escaping @MainActor (Language) -> HealthModel = { language in
             // El home le da después con qué activar el envío por WhatsApp (`openHealth`).
-            HealthModel(language: { language })
+            HealthModel(accountBridge: { WhatsAppBridge.live(account: $0) }, language: { language })
         },
         makeAgentDetail: @escaping @MainActor (UUID, AgentDetailModel.Section, HomeModel, Language) -> AgentDetailModel = {
             id, section, home, language in
@@ -50,8 +50,18 @@ final class AppModel: ObservableObject {
                 health: HealthModel(
                     store: home.store, installer: installer,
                     agentsChanged: { agents in agents.forEach { home.noteToolsChanged($0) } },
+                    accountBridge: { WhatsAppBridge.live(account: $0) },
                     language: { language }),
-                installer: installer)
+                installer: installer,
+                makeAccountPicker: { installation, agentID, account in
+                    // Otro número de WhatsApp: el asistente que hospeda el QR lleva su propio puente (`--account`).
+                    var services = ConnectServices.live()
+                    services.whatsapp = WhatsAppBridge.live(account: account)
+                    return WizardState(
+                        preferredLanguages: [installation.language.rawValue], connectServices: services,
+                        startingFrom: installation, editing: agentID)
+                },
+                numberBridge: { WhatsAppBridge.live(account: $0) })
         }
     ) {
         self.home = home

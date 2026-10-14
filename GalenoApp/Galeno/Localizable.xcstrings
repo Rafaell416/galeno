@@ -941,6 +941,108 @@
         }
       }
     },
+    "agent.tools.addNumber" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add another number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir otro número"
+          }
+        }
+      }
+    },
+    "agent.account.add.whatsapp.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add another WhatsApp number"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir otro número de WhatsApp"
+          }
+        }
+      }
+    },
+    "agent.account.add.whatsapp.sub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Give the number a name you will recognize, like “Work” or “Personal”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponle al número un nombre con el que lo reconozcas, como «Trabajo» o «Personal»."
+          }
+        }
+      }
+    },
+    "agent.account.add.whatsapp.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next you will see the WhatsApp notice and a QR code to link it from the phone of that number. Each number is another unofficial connection from this Mac, and WhatsApp may restrict one of them."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Después verás el aviso de WhatsApp y un código QR para vincularlo desde el teléfono de ese número. Cada número es otra conexión no oficial desde este Mac, y WhatsApp podría restringir uno de ellos."
+          }
+        }
+      }
+    },
+    "agent.account.issue.limitReached" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You already have the most accounts this tool allows (two WhatsApp numbers)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya tienes el máximo de cuentas que admite esta herramienta (dos números de WhatsApp)."
+          }
+        }
+      }
+    },
+    "health.whatsapp.number %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Number “%@”"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Número «%@»"
+          }
+        }
+      }
+    },
     "agent.tools.add" : {
       "extractionState" : "manual",
       "localizations" : {

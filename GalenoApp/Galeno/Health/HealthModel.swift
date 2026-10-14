@@ -140,6 +140,26 @@ final class HealthModel: ObservableObject {
 
     /// `nil` si el agente no usa WhatsApp (no se enseña el panel) o todavía no se miró.
     @Published private(set) var whatsapp: WhatsAppHealth?
+    /// Los otros números de WhatsApp (`--account`), por identificador de cuenta. Los mira el detalle del agente.
+    @Published private(set) var whatsappAccounts: [String: WhatsAppHealth] = [:]
+    /// El nombre que el usuario le dio a cada número extra (`ToolConnection.accountName`).
+    @Published private(set) var whatsappAccountNames: [String: String] = [:]
+
+    /// Los otros números de WhatsApp, en orden, para enseñarlos en Salud.
+    struct ExtraNumber: Identifiable, Equatable {
+        var account: String
+        var name: String
+        var health: WhatsAppHealth
+        var id: String { account }
+    }
+
+    var extraNumbers: [ExtraNumber] {
+        whatsappAccounts.keys.sorted().compactMap { account in
+            whatsappAccounts[account].map {
+                ExtraNumber(account: account, name: whatsappAccountNames[account] ?? account, health: $0)
+            }
+        }
+    }
     /// ¿Hay WhatsApp en la instalación? Decide si el panel existe.
     @Published private(set) var usesWhatsApp = false
     @Published private(set) var relink: RelinkPhase = .idle
@@ -183,6 +203,10 @@ final class HealthModel: ObservableObject {
     private let makeMCP: @MainActor (String) -> any MCPConnecting
     private let claudePath: String?
     private let whatsappBridge: any WhatsAppLinking
+    /// El bridge de un número extra. `nil` (pruebas): los otros números no se miran ni se tocan.
+    private let accountBridge: (@MainActor (String) -> any WhatsAppLinking)?
+    /// Los números extra de la instalación y si cada uno aceptó el envío, tal como estaban al mirar.
+    private var whatsappAccountSending: [String: Bool] = [:]
     private let skillUpdater: any SkillUpdating
     private let openURL: @MainActor (URL) -> Void
     private let returnToApp: @MainActor () -> Void
@@ -217,6 +241,7 @@ final class HealthModel: ObservableObject {
         locateClaude: @Sendable () -> String? = HealthModel.locateClaude,
         makeMCP: @escaping @MainActor (String) -> any MCPConnecting = { ClaudeMCPClient(claudePath: $0) },
         whatsapp: any WhatsAppLinking = WhatsAppBridge.live(),
+        accountBridge: (@MainActor (String) -> any WhatsAppLinking)? = nil,
         skillUpdater: any SkillUpdating = SkillUpdaterNotAvailable(),
         authorizer: (any SlackAuthorizationPresenting)? = SlackAuthorizeWindowPresenter(),
         // Navegador predeterminado, no la hoja del sistema (decisión de Rafa, 5 oct 2026; ver ConnectServices).
@@ -235,6 +260,7 @@ final class HealthModel: ObservableObject {
         self.claudePath = locateClaude()
         self.makeMCP = makeMCP
         self.whatsappBridge = whatsapp
+        self.accountBridge = accountBridge
         self.skillUpdater = skillUpdater
         self.authorizer = authorizer
         self.systemAuthorizer = systemAuthorizer
@@ -275,6 +301,18 @@ final class HealthModel: ObservableObject {
         let tools = connected.map(\.tool).filter { $0 != .whatsapp && ConnectTarget(tool: $0, namePrefix: prefixes[$0]) != nil }
         usesWhatsApp = connected.contains { $0.tool == .whatsapp }
         whatsappSendingAccepted = connected.first { $0.tool == .whatsapp }?.sendingAccepted == true
+        whatsappAccountNames = Dictionary(
+            (installation?.connections(for: .whatsapp) ?? []).compactMap { shared -> (String, String)? in
+                guard shared.status == .connected, let account = shared.accountID else { return nil }
+                return (account, shared.accountName ?? account)
+            },
+            uniquingKeysWith: { first, _ in first })
+        whatsappAccountSending = Dictionary(
+            (installation?.connections(for: .whatsapp) ?? []).compactMap { shared -> (String, Bool)? in
+                guard shared.status == .connected, let account = shared.accountID else { return nil }
+                return (account, shared.sendingAccepted == true)
+            },
+            uniquingKeysWith: { first, _ in first })
         connections = tools.map { ConnectionRow(tool: $0, state: .checking) }
 
         // WhatsApp contesta en un instante; `claude mcp list` puede tardar: no se hace esperar a uno por el otro.
@@ -344,6 +382,25 @@ final class HealthModel: ObservableObject {
         let outbox = whatsappSendingAccepted && found?.isLinked == true ? await whatsappBridge.outbox() : nil
         whatsapp = WhatsAppHealth(
             status: found, sync: state, sendingAccepted: whatsappSendingAccepted, outbox: outbox)
+        await checkWhatsAppAccounts()
+    }
+
+    /// Los otros números: cada uno con su propio bridge (`--account`), su servicio y su bandeja.
+    private func checkWhatsAppAccounts() async {
+        guard let accountBridge, !whatsappAccountSending.isEmpty else {
+            whatsappAccounts = [:]
+            return
+        }
+        var found: [String: WhatsAppHealth] = [:]
+        for (account, sendingAccepted) in whatsappAccountSending {
+            let bridge = accountBridge(account)
+            async let status = bridge.status()
+            async let sync = bridge.syncState()
+            let (linked, state) = await (status, sync)
+            let outbox = sendingAccepted && linked?.isLinked == true ? await bridge.outbox() : nil
+            found[account] = WhatsAppHealth(status: linked, sync: state, sendingAccepted: sendingAccepted, outbox: outbox)
+        }
+        whatsappAccounts = found
     }
 
     // MARK: - WhatsApp: servicio de fondo
@@ -472,7 +529,15 @@ final class HealthModel: ObservableObject {
         sendingSaveFailed = false
         Task { [weak self] in
             guard let self else { return }
-            do { try await change(self.whatsappBridge) } catch { self.sendingSaveFailed = true }
+            // Pausar o bajar un tope vale para **todos** los números: una pausa que dejara salir por el otro
+            // no sería una pausa.
+            var bridges: [any WhatsAppLinking] = [self.whatsappBridge]
+            if let accountBridge = self.accountBridge {
+                bridges += self.whatsappAccountSending.keys.sorted().map { accountBridge($0) }
+            }
+            for bridge in bridges {
+                do { try await change(bridge) } catch { self.sendingSaveFailed = true }
+            }
             await self.checkWhatsApp()
             self.isSavingSending = false
         }

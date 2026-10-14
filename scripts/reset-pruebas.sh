@@ -44,6 +44,11 @@ SUPPORT="$HOME/Library/Application Support/Galeno"
 AGENTS_DIR="$HOME/Galeno"
 PLIST="$HOME/Library/LaunchAgents/com.galeno.whatsapp-bridge.plist"
 LABEL="com.galeno.whatsapp-bridge"
+# Los otros números de WhatsApp (`--account`): un servicio por número.
+EXTRA_PLISTS=()
+for f in "$HOME"/Library/LaunchAgents/com.galeno.whatsapp-bridge.*.plist; do
+  [ -e "$f" ] && EXTRA_PLISTS+=("$f")
+done
 BUNDLE="com.galeno.Galeno"
 
 # Servidores que Galeno registra, con la URL oficial: así no se toca uno tuyo con el mismo nombre.
@@ -108,6 +113,7 @@ done
 
 echo "· Servicio de fondo de WhatsApp:"
 if [ -e "$PLIST" ] || launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then echo "    $LABEL"; else echo "    (no instalado)"; fi
+for f in ${EXTRA_PLISTS[@]+"${EXTRA_PLISTS[@]}"}; do echo "    $(basename "$f" .plist)"; done
 
 echo "· Servidores MCP en Claude Code:"
 FOUND=()
@@ -142,6 +148,10 @@ pkill -x Galeno 2>/dev/null && echo "- Galeno cerrado" && sleep 1
 # 1. El servicio de fondo de WhatsApp, antes de borrar su estado.
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null && echo "- servicio de WhatsApp detenido"
 rm -f "$PLIST" && echo "- plist de WhatsApp quitado"
+for f in ${EXTRA_PLISTS[@]+"${EXTRA_PLISTS[@]}"}; do
+  launchctl bootout "gui/$(id -u)/$(basename "$f" .plist)" 2>/dev/null && echo "- servicio de otro número detenido"
+  rm -f "$f" && echo "- plist de otro número quitado"
+done
 
 # 2. Los servidores MCP.
 for name in ${FOUND[@]+"${FOUND[@]}"}; do

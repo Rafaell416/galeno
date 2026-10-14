@@ -281,6 +281,13 @@ final class FakeWhatsApp: WhatsAppLinking, @unchecked Sendable {
         }
     }
 
+    func uninstallService() async throws {
+        lock.withLock {
+            recorded.append("uninstallService")
+            syncValue = .notInstalled
+        }
+    }
+
     func installLaunchd() async throws {
         lock.withLock { recorded.append("installLaunchd") }
         if let installError { throw installError }

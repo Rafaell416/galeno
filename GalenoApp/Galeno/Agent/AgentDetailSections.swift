@@ -262,9 +262,11 @@ private struct ToolRowView: View {
                 }
                 Spacer(minLength: 8)
                 if isChecking { InkSpinner(size: 14) }
-                if !row.isExtraAccount, AccountConnector.canAdd(row.tool) {
-                    LeadLink("agent.tools.addAccount") { model.askAddAccount(row.tool) }
-                        .disabled(model.isWorking || isReconnecting)
+                if !row.isExtraAccount, model.canAddAccount(row.tool) {
+                    LeadLink(row.tool == .whatsapp ? "agent.tools.addNumber" : "agent.tools.addAccount") {
+                        model.askAddAccount(row.tool)
+                    }
+                    .disabled(model.isWorking || isReconnecting)
                 }
                 LeadLink("agent.tools.remove") {
                     if row.isExtraAccount { model.askRemoveAccount(row.id) } else { model.askRemove(row.tool) }
@@ -309,13 +311,17 @@ private struct ToolRowView: View {
             .buttonStyle(InkButtonStyle(.secondary, size: .bar, padding: 14, isLoading: isReconnecting))
             .disabled(health.reconnecting != nil || model.reconnectingAccount != nil || model.isWorking)
         case .whatsappNotLinked:
-            Button("health.whatsapp.link") { model.relinkWhatsApp() }
-                .buttonStyle(.inkInline)
-                .disabled(health.relink != .idle)
+            Button("health.whatsapp.link") {
+                if row.isExtraAccount { model.relinkNumber(row.id) } else { model.relinkWhatsApp() }
+            }
+            .buttonStyle(.inkInline)
+            .disabled(health.relink != .idle || model.isWorking)
         case .whatsappLinked(_, let rotate) where rotate:
-            Button("health.whatsapp.relink") { model.relinkWhatsApp() }
-                .buttonStyle(.inkInline)
-                .disabled(health.relink != .idle)
+            Button("health.whatsapp.relink") {
+                if row.isExtraAccount { model.relinkNumber(row.id) } else { model.relinkWhatsApp() }
+            }
+            .buttonStyle(.inkInline)
+            .disabled(health.relink != .idle || model.isWorking)
         default:
             EmptyView()
         }

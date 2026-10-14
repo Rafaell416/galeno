@@ -18,7 +18,7 @@ type plistDict struct {
 }
 
 func TestRenderLaunchdPlistIsValidXML(t *testing.T) {
-	contents := renderLaunchdPlist("/Applications/Galeno.app/Contents/Resources/galeno-whatsapp", "/tmp/sync.log")
+	contents := renderLaunchdPlist("/Applications/Galeno.app/Contents/Resources/galeno-whatsapp", "/tmp/sync.log", "")
 
 	var doc plistDict
 	if err := xml.Unmarshal([]byte(contents), &doc); err != nil {
@@ -27,7 +27,7 @@ func TestRenderLaunchdPlistIsValidXML(t *testing.T) {
 }
 
 func TestRenderLaunchdPlistTargetsSyncNotServe(t *testing.T) {
-	contents := renderLaunchdPlist("/path/to/galeno-whatsapp", "/tmp/sync.log")
+	contents := renderLaunchdPlist("/path/to/galeno-whatsapp", "/tmp/sync.log", "")
 
 	// ProgramArguments debe ser [binario, "sync"] — nunca "serve": "sync" es
 	// el único subcomando pensado para correr de fondo sin servir MCP (ver
@@ -44,7 +44,7 @@ func TestRenderLaunchdPlistTargetsSyncNotServe(t *testing.T) {
 }
 
 func TestRenderLaunchdPlistHasTheExpectedKeys(t *testing.T) {
-	contents := renderLaunchdPlist("/bin/galeno-whatsapp", "/tmp/sync.log")
+	contents := renderLaunchdPlist("/bin/galeno-whatsapp", "/tmp/sync.log", "")
 
 	for _, key := range []string{"Label", "ProgramArguments", "RunAtLoad", "KeepAlive", "StandardOutPath", "StandardErrorPath"} {
 		if !strings.Contains(contents, "<key>"+key+"</key>") {
@@ -57,7 +57,7 @@ func TestRenderLaunchdPlistHasTheExpectedKeys(t *testing.T) {
 }
 
 func TestRenderLaunchdPlistPointsBothStreamsToTheLogFile(t *testing.T) {
-	contents := renderLaunchdPlist("/bin/galeno-whatsapp", "/custom/path/sync.log")
+	contents := renderLaunchdPlist("/bin/galeno-whatsapp", "/custom/path/sync.log", "")
 
 	count := strings.Count(contents, "<string>/custom/path/sync.log</string>")
 	if count != 2 {
@@ -69,7 +69,7 @@ func TestRenderLaunchdPlistPointsBothStreamsToTheLogFile(t *testing.T) {
 // usuario con un "&" en el home, por raro que sea) no debería romper el
 // documento ni perder el valor real.
 func TestRenderLaunchdPlistEscapesXMLSpecialCharacters(t *testing.T) {
-	contents := renderLaunchdPlist(`/Users/a&b/galeno-whatsapp`, "/tmp/sync.log")
+	contents := renderLaunchdPlist(`/Users/a&b/galeno-whatsapp`, "/tmp/sync.log", "")
 
 	var doc plistDict
 	if err := xml.Unmarshal([]byte(contents), &doc); err != nil {

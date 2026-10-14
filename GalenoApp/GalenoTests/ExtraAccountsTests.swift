@@ -221,4 +221,54 @@ final class ExtraAccountsTests: XCTestCase {
         let decoded = try JSONDecoder().decode(WizardDraft.self, from: JSONEncoder().encode(legacy))
         XCTAssertNil(decoded.extraAccounts)
     }
+
+    // MARK: - Salud: los dos números de WhatsApp
+
+    private func healthWithTwoNumbers(always: FakeWhatsApp, work: FakeWhatsApp) throws -> HealthModel {
+        _ = try installer.install(
+            AgentConfig(
+                agentName: "Eco", language: .spanish,
+                connections: [
+                    ToolConnection(tool: .whatsapp, status: .connected, sources: .everything, sendingAccepted: true),
+                    ToolConnection(
+                        tool: .whatsapp, status: .connected, sources: .everything, sendingAccepted: true,
+                        accountID: "trabajo", accountName: "Trabajo"),
+                ]))
+        return HealthModel(
+            store: installer.store, locateClaude: { "/ruta/claude" }, makeMCP: { _ in FakeMCP() }, whatsapp: always,
+            accountBridge: { _ in work }, authorizer: nil, systemAuthorizer: nil, language: { .spanish },
+            openURL: { _ in }, returnToApp: {}, sleep: { _ in }, playSound: { _ in })
+    }
+
+    func testHealthLooksAtEachNumberWithItsOwnBridge() async throws {
+        let always = FakeWhatsApp()
+        always.reportedStatus = WhatsAppStatus(isLinked: true, number: "571", linkedAt: Date(), bridgeVersion: "0.5.0")
+        let work = FakeWhatsApp()
+        work.reportedStatus = WhatsAppStatus(isLinked: false, number: nil, linkedAt: nil, bridgeVersion: "0.5.0")
+        let health = try healthWithTwoNumbers(always: always, work: work)
+
+        await health.check()
+
+        XCTAssertEqual(health.whatsapp?.isLinked, true)
+        let numbers = health.extraNumbers
+        XCTAssertEqual(numbers.map(\.name), ["Trabajo"])
+        XCTAssertEqual(numbers.first?.health.isLinked, false, "el segundo número no está vinculado aunque el primero sí")
+    }
+
+    /// Una pausa que dejara salir por el otro número no sería una pausa.
+    func testPausingSendingPausesEveryNumber() async throws {
+        let always = FakeWhatsApp()
+        always.reportedStatus = WhatsAppStatus(isLinked: true, number: "571", linkedAt: Date(), bridgeVersion: "0.5.0")
+        always.reportedOutbox = FakeWhatsApp.emptyOutbox
+        let work = FakeWhatsApp()
+        work.reportedStatus = WhatsAppStatus(isLinked: true, number: "572", linkedAt: Date(), bridgeVersion: "0.5.0")
+        work.reportedOutbox = FakeWhatsApp.emptyOutbox
+        let health = try healthWithTwoNumbers(always: always, work: work)
+        await health.check()
+
+        health.setSendingPaused(true)
+        let both = await waitUntil { always.calls.contains("pause:true") && work.calls.contains("pause:true") }
+
+        XCTAssertTrue(both, "always: \(always.calls) work: \(work.calls)")
+    }
 }

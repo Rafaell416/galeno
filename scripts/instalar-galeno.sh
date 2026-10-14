@@ -58,6 +58,11 @@ AGENTS_DIR="$HOME/Galeno"
 SUPPORT="$HOME/Library/Application Support/Galeno"
 PLIST="$HOME/Library/LaunchAgents/com.galeno.whatsapp-bridge.plist"
 LABEL="com.galeno.whatsapp-bridge"
+# Los otros números de WhatsApp (`--account`): un servicio por número.
+EXTRA_PLISTS=()
+for f in "$HOME"/Library/LaunchAgents/com.galeno.whatsapp-bridge.*.plist; do
+  [ -e "$f" ] && EXTRA_PLISTS+=("$f")
+done
 BUNDLE="com.galeno.Galeno"
 CLAUDE_SESSIONS="$HOME/Library/Application Support/Claude/claude-code-sessions"
 
@@ -127,6 +132,11 @@ if [ -e "$PLIST" ] || launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; the
   add_path "$PLIST"
   add_summary "El servicio que mantiene WhatsApp sincronizado"
 fi
+for f in ${EXTRA_PLISTS[@]+"${EXTRA_PLISTS[@]}"}; do
+  HAS_SERVICE=1
+  add_path "$f"
+  add_summary "El servicio de otro número de WhatsApp ($(basename "$f" .plist))"
+done
 
 for item in \
   "$HOME/Library/Caches/$BUNDLE" \
@@ -296,6 +306,9 @@ fi
 # El servicio de fondo de WhatsApp, antes de mover su estado.
 if [ "$HAS_SERVICE" -eq 1 ]; then
   launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1
+  for f in ${EXTRA_PLISTS[@]+"${EXTRA_PLISTS[@]}"}; do
+    launchctl bootout "gui/$(id -u)/$(basename "$f" .plist)" >/dev/null 2>&1
+  done
   pkill -f "Application Support/Galeno/bin/galeno-whatsapp" >/dev/null 2>&1
   step "Servicio de WhatsApp detenido"
 fi

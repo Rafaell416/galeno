@@ -48,6 +48,11 @@ SUPPORT="$HOME/Library/Application Support/Galeno"
 AGENTS_DIR="$HOME/Galeno"
 PLIST="$HOME/Library/LaunchAgents/com.galeno.whatsapp-bridge.plist"
 LABEL="com.galeno.whatsapp-bridge"
+# Los otros números de WhatsApp (bridge ≥ 0.5.0, `--account`): un servicio por número, con el mismo nombre y un sufijo.
+EXTRA_PLISTS=()
+for f in "$HOME"/Library/LaunchAgents/com.galeno.whatsapp-bridge.*.plist; do
+  [ -e "$f" ] && EXTRA_PLISTS+=("$f")
+done
 BUNDLE="com.galeno.Galeno"
 APP="$APPS/Galeno.app"
 STAMP="$(date +%Y-%m-%d-%H%M)"
@@ -135,7 +140,13 @@ if [ -e "$SUPPORT" ]; then say "    incluye la sesión de WhatsApp y su historia
 SERVICE=0
 if [ -e "$PLIST" ]; then SERVICE=1; fi
 if [ "$TEST" != 1 ] && launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then SERVICE=1; fi
-if [ "$SERVICE" = 1 ]; then say "· El servicio de fondo de WhatsApp: se detiene y se quita"; else say "· El servicio de fondo de WhatsApp: (no instalado)"; fi
+if [ ${#EXTRA_PLISTS[@]} -gt 0 ]; then SERVICE=1; fi
+if [ "$SERVICE" = 1 ]; then
+  say "· El servicio de fondo de WhatsApp: se detiene y se quita"
+  for f in ${EXTRA_PLISTS[@]+"${EXTRA_PLISTS[@]}"}; do say "    (y el de otro número: $(basename "$f" .plist))"; done
+else
+  say "· El servicio de fondo de WhatsApp: (no instalado)"
+fi
 
 say ""
 say "== Lo que se queda =="
@@ -169,6 +180,9 @@ if [ "$TEST" != 1 ]; then
   for _ in 1 2 3 4 5 6; do pgrep -x Galeno >/dev/null 2>&1 || break; sleep 1; done
   pgrep -x Galeno >/dev/null 2>&1 && pkill -x Galeno 2>/dev/null
   [ "$SERVICE" = 1 ] && launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && say "- servicio de WhatsApp detenido"
+  for f in ${EXTRA_PLISTS[@]+"${EXTRA_PLISTS[@]}"}; do
+    launchctl bootout "gui/$(id -u)/$(basename "$f" .plist)" >/dev/null 2>&1 && say "- servicio de otro número detenido"
+  done
 fi
 
 # --- 5. A la Papelera ------------------------------------------------------------------------------------------------
@@ -189,6 +203,7 @@ to_trash "$APP" || FAILED=1
 for a in ${AGENTS[@]+"${AGENTS[@]}"}; do to_trash "$a" || FAILED=1; done
 for item in ${CLAUDE_ITEMS[@]+"${CLAUDE_ITEMS[@]}"}; do to_trash "$item" || FAILED=1; done
 to_trash "$PLIST" || FAILED=1
+for f in ${EXTRA_PLISTS[@]+"${EXTRA_PLISTS[@]}"}; do to_trash "$f" || FAILED=1; done
 to_trash "$SUPPORT" || FAILED=1
 if [ "$TEST" != 1 ]; then
   defaults delete "$BUNDLE" >/dev/null 2>&1 && say "- preferencias de la app quitadas"

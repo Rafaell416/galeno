@@ -78,10 +78,31 @@ final class AgentDetailTests: XCTestCase {
             sleep: { _ in }, playSound: { _ in })
     }
 
+    /// El asistente que hospeda la conexión de otro número de WhatsApp, con su puente falso. `nil` sin puente.
+    private func accountPicker(_ fake: FakeWhatsApp?, mcp: FakeMCP, slack: FakeSlackSetup)
+        -> (@MainActor (GalenoInstallation, UUID, String) -> WizardState)?
+    {
+        guard let fake else { return nil }
+        return { installation, id, _ in
+            let services = ConnectServices(
+                makeMCP: { _ in mcp }, whatsapp: fake, slack: slack,
+                installer: .sandboxed(skills: SkillsLocation.bundled()), fetchRealData: false, sleep: SleepLog().sleeper)
+            return WizardState(
+                preferredLanguages: ["es-CO"],
+                claudeStatus: .found(version: "2.1.277", path: "/ruta/claude", loggedIn: true),
+                connectServices: services, startingFrom: installation, editing: id)
+        }
+    }
+
+    private func numberBridge(_ fake: FakeWhatsApp?) -> (@MainActor (String) -> any WhatsAppLinking)? {
+        guard let fake else { return nil }
+        return { _ in fake }
+    }
+
     private func makeDetail(
         _ record: AgentRecord? = nil, section: AgentDetailModel.Section = .general, mcp: FakeMCP = FakeMCP(),
         home: HomeModel? = nil, imported: [String: ContextFile] = [:], pickerMCP: FakeMCP = FakeMCP(),
-        slack: FakeSlackSetup = FakeSlackSetup()
+        slack: FakeSlackSetup = FakeSlackSetup(), numbers: FakeWhatsApp? = nil
     ) -> AgentDetailModel {
         let record = record ?? hera!
         return AgentDetailModel(
@@ -98,6 +119,8 @@ final class AgentDetailTests: XCTestCase {
                     startingFrom: installation, editing: id)
             },
             disconnector: disconnector, makeMCP: { _ in mcp }, locateClaude: { "/ruta/claude" },
+            makeAccountPicker: accountPicker(numbers, mcp: pickerMCP, slack: slack),
+            numberBridge: numberBridge(numbers),
             trashContext: { [trash] in try trash!.send($0) },
             importContext: { url in
                 if let file = imported[url.lastPathComponent] { return file }
@@ -794,5 +817,110 @@ final class AgentDetailTests: XCTestCase {
         XCTAssertNil(detail.connecting)
         XCTAssertNil(detail.connectingAccount)
         XCTAssertEqual(try storedConfig(eco).connections(for: .slack).count, 1)
+    }
+
+    // MARK: Otro número de WhatsApp
+
+    private func agentWithWhatsApp(numbers: [(account: String?, name: String?)] = [(nil, nil)]) throws -> AgentRecord {
+        try installer.install(
+            AgentConfig(
+                agentName: "Eco", language: .spanish,
+                connections: numbers.map { number in
+                    ToolConnection(
+                        tool: .whatsapp, status: .connected, sources: .everything, sendingAccepted: true,
+                        accountID: number.account, accountName: number.name)
+                })
+        ).record
+    }
+
+    func testASecondNumberIsOfferedUntilTheCap() throws {
+        let one = makeDetail(try agentWithWhatsApp())
+        XCTAssertTrue(one.canAddAccount(.whatsapp))
+        let two = makeDetail(try agentWithWhatsApp(numbers: [(nil, nil), ("trabajo", "Trabajo")]))
+        XCTAssertFalse(two.canAddAccount(.whatsapp), "dos números es el máximo")
+    }
+
+    func testAThirdNumberIsRefusedAndNothingIsLinked() async throws {
+        let eco = try agentWithWhatsApp(numbers: [(nil, nil), ("trabajo", "Trabajo")])
+        let fake = FakeWhatsApp()
+        let detail = makeDetail(eco, numbers: fake)
+        detail.askAddAccount(.whatsapp)
+        XCTAssertNil(detail.sheet, "ni se abre la hoja")
+        // Aunque se llegara a `addAccount`, el tope también está en `prepare`.
+        let refused = AccountConnector.prepare(
+            tool: .whatsapp, name: "Otro",
+            existing: [ConnectionID(tool: .whatsapp), ConnectionID(tool: .whatsapp, account: "trabajo")])
+        XCTAssertEqual(refused.failureValue, .limitReached)
+        XCTAssertTrue(fake.calls.isEmpty)
+    }
+
+    func testLinkingASecondNumberAddsItWithItsOwnServerAndRules() async throws {
+        let eco = try agentWithWhatsApp()
+        let fake = FakeWhatsApp(state: .notLinked, pairEvents: [.qr(Data([0x89])), .succeeded])
+        let detail = makeDetail(eco, numbers: fake)
+
+        detail.askAddAccount(.whatsapp)
+        detail.accountDraft = "Trabajo"
+        detail.addAccount()
+        for _ in 0..<400 where detail.connecting?.connectFlow == nil { try? await Task.sleep(for: .milliseconds(5)) }
+        let flow = try XCTUnwrap(detail.connecting?.connectFlow)
+        XCTAssertEqual(detail.connectingAccount, ConnectionID(tool: .whatsapp, account: "trabajo"))
+
+        flow.connect()  // lo que hace el botón «Continuar» tras la advertencia
+        for _ in 0..<800 where detail.connecting != nil { try? await Task.sleep(for: .milliseconds(5)) }
+
+        XCTAssertNil(detail.connecting)
+        XCTAssertTrue(fake.calls.contains("pair"))
+        XCTAssertTrue(fake.calls.contains("installLaunchd"), "su servicio de fondo")
+
+        let stored = try storedConfig(eco)
+        let number = try XCTUnwrap(stored.connection(for: ConnectionID(tool: .whatsapp, account: "trabajo")))
+        XCTAssertEqual(number.sendingAccepted, true, "aceptó la advertencia al vincular")
+        XCTAssertNil(number.serverNamePrefix)
+
+        let mcpJSON = try file(".mcp.json", in: eco)
+        XCTAssertTrue(mcpJSON.contains("\"whatsapp-trabajo\""))
+        XCTAssertTrue(mcpJSON.contains("--account"))
+        let settings = try file(".claude/settings.json", in: eco)
+        XCTAssertTrue(settings.contains("mcp__whatsapp-trabajo__send_message"), "pregunta antes de enviar")
+        XCTAssertTrue(settings.contains("mcp__whatsapp__send_message"), "y el de siempre sigue igual")
+    }
+
+    func testDisconnectingANumberClosesItsSessionAndServiceButNotTheOtherOne() async throws {
+        let eco = try agentWithWhatsApp(numbers: [(nil, nil), ("trabajo", "Trabajo")])
+        let fake = FakeWhatsApp()
+        let detail = makeDetail(eco, numbers: fake)
+        let id = ConnectionID(tool: .whatsapp, account: "trabajo")
+
+        let done = await detail.disconnectNumber(id)
+
+        XCTAssertTrue(done)
+        XCTAssertEqual(fake.calls.filter { $0 == "unlink" || $0 == "uninstallService" }, ["unlink", "uninstallService"])
+        let installation = try XCTUnwrap(try installer.store.load())
+        XCTAssertNil(installation.connection(for: id))
+        XCTAssertNotNil(installation.connection(for: ConnectionID(tool: .whatsapp)), "el de siempre sigue")
+        XCTAssertFalse(try file(".mcp.json", in: eco).contains("whatsapp-trabajo"))
+        XCTAssertTrue(try file(".mcp.json", in: eco).contains("\"whatsapp\""))
+    }
+
+    func testRelinkingANumberClosesItsSessionAndStartsTheLinkAgain() async throws {
+        let eco = try agentWithWhatsApp(numbers: [(nil, nil), ("trabajo", "Trabajo")])
+        let fake = FakeWhatsApp()
+        let detail = makeDetail(eco, numbers: fake)
+
+        detail.relinkNumber(ConnectionID(tool: .whatsapp, account: "trabajo"))
+        for _ in 0..<400 where detail.connecting == nil { try? await Task.sleep(for: .milliseconds(5)) }
+
+        XCTAssertNotNil(detail.connecting)
+        XCTAssertTrue(fake.calls.contains("unlink"))
+        XCTAssertEqual(detail.connectingAccount, ConnectionID(tool: .whatsapp, account: "trabajo"))
+        detail.cancelConnecting()
+    }
+}
+
+private extension Result {
+    var failureValue: Failure? {
+        if case .failure(let failure) = self { return failure }
+        return nil
     }
 }

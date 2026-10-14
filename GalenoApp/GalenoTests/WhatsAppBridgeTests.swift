@@ -393,6 +393,80 @@ final class WhatsAppBridgeTests: XCTestCase {
         XCTAssertTrue(WhatsAppBridge.refreshesAtLaunch(environment: ["HOME": "/Users/alguien"]))
     }
 
+    // MARK: - Un segundo número (`--account`)
+
+    private func numberBridge(_ account: String?, runner: FakeRunner) -> WhatsAppBridge {
+        WhatsAppBridge(
+            installer: BridgeInstaller(source: nil, destination: URL(fileURLWithPath: "/stable/galeno-whatsapp")),
+            runner: runner, stateDirectory: BridgeLocation.stateDirectory(account: account), account: account)
+    }
+
+    func testANumberAsksTheBridgeAboutItsOwnAccount() async {
+        let uid = getuid()
+        let runner = FakeRunner([
+            "/stable/galeno-whatsapp status --json --account trabajo": ok(
+                #"{"linked":true,"number":"57","linked_at":1760000000,"version":"0.5.0"}"#),
+            "/bin/launchctl print gui/\(uid)/com.galeno.whatsapp-bridge.trabajo": ok("\tstate = running\n"),
+        ])
+        let bridge = numberBridge("trabajo", runner: runner)
+
+        let status = await bridge.status()
+        let sync = await bridge.syncState()
+
+        XCTAssertEqual(status?.number, "57")
+        XCTAssertEqual(sync, .running, "su servicio es el suyo, no el del número de siempre")
+        XCTAssertEqual(bridge.serviceLabel, "com.galeno.whatsapp-bridge.trabajo")
+    }
+
+    func testTheNumberOfAlwaysKeepsItsCommandsAndItsLabel() async {
+        let runner = FakeRunner([
+            "/stable/galeno-whatsapp status --json": ok(#"{"linked":true,"number":"57","version":"0.5.0"}"#)
+        ])
+        let bridge = numberBridge(nil, runner: runner)
+        let status = await bridge.status()
+        XCTAssertEqual(status?.number, "57")
+        XCTAssertEqual(bridge.serviceLabel, "com.galeno.whatsapp-bridge")
+        XCTAssertFalse(runner.calls.contains { $0.contains("--account") })
+    }
+
+    func testEachNumberHasItsOwnStateDirectory() {
+        let always = BridgeLocation.stateDirectory(account: nil)
+        let work = BridgeLocation.stateDirectory(account: "trabajo")
+        XCTAssertEqual(always, BridgeLocation.stateDirectory)
+        XCTAssertEqual(work.path, always.path + "/cuentas/trabajo")
+    }
+
+    func testRefreshRestartsTheServiceOfEveryNumberThatWasLoaded() async throws {
+        let sandbox = try Sandbox()
+        try await sandbox.install(version: "0.4.0")
+        let launchd = FakeRunner([
+            Sandbox.launchctlPrint: ok("\tstate = running\n"),
+            Sandbox.launchctlPrint + ".trabajo": ok("\tstate = running\n"),
+        ])
+        let bridge = sandbox.makeBridgeToRefresh(packaged: try sandbox.makeLoggingBridge(version: "0.5.0"), launchd: launchd)
+
+        let outcome = await bridge.refreshAfterAppUpdate(extraAccounts: ["trabajo"])
+
+        XCTAssertEqual(outcome, .updated(sync: .restarted))
+        XCTAssertEqual(
+            sandbox.loggedCalls.filter { $0.hasSuffix(":install-launchd") }.count, 2, "uno por cada número cargado")
+    }
+
+    func testRefreshLeavesAloneTheNumbersThatWereNotLoaded() async throws {
+        let sandbox = try Sandbox()
+        try await sandbox.install(version: "0.4.0")
+        let launchd = FakeRunner([
+            Sandbox.launchctlPrint: ok("\tstate = running\n"),
+            Sandbox.launchctlPrint + ".trabajo": CommandResult(status: 113, output: "Could not find service"),
+        ])
+        let bridge = sandbox.makeBridgeToRefresh(packaged: try sandbox.makeLoggingBridge(version: "0.5.0"), launchd: launchd)
+
+        let outcome = await bridge.refreshAfterAppUpdate(extraAccounts: ["trabajo"])
+
+        XCTAssertEqual(outcome, .updated(sync: .restarted))
+        XCTAssertEqual(sandbox.loggedCalls.filter { $0.hasSuffix(":install-launchd") }.count, 1, "solo el que estaba cargado")
+    }
+
     // MARK: - Ayudas
 
     private func eventually(timeout: TimeInterval = 5, _ condition: () -> Bool) async -> Bool {
