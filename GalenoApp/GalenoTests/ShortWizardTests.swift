@@ -67,7 +67,7 @@ final class ShortWizardTests: XCTestCase {
 
     func testThereIsNoWelcomeNorDetectionAndNothingToConnectSkipsThatStep() {
         let state = makeShort(connected: [.whatsapp])
-        XCTAssertEqual(state.stepOrder, [.role, .agent, .context, .tools, .skills, .rules, .review, .generating, .done])
+        XCTAssertEqual(state.stepOrder, [.role, .agent, .tools, .skills, .rules, .review, .generating, .done])
         XCTAssertEqual(state.stepCount, 6, "rol, nombre, herramientas, skills, reglas y creación")
         XCTAssertEqual(state.stepNumber, 1)
         XCTAssertTrue(state.isFirstStep)
@@ -86,8 +86,6 @@ final class ShortWizardTests: XCTestCase {
         state.next()
         state.agentName = "Aurora"
         state.next()
-        XCTAssertEqual(state.step, .context)
-        state.next()
         XCTAssertEqual(state.step, .tools)
         state.next()
         XCTAssertEqual(state.step, .skills, "no hay nada que conectar")
@@ -101,11 +99,10 @@ final class ShortWizardTests: XCTestCase {
         state.toggle(.notion)
         XCTAssertEqual(state.toConnect, [.notion])
         XCTAssertTrue(state.hasToConnect)
-        XCTAssertEqual(state.stepOrder, [.role, .agent, .context, .tools, .connect, .skills, .rules, .review, .generating, .done])
+        XCTAssertEqual(state.stepOrder, [.role, .agent, .tools, .connect, .skills, .rules, .review, .generating, .done])
 
         state.next()
         state.agentName = "Aurora"
-        state.next()  // contexto
         state.next()  // herramientas
         state.next()
         XCTAssertEqual(state.step, .connect)
@@ -117,14 +114,13 @@ final class ShortWizardTests: XCTestCase {
         state.toggle(.notion)
         state.next()
         state.agentName = "Aurora"
-        state.next()  // contexto
         state.next()  // herramientas
         state.next()
         XCTAssertEqual(state.step, .connect)
 
         state.setConnectionStatus(.notion, .connected)
         XCTAssertFalse(state.hasToConnect)
-        XCTAssertEqual(state.stepOrder, [.role, .agent, .context, .tools, .connect, .skills, .rules, .review, .generating, .done])
+        XCTAssertEqual(state.stepOrder, [.role, .agent, .tools, .connect, .skills, .rules, .review, .generating, .done])
         XCTAssertEqual(state.stepNumber, 3, "conectar sigue siendo el paso de las herramientas")
     }
 

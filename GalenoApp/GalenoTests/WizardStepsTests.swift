@@ -156,33 +156,25 @@ final class WizardStepsTests: XCTestCase {
         XCTAssertFalse(state.visibleSkillGroups(in: catalog).contains { $0.id == "documents" })
     }
 
-    // MARK: - Darle contexto
+    // MARK: - El contexto ya no es un paso (GAL-9)
 
-    /// Es opcional: se pasa de largo sin tocar nada, y lo que se escriba llega al agente.
-    func testTheContextStepComesAfterTheNameAndCanBeSkipped() {
+    /// Se le da al agente **después de crearlo**, desde «Listo» o su detalle: el nombre va directo a las herramientas.
+    func testThereIsNoContextStepTheNameGoesStraightToTheTools() {
         let state = readyState()
         advance(state, to: .agent)
         state.agentName = "Aurora"
         state.next()
-        XCTAssertEqual(state.step, .context)
-        XCTAssertEqual(state.stepNumber, 3, "es la segunda mitad de «Tu agente»: no suma un paso")
-        XCTAssertFalse(state.hasContext)
-        XCTAssertTrue(state.canGoForward)
-
-        state.projectDescription = "  App de citas  "
-        XCTAssertTrue(state.hasContext)
-        state.next()
         XCTAssertEqual(state.step, .tools)
-        XCTAssertEqual(state.makeConfig().projectDescription, "App de citas")
+        XCTAssertFalse(state.stepOrder.contains { "\($0)" == "context" })
+        XCTAssertEqual(state.makeConfig().projectDescription, "", "la línea del proyecto se escribe en el detalle")
     }
 
-    func testAFileCountsAsContextAndNeverReachesTheDraft() throws {
+    func testTheDraftNeverCarriesContextFiles() throws {
         let state = readyState()
-        XCTAssertNil(state.addContext(ContextFile(title: "Brief", text: "contenido del usuario")))
-        XCTAssertTrue(state.hasContext)
+        state.agentName = "Aurora"
         if let draft = state.makeDraft() {
             let json = try XCTUnwrap(String(data: JSONEncoder().encode(draft), encoding: .utf8))
-            XCTAssertFalse(json.contains("contenido del usuario"))
+            XCTAssertFalse(json.contains("contexto"))
         }
     }
 

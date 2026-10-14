@@ -90,7 +90,6 @@ struct WizardView: View {
         case .role: RoleStepView()
         case .detection: DetectionStepView()
         case .agent: AgentStepView()
-        case .context: ContextStepView()
         case .tools: ToolsStepView()
         case .connect: ConnectStepView()
         case .skills: SkillsStepView()
@@ -171,7 +170,6 @@ private struct NavigationBar: View {
         // «Conectar 5 herramientas»: solo las que faltan por conectar. Si ya están todas, «Siguiente».
         case .tools where wizard.hasToConnect: Text("tools.primary \(wizard.toConnect.count)")
         // Es opcional: sin nada escrito ni añadido, el botón dice lo que hace.
-        case .context where !wizard.hasContext: Text("context.skip")
         case .review: wizard.mode == .edit ? Text("review.primary.edit") : Text("review.primary \(agentName)")
         case .done: Text("wizard.finish")
         default: Text("wizard.next")

@@ -52,6 +52,8 @@ struct DoneStepView: View {
 /// abre el agente con ella ya escrita.
 struct DoneContent: View {
     @EnvironmentObject private var wizard: WizardState
+    @Environment(\.galenoGiveContext) private var giveContext
+    @Environment(\.locale) private var locale
     let agent: AgentRecord
     /// Volver al home: el asistente se cierra.
     let finish: () -> Void
@@ -85,6 +87,21 @@ struct DoneContent: View {
                 .staggered(0, base: 0.3)
 
             pact
+
+            // El contexto ya no es un paso del asistente (GAL-9): se le da al agente ya creado, en su detalle.
+            if let giveContext {
+                Button { giveContext(agent.id) } label: {
+                    Text(verbatim: Localized.string("done.context %@", name, locale: locale))
+                }
+                .buttonStyle(InkLinkStyle(size: 15))
+                .staggered(1, base: 0.3)
+                Text("done.context.hint")
+                    .font(Typo.text(13))
+                    .foregroundStyle(Color.ink500)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .staggered(1, base: 0.3)
+            }
 
             // Con Claude Design conectado, se dice cómo usarlo: pasarle el enlace de un diseño.
             if wizard.connectedTools.contains(.claudeDesign) {

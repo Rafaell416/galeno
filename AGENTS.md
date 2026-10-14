@@ -448,8 +448,11 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   textos, no en estilo**, que sigue siendo el de B1 (decisión de Rafa, 5 oct 2026). Siete pasos a la vista (`WizardStep.phase`); antes, tres
   pantallas que se ven una sola vez (`OnboardingView`, `Prefs.onboardingSeen`). El **rol** (`AgentRole`: producto, marketing, comercial) fija las
   skills que vienen marcadas (`SkillCatalog.defaultSelection(for:)`) y el orden de las herramientas (`AgentRole.toolOrder`); el paso
-  «Skills» sigue al crear un agente (el boceto lo quitaba; Rafa lo pidió de vuelta). La preselección de herramientas del rol nunca pisa lo que el usuario marcó. «Darle contexto» va
-  después del nombre y antes de las herramientas, y es opcional. Una espera larga usa `WaitingTicker`, no una rueda sola: sus frases
+  «Skills» sigue al crear un agente (el boceto lo quitaba; Rafa lo pidió de vuelta). La preselección de herramientas del rol nunca pisa lo que el usuario marcó. «Darle contexto» **ya no es un paso
+  del asistente** (GAL-9, 13 oct 2026; antes iba entre el nombre y las herramientas por decisión del 5 oct): se le da al agente
+  **después de crearlo**, desde «Listo» («Darle contexto a …», que abre la sección «Contexto» de su detalle) o desde ese
+  detalle, donde ya existe su carpeta y se escribe en `memoria/contexto/` sin pisar nada. Quien crea un agente empieza
+  sin la línea del proyecto (se escribe en la sección «General»), y el borrador anterior se ignora (`WizardDraft` v4). Una espera larga usa `WaitingTicker`, no una rueda sola: sus frases
   dicen cosas ciertas pase lo que pase y **nunca fingen un avance que Galeno no conoce**. El agente se «crea», no se «escribe». Una pantalla nueva no promete lo
   que la app todavía no hace (p. ej. «se cambia después» para el rol).
 - Cuatro sonidos en toda la app (`Sounds`): una conexión lograda, algo que falló, el sello al llegar a «Listo» y, desde el 6 oct 2026 (petición de Rafa), un toque suave al pulsar «Siguiente» desde el onboarding y en el asistente (`paso.wav`). Breves, a volumen bajo, **encendidos de fábrica** y con un solo interruptor en Ajustes. No se añaden otros: nada suena en casillas, «Atrás» ni copiar. Suenan igual al conectar en el asistente, al «Reconectar»
