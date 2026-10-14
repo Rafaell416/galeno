@@ -19,6 +19,10 @@ enum Prefs {
     static let sendingOfferDismissed = "GalenoSendingOfferDismissed"
     /// Cómo se ve el home: la mesa con los personajes o las tarjetas (`HomeLayout`).
     static let homeLayout = "GalenoHomeLayout"
+    /// Experimental (GAL-14): al lanzar la app de Claude, Galeno se queda al frente mientras ella carga, en vez de dejar
+    /// que el usuario mire su pantalla de carga. Apagada de fábrica hasta medir que no la hace más lenta (Electron puede
+    /// frenar una ventana que queda detrás). `defaults write com.galeno.Galeno GalenoClaudeLaunchInBackground -bool YES`.
+    static let claudeLaunchInBackground = "GalenoClaudeLaunchInBackground"
 }
 
 /// Cómo se ve la app: la del sistema, siempre clara o siempre oscura.

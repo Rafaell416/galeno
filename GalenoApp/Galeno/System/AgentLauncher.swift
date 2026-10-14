@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import GalenoCore
+import OSLog
 
 // MARK: - Los enlaces
 
@@ -278,16 +279,26 @@ struct SystemAgentOpener: AgentOpening {
     /// arranque limpio del 5 oct 2026, cuando la espera era de 3 s fijos).
     static func launchClaudeAppAndWait() async {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: claudeBundleID) else { return }
+        // Experimental (GAL-14): sin pasarle el foco, Galeno se queda delante mientras carga (`Prefs.claudeLaunchInBackground`).
+        let inBackground = UserDefaults.standard.bool(forKey: Prefs.claudeLaunchInBackground)
         let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true
+        configuration.activates = !inBackground
         let launchedAt = Date()
         _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
         for _ in 0..<60 {
             if claudeHasWindow() { break }
             try? await Task.sleep(for: .milliseconds(250))
         }
-        await waitUntilClaudeSettles(since: launchedAt)
+        let windowAfter = Date().timeIntervalSince(launchedAt)
+        await waitUntilClaudeSettles(since: launchedAt, keepGalenoInFront: inBackground)
+        // Para medir (GAL-14): cuánto tardó cada fase. `log show --predicate 'category == "claude-launch"'`.
+        let settledAfter = Date().timeIntervalSince(launchedAt)
+        launchLog.info(
+            "arranque de Claude · segundo plano \(inBackground, privacy: .public) · ventana \(windowAfter, format: .fixed(precision: 1), privacy: .public) s · lista \(settledAfter, format: .fixed(precision: 1), privacy: .public) s"
+        )
     }
+
+    private static let launchLog = Logger(subsystem: "com.galeno.Galeno", category: "claude-launch")
 
     /// Con la ventana ya a la vista, la app todavía carga su interfaz y sus conversaciones. Se da por cargada
     /// cuando sus procesos llevan dos segundos seguidos casi sin usar el procesador, **y** han pasado al menos
@@ -296,10 +307,18 @@ struct SystemAgentOpener: AgentOpening {
     /// procesador se quedó quieto esperando a la red antes de que la app terminara de arrancar (~18 s), y el enlace
     /// que llegó entonces lo rechazó la app («navigateTo loadURL rejected»): la conversación se abrió sin la primera
     /// pregunta. Solo se mira cuánto procesador usan sus procesos: nada de su contenido.
-    static func waitUntilClaudeSettles(since: Date = Date(), minimum: Double = 20, maximum: Double = 35) async {
+    static func waitUntilClaudeSettles(
+        since: Date = Date(), minimum: Double = 20, maximum: Double = 35, keepGalenoInFront: Bool = false
+    ) async {
         var quiet = 0
         while Date().timeIntervalSince(since) < maximum {
             try? await Task.sleep(for: .seconds(1))
+            // Si Claude se pone delante por su cuenta mientras carga, Galeno vuelve (solo con el modo experimental).
+            if keepGalenoInFront,
+                NSWorkspace.shared.frontmostApplication?.bundleIdentifier == claudeBundleID
+            {
+                AppFocus.bringToFront()
+            }
             let load = await claudeProcessorLoad()
             quiet = ClaudeAppLoad.isQuiet(load) ? quiet + 1 : 0
             if quiet >= 2, Date().timeIntervalSince(since) >= minimum { return }
@@ -355,12 +374,14 @@ struct SystemAgentOpener: AgentOpening {
     /// le pide al usuario que la cierre.
     func restartClaudeAppAndOpen(folder: URL, prompt: String?, resume: Bool) async -> AgentOpenOutcome {
         let apps = runningClaudeApps
+        let quitStarted = Date()
         for app in apps { app.terminate() }
         for _ in 0..<150 {
             if apps.allSatisfy(\.isTerminated) { break }
             try? await Task.sleep(for: .milliseconds(100))
         }
         guard apps.allSatisfy(\.isTerminated) else { return .claudeDidNotQuit }
+        Self.launchLog.info("Claude cerró en \(Date().timeIntervalSince(quitStarted), format: .fixed(precision: 1), privacy: .public) s")
         // Un respiro para que el sistema dé por cerrada la app antes de volver a lanzarla; se abre sola y se
         // espera a que cargue **antes** de mandarle el enlace (si no, el enlace puede perder su carpeta).
         try? await Task.sleep(for: .milliseconds(600))

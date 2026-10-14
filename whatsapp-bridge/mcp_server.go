@@ -18,7 +18,12 @@ import (
 // Valores por defecto de Python que Go no tiene (ver nota en el plan): se
 // aplican cuando el campo llega en su valor cero.
 const (
-	defaultLimit         = 20
+	defaultLimit = 20
+	// Topes de lo que el agente puede pedir de una vez. Cada mensaje que lee son tokens del plan del usuario: sin
+	// tope, un `limit: 5000` metía miles de mensajes en una sola conversación (GAL-15, consumo de tokens). Lo que
+	// pasa de aquí se recorta en silencio y el agente pide la página siguiente (`page`) si necesita más.
+	maxLimit             = 100
+	maxContext           = 5
 	defaultContextBefore = 1
 	defaultContextAfter  = 1
 	defaultMessageBefore = 5
@@ -131,7 +136,7 @@ type ListMessagesInput struct {
 	SenderPhoneNumber string `json:"sender_phone_number,omitempty"`
 	ChatJID           string `json:"chat_jid,omitempty"`
 	Query             string `json:"query,omitempty"`
-	Limit             int    `json:"limit,omitempty" jsonschema:"default 20"`
+	Limit             int    `json:"limit,omitempty" jsonschema:"default 20, max 100"`
 	Page              int    `json:"page,omitempty"`
 	IncludeContext    *bool  `json:"include_context,omitempty" jsonschema:"default true"`
 	ContextBefore     int    `json:"context_before,omitempty" jsonschema:"default 1"`
@@ -148,11 +153,11 @@ func handleListMessages(store *MessageStore) func(context.Context, *mcp.CallTool
 			SenderPhoneNumber: in.SenderPhoneNumber,
 			ChatJID:           in.ChatJID,
 			Query:             in.Query,
-			Limit:             orDefault(in.Limit, defaultLimit),
+			Limit:             clampReadLimit(in.Limit),
 			Page:              in.Page,
 			IncludeContext:    in.IncludeContext == nil || *in.IncludeContext,
-			ContextBefore:     orDefault(in.ContextBefore, defaultContextBefore),
-			ContextAfter:      orDefault(in.ContextAfter, defaultContextAfter),
+			ContextBefore:     clampContext(orDefault(in.ContextBefore, defaultContextBefore)),
+			ContextAfter:      clampContext(orDefault(in.ContextAfter, defaultContextAfter)),
 		}
 		if in.After != "" {
 			t, err := time.Parse(time.RFC3339, in.After)
@@ -181,7 +186,7 @@ func handleListMessages(store *MessageStore) func(context.Context, *mcp.CallTool
 
 type ListChatsInput struct {
 	Query              string `json:"query,omitempty"`
-	Limit              int    `json:"limit,omitempty" jsonschema:"default 20"`
+	Limit              int    `json:"limit,omitempty" jsonschema:"default 20, max 100"`
 	Page               int    `json:"page,omitempty"`
 	IncludeLastMessage *bool  `json:"include_last_message,omitempty" jsonschema:"default true"`
 	SortBy             string `json:"sort_by,omitempty" jsonschema:"'last_active' or 'name', default last_active"`
@@ -195,7 +200,7 @@ func handleListChats(store *MessageStore) func(context.Context, *mcp.CallToolReq
 	return func(ctx context.Context, req *mcp.CallToolRequest, in ListChatsInput) (*mcp.CallToolResult, ListChatsOutput, error) {
 		chats, err := store.ListChats(ListChatsOptions{
 			Query:              in.Query,
-			Limit:              orDefault(in.Limit, defaultLimit),
+			Limit:              clampReadLimit(in.Limit),
 			Page:               in.Page,
 			IncludeLastMessage: in.IncludeLastMessage == nil || *in.IncludeLastMessage,
 			SortBy:             orDefaultString(in.SortBy, defaultSortBy),
@@ -253,7 +258,7 @@ func handleGetDirectChatByContact(store *MessageStore) func(context.Context, *mc
 
 type GetContactChatsInput struct {
 	JID   string `json:"jid"`
-	Limit int    `json:"limit,omitempty" jsonschema:"default 20"`
+	Limit int    `json:"limit,omitempty" jsonschema:"default 20, max 100"`
 	Page  int    `json:"page,omitempty"`
 }
 
@@ -263,7 +268,7 @@ type GetContactChatsOutput struct {
 
 func handleGetContactChats(store *MessageStore) func(context.Context, *mcp.CallToolRequest, GetContactChatsInput) (*mcp.CallToolResult, GetContactChatsOutput, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in GetContactChatsInput) (*mcp.CallToolResult, GetContactChatsOutput, error) {
-		chats, err := store.GetContactChats(in.JID, orDefault(in.Limit, defaultLimit), in.Page)
+		chats, err := store.GetContactChats(in.JID, clampReadLimit(in.Limit), in.Page)
 		if err != nil {
 			return nil, GetContactChatsOutput{}, err
 		}
@@ -428,6 +433,28 @@ func handleSendMessage(outbox outboxEnv) func(context.Context, *mcp.CallToolRequ
 }
 
 // MARK: - ayudas compartidas
+
+// clampReadLimit: el límite que pidió el agente, con su valor por defecto y su tope.
+func clampReadLimit(value int) int {
+	if value <= 0 {
+		return defaultLimit
+	}
+	if value > maxLimit {
+		return maxLimit
+	}
+	return value
+}
+
+// clampContext: cuántos mensajes de contexto, nunca más de maxContext ni menos de cero.
+func clampContext(value int) int {
+	if value < 0 {
+		return 0
+	}
+	if value > maxContext {
+		return maxContext
+	}
+	return value
+}
 
 func orDefault(value, fallback int) int {
 	if value == 0 {
