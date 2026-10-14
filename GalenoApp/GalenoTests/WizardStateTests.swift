@@ -50,12 +50,12 @@ final class WizardStateTests: XCTestCase {
         XCTAssertEqual(
             WizardStep.allCases,
             [
-                .role, .detection, .agent, .context, .tools, .connect,
+                .role, .detection, .agent, .tools, .connect,
                 .skills, .rules, .review, .generating, .done,
             ])
-        // El usuario ve seis: «Contexto» es parte de «Tu agente», «Conectar» de las herramientas, y «Revisión»,
+        // El usuario ve seis: «Conectar» es parte de las herramientas, y «Revisión»,
         // «Creando» y «Listo» son el último.
-        XCTAssertEqual(WizardStep.allCases.map(\.phase), [0, 1, 2, 2, 3, 3, 4, 5, 6, 6, 6])
+        XCTAssertEqual(WizardStep.allCases.map(\.phase), [0, 1, 2, 3, 3, 4, 5, 6, 6, 6])
     }
 
     /// Cada título y cada línea de resumen existen en español y en inglés: una
@@ -259,7 +259,7 @@ final class WizardStateTests: XCTestCase {
             previous = state.progress
             numbers.append(state.stepNumber)
         }
-        XCTAssertEqual(numbers, [1, 2, 3, 3, 4, 4, 5, 6, 7, 7, 7])
+        XCTAssertEqual(numbers, [1, 2, 3, 4, 4, 5, 6, 7, 7, 7])
         XCTAssertEqual(state.progress, 1.0, accuracy: 0.0001)
     }
 

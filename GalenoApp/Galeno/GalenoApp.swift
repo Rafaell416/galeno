@@ -65,6 +65,7 @@ private struct RootView: View {
                     .id(ObjectIdentifier(app.wizard))
                     .environmentObject(app.wizard)
                     .environment(\.galenoFinishWizard, app.finishWizard)
+                    .environment(\.galenoGiveContext, app.finishWizardAndGiveContext)
                     .environment(\.galenoCancelWizard, app.cancelWizard)
                     .transition(reduceMotion ? .opacity : .pageTurn)
             }
@@ -133,7 +134,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    /// Al cerrar la última ventana la app termina. **Bajo las pruebas no**: la app es solo la anfitriona, y una prueba que abre
+    /// y cierra una ventana (las de Slack) dejaba el proceso sin ventanas y lo terminaba a media corrida, con la
+    /// suite a medias («The test runner exited with code 0 before finishing running tests»).
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+    }
 
     /// Un `pair` huérfano seguiría escuchando por su cuenta; un `claude mcp login`, esperando.
     func applicationWillTerminate(_ notification: Notification) {

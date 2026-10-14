@@ -114,7 +114,7 @@ final class WizardDraftTests: XCTestCase {
     func testGoToOnlyReachesVisitedSteps() {
         let state = makeState(MemoryDraftStore())
         state.toggle(.notion)
-        for _ in 0..<4 { state.next() }  // herramientas
+        for _ in 0..<3 { state.next() }  // herramientas
         XCTAssertEqual(state.step, .tools)
 
         state.goTo(.skills)

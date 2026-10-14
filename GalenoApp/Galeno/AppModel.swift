@@ -188,6 +188,12 @@ final class AppModel: ObservableObject {
         screen = .home
     }
 
+    /// «Darle contexto» en «Listo»: el asistente se cierra y se abre el detalle del agente nuevo en su sección «Contexto».
+    func finishWizardAndGiveContext(_ id: UUID) {
+        finishWizard()
+        openAgent(id, section: .context)
+    }
+
     /// «Terminar» en el último paso del wizard: de vuelta al home, con el agente nuevo en la lista.
     func finishWizard() {
         wizard.stopWorking()

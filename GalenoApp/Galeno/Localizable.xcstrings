@@ -1043,6 +1043,40 @@
         }
       }
     },
+    "done.context %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Give %@ some context"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darle contexto a %@"
+          }
+        }
+      }
+    },
+    "done.context.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A line about the project and any documents you want it to read. You can do it now or later, from its detail."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una línea del proyecto y los documentos que quieras que lea. Puedes hacerlo ahora o después, desde su detalle."
+          }
+        }
+      }
+    },
     "agent.tools.add" : {
       "extractionState" : "manual",
       "localizations" : {

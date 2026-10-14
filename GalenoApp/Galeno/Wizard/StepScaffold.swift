@@ -70,7 +70,6 @@ struct StepScaffold<Content: View, Trailing: View>: View {
     /// El título de la página. «Contexto» nombra al agente.
     private var heading: Text {
         switch step {
-        case .context: Text("step.context.heading \(agentName)")
         default: Text(step.heading)
         }
     }

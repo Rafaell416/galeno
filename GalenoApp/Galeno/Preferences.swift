@@ -95,6 +95,19 @@ extension EnvironmentValues {
     }
 }
 
+private struct GiveContextKey: EnvironmentKey {
+    static let defaultValue: (@MainActor (UUID) -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// «Darle contexto» desde «Listo» (GAL-9): cierra el asistente y abre la sección «Contexto» del detalle del agente
+    /// recién creado, donde su carpeta ya existe. Sin el home (pruebas, vista previa) no hay a dónde llevar y no se ofrece.
+    var galenoGiveContext: (@MainActor (UUID) -> Void)? {
+        get { self[GiveContextKey.self] }
+        set { self[GiveContextKey.self] = newValue }
+    }
+}
+
 private struct EmbeddedConnectionKey: EnvironmentKey {
     static let defaultValue = false
 }

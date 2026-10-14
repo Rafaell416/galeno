@@ -314,10 +314,10 @@ final class WizardState: ObservableObject {
     var stepOrder: [WizardStep] {
         switch mode {
         case .full:
-            return [.role, .detection, .agent, .context, .tools, .connect, .skills, .rules, .review, .generating, .done]
+            return [.role, .detection, .agent, .tools, .connect, .skills, .rules, .review, .generating, .done]
         case .short:
             let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
-            return [.role, .agent, .context, .tools] + (connecting ? [.connect] : []) + [.skills, .rules, .review, .generating, .done]
+            return [.role, .agent, .tools] + (connecting ? [.connect] : []) + [.skills, .rules, .review, .generating, .done]
         case .edit:
             // Sin rol ni nombre (cambiarlos es otra cosa) ni «Listo»: al guardar se vuelve al home.
             let connecting = step.rawValue <= WizardStep.tools.rawValue ? hasToConnect : connectStepLocked
@@ -390,7 +390,7 @@ final class WizardState: ObservableObject {
         // Se sale del sub-wizard cuando llega a la celebración: todas conectadas o saltadas.
         case .connect: connectFlow?.isFinished == true
         case .generating: generation?.phase == .succeeded
-        case .role, .context, .skills, .rules, .review, .done: true
+        case .role, .skills, .rules, .review, .done: true
         }
     }
 
@@ -532,34 +532,6 @@ final class WizardState: ObservableObject {
     struct ContextItem: Identifiable, Equatable {
         let id = UUID()
         var file: ContextFile
-    }
-
-    /// Material que se deja en `memoria/contexto/` al crear el agente. No va al borrador ni a la config:
-    /// es de una sola vez y puede ser largo.
-    @Published var contextItems: [ContextItem] = []
-
-    var contextCharacterCount: Int { contextItems.reduce(0) { $0 + $1.file.text.count } }
-
-    enum ContextIssue: Equatable { case tooMany, tooLong, empty }
-
-    /// Añade un material. Devuelve por qué no cupo, o `nil` si entró.
-    @discardableResult
-    func addContext(_ file: ContextFile) -> ContextIssue? {
-        let text = file.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.isEmpty { return .empty }
-        if contextItems.count >= ContextFile.maxFiles { return .tooMany }
-        if contextCharacterCount >= ContextFile.maxCharactersTotal { return .tooLong }
-        contextItems.append(ContextItem(file: ContextFile(title: file.title, text: text)))
-        return nil
-    }
-
-    /// Si el usuario dio algo en «Darle contexto»: una línea del proyecto o algún archivo.
-    var hasContext: Bool {
-        !projectDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !contextItems.isEmpty
-    }
-
-    func removeContext(_ item: ContextItem) {
-        contextItems.removeAll { $0.id == item.id }
     }
 
     // MARK: Paso 3: el agente
@@ -1015,14 +987,13 @@ final class WizardState: ObservableObject {
         let config = makeConfig()
         let installer = connectServices.installer
         let existing = generatedAgent?.id
-        let context = contextItems.map(\.file)
         let imports = ownSkills.compactMap { entry in
             entry.pendingSource.map { AgentInstaller.OwnSkillImport(id: entry.id, source: $0) }
         }
         let trash = ownSkillsToTrash
         let flow = GenerationFlow(sleep: connectServices.sleep) {
             try installer.install(
-                config, existingAgentID: existing, importedContext: context, ownSkills: imports, ownSkillsToTrash: trash)
+                config, existingAgentID: existing, ownSkills: imports, ownSkillsToTrash: trash)
         }
         generation = flow
         generationObserver = flow.$outcome.compactMap { $0 }.sink { [weak self] outcome in
