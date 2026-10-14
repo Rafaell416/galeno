@@ -199,6 +199,10 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
   sesión y quita su servicio, **nunca borra su historial**); Salud lista cada número; **pausar envíos y bajar los topes
   valen para todos los números**; al arrancar la app se reinician los servicios de **todos** los números cargados; y los
   scripts de entrega conocen el servicio de cada uno. El asistente de «Nuevo agente» no ofrece un segundo número.
+- **Las lecturas de WhatsApp tienen tope (bridge 0.5.1, GAL-15, consumo de tokens):** `limit` de `list_messages`,
+  `list_chats` y `get_contact_chats` llega a 100 como máximo (por defecto 20) y el contexto de un mensaje a 5; lo que pida
+  más se recorta en silencio y el agente pide la página siguiente. Cada mensaje que lee son tokens del plan del usuario:
+  un `limit: 5000` metía miles en una sola conversación.
 - **Cambiar de número no mezcla historiales** (bridge 0.4.3, 12 oct 2026, hallazgo con Simon): `messages.db` anota de qué
   número es (`meta`, `account.go`). Si al vincular el número es otro, el historial anterior se guarda **entero** en una
   copia junto a la base (`historial-<número>-<fecha>.db`, nunca se borra), chats y mensajes empiezan de cero y lo que
@@ -331,6 +335,7 @@ git diff --cached | grep -nEi "token|secret|api[_-]?key|xox[bp]-|BEGIN [A-Z ]*PR
 - A la app de Claude recién arrancada no se le manda un enlace hasta que **dejó de cargar** (`waitUntilClaudeSettles`): uno que llega
   antes pierde su carpeta, o la app lo rechaza y la conversación se abre sin la primera pregunta (6 oct 2026). La espera cuenta
   desde el lanzamiento (mínimo 20 s): el procesador quieto no basta. No volver a una espera fija ni acortarla sin medirlo.
+- **Medir cuánto tarda en abrir Claude (GAL-14):** `AgentLauncher` registra por fase cuánto tardó la ventana, la app lista y el cierre (`log show --predicate 'category == "claude-launch"'`). Hay un modo **experimental, apagado de fábrica**, en el que Galeno se queda al frente mientras Claude carga (`defaults write com.galeno.Galeno GalenoClaudeLaunchInBackground -bool YES`): no se enciende por defecto hasta medir que Electron no frena una ventana que queda detrás, y no cambia **cuándo** se entrega el enlace (los dos arreglos de carrera siguen en pie).
 - Abrir el agente usa los enlaces que documenta Anthropic (`claude://code/new`,
   `claude-cli://open`) y, de respaldo, un `.command` en `$TMPDIR`. **Única excepción, decidida por Rafa (4 oct 2026):**
   desde el home, «Abrir» en la app de Claude vuelve a la última conversación de la carpeta con
